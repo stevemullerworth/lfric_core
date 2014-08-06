@@ -11,10 +11,12 @@
 module dynamo_algorithm_mod
 
   use field_mod,  only : field_type
-  use log_mod,    only : log_event, log_scratch_space, LOG_LEVEL_INFO
-  use psy,        only : invoke_rhs_v3, invoke_v3_solver_kernel,            &
-                        invoke_rhs_v2, invoke_rhs_v1
-  use solver_mod, only : solver_algorithm
+  use log_mod,      only: log_event, log_scratch_space, LOG_LEVEL_INFO
+  use psy,          only: invoke_rhs_v3, invoke_v3_solver_kernel,            &
+                          invoke_rhs_v2, invoke_rhs_v1,                      &
+                          invoke_assign_coordinate_kernel
+  use solver_mod,   only: solver_algorithm
+  use argument_mod, only: v0, v1, v2, v3
 
   implicit none
 
@@ -30,7 +32,8 @@ contains
   !! pattern so its not a kernel itself but a sub algorithm
   subroutine dynamo_algorithm( pressure_density, rhs, &
                                flux_velocity, rhs_v2, &
-                               circulation,   rhs_v1)
+                               circulation,   rhs_v1, &
+                               chi)
 
     implicit none
 
@@ -40,31 +43,34 @@ contains
     type( field_type ), intent( inout ) :: rhs_v2
     type( field_type ), intent( inout ) :: circulation
     type( field_type ), intent( inout ) :: rhs_v1
+    type( field_type ), intent( inout ) :: chi(3)
 
-
+    call log_event( "Dynamo: computing W0 coordinate fields", LOG_LEVEL_INFO )
+    call invoke_assign_coordinate_kernel( chi )
+    
     call log_event( "Dynamo: Galerkin Projection for W3 ", LOG_LEVEL_INFO )
     !Construct PSy layer given a list of kernels. This is the line the code
     !generator may parse and do its stuff.
 
     !PSY call invoke ( v3_rhs_kernel_type(rhs),                            &
-    !PSY               v3_solver_kernel_type(pressure_density,rhs) )
+    !                  v3_solver_kernel_type(pressure_density,rhs) )
     call invoke_rhs_v3( rhs )
 
-    call invoke_v3_solver_kernel( pressure_density, rhs )
+    call solver_algorithm(pressure_density, rhs, chi, v3)
 
     call log_event( "Dynamo:Starting Galerkin projection for W2 ...",      &
          LOG_LEVEL_INFO)
 
     !PSY call invoke( rhs_v2_type(rhs_v2) )
     call invoke_rhs_v2(rhs_v2)
-    call solver_algorithm(flux_velocity, rhs_v2)
+    call solver_algorithm(flux_velocity, rhs_v2, chi, v2)
     
     call log_event( "Dynamo:Starting Galerkin projection for W1 ...",      &
          LOG_LEVEL_INFO)
 
     !PSY call invoke( rhs_v1_type(rhs_v1) )
     call invoke_rhs_v1(rhs_v1)
-    call solver_algorithm(circulation, rhs_v1)
+    call solver_algorithm(circulation, rhs_v1, chi, v1)
 
   end subroutine dynamo_algorithm
 

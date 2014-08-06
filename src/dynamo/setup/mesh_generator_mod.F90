@@ -43,12 +43,14 @@ integer, allocatable ::  face_on_cell(:,:), edge_on_cell(:,:)
 
 ! together this gives all the cell -> d connectivity (3,d), d=0,1,2
 
-
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 contains
 
+!> Subroutine to allocate mesh arrays for connectivity
+!> @param[in] ncells the number of cells in a horizontal layer
+!> @param[in] nlayers the number of vertical layers
 subroutine mesh_generator_init(ncells,nlayers)
 !-----------------------------------------------------------------------------
 ! Subroutine to allocate connectivity
@@ -63,7 +65,6 @@ subroutine mesh_generator_init(ncells,nlayers)
   allocate ( vert_on_cell(ncells*nlayers,nverts) )
 
 end subroutine mesh_generator_init
-
 
 !> Generate a biperiodic domain of size 'nx * ny' where 'nx * ny = ncells'
 !>
@@ -103,7 +104,6 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
   
 ! allocate coordinate array
   allocate ( mesh_vertex(nvert_g,3) )
-
 
   id = 1
   do j=1,ny
@@ -203,14 +203,14 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
   do k=1,nlayers+1
     do j=1,ny
       do i=1,nx
-        mesh_vertex(id,1) = real(i-1)*dx
-        mesh_vertex(id,2) = real(j-1)*dy
+        mesh_vertex(id,1) = real(i-1 - nx/2)*dx 
+        mesh_vertex(id,2) = real(j-1 - ny/2)*dy 
         mesh_vertex(id,3) = real(k-1)*dz
         id = id + 1
       end do
     end do
   end do
-  
+   
 ! Diagnostic information  
   call log_event( 'grid connectivity', LOG_LEVEL_DEBUG )
   do i = 1, nx * ny * nlayers
@@ -362,8 +362,7 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
     j =  i+(nlayers-1)*ncells
     cell_next(j,6) = 0
   end do
-  
-  
+    
 ! perform vertical extrusion for vertices
   do j=1,nvert_in
     do k=1,nlayers                       
@@ -398,8 +397,7 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
       end do
     end do
   end do  
-
-  
+ 
 ! Diagnostic information  
   call log_event( 'grid connectivity', LOG_LEVEL_INFO )
   do i = 1, ncells * nlayers
@@ -608,5 +606,34 @@ subroutine xyz2llr(x,y,z,long,lat,r)
   r = sqrt(x*x + y*y + z*z)  
 
 end subroutine xyz2llr
+
+!-------------------------------------------------------------------------------
+!> @brief Subroutine to return the vertex coordinates for a column of cells
+!> @param[in] cell the horizontal cell index
+!> @param[in] ncells the number of horizontal cells
+!> @param[in] nlayers the number of vertical layers
+!> @param[out] vert_coords the coordinates of the vertices
+subroutine get_cell_coords(cell, ncells, nlayers, vert_coords)
+
+!-------------------------------------------------------------------------------
+!  Subroutine to return coordinates of vertices on cell 
+!------------------------------------------------------------------------------- 
+
+  integer, intent(in) :: cell, ncells, nlayers
+  real(kind=r_def), intent(out) :: vert_coords(3,nverts,nlayers)
+  
+  integer :: i, j, k, cell_idx, v
+  
+  do k = 1,nlayers
+    cell_idx = cell+(k-1)*ncells
+    do j = 1,nverts
+      v = vert_on_cell(cell_idx,j)
+      do i = 1,3      
+        vert_coords(i,j,k) = mesh_vertex(v,i)
+      end do
+    end do
+  end do
+
+end subroutine get_cell_coords
 
 end module mesh_generator_mod

@@ -45,7 +45,6 @@ contains
     integer :: ndof_entity_v0(0:3), ndof_entity_v1(0:3),           &
                ndof_entity_v2(0:3), ndof_entity_v3(0:3)
 
-
     ! local values
     nv0 = (k+2)*(k+2)*(k+2)
     nv0_cell = k*k*k

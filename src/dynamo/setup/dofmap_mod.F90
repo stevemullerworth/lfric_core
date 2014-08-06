@@ -39,13 +39,28 @@ integer, allocatable :: v2_dofmap(:,:)
 !! for the whole V3 function space over the bottom level of the domain.
 integer, allocatable :: v3_dofmap(:,:)
 
+!> A two dim integer array which holds the orientation data for the
+!> V0 function space
+integer, allocatable :: v0_orientation(:,:)
+!> A two dim integer array which holds the orientation data for the
+!> V1 function space
+integer, allocatable :: v1_orientation(:,:)
+!> A two dim integer array which holds the orientation data for the
+!> V2 function space
+integer, allocatable :: v2_orientation(:,:)
+!> A two dim integer array which holds the orientation data for the
+!> V3 function space
+integer, allocatable :: v3_orientation(:,:)
+
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
 contains 
 
-!> Subroutine to read dofmaps (in fact currently calls dofmap_populate to
-!> compute them)
+!> Subroutine to get the dofmap and copy is into the function space
+!> @param[in] nlayers the number of vertical layers
+!> @param[in] function_space the function space
+!> @param[in] ndf_entity the number of dofs on each grid entity
 subroutine get_dofmap(nlayers, v_dof_entity, &
                       ncell, v_unique_dofs )
   
@@ -72,8 +87,12 @@ subroutine get_dofmap(nlayers, v_dof_entity, &
 
 end subroutine get_dofmap
 
-!> Subroutine to populate dofmaps (at the moment it calculates them on the fly
-!> but they will eventually be read in from a file)
+!> Subroutine to compute the dofmap based upon grid connectivities for a function space
+!> @param[in] ncells the number of horizontal cells
+!> @param[in] nlayers the number of vertical layers
+!> @param[in] ndof_sum the total number of dofs associated with a single cell
+!> @param[in] ndf_entity the number of dofs on each grid entity
+!> @param[out] dofmap
 subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
 
   integer, intent(in) :: ncells, nlayers
@@ -236,5 +255,53 @@ subroutine dofmap_populate(ncells,nlayers,ndof_sum,ndof_entity,dofmap)
   if (allocated(dofmap_d3) ) deallocate( dofmap_d3 )
 
 end subroutine dofmap_populate
+
+!> Subroutine to compute the orientation of vectors
+!> @param[in] ncell the number of horizontal cells
+!> @param[in] v_unique_dofs The number of dofs in each function space
+subroutine get_orientation(ncell,v_unique_dofs)
+!-----------------------------------------------------------------------------
+! Subroutine to read orientation
+!-----------------------------------------------------------------------------
+  
+  implicit none
+
+  integer, intent(in) :: ncell
+  integer, intent(in) :: v_unique_dofs(4,2)
+
+  allocate( v0_orientation(0:ncell,v_unique_dofs(1,2)) )
+  allocate( v1_orientation(0:ncell,v_unique_dofs(2,2)) )
+  allocate( v2_orientation(0:ncell,v_unique_dofs(3,2)) )
+  allocate( v3_orientation(0:ncell,v_unique_dofs(4,2)) )
+
+  call orientation_populate(ncell, v_unique_dofs(1,2), v0_orientation)
+  call orientation_populate(ncell, v_unique_dofs(2,2), v1_orientation)
+  call orientation_populate(ncell, v_unique_dofs(3,2), v2_orientation)
+  call orientation_populate(ncell, v_unique_dofs(4,2), v3_orientation)
+
+end subroutine get_orientation
+
+!> Subroutine to compute the orientation of vectors
+!> @param[in] ncells the number of horizontal cells
+!> @param[in] ndof_sum the total number of dofs associated with a single cell
+!> @param[out] orientation The output orientation
+subroutine orientation_populate(ncells,ndof_sum,orientation)
+
+! total number of cells
+  integer, intent(in) :: ncells
+! total number of dofs associated with each cell  
+  integer, intent(in) :: ndof_sum
+! output orientation 
+  integer, intent(out) :: orientation(0:ncells,ndof_sum)
+
+  integer :: cell, df
+
+  do cell = 0, ncells
+     do df = 1, ndof_sum
+       orientation(ncells,df) = 1
+     end do
+  end do
+
+end subroutine orientation_populate
 
 end module dofmap_mod

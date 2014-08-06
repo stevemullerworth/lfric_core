@@ -42,7 +42,14 @@ type, public :: function_space_type
   !> A two dimensional, allocatable array of reals which holds the coordinates
   !! of the function_space degrees of freedom
   real(kind=r_def), allocatable :: nodal_coords(:,:)
-
+  !> A two dimensional, allocatable array which holds the local orientation of
+  !! vector degrees of freedom
+  integer, allocatable :: orientation(:,:)
+  !> 3-dim allocatable array of reals which hold the mass matrix
+  real(kind=r_def), allocatable :: mass_matrix(:,:,:)  
+  
+  integer, allocatable :: dof_on_vert_boundary(:,:)
+  
 contains
   !final :: destructor
 
@@ -66,7 +73,7 @@ contains
   procedure :: get_nlayers
 
 !> Subroutine Returns a pointer to the dofmap for the cell 
-!! @param[in] self The calling functions_space
+!! @param[in] self The calling function_space
 !! @param[in] cell Which cell
 !! @return The pointer which points to a slice of the dofmap
   procedure :: get_cell_dofmap
@@ -96,8 +103,17 @@ contains
   !! is this function_space
   procedure :: which
 
-end type function_space_type
+!> Subroutine Returns a pointer to the orientation for the cell 
+!! @param[in] self The calling function_space
+!! @param[in] cell Which cell
+!! @return The pointer which points to a slice of the orientation
+  procedure :: get_cell_orientation
 
+!> Accessor function to get the flag (0) for dofs on bottom and top faces of element
+!! @return A pointer to the two dimensional array, (ndf,2)
+  procedure :: get_boundary_dofs
+  
+end type function_space_type
 !-------------------------------------------------------------------------------
 ! Module parameters
 !-------------------------------------------------------------------------------
@@ -122,10 +138,13 @@ function get_instance(function_space) result(instance)
   use basis_function_mod,      only : &
               v0_basis, v1_basis, v2_basis, v3_basis, &
               v0_diff_basis, v1_diff_basis, v2_diff_basis, v3_diff_basis, &
-              v0_nodal_coords, v1_nodal_coords, v2_nodal_coords, v3_nodal_coords
+              v0_nodal_coords, v1_nodal_coords, v2_nodal_coords, v3_nodal_coords, &
+              v0_dof_on_vert_boundary, v1_dof_on_vert_boundary, &
+              v2_dof_on_vert_boundary, v3_dof_on_vert_boundary
 
   use dofmap_mod,              only : &
-              v0_dofmap, v1_dofmap, v2_dofmap, v3_dofmap
+              v0_dofmap, v1_dofmap, v2_dofmap, v3_dofmap, &
+              v0_orientation, v1_orientation, v2_orientation, v3_orientation
 
   use gaussian_quadrature_mod, only : ngp_h, ngp_v
   use mesh_mod,                only : num_cells, v_unique_dofs, num_layers
@@ -147,7 +166,9 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v0_dofmap, &
          basis=v0_basis, diff_basis=v0_diff_basis, &
-         nodal_coords=v0_nodal_coords, fs=V0) 
+         nodal_coords=v0_nodal_coords, &
+         dof_on_vert_boundary=v0_dof_on_vert_boundary, &
+         orientation=v0_orientation, fs=V0) 
     end if
     instance => v0_function_space
   case (V1)
@@ -161,7 +182,9 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v1_dofmap, &
          basis=v1_basis, diff_basis=v1_diff_basis, &
-         nodal_coords=v1_nodal_coords,fs=V1 )
+         nodal_coords=v1_nodal_coords, &
+         dof_on_vert_boundary=v1_dof_on_vert_boundary, &
+         orientation=v1_orientation, fs=V1 )
     end if
     instance => v1_function_space
   case (V2)
@@ -175,7 +198,9 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v2_dofmap, &
          basis=v2_basis, diff_basis=v2_diff_basis, &
-         nodal_coords=v2_nodal_coords,fs=V2 )
+         nodal_coords=v2_nodal_coords, &
+         dof_on_vert_boundary=v2_dof_on_vert_boundary, &
+         orientation=v2_orientation, fs=V2 )
     end if
     instance => v2_function_space
   case (V3)
@@ -189,7 +214,9 @@ function get_instance(function_space) result(instance)
          ngp_h = ngp_h, ngp_v = ngp_v, &
          dofmap=v3_dofmap, &
          basis=v3_basis, diff_basis=v3_diff_basis, &
-         nodal_coords=v3_nodal_coords, fs=V3 )
+         nodal_coords=v3_nodal_coords, &
+         dof_on_vert_boundary=v3_dof_on_vert_boundary, &
+         orientation=v3_orientation, fs=V3 )
     end if
     instance => v3_function_space
   case default
@@ -217,7 +244,9 @@ subroutine init_function_space(self, &
                                ngp_h,ngp_v, &
                                dofmap, &
                                basis, diff_basis, &
-                               nodal_coords, fs)
+                               nodal_coords, &
+                               dof_on_vert_boundary, &
+                               orientation ,fs)
   implicit none
 
   class(function_space_type) :: self
@@ -230,6 +259,8 @@ subroutine init_function_space(self, &
   real(kind=r_def), intent(inout), allocatable  :: basis(:,:,:,:)
   real(kind=r_def), intent(inout), allocatable  :: diff_basis(:,:,:,:)
   real(kind=r_def), intent(inout), allocatable  :: nodal_coords(:,:)
+  integer,          intent(inout), allocatable  :: dof_on_vert_boundary(:,:)
+  integer,          intent(inout), allocatable  :: orientation(:,:)
   integer,          intent(in)                  :: fs
 
   self%ncell           =  num_cells
@@ -244,7 +275,10 @@ subroutine init_function_space(self, &
   call move_alloc(basis , self%basis)
   call move_alloc(diff_basis , self%diff_basis)
   call move_alloc(nodal_coords , self%nodal_coords) 
+  call move_alloc(dof_on_vert_boundary , self%dof_on_vert_boundary) 
+  call move_alloc(orientation , self%orientation) 
   self%fs              = fs
+
   return
 end subroutine init_function_space
 
@@ -307,7 +341,7 @@ end function get_ndf
 ! Get the dofmap for a single cell
 !-----------------------------------------------------------------------------
 !> Subroutine Returns a pointer to the dofmap for the cell 
-!! @param[in] self The calling functions_space
+!! @param[in] self The calling function_space
 !! @param[in] cell Which cell
 !! @return The pointer which points to a slice of the dofmap
 function get_cell_dofmap(self,cell) result(map)
@@ -323,6 +357,9 @@ end function get_cell_dofmap
 !-----------------------------------------------------------------------------
 ! Get the basis function
 !-----------------------------------------------------------------------------
+!> Subroutine to return the basis functions for this space
+!! @param[in] self The calling function_space
+!! @return The pointer which points to the basis functions
 function get_basis(self)  result(basis)
   implicit none
   class(function_space_type), target, intent(in)  :: self  
@@ -336,6 +373,9 @@ end function get_basis
 !-----------------------------------------------------------------------------
 ! Get the differential of the basis function
 !-----------------------------------------------------------------------------
+!> Subroutine to return the differential basis functions for this space
+!! @param[in] self The calling function_space
+!! @return The pointer which points to the differenrtial basis functions
 function get_diff_basis(self) result(diff_basis)
   implicit none
   class(function_space_type), target, intent(in)  :: self  
@@ -349,6 +389,9 @@ end function get_diff_basis
 ! ----------------------------------------------------------------
 ! Get the nodal coordinates of the function_space
 ! ----------------------------------------------------------------
+!> Subroutine to return the dof is location
+!! @param[in] self The calling function_space
+!! @return The pointer which points to the nodal_coords
 function get_nodes(self) result(nodal_coords)
   implicit none
   class(function_space_type), target, intent(in)  :: self
@@ -358,6 +401,38 @@ function get_nodes(self) result(nodal_coords)
   
   return
 end function get_nodes
+
+!-----------------------------------------------------------------------------
+! Get the orientation for a single cell
+!-----------------------------------------------------------------------------
+!> Subroutine Returns a pointer to the orientation for the cell 
+!! @param[in] self The calling function_space
+!! @param[in] cell Which cell
+!! @return The pointer which points to a slice of the orientation
+function get_cell_orientation(self,cell) result(cell_orientation)
+  implicit none
+  class(function_space_type), target, intent(in) :: self
+  integer,                            intent(in) :: cell
+  integer, pointer                               :: cell_orientation(:)
+
+  cell_orientation => self%orientation(cell,:)
+  return
+end function get_cell_orientation
+
+!-----------------------------------------------------------------------------
+! Get a flag for dofs on vertical boundaries
+!-----------------------------------------------------------------------------
+!> Subroutine returns a pointer to flag for dofs on vertical boundaries 
+!! @param[in] self The calling function_space
+!! @param[in] boundary_dofs(ndf,2) the flag for bottom (:,1) and top (:,2) boundaries
+function get_boundary_dofs(self) result(boundary_dofs)
+  implicit none
+  class(function_space_type), target, intent(in) :: self
+  integer, pointer                               :: boundary_dofs(:,:)
+  
+  boundary_dofs => self%dof_on_vert_boundary(:,:) 
+  return
+end function get_boundary_dofs
 
 function which(self) result(fs)
   implicit none

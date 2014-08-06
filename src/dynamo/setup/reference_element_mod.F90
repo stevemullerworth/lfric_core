@@ -231,7 +231,6 @@ subroutine reference_triangle()
   face_on_edge(8 ,:) = (/ 2, 5 /)
   face_on_edge(9 ,:) = (/ 3, 5 /)
 
-  
 ! outward unit normal vector to each face  
   normal_to_face(1,:) = (/  0.0_r_def, -1.0_r_def,  0.0_r_def /)
   normal_to_face(2,:) = (/  rt3ov2,     0.5_r_def,  0.0_r_def /)
@@ -250,8 +249,6 @@ subroutine reference_triangle()
   tangent_to_edge(7 ,:) = (/  1.0_r_def,  0.0_r_def,  0.0_r_def /)
   tangent_to_edge(8 ,:) = (/ -0.5_r_def,  rt3ov2,     0.0_r_def /)
   tangent_to_edge(9 ,:) = (/ -0.5_r_def, -rt3ov2,     0.0_r_def /)
-
-
   
 end subroutine reference_triangle
 

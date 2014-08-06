@@ -5,13 +5,10 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 !
-!> @brief Solver algorithm - Krylov subspace iterative solver for A x = b
+!> @brief Solver algorithm - Krylov subspace iterative solver
+!!
 !! @details Only BiCGstab so far but can contain other solvers so not typing at the momoent
-!! Simply contains a single subroutine which implements BiCGStab for a hard-code matrix-vector
-!! (the operation Ax) routine
-!! @parameter lhs field_type the solution, x
-!! @parameter rhs field_type the right hand side, b
-
+!! Simply contains a single subroutine
 module solver_mod
   use constants_mod,           only : r_def, str_def, max_iter
   use log_mod,                 only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
@@ -20,9 +17,14 @@ module solver_mod
   use function_space_mod,      only : function_space_type
   use gaussian_quadrature_mod, only : gaussian_quadrature_type
 
-  use psy,             only : invoke_inner_prod, invoke_matrix_vector,         &
+  use psy,             only : invoke_inner_prod,                               &
                               invoke_axpy, invoke_minus_field_data,            &
-                              invoke_copy_field_data, invoke_set_field_scalar
+                              invoke_copy_field_data, invoke_set_field_scalar, &
+                              invoke_matrix_vector_w0,                         &
+                              invoke_matrix_vector_w1,                         &
+                              invoke_matrix_vector_w2,                         &
+                              invoke_v3_solver_kernel
+  use argument_mod,    only : v0, v1, v2, v3
 
   implicit none
   private
@@ -30,15 +32,34 @@ module solver_mod
   public :: solver_algorithm
 
 contains
+
+!> @brief wrapper for specific solver routines
+!! @details solves A.x = b for each space
+!! @details used dg solver for W3 space and 
+!! @details iterative solver for other spaces
+  subroutine solver_algorithm(lhs, rhs, chi, space)
+    implicit none
+    type(field_type), intent(inout)    :: lhs
+    type(field_type), intent(inout)    :: rhs
+    type(field_type), intent(in)       :: chi(3)
+    integer, intent(in)                :: space
+    
+    if ( space == v3 ) then
+      call invoke_v3_solver_kernel(lhs, rhs, chi)
+    else
+      call bicg_solver_algorithm(lhs, rhs, space)
+    end if        
+  end subroutine solver_algorithm
+
 !> @brief BiCGStab solver with no preconditioning. 
 !! @details solves A.x = b where the operation A.x is encoded in a kernel
 !! @param rhs_field_p The input b
 !! @param lhs_field_p The answser, x
-
-  subroutine solver_algorithm(lhs, rhs)
-
+  subroutine bicg_solver_algorithm(lhs, rhs, space)
+    implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
+    integer, intent(in)                :: space
 
     character(len=str_def)             :: cmessage
     ! The temporary fields
@@ -55,23 +76,29 @@ contains
     type(function_space_type)          :: fs
     type( gaussian_quadrature_type )   :: gq 
 
-    tol = 1.0e-8_r_def
+    tol = 1.0e-4_r_def
     ! compute the residual this is a global sum to the PSy ---
     !PSY call invoke ( inner_prod(rhs,rhs,sc_err))
     call invoke_inner_prod(rhs,rhs,sc_err)
-    sc_err = sqrt(sc_err)
+    sc_err = max(sqrt(sc_err), 0.1_r_def)
     write(cmessage,'("solver_algorithm: starting ... ||b|| = ",E15.8)') sc_err
     call log_event(trim(cmessage), LOG_LEVEL_INFO)
     !PSY call invoke ( set_field_scalar(0.0_r_def, lhs))
     call invoke_set_field_scalar(0.0_r_def, lhs)
 
     rhs_fs = rhs%which_function_space()
-    v = field_type(fs%get_instance(rhs_fs),                                &
-         gq%get_instance() )
+    v = field_type(fs%get_instance(rhs_fs), gq%get_instance() )
     !PSY call invoke ( set_field_scalar(0.0_r_def, v))
     call invoke_set_field_scalar(0.0_r_def, v)
 
-    call invoke_matrix_vector(v,lhs)
+    select case ( space )
+      case ( v0 )
+        call invoke_matrix_vector_w0(v,lhs )
+      case ( v1 )       
+        call invoke_matrix_vector_w1(v,lhs )
+      case ( v2 )
+        call invoke_matrix_vector_w2(v,lhs )
+    end select
     !PSY call invoke ( inner_prod(v,v,err))
     call invoke_inner_prod(v,v,err)
 
@@ -83,6 +110,11 @@ contains
     call invoke_inner_prod(res,res,err)
     err = sqrt(err)/sc_err
     init_err=err
+    if (err < tol) then 
+      write(cmessage,'("solver_algorithm:converged in ", I2," iters, init=",E12.4," final=",E15.8)') 0,init_err,err
+      call log_event(trim(cmessage),LOG_LEVEL_INFO)
+      return
+   end if  
 
     alpha  = 1.0_r_def
     omega  = 1.0_r_def
@@ -117,7 +149,14 @@ contains
       call invoke_axpy(beta,p,s,p)
       !PSY call invoke ( set_field_scalar(0.0_r_def, v))
       call invoke_set_field_scalar(0.0_r_def, v)
-      call invoke_matrix_vector(v,p)
+      select case ( space )
+        case ( v0 )
+          call invoke_matrix_vector_w0(v,p )
+        case ( v1 )       
+          call invoke_matrix_vector_w1(v,p )
+        case ( v2 )
+          call invoke_matrix_vector_w2(v,p )
+      end select
 
       !PSY call invoke ( inner_prod(cr,v,norm))
       call invoke_inner_prod(cr,v,norm)
@@ -129,7 +168,14 @@ contains
       ! either use a cs or zero t first as its an inc field!
       !PSY call invoke ( set_field_scalar(0.0_r_def, t))
       call invoke_set_field_scalar(0.0_r_def, t)
-      call invoke_matrix_vector(t,s)
+      select case ( space )
+        case ( v0 )
+          call invoke_matrix_vector_w0( t, s )
+        case ( v1 )       
+          call invoke_matrix_vector_w1( t, s )
+        case ( v2 )
+          call invoke_matrix_vector_w2( t, s )
+      end select
 
       !PSY call invoke ( inner_prod(t,t,tt), &
       !PSY               inner_prod(t,s,ts))
@@ -171,6 +217,6 @@ contains
       stop
     end if
 
-  end subroutine solver_algorithm
+  end subroutine bicg_solver_algorithm
 
 end module solver_mod

@@ -59,6 +59,16 @@ contains
   !! @param x The grid points
   !! @param bindex The index of the basis function
   procedure :: poly1d_deriv  
+  
+  !> subroutine returns the array xgp_h
+  !! @param self the calling gp
+  !! @param real xgp_h the 2-d array to hold the values
+  procedure :: get_xgp_h
+  
+  !> subroutine returns the array xgp_v
+  !! @param self the calling gp
+  !! @param real xgp the 1-d array to hold the values
+  procedure :: get_xgp_v
 
 end type
 
@@ -198,27 +208,30 @@ subroutine test_integrate(self)
   return
 end subroutine test_integrate
   
+!-----------------------------------------------------------------------------
+! Compute 3D Gaussian integration of function f  
+!-----------------------------------------------------------------------------  
+!> Function to integrate a function f
+!> @param[in] self the calling quadrature rule
+!> @param[in] f the function to be integrated evaluated on the quadrature points
 function integrate(self,f)
-  !-----------------------------------------------------------------------------
-  ! Compute 3D Gaussian integration of function f  
-  !-----------------------------------------------------------------------------
   implicit none
 
   class(gaussian_quadrature_type), intent(in) :: self
 
-  real(kind=r_def), intent(in) :: f(ngp_v*ngp_v, ngp_v)
+  real(kind=r_def), intent(in) :: f(ngp_h,ngp_v)
   real(kind=r_def)             :: integrate
 
   integer :: i,k
 
   integrate = 0.0_r_def
-  do i=1,ngp_h
-    do k=1,ngp_v  
+  do k=1,ngp_v 
+    do i=1,ngp_h
       integrate = integrate + self%wgp_h(i)*self%wgp(k)*f(i,k)
     end do
   end do
   
-  integrate = 0.5_r_def*0.5_r_def*0.5_r_def*integrate
+  integrate = 0.125_r_def*integrate
 
   return
 end function integrate
@@ -226,6 +239,13 @@ end function integrate
 !----------------------------------------------------------------------------
 ! Evaluate 1D basis functions of arbitary order at the points of quadrature
 !----------------------------------------------------------------------------
+!> Function computes the value of a arbritrary order polynomial at a given point
+!> @param[in] self the calling quadrature rule
+!> @param[in] order the order of the polynomial
+!> @param[in] ik the index of the quadrature point array to evaluate the polynomial at
+!> @param[in] xindex the value of x at which the polynomial = 1
+!> @param[in] x the coordinate array
+!> @param[in] bindex the index of x at which x(bindex) = xindex
 function poly1d(self, order, ik, xindex, x , bindex)
   implicit none
   class(gaussian_quadrature_type), intent(in) :: self
@@ -260,6 +280,13 @@ end function poly1d
 !-----------------------------------------------------------------------------
 ! evaluate derivative of 1D basis function of arbitrary order at xk
 !-----------------------------------------------------------------------------
+!> Function computes the value of the derivative of a arbritrary order polynomial at a given point
+!> @param[in] self the calling quadrature rule
+!> @param[in] order the order of the polynomial
+!> @param[in] ik the index of the quadrature point array to evaluate the polynomial at
+!> @param[in] xindex the value of x at which the polynomial = 1
+!> @param[in] x the coordinate array
+!> @param[in] bindex the index of x at which x(bindex) = xindex
 function poly1d_deriv(self, order,ik,xindex,x,bindex)
   
   implicit none
@@ -311,5 +338,32 @@ function poly1d_deriv(self, order,ik,xindex,x,bindex)
   end do 
 
   end function poly1d_deriv
+  
+!-----------------------------------------------------------------------------
+! Return Gaussian quadrature points
+!-----------------------------------------------------------------------------
+!> Function to return the quadrature points in the horizontal
+!> @param[in] self the calling quadrature rule
+!> @param[in] xgp_h the array to copy the quadrature points into
+subroutine get_xgp_h(self,xgp_h)
+  implicit none
+  class(gaussian_quadrature_type), intent(in) :: self
+  real(kind=r_def), intent(out) :: xgp_h(ngp_h,2)
+
+  xgp_h(:,:) = self%xgp_h(:,:)
+  return
+end subroutine get_xgp_h 
+
+!> Function to return the quadrature points in the vertical
+!> @param[in] self the calling quadrature rule
+!> @param[in] xgp_v the array to copy the quadrature points into
+subroutine get_xgp_v(self,xgp_v)
+  implicit none
+  class(gaussian_quadrature_type), intent(in) :: self
+  real(kind=r_def), intent(out) :: xgp_v(ngp_v)
+
+  xgp_v(:) = self%xgp(:)
+  return
+end subroutine get_xgp_v
 
 end module gaussian_quadrature_mod

@@ -29,10 +29,12 @@ module set_up_mod
               v0_diff_basis, v1_diff_basis, v2_diff_basis, v3_diff_basis, &
               v0_nodal_coords, v1_nodal_coords, v2_nodal_coords, v3_nodal_coords
 
-  use dofmap_mod,                 only : get_dofmap, &
+  use dofmap_mod,                 only : get_dofmap, get_orientation, &
               v0_dofmap, v1_dofmap, v2_dofmap, v3_dofmap
   use gaussian_quadrature_mod,    only : ngp_h, ngp_v
+  use mass_matrices_mod,          only : mass_matrix_init
   implicit none
+  
 contains 
 
 !> Generates a mesh and determines the basis functions and dofmaps (this will 
@@ -41,7 +43,8 @@ contains
 
     use log_mod,  only : log_event, LOG_LEVEL_INFO
     use mesh_mod, only : num_cells, num_layers, element_order, l_spherical, &
-                         num_cells_1d, v_unique_dofs, v_dof_entity
+                         v_unique_dofs, v_dof_entity, dx, dy, dz,           &
+                         num_cells_x, num_cells_y
 
     implicit none
 
@@ -49,18 +52,23 @@ contains
     character(len = str_def)                 :: filename
 
     ! hard-coded these numbers are
-    num_cells_1d = 4 
-    num_layers = 3
+    num_cells_x = 50
+    num_cells_y = 4
+    num_layers = 5
     element_order = 0
     l_spherical = .false.
+    dx = 6000.0_r_def
+    dy = 1000.0_r_def
+    dz = 2000.0_r_def
     filename = 'ugrid_quads_2d.nc' 
-    call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )    
-
+    call log_event( "set_up: generating/reading the mesh", LOG_LEVEL_INFO )
+    
     ! total number of horizontal cells ( num_cells is currently cells along one edge )   
-    if ( l_spherical ) then  
-      num_cells = 6*num_cells_1d**2
+    if ( l_spherical ) then 
+      num_cells_y = num_cells_x
+      num_cells = 6*num_cells_x**2
     else
-      num_cells = num_cells_1d**2
+      num_cells = num_cells_x*num_cells_y
     end if
 
 !  ----------------------------------------------------------
@@ -73,13 +81,12 @@ contains
     call mesh_generator_init(num_cells,num_layers)
     ! Genereate mesh  
     if ( l_spherical ) then
-       call mesh_generator_cubedsphere(filename,num_cells,num_layers,delta)
+       call mesh_generator_cubedsphere(filename,num_cells,num_layers,dz)
     else
-       call mesh_generator_biperiodic(num_cells,num_cells_1d,num_cells_1d,num_layers,delta,delta,delta)
+       call mesh_generator_biperiodic(num_cells,num_cells_x,num_cells_y,num_layers,dx,dy,dz)
     end if
     ! Extend connectivity ( cells->faces, cells->edges )  
     call mesh_connectivity(num_cells)    
-
 
 ! -----------------------------------------------------------
 ! Initialise FE elements on the mesh constructed above
@@ -88,6 +95,8 @@ contains
 
     ! initialise numbers of dofs    
     call num_dof_init(num_cells,num_layers,element_order,v_unique_dofs,v_dof_entity)
+         
+    call mass_matrix_init(v_unique_dofs(1,2),v_unique_dofs(2,2),v_unique_dofs(3,2),num_cells*num_layers)
 
     call log_event( "set_up: computing basis functions", LOG_LEVEL_INFO )
 
@@ -99,6 +108,9 @@ contains
     ! compute the dof maps for each function space
     call get_dofmap(nlayers=num_layers,v_dof_entity=v_dof_entity, &
                     ncell=num_cells,v_unique_dofs=v_unique_dofs)
+    
+    ! compute cell local orientations for vector spaces
+    call get_orientation(num_cells, v_unique_dofs)
 
     return
 

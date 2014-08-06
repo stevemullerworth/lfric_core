@@ -53,10 +53,22 @@ integer,       parameter    :: str_def  = 128
 real(kind=r_def), parameter :: pi  = 3.141592654_r_def    !< pi value
 real(kind=r_def), parameter :: eps = 3.0e-15_r_def        !< relative precision
 
-! Physical constants
-real(kind=r_def), parameter :: earth_radius = 6371229.0_r_def
+integer (kind=i_def), parameter :: max_iter = 99 !< maximum iteration number for solver
 
-integer (kind=i_def), parameter :: max_iter = 10 ! maximum iteration number for solver
+! physical constants
+real(kind=r_def), parameter :: gravity = 9.80665_r_def
+real(kind=r_def), parameter :: rd = 287.05_r_def 
+real(kind=r_def), parameter :: cp = 1005.0_r_def 
+real(kind=r_def), parameter :: kappa = 287.05_r_def/1005.0_r_def 
+real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+real(kind=r_def), parameter :: n_sq = 0.0001_r_def
+real(kind=r_def), parameter :: omega_unscaled = 7.292116E-5_r_def
+real(kind=r_def), parameter :: earth_radius_unscaled = 6371229.0_r_def
+
+! Small earth scalings
+real(kind=r_def), parameter :: earth_scaling = 1.0_r_def
+real(kind=r_def)            :: omega = omega_unscaled*earth_scaling
+real(kind=r_def)            :: earth_radius = earth_radius_unscaled*earth_scaling
 
 end module constants_mod
 

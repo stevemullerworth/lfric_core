@@ -9,16 +9,19 @@
 
 !> @details information about the mesh is held in  here.
 module mesh_mod
+use constants_mod,  only : r_def
 implicit none
 
 integer :: num_cells
+integer :: num_cells_x, num_cells_y
 integer :: num_layers
 integer :: element_order
-integer :: num_cells_1d
 logical :: l_spherical
 
 integer :: v_unique_dofs(4,2)
 integer :: v_dof_entity(4,0:3)    
+
+real(kind=r_def)  :: dx, dy, dz
 
 end module mesh_mod
 

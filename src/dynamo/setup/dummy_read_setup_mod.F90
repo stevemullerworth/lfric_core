@@ -1,3 +1,22 @@
+!------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+!> @brief A dummy set up routine for the mesh and elements
+!> @details A dummy routine to set up the reference element, domain size  and compute the grid
+!> This is to be replaced at some point by the correct preprocesser/mesh reading routines
+!> @param[in] filename the filename of the grid file to read in
+!> @param[out] num_cells the number of cells in a horizontal layer
+!> @param[out] num_layers the number of vertical layers
+!> @param[out] element_order the polynomial order of the elmenets
+!> @param[out] v_unique_dofs the number of unique dofs for the function spaces
+!> @param[out] v_dof_entity the number of dofs for each function space on each grid entity
+
 module dummy_read_setup_mod
 
 use constants_mod, only : r_def

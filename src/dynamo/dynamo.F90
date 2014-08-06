@@ -20,9 +20,10 @@
 
 program dynamo
 
-  use dynamo_algorithm_mod,    only : dynamo_algorithm
+  use dynamo_algorithm_rk_timestep_mod, &
+                               only : dynamo_algorithm_rk_timestep
   use field_mod,               only : field_type
-  use function_space_mod,      only : function_space_type, V1, V2, V3
+  use function_space_mod,      only : function_space_type, V0, V1, V2, V3
   use log_mod,                 only : log_event, LOG_LEVEL_INFO
   use set_up_mod,              only : set_up
   use gaussian_quadrature_mod, only : gaussian_quadrature_type
@@ -30,46 +31,50 @@ program dynamo
   implicit none
 
   type( function_space_type )      :: function_space
-  type( field_type )               :: pressure_density, rhs
-  type( field_type )               :: flux_velocity, rhs_v2
-  type( field_type )               :: rhs_v1, circulation
+! coordinate fields
+  type( field_type ) :: chi(3)
+! prognostic fields    
+  type( field_type ) :: u, rho, theta, exner, xi
+                                     
   type( gaussian_quadrature_type ) :: gq
+  integer                          :: coord
 
   call log_event( 'Dynamo running...', LOG_LEVEL_INFO )
 
   call set_up( )
 
+  do coord = 1,3
+    chi(coord) = field_type( vector_space = function_space%get_instance( V0 ),&
+                             gq = gq%get_instance() )
+  end do
+               
+  theta = field_type( vector_space = function_space%get_instance( V0 ),       &
+                      gq = gq%get_instance() )
+                    
+  xi = field_type( vector_space = function_space%get_instance( V1 ),          &
+                      gq = gq%get_instance() )
+                    
+  u = field_type( vector_space = function_space%get_instance( V2 ),           &
+                      gq = gq%get_instance() )
 
-  pressure_density = field_type( function_space%get_instance(V3),          &
-                                 gq%get_instance() )
+  rho = field_type( vector_space = function_space%get_instance( V3 ),         &
+                      gq = gq%get_instance() )
 
-  rhs = field_type( function_space%get_instance(V3),                       &
-                    gq%get_instance() )
+  exner = field_type( vector_space = function_space%get_instance( V3 ),       &
+                      gq = gq%get_instance() )
+                                           
 
-  flux_velocity = field_type( function_space%get_instance(V2),             &
-                         gq%get_instance() )
-  
-  rhs_v2 = field_type( function_space%get_instance(V2),                    &
-                       gq%get_instance() )
+  call dynamo_algorithm_rk_timestep( chi, u, rho, theta, exner, xi)                       
 
-  circulation = field_type( function_space%get_instance(V1),               &
-                            gq%get_instance() ) 
-
-  rhs_v1 = field_type( function_space%get_instance(V1),                    &
-                       gq%get_instance() )
-
-  call dynamo_algorithm( pressure_density, rhs,                            &
-                         flux_velocity, rhs_v2,                            &
-                         circulation, rhs_v1 )
-
-  call rhs%print_field( "RHS field..." )
-  call pressure_density%print_field( "LHS field..." )
-
-  call rhs_v2%print_field( "RHS field...v2" )
-  call flux_velocity%print_field( "flux_velocity ..." )
-
-  call rhs_v1%print_field("RHS v1 ...")
-  call circulation%print_field("circulation ...")
+! do some i/o
+  call rho%print_field( '   rho =[' )
+  call log_event( '   ];', LOG_LEVEL_INFO )
+  call exner%print_field( '   exner =[' )
+  call log_event( '   ];', LOG_LEVEL_INFO )
+  call theta%print_field( '   theta =[' )
+  call log_event( '   ];', LOG_LEVEL_INFO )
+  call u%print_field( '   u =[' )
+  call log_event( '   ];', LOG_LEVEL_INFO )
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )
 

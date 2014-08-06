@@ -37,6 +37,7 @@ module argument_mod
   integer, public, parameter :: v1 = 2
   integer, public, parameter :: v2 = 3
   integer, public, parameter :: v3 = 4
+  integer, public, parameter :: any_space = 0
 
 ! stencil label
   integer, public, parameter :: fe = 1 
@@ -44,8 +45,6 @@ module argument_mod
 ! kernel iterator
   integer, public, parameter :: cells     = 1
   integer, public, parameter :: all_dofs  = 2
-
-
 
   type, public :: arg_type
      integer :: arg_intent

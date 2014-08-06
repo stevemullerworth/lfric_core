@@ -1,4 +1,3 @@
-
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown, 
 ! Met Office and NERC 2014. 
@@ -55,6 +54,8 @@ module field_mod
     !! @param[in] title A title added to the log before the data is written out
     !>
     procedure, public :: print_field
+    procedure, public :: print_dofs
+    procedure, public :: print_minmax
 
     !> function returns the enumerated integer for the functions_space on which
     !! the field lives
@@ -160,7 +161,7 @@ contains
      map => self%vspace%get_cell_dofmap( cell )
       do df=1,self%vspace%get_ndf()
         do layer=0,self%vspace%get_nlayers()-1
-          write( log_scratch_space, '( I4, I4, I4, F8.2 )' ) &
+          write( log_scratch_space, '( I6, I6, I6, E16.8 )' ) &
               cell, df, layer+1, self%data( map( df ) + layer )
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
         end do
@@ -168,6 +169,46 @@ contains
     end do
 
   end subroutine print_field
+  
+  !> Sends the field contents to the log
+  !! @param[in] title A title added to the log before the data is written out
+  !>
+  subroutine print_dofs( self, title )
+
+    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO
+
+    implicit none
+
+    class( field_type ), target, intent( in ) :: self
+
+    character( * ),          intent( in ) :: title
+
+    integer                   :: df
+
+    call log_event( title, LOG_LEVEL_INFO )
+
+    do df=1,self%vspace%get_undf()
+      write( log_scratch_space, '( I6, E16.8 )' ) df,self%data( df )
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    end do
+
+  end subroutine print_dofs
+  
+  !> Sends the min/max of a field to the log
+  !! @param[in] title A title added to the log before the data is written out
+  !>
+  subroutine print_minmax( self, title )
+    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO
+    implicit none
+
+    class( field_type ), target, intent( in ) :: self
+    character( * ),          intent( in ) :: title
+    
+    call log_event( title, LOG_LEVEL_INFO )
+    write( log_scratch_space, '( 2E16.8 )' ) minval( self%data(:) ),maxval( self%data(:) )
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )    
+  end subroutine print_minmax
+
 
   function which_function_space(self) result(fs)
     implicit none

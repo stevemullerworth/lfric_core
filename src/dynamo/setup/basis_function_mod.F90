@@ -65,6 +65,11 @@ module basis_function_mod
   !> co-ordinates for the V3 function space
   real(kind=r_def), allocatable :: v3_nodal_coords(:,:)
 
+  integer, allocatable :: v0_dof_on_vert_boundary(:,:)
+  integer, allocatable :: v1_dof_on_vert_boundary(:,:)
+  integer, allocatable :: v2_dof_on_vert_boundary(:,:)
+  integer, allocatable :: v3_dof_on_vert_boundary(:,:)
+
 contains 
 
     !> Subroutine to read test/trial functions on quadrature points. (at
@@ -99,7 +104,10 @@ contains
     allocate(v1_nodal_coords(3,v_unique_dofs(2,2)))
     allocate(v2_nodal_coords(3,v_unique_dofs(3,2)))
     allocate(v3_nodal_coords(3,v_unique_dofs(4,2)))
-
+    allocate(v0_dof_on_vert_boundary(v_unique_dofs(1,2),2))
+    allocate(v1_dof_on_vert_boundary(v_unique_dofs(2,2),2))
+    allocate(v2_dof_on_vert_boundary(v_unique_dofs(3,2),2))
+    allocate(v3_dof_on_vert_boundary(v_unique_dofs(4,2),2))
 
     ! Allocate to be larger than should be needed
     allocate ( lx(3*(k+2)**3) )
@@ -395,6 +403,8 @@ contains
     !-----------------------------------------------------------------------------
     order = k + 1
 
+    v2_dof_on_vert_boundary(:,:) = 1
+
     !do idx=1,nv2
     do idx=1,v_unique_dofs(3,2)
       do i=1,3
@@ -452,6 +462,8 @@ contains
           ly(idx) = j(j2l_face(i,2))
           lz(idx) = j(j2l_face(i,3))
           unit_vec_v2(idx,:) = normal_to_face(i,:)
+          if (i == nfaces - 1) v2_dof_on_vert_boundary(idx,1) = 0
+          if (i == nfaces )    v2_dof_on_vert_boundary(idx,2) = 0
           idx = idx + 1
         end do
       end do

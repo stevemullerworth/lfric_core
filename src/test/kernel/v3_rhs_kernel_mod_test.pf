@@ -15,26 +15,67 @@ contains
   subroutine v3_rhs_kernel_test()
     use pFUnit_Mod
     use v3_rhs_kernel_mod,        only : RHS_v3_code
-    use gaussian_quadrature_mod,  only : gaussian_quadrature_type
+    use gaussian_quadrature_mod,  only : gaussian_quadrature_type, ngp_h, ngp_v
     use constants_mod,            only : r_def
     implicit none
 
     integer :: num_layers, ndf, map(1), undf
-    type(gaussian_quadrature_type) :: gq
+    type(gaussian_quadrature_type) :: gq, gaussq
     real(kind=r_def) :: xdata(1)
     real(kind=r_def) :: answer, tol
-    real(kind=r_def) :: basis(3,3,3,3,1)
-
-    map(1) = 1
-    num_layers = 1
+    real(kind=r_def) :: basis(1,8,9,3)
+    
+    integer :: ndf_v0, map_v0(8)
+    real(kind=r_def) :: chi(8,3)
+    real(kind=r_def) :: diff_basis(3,8,9,3) 
+    real(kind=r_def) :: x_vert(8,3)
+    real(kind=r_def) :: xgp_h(9,2), xgp_v(3)
+    real(kind=r_def) :: fx, fy, fz
+    integer :: df, dim, gp1, gp2
+    
+    gq=gaussq%get_instance()
+    
+    call gq%get_xgp_h(xgp_h)
+    call gq%get_xgp_v(xgp_v)
+    
+    x_vert(1,:) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def /)
+    x_vert(2,:) = (/ 1.0_r_def, 0.0_r_def, 0.0_r_def /)
+    x_vert(3,:) = (/ 1.0_r_def, 1.0_r_def, 0.0_r_def /)
+    x_vert(4,:) = (/ 0.0_r_def, 1.0_r_def, 0.0_r_def /)
+    x_vert(5,:) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
+    x_vert(6,:) = (/ 1.0_r_def, 0.0_r_def, 1.0_r_def /)
+    x_vert(7,:) = (/ 1.0_r_def, 1.0_r_def, 1.0_r_def /)
+    x_vert(8,:) = (/ 0.0_r_def, 1.0_r_def, 1.0_r_def /)    
+    
+    ndf_v0 = 8
+    do df = 1,ndf_v0
+      map_v0(df) = df
+      do gp2 = 1,ngp_v
+        do gp1 = 1,ngp_h
+          fx = (1.0_r_def - x_vert(df,1)) + (-1.0_r_def)**(int(x_vert(df,1))+1)*xgp_h(gp1,1)
+          fy = (1.0_r_def - x_vert(df,2)) + (-1.0_r_def)**(int(x_vert(df,2))+1)*xgp_h(gp1,2)
+          fz = (1.0_r_def - x_vert(df,3)) + (-1.0_r_def)**(int(x_vert(df,3))+1)*xgp_v(gp2)
+          diff_basis(1,df,gp1,gp2) = fy*fz
+          diff_basis(2,df,gp1,gp2) = fx*fz
+          diff_basis(3,df,gp1,gp2) = fx*fy
+        end do
+      end do
+      do dim = 1,3
+        if ( x_vert(df,dim) < 1.0_r_def ) &
+          diff_basis(dim,df,:,:) = -diff_basis(dim,df,:,:)     
+      end do
+    end do
+    chi(:,:) = x_vert(:,:)
+ 
+    map(1)=1
+    num_layers=1
     ndf = 1
-    undf = 1
-    basis = 1.0_r_def
-    call RHS_v3_code(num_layers, ndf, undf, map, basis, xdata, &
-                     gq%get_instance())
+    basis=1.0D0
+    call RHS_v3_code(num_layers,ndf,map,basis,xdata,gq, &
+                     ndf_v0,map_v0,diff_basis,chi(:,1),chi(:,2),chi(:,3))
 
-    answer = 1.0_r_def
-    tol    = 1.0e-14_r_def
+    answer = ( 6000.0_r_def * 2000.0_r_def * 1000.0_r_def )
+    tol    = 1.0e-2_r_def
     @assertEqual(answer, xdata(1), tol)
 
   end subroutine v3_rhs_kernel_test

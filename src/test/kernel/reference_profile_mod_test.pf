@@ -1,0 +1,46 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module reference_profile_mod_test
+  implicit none 
+
+contains
+
+  @test
+  subroutine test_of_reference_profile()
+    use pFUnit_Mod
+    use reference_profile_mod, only : reference_profile
+    use constants_mod,         only : r_def, n_sq, gravity, p_zero, rd, cp, kappa
+    
+    implicit none
+
+    real(kind=r_def) :: tol
+    real(kind=r_def) :: exner(1), theta(1), rho(1), z(1)
+    real(kind=r_def) :: exner_exact, theta_exact, rho_exact   
+
+    integer :: ndf = 1
+      
+    z = 1000.0_r_def
+           
+    call reference_profile(ndf,ndf,exner,rho,theta,z,z)
+
+    tol=1.0e-14
+    
+    theta_exact = 300.0_r_def * exp (  n_sq/gravity*z(1))
+    exner_exact = 1.0_r_def - gravity**2/(cp*300.0_r_def*n_sq)   &
+              * (1.0_r_def - exp ( - n_sq/gravity * z(1) ))
+    rho_exact = p_zero/(rd*theta_exact) * exner_exact ** ((1.0_r_def - kappa)/kappa) 
+    
+
+    @assertEqual( theta_exact, theta(1), tol )  
+    @assertEqual( exner_exact, exner(1), tol )  
+    @assertEqual( rho_exact,   rho(1),   tol )  
+
+  end subroutine test_of_reference_profile
+
+end module reference_profile_mod_test
