@@ -27,7 +27,7 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: rtheta_kernel_type
   private
-  type(arg_type) :: meta_args(5) = [  &
+  type(arg_type) :: meta_args(6) = [  &
        arg_type(gh_inc  ,v0,fe,.true., .false.,.false.,.true.),        &
        arg_type(gh_read ,v2,fe,.true., .false.,.false.,.false.),       &
        arg_type(gh_read ,v0,fe,.false.,.true., .false.,.false.),       &

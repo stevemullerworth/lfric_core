@@ -23,48 +23,24 @@ module field_mod_test
   use pFUnit_Mod
 
   implicit none 
+  private
+  public  construct_field_test, test_field_data, test_half_field
 
-  @TestCase
+  @testCase(constructor=construct_field_test)
   type, public, extends( TestCase ) :: field_test_type
-
-    procedure( runMethod ), pointer :: userMethod => null()
   contains
 
-    procedure :: setUp
-    procedure :: tearDown
-    procedure :: runMethod
     procedure :: test_field_data
     procedure :: test_half_field
 
   end type field_test_type
 
-  interface field_test_type
-    module procedure create_field_test_type
-  end interface field_test_type
-
 contains
 
-  !> Constructor.
-  !>
-  function create_field_test_type( name, userMethod ) result( this )
-
-    character( len=*), intent( in ) :: name
-    procedure( runMethod )          :: userMethod
-
-    type( field_test_type ) :: this
-
-    call this%setName( name )
-    this%userMethod => userMethod
-
-  end function create_field_test_type
-
-  !> Prepare fixtures
-  !>
-  subroutine setUp( this )
-
+  function construct_field_test() result( new_field_test )
     implicit none
 
-    class( field_test_type ), intent( inout ) :: this
+    type( field_test_type ) :: new_field_test
 
     integer( i_def ) :: num_dofs, num_unique_dofs
     integer( i_def ) :: i
@@ -77,35 +53,29 @@ contains
       v_unique_dofs(i,1)=num_unique_dofs
       v_unique_dofs(i,2)=num_dofs
     enddo
+
+    if ( allocated(v0_basis) ) then
+      deallocate( v0_basis )
+      deallocate( v0_diff_basis )
+      deallocate( v0_nodal_coords )
+      deallocate( v0_dofmap )
+    end if
+
     allocate(v0_basis(1,v_unique_dofs(1,2),ngp_h,ngp_v))
     allocate(v0_diff_basis(3,v_unique_dofs(1,2),ngp_h,ngp_v))
     allocate(v0_nodal_coords(3,v_unique_dofs(1,2)))
+    allocate( v0_dofmap(0:num_cells,v_unique_dofs(1,2)) )
+
     v0_basis=sqrt(2.0)
     v0_diff_basis=atan(4.0)
     v0_nodal_coords(1,:)=0.152689632_r_def
     v0_nodal_coords(2,:)=0.562554751_r_def
     v0_nodal_coords(3,:)=-0.8234_r_def
-    allocate( v0_dofmap(0:num_cells,v_unique_dofs(1,2)) )
     do i=0,num_cells
-       v0_dofmap(i,:) = i+64
+      v0_dofmap(i,:) = i+64
     end do
 
-  end subroutine setUp
-
-  !> Destroy fixtures
-  !>
-  subroutine tearDown( this )
-
-    implicit none
-
-    class( field_test_type ), intent( inout ) :: this
-
-    deallocate(v0_basis)
-    deallocate(v0_diff_basis)
-    deallocate(v0_nodal_coords)
-    deallocate(v0_dofmap)
-
-  end subroutine tearDown
+  end function construct_field_test
 
   !> Ensure constructor and getters work.
   !>
@@ -120,10 +90,9 @@ contains
     type( field_type )               :: f_field
     type( field_proxy_type )         :: f_field_proxy
     type( gaussian_quadrature_type ) :: gaussian_quadrature
-    integer                          :: num_dofs,num_unique_dofs
     integer                          :: testncell,       &
                                         testnlayers
-    integer :: i,j, fs, gq
+    integer :: fs, gq
 
     f_field = field_type( vector_space = func_space%get_instance(V0), &
                           gq = gaussian_quadrature%get_instance(GQ3) )
@@ -176,17 +145,5 @@ contains
     @assertEqual( test_field%which_gaussian_quadrature(), GQ3 )
 
   end subroutine test_half_field
-
-  !> Test framework boilerplate
-  !>
-  subroutine runMethod( this )
-
-    implicit none
-
-    class( field_test_type ), intent( inout ) :: this
-
-    call this%userMethod()
-
-  end subroutine runMethod
 
 end module field_mod_test

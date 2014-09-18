@@ -86,6 +86,32 @@ contains
       v_unique_dofs(i,1)=num_unique_dofs
       v_unique_dofs(i,2)=num_dofs
     enddo
+
+    if ( allocated( v0_basis ) ) then
+      deallocate( v0_basis )
+      deallocate( v0_diff_basis )
+      deallocate( v0_nodal_coords )
+      deallocate( v0_dofmap )
+    end if
+    if ( allocated( v1_basis ) ) then
+      deallocate( v1_basis )
+      deallocate( v1_diff_basis )
+      deallocate( v1_nodal_coords )
+      deallocate( v1_dofmap )
+    end if
+    if ( allocated( v2_basis ) ) then
+      deallocate( v2_basis )
+      deallocate( v2_diff_basis )
+      deallocate( v2_nodal_coords )
+      deallocate( v2_dofmap )
+    end if
+    if ( allocated( v3_basis ) ) then
+      deallocate( v3_basis )
+      deallocate( v3_diff_basis )
+      deallocate( v3_nodal_coords )
+      deallocate( v3_dofmap )
+    end if
+
     allocate(v0_basis(1,v_unique_dofs(1,2),ngp_h,ngp_v))
     allocate(v1_basis(3,v_unique_dofs(2,2),ngp_h,ngp_v))
     allocate(v2_basis(3,v_unique_dofs(3,2),ngp_h,ngp_v))
@@ -98,6 +124,11 @@ contains
     allocate(v1_nodal_coords(3,v_unique_dofs(2,2)))
     allocate(v2_nodal_coords(3,v_unique_dofs(3,2)))
     allocate(v3_nodal_coords(3,v_unique_dofs(4,2)))
+    allocate( v0_dofmap(0:num_cells,v_unique_dofs(1,2)) )
+    allocate( v1_dofmap(0:num_cells,v_unique_dofs(2,2)) )
+    allocate( v2_dofmap(0:num_cells,v_unique_dofs(3,2)) )
+    allocate( v3_dofmap(0:num_cells,v_unique_dofs(4,2)) )
+
     v0_basis=sqrt(2.0)
     v1_basis=sqrt(2.0)
     v2_basis=sqrt(2.0)
@@ -118,10 +149,6 @@ contains
     v3_nodal_coords(1,:)=0.152689632_r_def
     v3_nodal_coords(2,:)=0.562554751_r_def
     v3_nodal_coords(3,:)=-0.8234_r_def
-    allocate( v0_dofmap(0:num_cells,v_unique_dofs(1,2)) )
-    allocate( v1_dofmap(0:num_cells,v_unique_dofs(2,2)) )
-    allocate( v2_dofmap(0:num_cells,v_unique_dofs(3,2)) )
-    allocate( v3_dofmap(0:num_cells,v_unique_dofs(4,2)) )
     do i=0,num_cells
        v0_dofmap(i,:) = i+64
        v1_dofmap(i,:) = i+64

@@ -212,4 +212,4 @@ contains
 
   end subroutine dynamo_algorithm_rk_timestep
 
-end module dynamo_algorithm_rk_timestep_mod           
+end module dynamo_algorithm_rk_timestep_mod

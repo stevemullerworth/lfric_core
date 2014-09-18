@@ -45,6 +45,8 @@ module log_mod
   !>
   character( 160 ), public :: log_scratch_space
 
+  integer, private, parameter :: EXIT_CODE_ON_ERROR = 1
+
   integer, private :: log_level  = LOG_LEVEL_INFO
   integer, private :: info_unit  = output_unit
   integer, private :: alert_unit = error_unit
@@ -152,7 +154,7 @@ contains
 
       ! If the severity level of the event is serious enough, stop the code.
       if ( level >= LOG_LEVEL_ERROR )then
-        stop
+        error stop EXIT_CODE_ON_ERROR
       end if
 
     end if

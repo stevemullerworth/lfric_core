@@ -54,9 +54,10 @@ ifeq '$(FC)' 'ifort'
   FFLAGS_WARNINGS     = -warn all -warn errors
   FFLAGS_INIT         = -ftrapuv
   FFLAGS_RUNTIME      = -check all -fpe0
+  FFLAGS_TESTS        = -assume realloc_lhs
   F_MOD_DESTINATION_ARG = -module $(OBJ_DIR)
-  IFORT_VERSION = $(shell ifort -v 2>&1 | awk '{ print $$NF }' \
-                   | awk -F . '{ printf "%03i%02i%02i", $$1, $$2, $$3 }')
+  IFORT_VERSION := $(shell ifort -v 2>&1 \
+                           | awk -F "[. ]" '/[0-9]\.[0-9]\.[0-9]/ { printf "%03i%02i%02i", $$(NF-2),$$(NF-1),$$NF}' )
   $(info ** Version $(IFORT_VERSION))
 
 else ifeq '$(FC)' 'xlf'
@@ -76,8 +77,7 @@ else ifeq '$(FC)' 'gfortran'
                         -finit-logical=true -finit-character=85
   FFLAGS_RUNTIME      = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow
   F_MOD_DESTINATION_ARG = -J $(OBJ_DIR)
-  GFORTRAN_VERSION = $(shell gfortran --version 2>&1 \
-                       | sed -n 's/.*[[:space:]]\{1,\}\([[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\.[[:digit:]]\{1,\}\)[[:space:]]\{,\}.*/\1/p' \
+  GFORTRAN_VERSION := $(shell gfortran -dumpversion 2>&1 \
                        | awk -F . '{ printf "%02i%02i%02i", $$1, $$2, $$3 }')
   $(info ** Version $(GFORTRAN_VERSION))
 

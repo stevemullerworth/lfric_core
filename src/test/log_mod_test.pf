@@ -16,64 +16,76 @@ module log_mod_test
   implicit none 
 
   private
-  public log_level_test, log_output_test
+  public log_test_constructor, getParameters, log_level_test, log_output_test
 
   integer, parameter :: INFO_UNIT  = 12
   integer, parameter :: ALERT_UNIT = 13
 
-  @Parameters = [ level, expected_tag ]
+  @testParameter
   type, public, extends( AbstractTestParameter ) :: level_parameter_type
     integer,        public :: level
     character( 8 ), public :: expected_tag
+  contains
+    procedure :: toString
   end type level_parameter_type
 
-  @TestCase
+  @testCase(testParameters={getParameters()}, constructor=log_test_constructor)
   type, public, extends( ParameterizedTestCase ) :: log_test_type
-
     integer        :: level
     character( 8 ) :: expected_tag
 
-    integer        :: dummy
-
-    procedure( runMethod ), pointer ::userMethod => null()
-
+    integer :: dummy ! This is here only so procedures which do not use "this"
+                     ! have something they can hit.
   contains
-
-    procedure         :: setUp
-    procedure         :: tearDown
-    procedure, nopass :: getParameters
-    procedure         :: getParameterString
-    procedure         :: runMethod
-
+    procedure :: setUp
+    procedure :: tearDown
   end type log_test_type
-
-  interface log_test_type
-    module procedure new_log_test
-  end interface log_test_type
 
 contains
 
-  !> Construct the log module test case.
+!> Construct the log module test case.
   !>
   !> @param level The level to test at.
   !>
-  function new_log_test( name, method, level, expected_tag ) result( log_test )
+  function log_test_constructor( testParameter ) result( log_test )
 
     implicit none
 
-    character( len = * ),   intent( in ) :: name
-    procedure( runMethod )               :: method
-    integer,                intent( in ) :: level
-    character( 8 ),         intent( in ) :: expected_tag
+    type( log_test_type )                      :: log_test
+    type( level_parameter_type ), intent( in ) :: testParameter
 
-    type( log_test_type ) :: log_test
-    log_test%level        = level
-    log_test%expected_tag = expected_tag
+    log_test%level        = testParameter%level
+    log_test%expected_tag = testParameter%expected_tag
 
-    call log_test%setName( name )
-    log_test%userMethod => method
+  end function log_test_constructor
 
-  end function new_log_test
+  !> Output method for level_parameter_type
+  !>
+  function toString( this ) result( string )
+    implicit none
+    class( level_parameter_type ), intent( in ) :: this
+    character(:), allocatable :: string
+
+    character(len=80) :: buffer
+    write( buffer, '("Event level ", I0, ", expected tag >", A, "<")') &
+           this%level, this%expected_tag
+    string = trim( buffer )
+  end function toString
+
+  !> Prepare a list of all log levels for parameterised tests.
+  !>
+  function getParameters() result( parameters )
+
+    implicit none
+
+    type( level_parameter_type ), allocatable :: parameters( : )
+
+    parameters = [ level_parameter_type( LOG_LEVEL_TRACE,   ':TRACE:' ), &
+                   level_parameter_type( LOG_LEVEL_DEBUG,   ':DEBUG:' ), &
+                   level_parameter_type( LOG_LEVEL_INFO,    ':INFO :' ), &
+                   level_parameter_type( LOG_LEVEL_WARNING, ':WARN :' ) ]
+
+  end function getParameters
 
   !> Prepare fixtures.
   !>
@@ -112,28 +124,14 @@ contains
 
     integer :: condition
 
-    close( INFO_UNIT, iostat=condition )
-    @assertEqual( condition, 0 )
     close( ALERT_UNIT, iostat=condition )
+    @assertEqual( condition, 0 )
+    close( INFO_UNIT, iostat=condition )
     @assertEqual( condition, 0 )
 
     this%dummy = 0 ! There is no purpose to this, other than to use "this"
 
   end subroutine tearDown
-
-  !> Prepare a list of all log levels for parameterised tests.
-  !>
-  function getParameters() result( parameters )
-
-    implicit none
-
-    type( level_parameter_type ), allocatable :: parameters( : )
-    parameters = [ level_parameter_type( LOG_LEVEL_TRACE,   ':TRACE:' ), &
-                   level_parameter_type( LOG_LEVEL_DEBUG,   ':DEBUG:' ), &
-                   level_parameter_type( LOG_LEVEL_INFO,    ':INFO :' ), &
-                   level_parameter_type( LOG_LEVEL_WARNING, ':WARN :' ) ]
-
-  end function getParameters
 
   !> Get a string representing the current parameter value
   !>
@@ -151,18 +149,6 @@ contains
 
   end function getParameterString
 
-  !> Invoke the test case.
-  !>
-  subroutine runMethod( this )
-
-    implicit none
-
-    class( log_test_type ), intent( inout ) :: this
-
-    call this%userMethod()
-
-  end subroutine runMethod
-
   !> Test the default behaviour of the logger.
   !>
   !> As part of the test system redirecting the output to alternate units is
@@ -175,12 +161,12 @@ contains
 
     implicit none
 
-    class ( log_test_type ), intent( inout ) :: this
+    class( log_test_type ), intent( inout ) :: this
 
     integer, parameter :: date_kind = selected_int_kind( 14 )
 
-    character( 28 )           :: current_date_string
     integer( kind=date_kind ) :: current_stamp
+    character( 28 )           :: current_date_string
     integer                   :: current_subseconds
     integer                   :: current_zone
     integer( kind=date_kind)  :: found_stamp
@@ -291,5 +277,34 @@ contains
     @assertEqual( iostat_end, status )
 
   end subroutine log_level_test
+
+!   !> Test error logging behaviour. Because errors cause a "STOP" they can not
+!   !> be tested with the others. Or at all at the moment.
+!   @test
+!   subroutine error_test( this )
+! 
+!     implicit none
+! 
+!     class ( log_test_type ), intent( inout ) :: this
+! 
+!     character(  8 ) :: tag
+!     character( 80 ) :: message
+! 
+!     call log_set_info_stream( INFO_UNIT )
+!     call log_set_alert_stream( ALERT_UNIT )
+! 
+!     call log_event( 'stilton', LOG_LEVEL_ERROR )
+! 
+!     rewind( INFO_UNIT )
+!     read( INFO_UNIT, '(23X,A8,A)' ) tag, message
+!     @assertEqual( ':ERROR:', tag )
+!     @assertEqual( 'stilton', message )
+! 
+!     rewind( ALERT_UNIT )
+!     read( ALERT_UNIT, '(23X,A8,A)' ) tag, message
+!     @assertEqual( ':ERROR:', tag )
+!     @assertEqual( 'stilton', message )
+! 
+!   end subroutine error_test
 
 end module log_mod_test

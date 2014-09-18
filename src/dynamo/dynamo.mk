@@ -9,6 +9,12 @@ include ../../Makefile.inc
 
 BIN_DIR   = ../../bin
 
+ifdef GFORTRAN_VERSION
+  ifeq ($(shell test $(GFORTRAN_VERSION) -lt 040601; echo $$?), 0)
+    $(error GFortran is too old. Must be at least 4.6.1)
+  endif
+endif
+
 -include $(OBJ_DIR)/$(EXE).mk
 
 .PHONY: all
@@ -48,6 +54,6 @@ $(OBJ_DIR)/$(EXE): $($(shell echo $(EXE) | tr a-z A-Z)_OBJS)
 .PHONY: clean
 clean:
 	-rm -rf $(OBJ_DIR)
-	-rm -f $(BIN_DIR)/$(EXE)
+	-rm -f $(BIN_DIR)/*
 
 -include $(OBJ_DIR)/$(DEP_FILE)
