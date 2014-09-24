@@ -12,6 +12,11 @@ ROOT ?= .
 BUILD_DIR = $(ROOT)/build
 TOOL_DIR = $(ROOT)/tools
 
+$(info Make version $(MAKE_VERSION))
+ifeq ($(filter else-if,$(value .FEATURES)),)
+  $(error The build system requires else-if support from GMake)
+endif
+
 ifdef PE_ENV
     # This may not be valid but we are going to assume that this variable
     # indicates a Cray XC-30.
@@ -27,6 +32,7 @@ ifdef PE_ENV
 endif
 
 ifndef FC
+  $(info No compiler specified in $$FC)
   OS = $(shell uname -s)
   MACHINE = $(shell uname -m)
 
@@ -37,7 +43,7 @@ ifndef FC
       $(error Unrecognised processor: $(MACHINE))
     endif
   else ifeq '$(OS)' 'AIX'
-    FC = xlf
+    FC = xlf2003_r
   else ifeq '$(OS)' 'Darwin'
     FC = gfortran
   else
@@ -60,11 +66,14 @@ ifeq '$(FC)' 'ifort'
                            | awk -F "[. ]" '/[0-9]\.[0-9]\.[0-9]/ { printf "%03i%02i%02i", $$(NF-2),$$(NF-1),$$NF}' )
   $(info ** Version $(IFORT_VERSION))
 
-else ifeq '$(FC)' 'xlf'
+else ifeq ($(findstring xlf,$(FC) ), xlf)
   $(info ** Chosen IBM XL Fortran compiler)
 
-  FFLAGS_INIT         = -qinitalloc=0xffffffff -qinitauto=0xffffffff
-  FFLAGS_RUNTIME      = -qfloat=nans -qflttrap=enable:invalid:nanq:overflow:underflow:zerodivide
+  FFLAGS_OPTIMISATION   = -O0
+  FFLAGS_DEBUG          = -g
+  FFLAGS_WARNINGS       = -qinfo=all -qhalt=w
+  FFLAGS_INIT           = -qinitalloc=ffffffff -qinitauto=ffffffff
+  FFLAGS_RUNTIME        = -qddim -qstackprotect=all -qfloat=nans -qflttrap=enable:invalid:nanq:overflow:underflow:zerodivide
   F_MOD_DESTINATION_ARG = -qmoddir=$(OBJ_DIR)
 
 else ifeq '$(FC)' 'gfortran'

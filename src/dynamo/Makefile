@@ -11,7 +11,7 @@ EXTERNAL_LIBRARIES = netcdff
 ROOT = ../..
 include $(ROOT)/Makefile.inc
 
-SUBDIRS = $(shell find * -maxdepth 1 -type d)
+SUBDIRS = $(shell find * -type d -prune)
 IGNORE_DEPENDENCIES := $(patsubst %,-ignore %,$(IGNORE_DEPENDENCIES))
 
 export SRC        = $(wildcard *.[fF]90)
