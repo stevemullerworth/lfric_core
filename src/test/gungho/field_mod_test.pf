@@ -64,7 +64,7 @@ contains
     allocate(w0_basis(1,w_unique_dofs(1,2),ngp_h,ngp_v))
     allocate(w0_diff_basis(3,w_unique_dofs(1,2),ngp_h,ngp_v))
     allocate(w0_nodal_coords(3,w_unique_dofs(1,2)))
-    allocate( w0_dofmap(0:num_cells,w_unique_dofs(1,2)) )
+    allocate( w0_dofmap(w_unique_dofs(1,2),0:num_cells) )
 
     w0_basis=sqrt(2.0)
     w0_diff_basis=atan(4.0)
@@ -72,7 +72,7 @@ contains
     w0_nodal_coords(2,:)=0.562554751_r_def
     w0_nodal_coords(3,:)=-0.8234_r_def
     do i=0,num_cells
-      w0_dofmap(i,:) = i+64
+      w0_dofmap(:,i) = i+64
     end do
 
   end function construct_field_test

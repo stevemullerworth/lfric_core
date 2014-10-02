@@ -61,8 +61,8 @@ subroutine mesh_generator_init(ncells,nlayers)
 ! number of vertical layers
   integer, intent(in) :: nlayers   
 
-  allocate ( cell_next(ncells*nlayers,nfaces) )
-  allocate ( vert_on_cell(ncells*nlayers,nverts) )
+  allocate ( cell_next(nfaces,ncells*nlayers) )
+  allocate ( vert_on_cell(nverts,ncells*nlayers) )
 
 end subroutine mesh_generator_init
 
@@ -103,23 +103,23 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
   nvert_g = nvert_h_g*(nlayers + 1)
   
 ! allocate coordinate array
-  allocate ( mesh_vertex(nvert_g,3) )
+  allocate ( mesh_vertex(3,nvert_g) )
 
   id = 1
   do j=1,ny
     do i=1,nx
 ! j-1 cell (South face)
-      cell_next(id,1) = id - nx
+      cell_next(1,id) = id - nx
 ! i+1 cell (East face)
-      cell_next(id,2) = id + 1
+      cell_next(2,id) = id + 1
 ! j+1 cell (North face)
-      cell_next(id,3) = id + nx      
+      cell_next(3,id) = id + nx      
 ! i-1 cell (West face)
-      cell_next(id,4) = id - 1
+      cell_next(4,id) = id - 1
 ! k-1 cell (bottom face)
-      cell_next(id,5) = id - nx*ny
+      cell_next(5,id) = id - nx*ny
 ! k+1 cell (top face)
-      cell_next(id,6) = id + nx*ny
+      cell_next(6,id) = id + nx*ny
       
       id = id + 1      
     end do
@@ -129,24 +129,24 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
 ! South
   id = 1
   do i=1,nx
-    cell_next(id,1) = nx*ny-nx+i
+    cell_next(1,id) = nx*ny-nx+i
     id = id + 1
   end do
   
 ! North  
   id = nx*ny
   do i=nx,1,-1
-    cell_next(id,3) = i
+    cell_next(3,id) = i
     id = id - 1
   end do
   
   id = 1
   do j=1,ny
 ! West     
-    cell_next(id,4) = id + nx -1
+    cell_next(4,id) = id + nx -1
     id = id + nx -1
 ! East
-    cell_next(id,2) = id - nx + 1
+    cell_next(2,id) = id - nx + 1
     id = id + 1
   end do
   
@@ -156,32 +156,32 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
       id = i + k*nx*ny      
       jd = id - nx*ny        
       do j=1,nfaces
-        cell_next(id,j) = cell_next(jd,j) + nx*ny
+        cell_next(j,id) = cell_next(j,jd) + nx*ny
       end do
     end do
   end do
   
   ! Set connectivity at lower/upper boundary to some dummy cell
   do i=1,nx*ny
-    cell_next(i,5) = 0
+    cell_next(5,i) = 0
     j =  i+(nlayers-1)*nx*ny
-    cell_next(j,6) = 0
+    cell_next(6,j) = 0
   end do
       
 ! compute vertices on cell
   id = 1
   do j=1,ny
     do i=1,nx
-      vert_on_cell(id,1) = id
-      vert_on_cell(id,2) = cell_next(id,2)
-      vert_on_cell(id,3) = cell_next(cell_next(id,3),2)
-      vert_on_cell(id,4) = cell_next(id,3)
+      vert_on_cell(1,id) = id
+      vert_on_cell(2,id) = cell_next(2,id)
+      vert_on_cell(3,id) = cell_next(2,cell_next(3,id))
+      vert_on_cell(4,id) = cell_next(3,id)
       
       jd = id + nx*ny
-      vert_on_cell(id,5) = jd
-      vert_on_cell(id,6) = cell_next(jd,2)
-      vert_on_cell(id,7) = cell_next(cell_next(jd,3),2)
-      vert_on_cell(id,8) = cell_next(jd,3)
+      vert_on_cell(5,id) = jd
+      vert_on_cell(6,id) = cell_next(2,jd)
+      vert_on_cell(7,id) = cell_next(2,cell_next(3,jd))
+      vert_on_cell(8,id) = cell_next(3,jd)
       
       id = id + 1
     end do
@@ -193,7 +193,7 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
       id = i + k*nx*ny      
       jd = id - nx*ny        
       do j=1,nverts
-        vert_on_cell(id,j) =  vert_on_cell(jd,j) + nx*ny
+        vert_on_cell(j,id) =  vert_on_cell(j,jd) + nx*ny
       end do
     end do
   end do
@@ -203,9 +203,9 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
   do k=1,nlayers+1
     do j=1,ny
       do i=1,nx
-        mesh_vertex(id,1) = real(i-1 - nx/2)*dx 
-        mesh_vertex(id,2) = real(j-1 - ny/2)*dy 
-        mesh_vertex(id,3) = real(k-1)*dz
+        mesh_vertex(1,id) = real(i-1 - nx/2)*dx 
+        mesh_vertex(2,id) = real(j-1 - ny/2)*dy 
+        mesh_vertex(3,id) = real(k-1)*dz
         id = id + 1
       end do
     end do
@@ -215,24 +215,24 @@ subroutine mesh_generator_biperiodic( ncells, nx, ny, nlayers, dx, dy, dz )
   call log_event( 'grid connectivity', LOG_LEVEL_DEBUG )
   do i = 1, nx * ny * nlayers
     write( log_scratch_space,'(7i6)' ) i, &
-                            cell_next(i,1), cell_next(i,2), cell_next(i,3), &
-                            cell_next(i,4), cell_next(i,5), cell_next(i,6)
+                            cell_next(1,i), cell_next(2,i), cell_next(3,i), &
+                            cell_next(4,i), cell_next(5,i), cell_next(6,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
   call log_event( 'verts on cells', LOG_LEVEL_DEBUG )
   do i = 1, nx * ny * nlayers
     write( log_scratch_space, '(9i6)' ) i, &
-                             vert_on_cell(i,1), vert_on_cell(i,2), &
-                             vert_on_cell(i,3), vert_on_cell(i,4), &
-                             vert_on_cell(i,5), vert_on_cell(i,6), &
-                             vert_on_cell(i,7), vert_on_cell(i,8)
+                             vert_on_cell(1,i), vert_on_cell(2,i), &
+                             vert_on_cell(3,i), vert_on_cell(4,i), &
+                             vert_on_cell(5,i), vert_on_cell(6,i), &
+                             vert_on_cell(7,i), vert_on_cell(8,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
 
   call log_event( 'vert coords', LOG_LEVEL_DEBUG )
   do i = 1, nvert_g
     write( log_scratch_space, '(i6,4f8.4)' ) &
-         i, mesh_vertex(i,1), mesh_vertex(i,2), mesh_vertex(i,3)
+         i, mesh_vertex(1,i), mesh_vertex(2,i), mesh_vertex(3,i)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
 
@@ -304,7 +304,7 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
   nvert_g = nvert_h_g*(nlayers + 1)
 
 ! allocate coordinate array
-  allocate ( mesh_vertex(nvert_g,3) )
+  allocate ( mesh_vertex(3,nvert_g) )
 
   allocate(ncdf_quad_type :: file_handler)
   call ugrid_2d%set_file_handler(file_handler)
@@ -333,16 +333,16 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
   end if  
 
   !Get coordinates of vertices
-  call ugrid_2d%get_node_coords_transpose( mesh_vertex(1:nvert_h_g,1:3) )
-  call ugrid_2d%get_face_node_connectivity_transpose(vert_on_cell(1:nface_in,1:num_nodes_per_face))
-  call ugrid_2d%get_face_face_connectivity_transpose(cell_next   (1:nface_in,1:num_edges_per_face))
+  call ugrid_2d%get_node_coords( mesh_vertex(1:3,1:nvert_h_g) )
+  call ugrid_2d%get_face_node_connectivity(vert_on_cell(1:num_nodes_per_face,1:nface_in))
+  call ugrid_2d%get_face_face_connectivity(cell_next(1:num_edges_per_face,1:nface_in))
   
-   !mesh_vertex(1:nvert_h_g,3) = earth_radius
+   !mesh_vertex(3,1:nvert_h_g) = earth_radius
 
 ! add connectivity for up/down
   do j=1,ncells
-    cell_next(j,5) = j - ncells
-    cell_next(j,6) = j + ncells
+    cell_next(5,j) = j - ncells
+    cell_next(6,j) = j + ncells
   end do
        
 ! perform vertical extrusion for connectivity 
@@ -351,49 +351,49 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
       id = i + k*ncells      
       jd = id - ncells        
       do j=1,nfaces
-        cell_next(id,j) = cell_next(jd,j) + ncells
+        cell_next(j,id) = cell_next(j,jd) + ncells
       end do
     end do
   end do
     
 ! Set connectivity at lower/upper boundary to some dummy cell
   do i=1,ncells
-    cell_next(i,5) = 0
+    cell_next(5,i) = 0
     j =  i+(nlayers-1)*ncells
-    cell_next(j,6) = 0
+    cell_next(6,j) = 0
   end do
     
 ! perform vertical extrusion for vertices
   do j=1,nvert_in
     do k=1,nlayers                       
-      mesh_vertex(j+k*nvert_in,1) = mesh_vertex(j,1)
-      mesh_vertex(j+k*nvert_in,2) = mesh_vertex(j,2) 
-      mesh_vertex(j+k*nvert_in,3) = mesh_vertex(j,3) + dz*real(k)
+      mesh_vertex(1,j+k*nvert_in) = mesh_vertex(1,j)
+      mesh_vertex(2,j+k*nvert_in) = mesh_vertex(2,j) 
+      mesh_vertex(3,j+k*nvert_in) = mesh_vertex(3,j) + dz*real(k)
     end do
   end do
 
 ! Convert (long,lat,r) -> (x,y,z)
   do j=1,nvert_in
     do k=0,nlayers
-      long = mesh_vertex(j+k*nvert_in,1)
-      lat  = mesh_vertex(j+k*nvert_in,2)
-      r    = mesh_vertex(j+k*nvert_in,3)
-      call llr2xyz(long,lat,r,mesh_vertex(j+k*nvert_in,1),                  &
-                              mesh_vertex(j+k*nvert_in,2),                  &
-                              mesh_vertex(j+k*nvert_in,3))
+      long = mesh_vertex(1,j+k*nvert_in)
+      lat  = mesh_vertex(2,j+k*nvert_in)
+      r    = mesh_vertex(3,j+k*nvert_in)
+      call llr2xyz(long,lat,r,mesh_vertex(1,j+k*nvert_in),                  &
+                              mesh_vertex(2,j+k*nvert_in),                  &
+                              mesh_vertex(3,j+k*nvert_in))
     end do
   end do
   
 ! assign vertices to cells
   do j=1,ncells
-    vert_on_cell(j,5) = vert_on_cell(j,1) + nvert_in
-    vert_on_cell(j,6) = vert_on_cell(j,2) + nvert_in
-    vert_on_cell(j,7) = vert_on_cell(j,3) + nvert_in
-    vert_on_cell(j,8) = vert_on_cell(j,4) + nvert_in
+    vert_on_cell(5,j) = vert_on_cell(1,j) + nvert_in
+    vert_on_cell(6,j) = vert_on_cell(2,j) + nvert_in
+    vert_on_cell(7,j) = vert_on_cell(3,j) + nvert_in
+    vert_on_cell(8,j) = vert_on_cell(4,j) + nvert_in
 ! do vertical extrusion
     do k=1,nlayers-1
       do vert=1,8
-        vert_on_cell(j+k*ncells,vert) = vert_on_cell(j,vert) + k*nvert_in
+        vert_on_cell(vert,j+k*ncells) = vert_on_cell(vert,j) + k*nvert_in
       end do
     end do
   end do  
@@ -402,24 +402,24 @@ subroutine mesh_generator_cubedsphere( filename, ncells, nlayers, dz )
   call log_event( 'grid connectivity', LOG_LEVEL_INFO )
   do i = 1, ncells * nlayers
     write( log_scratch_space, '(7i6)' ) i, &
-                              cell_next(i,1), cell_next(i,2), cell_next(i,3), &
-                              cell_next(i,4), cell_next(i,5), cell_next(i,6)
+                              cell_next(1,i), cell_next(2,i), cell_next(3,i), &
+                              cell_next(4,i), cell_next(5,i), cell_next(6,i)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
   end do
   call log_event( 'verts on cells', LOG_LEVEL_INFO )
   do i = 1, ncells * nlayers
     write( log_scratch_space, '(9i6)' ) i, &
-                              vert_on_cell(i,1), vert_on_cell(i,2), &
-                              vert_on_cell(i,3), vert_on_cell(i,4), &
-                              vert_on_cell(i,5), vert_on_cell(i,6), &
-                              vert_on_cell(i,7), vert_on_cell(i,8)
+                              vert_on_cell(1,i), vert_on_cell(2,i), &
+                              vert_on_cell(3,i), vert_on_cell(4,i), &
+                              vert_on_cell(5,i), vert_on_cell(6,i), &
+                              vert_on_cell(7,i), vert_on_cell(8,i)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
   end do
 
   call log_event( 'vert coords', LOG_LEVEL_INFO )
   do i = 1, nvert_g
     write( log_scratch_space, '(i6,4e16.8)' ) &
-         i, mesh_vertex(i,1), mesh_vertex(i,2), mesh_vertex(i,3)
+         i, mesh_vertex(1,i), mesh_vertex(2,i), mesh_vertex(3,i)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
   end do 
 
@@ -459,9 +459,9 @@ subroutine mesh_connectivity( ncells )
       if ( face_on_cell(i,j) == 0 ) then
         face_on_cell(i,j) = ij
 ! find matching face
-        inxt = cell_next(i,j)
+        inxt = cell_next(j,i)
         do k=1,nfaces_h
-          if ( cell_next(inxt,k) == i ) then
+          if ( cell_next(k,inxt) == i ) then
             jnxt = k
           end if
         end do
@@ -488,9 +488,9 @@ subroutine mesh_connectivity( ncells )
         edge_on_cell(i,j) = ij
         edge_on_cell(i,j+nedges_h+nverts_h) = ij+1
 ! find matching edge in neighbouring cell
-        inxt = cell_next(i,j)
+        inxt = cell_next(j,i)
         do k=1,nedges_h
-          if ( cell_next(inxt,k) == i ) then
+          if ( cell_next(k,inxt) == i ) then
             jnxt = k
           end if
         end do
@@ -505,16 +505,16 @@ subroutine mesh_connectivity( ncells )
         edge_on_cell(i,j) = ij
 ! find matching edge on two neighbouring cells 
 ! this edge is an extrusion of the corresponding vertex
-        vert = vert_on_cell(i,j-nedges_h)
+        vert = vert_on_cell(j-nedges_h,i)
         do k=1,nedges_h
-          inxt = cell_next(i,k)
+          inxt = cell_next(k,i)
           do l=1,nverts_h
-            if ( vert_on_cell(inxt,l) == vert ) then
+            if ( vert_on_cell(l,inxt) == vert ) then
               edge_on_cell(inxt,l+nedges_h) = ij
               do m=1,nedges_h
-                inxtnxt = cell_next(inxt,m)
+                inxtnxt = cell_next(m,inxt)
                 do n=1,nverts_h
-                  if ( vert_on_cell(inxtnxt,n) == vert ) then
+                  if ( vert_on_cell(n,inxtnxt) == vert ) then
                     edge_on_cell(inxtnxt,n+nedges_h) = ij 
                   end if
                 end do
@@ -627,9 +627,9 @@ subroutine get_cell_coords(cell, ncells, nlayers, vert_coords)
   do k = 1,nlayers
     cell_idx = cell+(k-1)*ncells
     do j = 1,nverts
-      v = vert_on_cell(cell_idx,j)
+      v = vert_on_cell(j,cell_idx)
       do i = 1,3      
-        vert_coords(i,j,k) = mesh_vertex(v,i)
+        vert_coords(i,j,k) = mesh_vertex(i,v)
       end do
     end do
   end do

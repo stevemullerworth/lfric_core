@@ -124,10 +124,10 @@ contains
     allocate(w1_nodal_coords(3,w_unique_dofs(2,2)))
     allocate(w2_nodal_coords(3,w_unique_dofs(3,2)))
     allocate(w3_nodal_coords(3,w_unique_dofs(4,2)))
-    allocate( w0_dofmap(0:num_cells,w_unique_dofs(1,2)) )
-    allocate( w1_dofmap(0:num_cells,w_unique_dofs(2,2)) )
-    allocate( w2_dofmap(0:num_cells,w_unique_dofs(3,2)) )
-    allocate( w3_dofmap(0:num_cells,w_unique_dofs(4,2)) )
+    allocate( w0_dofmap(w_unique_dofs(1,2),0:num_cells) )
+    allocate( w1_dofmap(w_unique_dofs(2,2),0:num_cells) )
+    allocate( w2_dofmap(w_unique_dofs(3,2),0:num_cells) )
+    allocate( w3_dofmap(w_unique_dofs(4,2),0:num_cells) )
 
     w0_basis=sqrt(2.0)
     w1_basis=sqrt(2.0)
@@ -150,16 +150,16 @@ contains
     w3_nodal_coords(2,:)=0.562554751_r_def
     w3_nodal_coords(3,:)=-0.8234_r_def
     do i=0,num_cells
-       w0_dofmap(i,:) = i+64
-       w1_dofmap(i,:) = i+64
-       w2_dofmap(i,:) = i+64
-       w3_dofmap(i,:) = i+64
+       w0_dofmap(:,i) = i+64
+       w1_dofmap(:,i) = i+64
+       w2_dofmap(:,i) = i+64
+       w3_dofmap(:,i) = i+64
     end do
 
 ! Grab some of the contents of the module data for later testing
 ! before it is moved into the function space 
-    test_w0_dofmap_result_1=w0_dofmap(0,1)
-    test_w0_dofmap_result_2=w0_dofmap(num_cells-2,1)
+    test_w0_dofmap_result_1=w0_dofmap(1,0)
+    test_w0_dofmap_result_2=w0_dofmap(1,num_cells-2)
 
     test_w0_basis_result=w0_basis(1,1,1,1)
     test_w0_diff_basis_result=w0_diff_basis(1,1,1,1)
@@ -168,8 +168,8 @@ contains
     test_w0_nodal_coords_2=w0_nodal_coords(2,1)
     test_w0_nodal_coords_3=w0_nodal_coords(3,1)
 
-    test_w1_dofmap_result_1=w1_dofmap(0,1)
-    test_w1_dofmap_result_2=w1_dofmap(num_cells-2,1)
+    test_w1_dofmap_result_1=w1_dofmap(1,0)
+    test_w1_dofmap_result_2=w1_dofmap(1,num_cells-2)
 
     test_w1_basis_result=w1_basis(1,1,1,1)
     test_w1_diff_basis_result=w1_diff_basis(1,1,1,1)
@@ -178,8 +178,8 @@ contains
     test_w1_nodal_coords_2=w1_nodal_coords(2,1)
     test_w1_nodal_coords_3=w1_nodal_coords(3,1)
 
-    test_w2_dofmap_result_1=w2_dofmap(0,1)
-    test_w2_dofmap_result_2=w2_dofmap(num_cells-2,1)
+    test_w2_dofmap_result_1=w2_dofmap(1,0)
+    test_w2_dofmap_result_2=w2_dofmap(1,num_cells-2)
 
     test_w2_basis_result=w2_basis(1,1,1,1)
     test_w2_diff_basis_result=w2_diff_basis(1,1,1,1)
@@ -188,8 +188,8 @@ contains
     test_w2_nodal_coords_2=w2_nodal_coords(2,1)
     test_w2_nodal_coords_3=w2_nodal_coords(3,1)
 
-    test_w3_dofmap_result_1=w3_dofmap(0,1)
-    test_w3_dofmap_result_2=w3_dofmap(num_cells-2,1)
+    test_w3_dofmap_result_1=w3_dofmap(1,0)
+    test_w3_dofmap_result_2=w3_dofmap(1,num_cells-2)
 
     test_w3_basis_result=w3_basis(1,1,1,1)
     test_w3_diff_basis_result=w3_diff_basis(1,1,1,1)

@@ -381,7 +381,7 @@ function get_cell_dofmap(self,cell) result(map)
   integer,                            intent(in) :: cell
   integer, pointer                               :: map(:)
 
-  map => self%dofmap(cell,:)
+  map => self%dofmap(:,cell)
   return
 end function get_cell_dofmap
 
