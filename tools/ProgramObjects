@@ -20,10 +20,10 @@ from __future__ import print_function;
 import argparse
 import os
 
-from dependencyanalyser import __version__
-import dependencyanalyser.database as database
-import dependencyanalyser.logging  as logging
-import dependencyanalyser.process  as process
+from dependencyanalysis import __version__
+import dependencyanalysis.database as database
+import dependencyanalysis.logging  as logging
+import dependencyanalysis.process  as process
 
 ###############################################################################
 # Entry point
