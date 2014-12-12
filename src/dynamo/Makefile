@@ -6,7 +6,8 @@
 ##############################################################################
 
 export IGNORE_DEPENDENCIES = netcdf
-export EXTERNAL_LIBRARIES = netcdff
+export EXTERNAL_DYNAMIC_LIBRARIES = netcdff
+export EXTERNAL_STATIC_LIBRARIES = 
 
 export ROOT = ../..
 

@@ -19,6 +19,8 @@ TOUCH_FILES = $(patsubst ./%.f90,$(OBJ_DIR)/%.t,$(patsubst ./%.F90,$(OBJ_DIR)/%.
 PROGRAMS    = $(patsubst %.o,%,$(notdir $(PROG_OBJS)))
 ALL_MODULES = $(filter-out $(PROG_OBJS),$(patsubst %.t,%.o,$(TOUCH_FILES)))
 
+IGNORE_ARGUMENTS := $(patsubst %,-ignore %,$(IGNORE_DEPENDENCIES))
+
 .SECONDEXPANSION:
 
 .PHONY: applications
@@ -65,7 +67,10 @@ $(OBJ_DIR)/modules.a: $(ALL_MODULES)
 
 $(OBJ_DIR)/%.x: $$($$(shell echo $$* | tr a-z A-Z)_OBJS)
 	@echo "Linking $@"
-	$(Q)$(FCOM) $(FFLAGS) $(LDFLAGS) -o $@ $^
+	$(Q)$(FCOM) $(FFLAGS) $(LDFLAGS) -o $@ \
+	            $(patsubst %,-l%,$(EXTERNAL_DYNAMIC_LIBRARIES)) \
+	            $^ \
+	            $(patsubst %,-l%,$(EXTERNAL_STATIC_LIBRARIES))
 
 # Dependencies
 
@@ -75,17 +80,14 @@ $(OBJ_DIR)/programs.mk: | $(OBJ_DIR)
 $(OBJ_DIR)/dependencies.mk: $(TOUCH_FILES) | $(OBJ_DIR) $(OBJ_SUBDIRS)
 	$(Q)$(TOOL_DIR)/DependencyRules -database $(DATABASE) $@
 
-IGNORE_DEPENDENCIES := $(patsubst %,-ignore %,$(IGNORE_DEPENDENCIES))
-export LDFLAGS += $(patsubst %, -l%,$(EXTERNAL_LIBRARIES))
-
 $(OBJ_DIR)/%.t: %.F90 | $(OBJ_SUBDIRS)
 	@echo Analysing $<
-	$(Q)$(TOOL_DIR)/DependencyAnalyser $(IGNORE_DEPENDENCIES) \
+	$(Q)$(TOOL_DIR)/DependencyAnalyser $(IGNORE_ARGUMENTS) \
 	                               $(DATABASE) $< && touch $@
 
 $(OBJ_DIR)/%.t: %.f90 | $(OBJ_SUBDIRS)
 	@echo Analysing $<
-	$(Q)$(TOOL_DIR)/DependencyAnalyser $(IGNORE_DEPENDENCIES) \
+	$(Q)$(TOOL_DIR)/DependencyAnalyser $(IGNORE_ARGUMENTS) \
 	                                   $(DATABASE) $< && touch $@
 
 # Special Rules
