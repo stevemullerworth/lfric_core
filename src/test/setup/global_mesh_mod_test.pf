@@ -13,136 +13,170 @@ module global_mesh_mod_test
 
   implicit none 
 
+  private
+  public test_global_mesh, setUp, tearDown
+
+  @testCase
+  type, public, extends( TestCase ) :: global_mesh_test_type
+  contains
+    procedure :: setUp
+    procedure :: tearDown
+    procedure :: test_global_mesh
+  end type global_mesh_test_type
+
 contains
+
+  subroutine setup( this )
+
+    use reference_element_mod, only : reference_cube
+
+    implicit none
+
+    class( global_mesh_test_type ), intent( inout ) :: this
+
+    ! Set up stuff that the global_mesh object needs
+    call reference_cube()
+
+  end subroutine setup
+
+  subroutine teardown( this )
+
+    use reference_element_mod, only : deallocate_reference
+
+    implicit none
+
+    class( global_mesh_test_type ), intent( inout ) :: this
+
+    ! clean up the reference_cube we created at the start of the test
+    call deallocate_reference()
+
+  end subroutine teardown
 
   !> Test global_mesh module functionality
   !>
   @test
-  subroutine test_global_mesh()
-  use constants_mod,         only : str_def
-  use reference_element_mod, only : reference_cube, deallocate_reference
-  use global_mesh_mod,       only : global_mesh_type
-  implicit none
+  subroutine test_global_mesh( this )
 
-  type(global_mesh_type) :: global_mesh
+    use constants_mod,         only : str_def
+    use global_mesh_mod,       only : global_mesh_type
 
-  integer :: num_cells_x
-  integer :: num_cells_y
-  integer :: cell_id
-  integer :: verts(4)
-  integer :: edges(4)
-  integer :: cells(4)
-  integer :: ncells
-  integer :: ncells_x
-  integer :: ncells_y
-  integer :: max_cells_on_vert
+    implicit none
 
-  character(len = str_def) :: filename
+    class( global_mesh_test_type ), intent( inout ) :: this
 
-  !-------------------------------------
-  ! Test generation of a biperiodic mesh
-  !-------------------------------------
-  num_cells_x = 3
-  num_cells_y = 3
-  !
-  ! Set up stuff that the global_mesh object needs
-  call reference_cube()
-  !
-  ! Generate the global_mesh
-  global_mesh = global_mesh_type( num_cells_x, &
-                                  num_cells_y )
-  !
-  ! Test functionality of the global_mesh object we've just created
-  cell_id=global_mesh%get_cell_id( 1, 0, 0 )
-  @assertEqual( 1, cell_id )
+    type(global_mesh_type) :: global_mesh
 
-  cell_id=global_mesh%get_cell_id( 1, 2, 2 )
-  @assertEqual( 9, cell_id )
+    integer :: num_cells_x
+    integer :: num_cells_y
+    integer :: cell_id
+    integer :: verts(4)
+    integer :: edges(4)
+    integer :: cells(4)
+    integer :: ncells
+    integer :: ncells_x
+    integer :: ncells_y
+    integer :: max_cells_on_vert
 
-  call global_mesh%get_vert_on_cell( 2, verts )
-  @assertEqual( 2, verts(1) )
-  @assertEqual( 5, verts(2) )
-  @assertEqual( 6, verts(3) )
-  @assertEqual( 3, verts(4) )
+    character(len = str_def) :: filename
 
-  call global_mesh%get_cell_on_vert( 3, cells )
-  @assertEqual( 1, cells(1) )
-  @assertEqual( 2, cells(2) )
-  @assertEqual( 4, cells(3) )
-  @assertEqual( 5, cells(4) )
+    !-------------------------------------
+    ! Test generation of a biperiodic mesh
+    !-------------------------------------
+    num_cells_x = 3
+    num_cells_y = 3
+    !
+    ! Generate the global_mesh
+    global_mesh = global_mesh_type( num_cells_x, &
+                                    num_cells_y )
+    !
+    ! Test functionality of the global_mesh object we've just created
+    cell_id=global_mesh%get_cell_id( 1, 0, 0 )
+    @assertEqual( 1, cell_id )
 
-  call global_mesh%get_edge_on_cell( 2, edges )
-  @assertEqual( 2, edges(1) )
-  @assertEqual( 5, edges(2) )
-  @assertEqual( 6, edges(3) )
-  @assertEqual( 7, edges(4) )
+    cell_id=global_mesh%get_cell_id( 1, 2, 2 )
+    @assertEqual( 9, cell_id )
 
-  call global_mesh%get_cell_on_edge( 6, cells(1:2) )
-  @assertEqual( 2, cells(1) )
-  @assertEqual( 3, cells(2) )
+    call global_mesh%get_vert_on_cell( 2, verts )
+    @assertEqual( 2, verts(1) )
+    @assertEqual( 5, verts(2) )
+    @assertEqual( 6, verts(3) )
+    @assertEqual( 3, verts(4) )
 
-  ncells = global_mesh%get_ncells()
-  @assertEqual( 9, ncells )
+    call global_mesh%get_cell_on_vert( 3, cells )
+    @assertEqual( 1, cells(1) )
+    @assertEqual( 2, cells(2) )
+    @assertEqual( 4, cells(3) )
+    @assertEqual( 5, cells(4) )
 
-  ncells_x = global_mesh%get_num_cells_x()
-  @assertEqual( num_cells_x, ncells_x )
+    call global_mesh%get_edge_on_cell( 2, edges )
+    @assertEqual( 2, edges(1) )
+    @assertEqual( 5, edges(2) )
+    @assertEqual( 6, edges(3) )
+    @assertEqual( 7, edges(4) )
 
-  ncells_y = global_mesh%get_num_cells_y()
-  @assertEqual( num_cells_y, ncells_y )
+    call global_mesh%get_cell_on_edge( 6, cells(1:2) )
+    @assertEqual( 2, cells(1) )
+    @assertEqual( 3, cells(2) )
 
-  max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
-  @assertEqual( 4, max_cells_on_vert )
+    ncells = global_mesh%get_ncells()
+    @assertEqual( 9, ncells )
 
-  !---------------------------------------
-  ! Test generation of a cubed-sphere mesh
-  !---------------------------------------
-  filename = 'data/ugrid_quads_2d.nc' 
-  global_mesh = global_mesh_type( filename )
-  !
-  ! Generate the global_mesh
-  cell_id = global_mesh%get_cell_id( 1, 0, 0 )
-  @assertEqual( 1, cell_id )
-  !
-  ! Test functionality of the global_mesh object we've just created
-  cell_id = global_mesh%get_cell_id( 1, 2, 2 )
-  @assertEqual( 11, cell_id )
+    ncells_x = global_mesh%get_num_cells_x()
+    @assertEqual( num_cells_x, ncells_x )
 
-  call global_mesh%get_vert_on_cell( 6, verts )
-  @assertEqual(  6, verts(1) )
-  @assertEqual(  7, verts(2) )
-  @assertEqual( 11, verts(3) )
-  @assertEqual( 10, verts(4) )
+    ncells_y = global_mesh%get_num_cells_y()
+    @assertEqual( num_cells_y, ncells_y )
 
-  call global_mesh%get_cell_on_vert( 16, cells )
-  @assertEqual( 11, cells(1) )
-  @assertEqual( 12, cells(2) )
-  @assertEqual( 15, cells(3) )
-  @assertEqual( 16, cells(4) )
+    max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
+    @assertEqual( 4, max_cells_on_vert )
 
-  call global_mesh%get_edge_on_cell( 6, edges )
-  @assertEqual( 11, edges(1) )
-  @assertEqual( 12, edges(2) )
-  @assertEqual( 13, edges(3) )
-  @assertEqual( 20, edges(4) )
+    !---------------------------------------
+    ! Test generation of a cubed-sphere mesh
+    !---------------------------------------
+    filename = 'data/ugrid_quads_2d.nc'
+    global_mesh = global_mesh_type( filename )
+    !
+    ! Generate the global_mesh
+    cell_id = global_mesh%get_cell_id( 1, 0, 0 )
+    @assertEqual( 1, cell_id )
+    !
+    ! Test functionality of the global_mesh object we've just created
+    cell_id = global_mesh%get_cell_id( 1, 2, 2 )
+    @assertEqual( 11, cell_id )
 
-  call global_mesh%get_cell_on_edge( 13, cells(1:2) )
-  @assertEqual(  6, cells(1) )
-  @assertEqual(  7, cells(2) )
+    call global_mesh%get_vert_on_cell( 6, verts )
+    @assertEqual(  6, verts(1) )
+    @assertEqual(  7, verts(2) )
+    @assertEqual( 11, verts(3) )
+    @assertEqual( 10, verts(4) )
 
-  ncells = global_mesh%get_ncells()
-  @assertEqual( 96, ncells )
+    call global_mesh%get_cell_on_vert( 16, cells )
+    @assertEqual( 11, cells(1) )
+    @assertEqual( 12, cells(2) )
+    @assertEqual( 15, cells(3) )
+    @assertEqual( 16, cells(4) )
 
-  ncells_x = global_mesh%get_num_cells_x()
-  @assertEqual( 4, ncells_x )
+    call global_mesh%get_edge_on_cell( 6, edges )
+    @assertEqual( 11, edges(1) )
+    @assertEqual( 12, edges(2) )
+    @assertEqual( 13, edges(3) )
+    @assertEqual( 20, edges(4) )
 
-  ncells_y=global_mesh%get_num_cells_y()
-  @assertEqual( 4, ncells_y )
+    call global_mesh%get_cell_on_edge( 13, cells(1:2) )
+    @assertEqual(  6, cells(1) )
+    @assertEqual(  7, cells(2) )
 
-  max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
-  @assertEqual( 4, max_cells_on_vert )
+    ncells = global_mesh%get_ncells()
+    @assertEqual( 96, ncells )
 
-  ! clean up the reference_cube we created at the start of the test
-  call deallocate_reference()
+    ncells_x = global_mesh%get_num_cells_x()
+    @assertEqual( 4, ncells_x )
+
+    ncells_y=global_mesh%get_num_cells_y()
+    @assertEqual( 4, ncells_y )
+
+    max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
+    @assertEqual( 4, max_cells_on_vert )
 
   end subroutine test_global_mesh
 

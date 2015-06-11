@@ -37,10 +37,14 @@ endif
 
 DRIVER_DIR = $(dir $(DRIVER_OBJ))
 
-$(DRIVER_OBJ): $(PFUNIT_INSTALL_DIR)/include/driver.F90 $(DRIVER_DIR)testSuites.inc | $(DRIVER_DIR)
+$(DRIVER_OBJ): $(PFUNIT_INSTALL_DIR)/include/driver.F90 \
+               $(DRIVER_DIR)/testSuites.inc | $(DRIVER_DIR)
 	@echo -e $(VT_BOLD)Compiling$(VT_RESET) $@
 	$(Q)$(FC) $(FFLAGS) -c -I$(PFUNIT_INSTALL_DIR)/mod -I$(DRIVER_DIR) \
-	          -DBUILD_ROBUST -o $@ $<
+	          -DBUILD_ROBUST \
+	          -DPFUNIT_EXTRA_USAGE=$(PFUNIT_EXTRA_USAGE) \
+	          -DPFUNIT_EXTRA_INITIALIZE=$(PFUNIT_EXTRA_INITIALIZE) \
+	          -DPFUNIT_EXTRA_FINALIZE=$(PFUNIT_EXTRA_FINALIZE) -o $@ $<
 
 $(PFUNIT_INSTALL_DIR)/include/driver.F90: $(PFUNIT_BUILD_DIR)/Makefile
 	@echo -e $(VT_BOLD)Building$(VT_RESET) pFUnit
@@ -58,11 +62,11 @@ $(PFUNIT_BUILD_DIR) $(dir $(DRIVER_OBJ)):
 
 ALL_TESTS = $(shell find . -name "*.pf")
 
-$(DRIVER_DIR)testSuites.inc: $(DRIVER_DIR)testSuites.inc.new $(ALL_TESTS)
+$(DRIVER_DIR)/testSuites.inc: $(DRIVER_DIR)/testSuites.inc.new $(ALL_TESTS)
 	@echo -e $(VT_BOLD)Replacing$(VT_RESET) $@ with $<
 	$(Q)mv -f $< $@
 
-$(DRIVER_DIR)testSuites.inc.new: ALWAYS | $(DRIVER_DIR)
+$(DRIVER_DIR)/testSuites.inc.new: ALWAYS | $(DRIVER_DIR)
 	@echo -e $(VT_BOLD)Clearing$(VT_RESET) $@
 	@echo > $@
 

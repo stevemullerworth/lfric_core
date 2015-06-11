@@ -170,8 +170,12 @@
     [[run_{{label}}_dynamo]]
         inherit = {{family}}, {{family}}_COMPILER, REMOTE
         command scripting = """
+                            (
+                            mkdir -p $DESTINATION_DIRECTORY
                             cp $SOURCE_DIRECTORY/data/ugrid_quads_2d.nc .
                             $SOURCE_DIRECTORY/bin/dynamo | tee $DESTINATION_DIRECTORY/dynamo.out.txt
+                            exit `expr ${PIPESTATUS[0]} + ${PIPESTATUS[1]}`
+                            )
                             """
 
     [[check_{{label}}_dynamo]]

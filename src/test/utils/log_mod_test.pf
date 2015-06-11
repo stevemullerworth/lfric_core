@@ -81,8 +81,7 @@ contains
 
     implicit none
 
-    type( level_parameter_type ), allocatable :: parameters( : )
-
+    type( level_parameter_type ) :: parameters(4)
     parameters = [ level_parameter_type( LOG_LEVEL_TRACE,   ':TRACE:' ), &
                    level_parameter_type( LOG_LEVEL_DEBUG,   ':DEBUG:' ), &
                    level_parameter_type( LOG_LEVEL_INFO,    ':INFO :' ), &
