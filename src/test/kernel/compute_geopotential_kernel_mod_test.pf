@@ -35,8 +35,8 @@ contains
     y(1) = 0.0_r_def
     z(1) = earth_radius
     
-    call compute_geopotential_code(nlayers, ndf, undf, map, &
-                                   phi, x, y, z)
+    call compute_geopotential_code(nlayers, &
+                                   phi, x, y, z, ndf, undf, map)
     
     tol = 1.0e-12_r_def     
     answer = earth_radius*GRAVITY

@@ -31,7 +31,7 @@ type, public, extends(kernel_type) :: initial_rho_kernel_type
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
-       func_type(W3, GH_BASIS, GH_DIFF_BASIS),                         &
+       func_type(W3, GH_BASIS),                                        &
        func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
        /)
   integer :: iterates_over = CELLS
@@ -72,11 +72,10 @@ end function initial_rho_kernel_constructor
 !! @param[inout] chi_1 Real array, the x component of the w0 coordinate field
 !! @param[inout] chi_2 Real array, the y component of the w0 coordinate field
 !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
-subroutine initial_rho_code(nlayers, &
-                               ndf_w3, undf_w3, map_w3, w3_basis, rho, &
-                               ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis, chi_1, chi_2, chi_3, &
-                               nqp_h, nqp_v, wqp_h, wqp_v &
-                              )
+subroutine initial_rho_code(nlayers, rho, chi_1, chi_2, chi_3, &
+                            ndf_w3, undf_w3, map_w3, w3_basis, &
+                            ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis, &
+                            nqp_h, nqp_v, wqp_h, wqp_v )
                          
    use matrix_invert_mod,       only : matrix_invert 
    use coordinate_jacobian_mod, only : coordinate_jacobian 

@@ -13,8 +13,9 @@ module galerkin_projection_algorithm_mod
   use log_mod,                 only: log_event, log_scratch_space, LOG_LEVEL_INFO
   use solver_mod,              only: solver_algorithm
   use constants_mod,           only: r_def, SOLVER_OPTION  
-  use psy,                     only: invoke_copy_field_data, invoke_set_field_scalar, &
-                                     invoke_gp_rhs, invoke_gp_vector_rhs
+  use psy,                     only: invoke_copy_field_data, invoke_set_field_scalar
+  use gp_rhs_kernel_mod,       only: gp_rhs_kernel_type
+  use gp_vector_rhs_kernel_mod,only: gp_vector_rhs_kernel_type
   use field_mod,               only: field_type
   use quadrature_mod,          only: quadrature_type
   use function_space_mod,      only: function_space_type, W0
@@ -50,7 +51,7 @@ contains
 ! Coordinate fields
     type( field_type ), intent(inout) :: chi(3)  
     type( quadrature_type ), intent(in) :: qr
-    type( operator_type ), optional, intent(in) :: mm
+    type( operator_type ), optional, intent(inout) :: mm
 
     integer                          :: out_fs
     type( field_type )               :: rhs(space_dimension)
@@ -76,11 +77,13 @@ contains
        if ( space_dimension == 1 ) then
           write( log_scratch_space, '(A)' ) '    scalar field ... '
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
-          call invoke_gp_rhs( rhs(1), f_in, chi, qr)
+          !call invoke_gp_rhs( rhs(1), f_in, chi, qr)
+          call invoke( gp_rhs_kernel_type(rhs(1), f_in, chi, qr) )
        else
           write( log_scratch_space, '(A)' ) '    vector field ... '
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
-          call invoke_gp_vector_rhs( rhs, f_in, chi, qr )
+          !call invoke_gp_vector_rhs( rhs, f_in, chi, qr )
+          call invoke( gp_vector_rhs_kernel_type(rhs, f_in, chi, qr) )
        end if
        do dir = 1,space_dimension
           if(present(mm)) then

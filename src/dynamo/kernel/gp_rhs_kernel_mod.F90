@@ -87,10 +87,11 @@ end function gp_rhs_kernel_constructor
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
 subroutine gp_rhs_code(nlayers, &
-                       ndf, undf, map, basis, rhs, &
-                       ndf_f, undf_f, map_f, f_basis, field, &
-                       ndf_chi, undf_chi, map_chi, chi_diff_basis, & 
+                       rhs, field, &
                        chi_1, chi_2, chi_3, &
+                       ndf, undf, map, basis, &
+                       ndf_f, undf_f, map_f, f_basis, &
+                       ndf_chi, undf_chi, map_chi, chi_diff_basis, & 
                        nqp_h, nqp_v, wqp_h, wqp_v                    )
                        
   use coordinate_jacobian_mod, only: coordinate_jacobian                       

@@ -132,21 +132,21 @@ contains
 
        orientation_w2 => f_proxy%vspace%get_cell_orientation ( cell )
        call rtheta_code( nlayers, &
+                         r_theta_proxy%data, &
+                         theta_proxy%data, &
+                         f_proxy%data, &
+                         rho_proxy%data, &
                          ndf_w0, undf_w0, &
                          map_w0, &
                          basis_w0, &
-                         diff_basis_w0, &   
-                         r_theta_proxy%data, &
-                         theta_proxy%data, &
+                         diff_basis_w0, &
                          ndf_w2, undf_w2, &
                          map_w2, &
                          basis_w2, &
                          orientation_w2, &
-                         f_proxy%data, &                        
                          ndf_w3, undf_w3, &
                          map_w3, &
                          basis_w3, &
-                         rho_proxy%data, &                        
                          nqp_h, nqp_v, wh, wv &
                          )
     end do 

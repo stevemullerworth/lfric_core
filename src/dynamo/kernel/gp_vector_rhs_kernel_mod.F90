@@ -14,7 +14,7 @@ use argument_mod,            only : arg_type, func_type,           &
                                     GH_FIELD, GH_INC, GH_READ,     &
                                     W0, ANY_SPACE_1, ANY_SPACE_2,  &
                                     GH_BASIS, GH_DIFF_BASIS,       &
-                                    CELLS
+                                    GH_ORIENTATION, CELLS
 
 implicit none
 
@@ -32,7 +32,7 @@ type, public, extends(kernel_type) :: gp_vector_rhs_kernel_type
   type(func_type) :: meta_funcs(3) = (/                                &
        func_type(ANY_SPACE_1, GH_BASIS),                               &
        func_type(ANY_SPACE_2, GH_BASIS),                               &
-       func_type(W0,          GH_BASIS, GH_DIFF_BASIS)                 &
+       func_type(W0,          GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION) &
        /)
   integer :: iterates_over = CELLS
 
@@ -85,14 +85,14 @@ end function gp_vector_rhs_kernel_constructor
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
 subroutine gp_vector_rhs_code(nlayers, &
+                              rhs1, rhs2, rhs3, field, &
+                              chi_1, chi_2, chi_3, &
                               ndf, undf, &
                               map, basis, &
-                              rhs1, rhs2, rhs3, &
-                              ndf_f, undf_f, map_f, f_basis, orientation, &
-                              field, &
+                              ndf_f, undf_f, map_f, f_basis, &
                               ndf_chi, undf_chi, &
                               map_chi, chi_basis, chi_diff_basis, &
-                              chi_1, chi_2, chi_3, &
+                              orientation,                        &
                               nqp_h, nqp_v, wqp_h, wqp_v &
                              )
                        

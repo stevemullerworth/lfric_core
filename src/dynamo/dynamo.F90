@@ -23,10 +23,10 @@ program dynamo
   use ESMF
   use constants_mod,           only : i_def, str_max_filename, &
                                       L_NONLINEAR
-  use dynamo_algorithm_rk_timestep_mod, &
-                               only : dynamo_algorithm_rk_timestep
-  use linear_dynamo_algorithm_rk_timestep_mod, &
-                               only : linear_dynamo_algorithm_rk_timestep
+  use rk_alg_timestep_mod, &
+                               only : rk_alg_timestep
+  use lin_rk_alg_timestep_mod, &
+                               only : lin_rk_alg_timestep
   use field_mod,               only : field_type
   use function_space_mod,      only : function_space_type, W0, W1, W2, W3
   use set_up_mod,              only : set_up
@@ -135,9 +135,9 @@ program dynamo
   call assign_coordinate_field( chi )
 
   if ( L_NONLINEAR ) then
-    call dynamo_algorithm_rk_timestep( chi, u, rho, theta, xi)                       
+    call rk_alg_timestep( chi, u, rho, theta, xi)                       
   else
-    call linear_dynamo_algorithm_rk_timestep( chi, u, rho, theta)   
+    call lin_rk_alg_timestep( chi, u, rho, theta)   
   end if
 
    ! do some i/o

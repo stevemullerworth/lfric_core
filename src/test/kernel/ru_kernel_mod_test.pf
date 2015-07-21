@@ -189,19 +189,19 @@ contains
     rho_proxy%data(:) = 0.0_r_def
     call initial_rho_code( &
                           nlayers, &
+                          rho_proxy%data, &
+                          chi_p(1)%data, &
+                          chi_p(2)%data, &
+                          chi_p(3)%data, &
                           ndf_w3, &
                           undf_w3, &
                           map_w3, &
                           basis_w3, &
-                          rho_proxy%data, &
                           ndf_w0, &
                           undf_w0, &
                           map_w0, &
                           basis_w0, &
                           diff_basis_w0, &
-                          chi_p(1)%data, &
-                          chi_p(2)%data, &
-                          chi_p(3)%data, &
                           nqp_h, &
                           nqp_v, &
                           wh, &
@@ -209,29 +209,29 @@ contains
                           )
 
     call ru_code( nlayers,                                              &
-                  ndf_w2, undf_w2,                                      &
-                  map_w2, basis_w2, diff_basis_w2,                      &
-                  boundary_dofs,                                        &
-                  orientation_w2,                                       &
                   r_u_proxy%data,                                       &
                   u_proxy%data,                                         &
                   f_proxy%data,                                         &
-                  ndf_w3, undf_w3,                                      &
-                  map_w3, basis_w3,                                     &
                   rho_proxy%data,                                       &
-                  ndf_w1, undf_w1,                                      &
-                  map_w1, basis_w1,                                     &
-                  orientation_w1,                                       &
-                  xi_proxy%data,                                        &
-                  ndf_w0, undf_w0,                                      &
-                  map_w0, basis_w0, diff_basis_w0,                      &   
                   theta_proxy%data,                                     &
                   phi_proxy%data,                                       &
+                  xi_proxy%data,                                        &
                   chi_p(1)%data,                                        &
                   chi_p(2)%data,                                        &
                   chi_p(3)%data,                                        &
+                  ndf_w2, undf_w2,                                      &
+                  map_w2, basis_w2, diff_basis_w2,                      &
+                  orientation_w2,                                       &
+                  boundary_dofs,                                        &
+                  ndf_w3, undf_w3,                                      &
+                  map_w3, basis_w3,                                     &
+                  ndf_w0, undf_w0,                                      &
+                  map_w0, basis_w0, diff_basis_w0,                      &
+                  ndf_w1, undf_w1,                                      &
+                  map_w1, basis_w1,                                     &
+                  orientation_w1,                                       &
                   nqp_h, nqp_v, wh, wv                                  &
-                  )           
+                  )
     deallocate(basis_w3, basis_w2, diff_basis_w2, basis_w1, &
                basis_w0, diff_basis_w0)
 ! Simple test, if u, F, xi = 0 check data is in hydrostatic balance

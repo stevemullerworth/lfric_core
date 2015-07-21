@@ -22,10 +22,10 @@
 !>         ru = -xi/rho x F - grad(Phi + 1/2*u.u) - cp*theta*grad(exner)
 module ru_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                 &
-                                    GH_FIELD, GH_READ, GH_INC,           &
-                                    W0, W2, W3, GH_BASIS, GH_DIFF_BASIS, &
-                                    CELLS 
+use argument_mod,            only : arg_type, func_type,                     &
+                                    GH_FIELD, GH_READ, GH_INC,               &
+                                    W0, W1, W2, W3, GH_BASIS, GH_DIFF_BASIS, &
+                                    GH_ORIENTATION, CELLS
 use constants_mod,           only : cp, r_def
 use cross_product_mod,       only : cross_product
 
@@ -37,16 +37,21 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ru_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(8) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W2),                              &
+       arg_type(GH_FIELD,   GH_READ, W2),                              &
+       arg_type(GH_FIELD,   GH_READ, W2),                              &
        arg_type(GH_FIELD,   GH_READ, W3),                              &
        arg_type(GH_FIELD,   GH_READ, W0),                              &
+       arg_type(GH_FIELD,   GH_READ, W0),                              &
+       arg_type(GH_FIELD,   GH_READ, W1),                              &
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
        /)
-  type(func_type) :: meta_funcs(3) = (/                                &
-       func_type(W2, GH_BASIS, GH_DIFF_BASIS),                         &
+  type(func_type) :: meta_funcs(4) = (/                                &
+       func_type(W2, GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION),         &
        func_type(W3, GH_BASIS),                                        &
-       func_type(W0, GH_BASIS, GH_DIFF_BASIS)                          &
+       func_type(W0, GH_BASIS, GH_DIFF_BASIS),                         &
+       func_type(W1, GH_BASIS, GH_ORIENTATION)                         &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -110,16 +115,18 @@ end function ru_kernel_constructor
 !! @param[in] nqp_v Integer, number of quadrature points in the vertical
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
+
 subroutine ru_code(nlayers,                                                    &
+                   r_u, u, mass_flux, rho, theta, phi, xi,                     &
+                   chi_1, chi_2, chi_3,                                        &
                    ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis,           &
-                   boundary_value, orientation_w2, r_u, u, mass_flux,          &
-                   ndf_w3, undf_w3, map_w3, w3_basis, rho,                     &
-                   ndf_w1, undf_w1, map_w1, w1_basis, orientation_w1, xi,      &
+                   orientation_w2, boundary_value_w2,                          &
+                   ndf_w3, undf_w3, map_w3, w3_basis,                          &
                    ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,           &
-                   theta, phi, chi_1, chi_2, chi_3,                            &
+                   ndf_w1, undf_w1, map_w1, w1_basis, orientation_w1,          &
                    nqp_h, nqp_v, wqp_h, wqp_v                                  &
                    )
-                           
+
   use coordinate_jacobian_mod,  only: coordinate_jacobian, &
                                       coordinate_jacobian_inverse
   use enforce_bc_mod,           only: enforce_bc_w2
@@ -134,7 +141,7 @@ subroutine ru_code(nlayers,                                                    &
   integer, dimension(ndf_w2), intent(in) :: map_w2
   integer, dimension(ndf_w3), intent(in) :: map_w3
   
-  integer, dimension(ndf_w2,2), intent(in) :: boundary_value
+  integer, dimension(ndf_w2,2), intent(in) :: boundary_value_w2
   integer, dimension(ndf_w2),   intent(in) :: orientation_w2
   integer, dimension(ndf_w1),   intent(in) :: orientation_w1
 
@@ -252,7 +259,7 @@ subroutine ru_code(nlayers,                                                    &
                           *real(orientation_w1(df),r_def)
         end do
         vorticity = cross_product(matmul(transpose(jac_inv(:,:,qp1,qp2)),xi_at_quad),&
-                                  matmul(jac    (:,:,qp1,qp2),f_at_quad))        
+                                  matmul(jac    (:,:,qp1,qp2),f_at_quad))
         vorticity = vorticity/(dj(qp1,qp2)*rho_at_quad)
 
         do df = 1, ndf_w2
@@ -268,14 +275,14 @@ subroutine ru_code(nlayers,                                                    &
                     + dot_product( grad_theta_at_quad(:),v)          &
                                          )
 
-          ke_term =  dv*ke_at_quad    
+          ke_term =  dv*ke_at_quad
 
           vorticity_term = - dot_product(jac_v,vorticity)
 
           ru_e(df) = ru_e(df) +  wqp_h(qp1)*wqp_v(qp2)*( grad_term &
                                                        - geo_term &
-                                                       + ke_term &                                                       
-                                                       + vorticity_term)  
+                                                       + ke_term &
+                                                       + vorticity_term)
 
         end do
       end do
@@ -284,8 +291,8 @@ subroutine ru_code(nlayers,                                                    &
       r_u( map_w2(df) + k ) =  r_u( map_w2(df) + k ) + ru_e(df)
     end do 
   end do
-  
-  call enforce_bc_w2(nlayers,ndf_w2,undf_w2,map_w2,boundary_value,r_u)
+
+  call enforce_bc_w2(nlayers,ndf_w2,undf_w2,map_w2,boundary_value_w2,r_u)
 end subroutine ru_code
 
 end module ru_kernel_mod

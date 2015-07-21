@@ -26,9 +26,9 @@ implicit none
 type, public, extends(kernel_type) :: w3_solver_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                  &
-       arg_type(GH_FIELD, GH_WRITE,  W3),                              &
-       arg_type(GH_FIELD, GH_READ,   W3),                              &
-       arg_type(GH_FIELD, GH_READ*3, W0)                               &
+       arg_type(GH_FIELD,   GH_WRITE, W3),                             &
+       arg_type(GH_FIELD,   GH_READ,  W3),                             &
+       arg_type(GH_FIELD*3, GH_READ,  W0)                              &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W3, GH_BASIS),                                        &
@@ -72,10 +72,11 @@ end function w3_solver_kernel_constructor
 !! @param[inout] chi_1 Real array, the x component of the w0 coordinate field
 !! @param[inout] chi_2 Real array, the y component of the w0 coordinate field
 !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
-subroutine solver_w3_code(nlayers, ndf_w3, undf_w3, map_w3, w3_basis, &
+subroutine solver_w3_code(nlayers,                                    &
                           x, rhs, &
-                          ndf_w0, undf_w0, map_w0, w0_diff_basis,     &
                           chi_1, chi_2, chi_3, &
+                          ndf_w3, undf_w3, map_w3, w3_basis, &
+                          ndf_w0, undf_w0, map_w0, w0_diff_basis,     &
                           nqp_h, nqp_v, wqp_h, wqp_v                  &
                          )
                          

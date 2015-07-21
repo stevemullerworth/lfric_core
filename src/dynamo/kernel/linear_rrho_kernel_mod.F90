@@ -99,12 +99,11 @@ end function linear_rrho_kernel_constructor
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
 subroutine linear_rrho_code(nlayers,                                                  &
-                            ndf_w3, undf_w3, map_w3, w3_basis, r_rho,                 &
+                            r_rho, u, phi, chi_1, chi_2, chi_3,                       &
+                            ndf_w3, undf_w3, map_w3, w3_basis, &
                             ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis,         &
-                            orientation, u,                                           &
+                            orientation,&
                             ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,         &
-                            phi,                                                      &
-                            chi_1, chi_2, chi_3,                                      &
                             nqp_h, nqp_v, wqp_h, wqp_v         )
                              
   use coordinate_jacobian_mod, only: coordinate_jacobian

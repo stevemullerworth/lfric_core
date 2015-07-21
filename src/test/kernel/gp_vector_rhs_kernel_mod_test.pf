@@ -94,11 +94,13 @@ contains
     undf=8
     undf_f=1
 
-    call gp_vector_rhs_code(num_layers, &
-                            ndf_w0, undf, map_w0, basis, rhs1, rhs2, rhs3, &
-                            ndf_f, undf_f,map_f, basis_f, orientation, f_data, &
-                            ndf_w0, undf, map_w0, basis, diff_basis, &
-                            chi(:,1), chi(:,2), chi(:,3),  &
+    call gp_vector_rhs_code(num_layers,                   &
+                            rhs1, rhs2, rhs3, f_data,     &
+                            chi(:,1), chi(:,2), chi(:,3), &
+                            ndf_w0, undf, map_w0, basis,  &
+                            ndf_f, undf_f,map_f, basis_f, &
+                            ndf_w0, undf, map_w0, basis,  &
+                            diff_basis, orientation,      &
                             nqp_h, nqp_v, wh, wv )
 ! Answers for hardwired jacobian
 !    dx = 6000.0_r_def

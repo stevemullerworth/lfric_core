@@ -28,7 +28,6 @@ implicit none
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
-
 type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w0_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
@@ -42,14 +41,14 @@ type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w0_type
 
 contains
   procedure, nopass :: compute_mass_matrix_w0_code
-end type
+end type compute_mass_matrix_kernel_w0_type
 
 !-------------------------------------------------------------------------------
 ! Constructors
 !-------------------------------------------------------------------------------
 
 ! overload the default structure constructor for function space
-interface compute_mass_matrix_kernel_w0_type
+interface compute_mass_matrix_kernel_w0
    module procedure compute_mass_matrix_constructor
 end interface
 
@@ -63,11 +62,11 @@ type(compute_mass_matrix_kernel_w0_type) function compute_mass_matrix_constructo
   return
 end function compute_mass_matrix_constructor
   
-subroutine compute_mass_matrix_w0_code(cell, nlayers,                  &
-                                       ndf, ncell_3d,                  &
-                                       basis, mm,                      &
-                                       undf, map_chi, diff_basis_chi,  &
-                                       chi1, chi2, chi3,               & 
+subroutine compute_mass_matrix_w0_code(cell, nlayers, ncell_3d,        &
+                                       mm,                             &
+                                       chi1, chi2, chi3,               & ! dof vectors
+                                       ndf, undf,                      &
+                                       map_chi, basis, diff_basis_chi, & ! arrays
                                        nqp_h, nqp_v, wqp_h, wqp_v )
 !> @brief This subroutine computes the mass matrix for the w0 space
 !! @param[in] cell Integer: The cell number

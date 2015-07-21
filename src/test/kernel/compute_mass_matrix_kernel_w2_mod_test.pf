@@ -110,25 +110,25 @@ contains
     call mm_p%fs_from%compute_basis_function(                            &
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
-    cell = 1                                
-    map_chi => chi_p(1)%vspace%get_cell_dofmap(cell)   
+    cell = 1
+    map_chi => chi_p(1)%vspace%get_cell_dofmap(cell)
 
     orientation_w2 => mm_p%fs_from%get_cell_orientation( cell )
     mm_p%local_stencil(:,:,:) = 0.0_r_def
     call compute_mass_matrix_w2_code( cell,                              &
                                       nlayers,                           &
-                                      ndf,                               &
                                       mm_p%ncell_3d,                     &
+                                      mm_p%local_stencil,                &
+                                      chi_p(1)%data,                     &
+                                      chi_p(2)%data,                     &
+                                      chi_p(3)%data,                     &
+                                      ndf,                               &
                                       basis,                             &
                                       orientation_w2,                    &
-                                      mm_p%local_stencil,                &
                                       ndf_chi,                           &
                                       undf_chi,                          &
                                       map_chi,                           &
                                       diff_basis,                        &
-                                      chi_p(1)%data,                     &
-                                      chi_p(2)%data,                     &
-                                      chi_p(3)%data,                     &
                                       nqp_h,                             &
                                       nqp_v,                             &
                                       wh,                                &

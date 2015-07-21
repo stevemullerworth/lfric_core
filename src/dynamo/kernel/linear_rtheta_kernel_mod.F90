@@ -36,9 +36,10 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: linear_rtheta_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W0),                              &
        arg_type(GH_FIELD,   GH_READ, W2),                              &
+       arg_type(GH_FIELD,   GH_READ, W0),                              &
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
@@ -83,10 +84,10 @@ end function linear_rtheta_kernel_constructor
 !! @param[in] u Real array. the velocity
 !! @param[inout] gq The gaussian quadrature rule 
 subroutine linear_rtheta_code(nlayers,                                         &
-                              ndf_w0, undf_w0, map_w0, w0_basis,  r_theta,     &
+                              r_theta, u, phi,  chi_1, chi_2, chi_3,           &
+                              ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,&
                               ndf_w2, undf_w2, map_w2, w2_basis,               &
-                              orientation, u,                                  &
-                              w0_diff_basis, phi, chi_1, chi_2, chi_3,         &
+                              orientation,                                     &
                               nqp_h, nqp_v, wqp_h, wqp_v )
                                
   use coordinate_jacobian_mod, only: coordinate_jacobian

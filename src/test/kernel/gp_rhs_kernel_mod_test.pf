@@ -88,11 +88,12 @@ contains
 
     num_layers=1
     rhs(:) = 0.0_r_def
-    call gp_rhs_code(num_layers, &
-                     ndf_w0, undf, map_w0, basis, rhs, &
-                     ndf_f, undf_f,map_f, basis_f, f_data, &
-                     ndf_w0, undf, map_w0, diff_basis, & 
-                     chi(:,1), chi(:,2), chi(:,3),        &
+    call gp_rhs_code(num_layers,                       &
+                     rhs, f_data,                      &
+                     chi(:,1), chi(:,2), chi(:,3),     &
+                     ndf_w0, undf, map_w0, basis,      &
+                     ndf_f, undf_f,map_f, basis_f,     &
+                     ndf_w0, undf, map_w0, diff_basis, &
                      nqp_h, nqp_v, wh, wv )
 
 ! Answer for hardwired jacobian

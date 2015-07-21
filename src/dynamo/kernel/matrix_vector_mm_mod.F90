@@ -66,7 +66,12 @@ end function matrix_vector_kernel_mm_constructor
 !> @param[inout] lhs Real array, the output lhs (A*x)
 !! @param[in] ncell_3d total number of cells
 !! @param[in] mass_matrix Real: Array holding mass matrix values
-subroutine matrix_vector_mm_code(cell,nlayers,ndf,undf,map,lhs,x,ncell_3d,mass_matrix)
+subroutine matrix_vector_mm_code(cell,        &
+                                 nlayers,     &
+                                 lhs, x,      & 
+                                 ncell_3d,    &
+                                 mass_matrix, &
+                                 ndf,undf,map)
  
   !Arguments
   integer,                   intent(in)    :: cell, nlayers, ndf

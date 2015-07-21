@@ -29,10 +29,10 @@ module solver_mod
                               invoke_minus_field_data,        &
                               invoke_copy_field_data,         &
                               invoke_set_field_scalar,        &
-                              invoke_w3_solver_kernel,        &
                               invoke_divide_field,            &
-                              invoke_copy_scaled_field_data,  &
-                              invoke_matrix_vector_mm
+                              invoke_copy_scaled_field_data
+  use w3_solver_kernel_mod, only: w3_solver_kernel_type
+  use matrix_vector_mm_mod, only: matrix_vector_kernel_mm_type
 
   use quadrature_mod,  only : quadrature_type
   use operator_mod,    only : operator_type
@@ -66,10 +66,12 @@ contains
     implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(inout)    :: rhs
-    type(field_type), intent(in)       :: chi(3)
+    ! chi is really intent(in) but this currently causes
+    ! problems because PSyclone makes everything (inout)
+    type(field_type), intent(inout)       :: chi(3)
     integer, intent(in)                :: solver_type
     type(quadrature_type), optional, intent(in) :: qr
-    type(operator_type),   optional, intent(in) :: mm
+    type(operator_type),   optional, intent(inout) :: mm
 
     integer, parameter                 :: NUM_JACOBI_ITERS = 5
     integer :: fs_l, fs_r
@@ -81,7 +83,7 @@ contains
        ! quadrature present, only for W3
        if( (fs_l.eq.W3) .and. (fs_r.eq.W3) ) then
           ! we are on the right space
-          call invoke_w3_solver_kernel(lhs, rhs, chi, qr)
+          call invoke( w3_solver_kernel_type(lhs,rhs,chi,qr) )
        else
           write( log_scratch_space, '(A,I3,",",I3)' )  'quadrature required for w3 solver, stopping',fs_l,fs_r
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -130,7 +132,7 @@ contains
     implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
-    type(operator_type), intent(in)    :: mm
+    type(operator_type), intent(inout)    :: mm
 
     ! The temporary fields
     type(field_type)                   :: res, cr, p, v, s, t, cs
@@ -159,7 +161,7 @@ contains
     v = field_type(vector_space = fs%get_instance(rhs_fs) )
     call invoke_set_field_scalar(0.0_r_def, v)
     call invoke_set_field_scalar(0.0_r_def, v)
-    call invoke_matrix_vector_mm(v,lhs,mm )
+    call invoke( matrix_vector_kernel_mm_type(v,lhs,mm) )
 
 
     res = field_type(vector_space = fs%get_instance(rhs_fs) )
@@ -215,7 +217,7 @@ contains
       call invoke_axpy(beta,p,s,p)
 
       call invoke_set_field_scalar(0.0_r_def,v)
-      call invoke_matrix_vector_mm(v,p,mm )
+      call invoke( matrix_vector_kernel_mm_type(v,p,mm) )
 
       !PSY call invoke ( inner_prod(cr,v,norm))
       call invoke_inner_prod(cr,v,norm)
@@ -226,7 +228,7 @@ contains
       call preconditioner( cs, s, NO_PRE_COND )
 
       call invoke_set_field_scalar(0.0_r_def,t)
-      call invoke_matrix_vector_mm(t,cs,mm )
+      call invoke( matrix_vector_kernel_mm_type(t,cs,mm) )
 
       !PSY call invoke ( inner_prod(t,t,tt), &
       !PSY               inner_prod(t,s,ts))
@@ -283,7 +285,7 @@ contains
     implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
-    type(operator_type), intent(in)    :: mm
+    type(operator_type), intent(inout)    :: mm
 
     ! The temporary fields
     type(field_type)                   :: res, p, Ap
@@ -314,7 +316,7 @@ contains
     !PSY call invoke ( set_field_scalar(0.0_r_def, lhs))
     call invoke_set_field_scalar(0.0_r_def, lhs)
 
-    call invoke_matrix_vector_mm(Ap,lhs,mm )
+    call invoke( matrix_vector_kernel_mm_type(Ap,lhs,mm) )
 
     !PSY call invoke ( minus_field_data(rhs,Ap,res))
     call invoke_minus_field_data( rhs, Ap, res )
@@ -340,7 +342,7 @@ contains
 
     do iter = 1, MAX_ITER
        call invoke_set_field_scalar(0.0_r_def, Ap)
-       call invoke_matrix_vector_mm(Ap,p,mm )
+       call invoke( matrix_vector_kernel_mm_type(Ap,p,mm) )
 
       !PSY call invoke ( inner_prod(p,Ap,rs_new))
       call invoke_inner_prod( p, Ap, rs_new )
@@ -402,7 +404,7 @@ contains
 
   integer,          intent(in)    :: n_iter
   type(field_type), intent(inout) :: lhs, rhs
-  type(operator_type), intent(in) :: mm
+  type(operator_type), intent(inout) :: mm
   type(field_type)                :: Ax, lumped_weight, res
 
   real(kind=r_def), parameter :: MU = 0.9_r_def
@@ -421,7 +423,7 @@ contains
 ! Compute mass lump
   !PSY call invoke ( set_field_scalar(1.0_r_def, Ax))
   call invoke_set_field_scalar(1.0_r_def, Ax)
-  call invoke_matrix_vector_mm(lumped_weight,Ax,mm )
+  call invoke( matrix_vector_kernel_mm_type(lumped_weight,Ax,mm) )
 
   !PSY call invoke ( divide_field(rhs, lumped_weight, lhs))
   call invoke_divide_field( rhs, lumped_weight, lhs )
@@ -429,11 +431,10 @@ contains
 ! initial guess
   !PSY call invoke ( set_field_scalar(0.0_r_def, lhs))
   call invoke_set_field_scalar(0.0_r_def, lhs)
-!  !PSY call invoke ( copy_field_data(lhs,Ax))
-!  call invoke_copy_field_data( lhs, Ax )
+
   do iter = 1,n_iter
     call invoke_set_field_scalar(0.0_r_def, Ax)
-     call invoke_matrix_vector_mm(Ax,lhs,mm )
+    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
 
     !PSY call invoke ( minus_field_data(rhs,Ax,res))
     call invoke_minus_field_data( rhs, Ax, res )
@@ -465,7 +466,7 @@ contains
     implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
-    type(operator_type), intent(in)    :: mm
+    type(operator_type), intent(inout)    :: mm
 
     ! The temporary fields
     type(field_type)                   :: Ax, r, s, w, v(GCRK)
@@ -504,7 +505,7 @@ contains
       return
     end if
     call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke_matrix_vector_mm(Ax,lhs,mm )
+    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
 
     !PSY call invoke ( minus_field_data(rhs,Ax,r))
     call invoke_minus_field_data( rhs, Ax, r )
@@ -532,7 +533,7 @@ contains
 ! This is the correct settings => call Precon(w,v(:,:,j),pstit,pstcnd)
         call preconditioner( w, v(j), NO_PRE_COND )
         call invoke_set_field_scalar(0.0_r_def, s)
-        call invoke_matrix_vector_mm(s,w,mm )
+        call invoke( matrix_vector_kernel_mm_type(s,w,mm) )
 
 ! This is the correct settings => call Precon(w,s,preit,precnd)
         call preconditioner( w, s, NO_PRE_COND )
@@ -587,7 +588,7 @@ contains
 
 ! Check for convergence
       call invoke_set_field_scalar(0.0_r_def, Ax)
-      call invoke_matrix_vector_mm(Ax,lhs,mm )
+      call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
      !PSY call invoke ( minus_field_data(rhs,Ax,r))
       call invoke_minus_field_data( rhs, Ax, r )
 
@@ -641,7 +642,7 @@ contains
     implicit none
     type(field_type), intent(inout)    :: lhs
     type(field_type), intent(in)       :: rhs
-    type(operator_type), intent(in)    :: mm
+    type(operator_type), intent(inout)    :: mm
 
     ! The temporary fields
     type(field_type)                   :: Ax, r, s(GCRK), v(GCRK)
@@ -679,7 +680,7 @@ contains
       return
     end if
     call invoke_set_field_scalar(0.0_r_def, Ax)
-    call invoke_matrix_vector_mm(Ax,lhs,mm )
+    call invoke( matrix_vector_kernel_mm_type(Ax,lhs,mm) )
 
     !PSY call invoke ( minus_field_data(rhs,Ax,r))
     call invoke_minus_field_data( rhs, Ax, r )
@@ -689,7 +690,7 @@ contains
 ! This is the correct settings -> call Precon(s(:,:,m),r,prit,prec)
         call preconditioner( s(m), r, NO_PRE_COND )
         call invoke_set_field_scalar(0.0_r_def, v(m))
-        call invoke_matrix_vector_mm(v(m),s(m),mm )
+        call invoke( matrix_vector_kernel_mm_type(v(m),s(m),mm) )
 
 
         do n = 1, m-1

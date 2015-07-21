@@ -86,11 +86,10 @@ end function vorticity_rhs_kernel_constructor
 !! @param[in] wqp_h the weights of the horizontal quadrature points
 !! @param[in] wqp_v the weights of the vertical quadrature points
 subroutine vorticity_rhs_code(nlayers,                                          &
+                         rhs, u, chi_1, chi_2, chi_3,                           &
                          ndf_xi, undf_xi, map_xi, diff_basis_xi, orientation_xi,&
-                         rhs,                                                   &
-                         ndf_u, undf_u, map_u, basis_u, orientation_u, u,       &
+                         ndf_u, undf_u, map_u, basis_u, orientation_u,          &
                          ndf_chi, undf_chi, map_chi, diff_basis_chi,            &                           
-                         chi_1, chi_2, chi_3,                                   &
                          nqp_h, nqp_v, wqp_h, wqp_v                             &
                          )
                            

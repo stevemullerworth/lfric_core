@@ -123,19 +123,19 @@ contains
     map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
     call initial_rho_code( &
                           rho_p%vspace%get_nlayers(), &
+                          rho_p%data, &
+                          chi_p(1)%data, &
+                          chi_p(2)%data, &
+                          chi_p(3)%data, &
                           ndf_rho, &
                           undf_rho, &
                           map_rho, &
                           basis_rho, &
-                          rho_p%data, &
                           ndf_chi, &
                           undf_chi, &
                           map_chi, &
                           basis_chi, &
                           diff_basis_chi, &
-                          chi_p(1)%data, &
-                          chi_p(2)%data, &
-                          chi_p(3)%data, &
                           nqp_h, &
                           nqp_v, &
                           wh, &

@@ -15,7 +15,7 @@ module rrho_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                     &
                                     GH_FIELD, GH_READ, GH_WRITE,             &
-                                    W2, W3,                                  &
+                                    W0, W2, W3,                              &
                                     GH_BASIS, GH_DIFF_BASIS, GH_ORIENTATION, &
                                     CELLS 
 use constants_mod,           only : r_def
@@ -71,27 +71,27 @@ end function rrho_kernel_constructor
 !! @param[in] undf_w2 The number of (local) unique degrees of freedom
 !! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column for w2
 !! @param[in] w2_diff_basis Real 4-dim array holding differential basis functions evaluated at quadrature points 
-!! @param[in] orientation Integer array holding the orientation of the fs
+!! @param[in] orientation_w2 Integer array holding the orientation of the fs
 !! @param[in] u Real array. The velocity data
 !! @param[in] nqp_h Integer, number of quadrature points in the horizontal
 !! @param[in] nqp_v Integer, number of quadrature points in the vertical
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
-subroutine rrho_code(nlayers,                                                  &
-                     ndf_w3, undf_w3, map_w3, w3_basis, r_rho,                 &
-                     ndf_w2, undf_w2, map_w2, w2_diff_basis,                   &
-                     orientation, u,                                           &
-                     nqp_h, nqp_v, wqp_h, wqp_v         )
-                             
+subroutine rrho_code(nlayers,                                                 &
+                     r_rho, u,                                                &
+                     ndf_w3, undf_w3, map_w3, w3_basis,                       &
+                     ndf_w2, undf_w2, map_w2, w2_diff_basis, orientation_w2,  &
+                     nqp_h, nqp_v, wqp_h, wqp_v )
+
   !Arguments
   integer, intent(in) :: nlayers, nqp_h, nqp_v
   integer, intent(in) :: ndf_w2, ndf_w3
   integer, intent(in) :: undf_w2, undf_w3
   integer, dimension(ndf_w3), intent(in) :: map_w3
   integer, dimension(ndf_w2), intent(in) :: map_w2
-  integer, dimension(ndf_w2), intent(in) :: orientation
+  integer, dimension(ndf_w2), intent(in) :: orientation_w2
 
-  real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis  
+  real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v), intent(in) :: w3_basis
   real(kind=r_def), dimension(1,ndf_w2,nqp_h,nqp_v), intent(in) :: w2_diff_basis
 
   real(kind=r_def), dimension(undf_w3), intent(inout) :: r_rho
@@ -113,7 +113,7 @@ subroutine rrho_code(nlayers,                                                  &
       rrho_e(df) = 0.0_r_def
     end do
     do df = 1, ndf_w2
-      u_e(df) = u( map_w2(df) + k )*real(orientation(df),r_def)
+      u_e(df) = u( map_w2(df) + k )*real(orientation_w2(df),r_def)
     end do
   ! compute the RHS integrated over one cell
     do qp2 = 1, nqp_v

@@ -12,40 +12,41 @@
 !>         timestepping and checks to see if it should dump output
 !>@deprecated The Usefulness of the linear model is to be re-evaluated at 
 !>            the end of the Gung-Ho project and removed if possible
-module linear_dynamo_algorithm_rk_timestep_mod
+module lin_rk_alg_timestep_mod
 
   use log_mod,       only: log_event, log_scratch_space,                     &
                            LOG_LEVEL_INFO, LOG_LEVEL_TRACE
-  use psy,           only: invoke_initial_theta_kernel,                      &
-                           invoke_linear_rtheta_kernel,                      &
-                           invoke_linear_ru_kernel,                          &
-                           invoke_linear_rrho_kernel,                        &
-                           invoke_compute_mass_matrix_w0,                    &
-                           invoke_compute_mass_matrix_w2,                    &
-                           invoke_copy_field_data,                           &
+  use psy,           only: invoke_copy_field_data,                           &
                            invoke_set_field_scalar,                          &
-                           invoke_axpy,                                      &
-                           invoke_compute_geopotential_kernel
+                           invoke_linear_ru_kernel,                          &
+                           invoke_axpy
+
+
+  use compute_geopotential_kernel_mod,   only: compute_geopotential_kernel_type
+  use compute_mass_matrix_kernel_w0_mod, only: compute_mass_matrix_kernel_w0_type
+  use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
+  use initial_rho_kernel_mod,            only: initial_rho_kernel_type  
+  use initial_theta_kernel_mod,          only: initial_theta_kernel_type
+  use linear_rtheta_kernel_mod,          only: linear_rtheta_kernel_type
+  use linear_rrho_kernel_mod,            only: linear_rrho_kernel_type 
 
   use field_mod,     only: field_type 
-  use function_space_mod, &
-                     only: function_space_type, W0, W1, W2, W3
-  use solver_mod,    only: solver_algorithm
+  use function_space_mod, only: function_space_type, W0, W1, W2, W3
+  use galerkin_projection_algorithm_mod, only : galerkin_projection_algorithm
   use constants_mod, only: r_def, solver_option
   use quadrature_mod, only : quadrature_type, QR3
-  use galerkin_projection_algorithm_mod, &
-                     only : galerkin_projection_algorithm
+  use solver_mod,     only : solver_algorithm
   use driver_layer,  only : interpolated_output
   use operator_mod,  only : operator_type
 
   implicit none
 
   private
-  public :: linear_dynamo_algorithm_rk_timestep
+  public :: lin_rk_alg_timestep
 
 contains
 
-  subroutine linear_dynamo_algorithm_rk_timestep( chi, u, rho, theta)
+  subroutine lin_rk_alg_timestep( chi, u, rho, theta)
 
     implicit none
 
@@ -125,16 +126,16 @@ contains
     !generator may parse and do its stuff.
     
 ! initialise        
-    call invoke_compute_geopotential_kernel( geopotential, chi )
+    call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
 
     ! Construct initial conditions
     call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
-    call invoke_initial_theta_kernel( theta, chi )    
+    call invoke( initial_theta_kernel_type( theta, chi ) )
     call invoke_set_field_scalar(0.0_r_def, u)
     call invoke_set_field_scalar(0.0_r_def, rho)
 
-    call invoke_compute_mass_matrix_w0(mm_w0, chi, qr) 
-    call invoke_compute_mass_matrix_w2(mm_w2, chi, qr) 
+    call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr) )
+    call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
 
     call galerkin_projection_algorithm(projected_field(1),                     &
          theta, chi, scalar_field, qr, mm=mm_w0) 
@@ -168,12 +169,12 @@ contains
 ! Compute new rhs      
         !PSY call invoke ( set_field_scalar(0.0_r_def, rt_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, rt_prediction(stage))
-        call invoke_linear_rtheta_kernel( rt_prediction(stage), u, geopotential, chi, qr)
+        call invoke(linear_rtheta_kernel_type( rt_prediction(stage), u, geopotential, chi, qr) )
         !PSY call invoke ( set_field_scalar(0.0_r_def, ru_prediction(stage)))
         call invoke_set_field_scalar(0.0_r_def, ru_prediction(stage))
-        call invoke_linear_ru_kernel    ( ru_prediction(stage), u, rho, theta, &
-                                          geopotential, chi, qr )
-        call invoke_linear_rrho_kernel  ( rr_prediction(stage), u, geopotential, chi, qr )  
+        call invoke_linear_ru_kernel ( ru_prediction(stage), u, rho, theta, &
+                                          geopotential, chi, qr ) 
+        call invoke( linear_rrho_kernel_type ( rr_prediction(stage), u, geopotential, chi, qr ) )
         !PSY call invoke ( set_field_scalar(0.0_r_def, r_theta))
         call invoke_set_field_scalar(0.0_r_def, r_theta)
         !PSY call invoke ( set_field_scalar(0.0_r_def, r_u))
@@ -228,6 +229,6 @@ contains
     call log_event( "Dynamo: finished timestep", LOG_LEVEL_INFO )
     !==========================================================================
 
-  end subroutine linear_dynamo_algorithm_rk_timestep
+  end subroutine lin_rk_alg_timestep
 
-end module linear_dynamo_algorithm_rk_timestep_mod
+end module lin_rk_alg_timestep_mod

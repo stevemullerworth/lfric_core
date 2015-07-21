@@ -20,6 +20,7 @@ module psy
   use constants_mod,  only : r_def
 
   implicit none
+  public
 
 contains
 
@@ -85,17 +86,17 @@ contains
        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap( cell )
 
        call solver_w3_code( nlayers,                           &
-                            ndf_w3, undf_w3,                   &
-                            map_w3,                            &
-                            w3_basis,                          &
                             lhs_proxy%data,                    &
                             rhs_proxy%data,                    &
-                            ndf_w0, undf_w0,                   &
-                            map_w0,                            &
-                            w0_diff_basis,                     &
                             chi_proxy(1)%data,                 &
                             chi_proxy(2)%data,                 &
                             chi_proxy(3)%data,                 &
+                            ndf_w3, undf_w3,                   &
+                            map_w3,                            &
+                            w3_basis,                          &
+                            ndf_w0, undf_w0,                   &
+                            map_w0,                            &
+                            w0_diff_basis,                     &
                             nqp_h, nqp_v,                      &
                             wh, wv)
     end do
@@ -134,15 +135,15 @@ contains
     
     do cell = 1, x_p%vspace%get_ncell()
        map=>x_p%vspace%get_cell_dofmap(cell)
-       call matrix_vector_mm_code( cell, &
-                                   nlayers, &
-                                   ndf, &
-                                   undf, &
-                                   map, &
-                                   Ax_p%data, &
-                                   x_p%data, &
-                                   mm_p%ncell_3d, &
-                                   mm_p%local_stencil &
+       call matrix_vector_mm_code( cell,               &
+                                   nlayers,            &
+                                   Ax_p%data,          &
+                                   x_p%data,           &
+                                   mm_p%ncell_3d,      &
+                                   mm_p%local_stencil, &
+                                   ndf,                &
+                                   undf,               &
+                                   map                 &
                                    )
        
        if(fs.eq.W2) then ! this is yuk but haven't done others yet              
@@ -177,13 +178,13 @@ contains
      do cell = 1, theta_proxy%vspace%get_ncell()
        map_w0 => theta_proxy%vspace%get_cell_dofmap( cell )
        call initial_theta_code( theta_proxy%vspace%get_nlayers(), &
+                                theta_proxy%data,   &
+                                chi_proxy(1)%data,  &
+                                chi_proxy(2)%data,  &
+                                chi_proxy(3)%data,  &
                                 theta_proxy%vspace%get_ndf( ), &
                                 theta_proxy%vspace%get_undf( ), &
-                                map_w0, &
-                                theta_proxy%data, &
-                                chi_proxy(1)%data, &
-                                chi_proxy(2)%data, &
-                                chi_proxy(3)%data  &
+                                map_w0 &
                                )
     end do 
   end subroutine invoke_initial_theta_kernel
@@ -270,21 +271,21 @@ contains
        orientation_w2 => f_proxy%vspace%get_cell_orientation ( cell )
 
        call rtheta_code( nlayers, &
+                         r_theta_proxy%data, &
+                         theta_proxy%data, &
+                         f_proxy%data, &
+                         rho_proxy%data, &
                          ndf_w0, undf_w0, &
                          map_w0, &
                          basis_w0, &
-                         diff_basis_w0, &   
-                         r_theta_proxy%data, &
-                         theta_proxy%data, &
+                         diff_basis_w0, &
                          ndf_w2, undf_w2, &
                          map_w2, &
                          basis_w2, &
                          orientation_w2, &
-                         f_proxy%data, &                        
                          ndf_w3, undf_w3, &
                          map_w3, &
                          basis_w3, &
-                         rho_proxy%data, &  
                          nqp_h, nqp_v, wh, wv &
                          )
     end do 
@@ -398,29 +399,29 @@ contains
        orientation_w1 => xi_proxy%vspace%get_cell_orientation ( cell )
 
        call ru_code( nlayers,                                              &
-                     ndf_w2, undf_w2,                                      &
-                     map_w2, basis_w2, diff_basis_w2,                      &
-                     boundary_dofs,                                        &
-                     orientation_w2,                                       &
                      r_u_proxy%data,                                       &
                      u_proxy%data,                                         &
                      f_proxy%data,                                         &
-                     ndf_w3, undf_w3,                                      &
-                     map_w3, basis_w3,                                     &
                      rho_proxy%data,                                       &
-                     ndf_w1, undf_w1,                                      &
-                     map_w1, basis_w1,                                     &
-                     orientation_w1,                                       &
-                     xi_proxy%data,                                        &
-                     ndf_w0, undf_w0,                                      &
-                     map_w0, basis_w0, diff_basis_w0,                      &   
                      theta_proxy%data,                                     &
                      phi_proxy%data,                                       &
+                     xi_proxy%data,                                        &
                      chi_proxy(1)%data,                                    &
                      chi_proxy(2)%data,                                    &
                      chi_proxy(3)%data,                                    &
+                     ndf_w2, undf_w2,                                      &
+                     map_w2, basis_w2, diff_basis_w2,                      &
+                     orientation_w2,                                       &
+                     boundary_dofs,                                        &
+                     ndf_w3, undf_w3,                                      &
+                     map_w3, basis_w3,                                     &
+                     ndf_w0, undf_w0,                                      &
+                     map_w0, basis_w0, diff_basis_w0,                      &
+                     ndf_w1, undf_w1,                                      &
+                     map_w1, basis_w1,                                     &
+                     orientation_w1,                                       &
                      nqp_h, nqp_v, wh, wv                                  &
-                     )           
+                     )
     end do
 
     deallocate(basis_w3, basis_w2, diff_basis_w2, basis_w1, &
@@ -487,17 +488,17 @@ contains
        orientation_w2 => u_proxy%vspace%get_cell_orientation( cell )
 
        call rrho_code( nlayers,                          &
+                       r_rho_proxy%data,                 &
+                       u_proxy%data,                     &
                        ndf_w3,                           &
                        undf_w3,                          &
                        map_w3,                           &
                        basis_w3,                         &
-                       r_rho_proxy%data,                 &
                        ndf_w2,                           &
                        undf_w2,                          &
                        map_w2,                           &
                        diff_basis_w2,                    &
                        orientation_w2,                   &
-                       u_proxy%data,                     &
                        nqp_h,                            &
                        nqp_v,                            &
                        wh,                               &
@@ -519,12 +520,13 @@ contains
     type( field_type ),     intent(inout) :: chi(3)
     type( quadrature_type), intent(in)    :: qr
 
-    integer :: cell, nlayers, ndf, undf, dim, diff_dim
+    integer :: cell, nlayers, ndf, undf, ndf_chi, dim, diff_dim, dim_diff_chi
     integer :: nqp_h, nqp_v
 
     integer, pointer        :: map(:)  => null()
-    real ( kind=r_def ), allocatable :: diff_basis(:,:,:,:), &
-                                        basis(:,:,:,:)
+    real ( kind=r_def ), allocatable :: diff_basis(:,:,:,:),   &
+                                        basis(:,:,:,:),        &
+                                        diff_basis_chi(:,:,:,:)
 
     type( operator_proxy_type) :: mm_proxy
     type( field_proxy_type)    :: chi_proxy(3)
@@ -536,8 +538,11 @@ contains
     chi_proxy(1) = chi(1)%get_proxy()                                           
     chi_proxy(2) = chi(2)%get_proxy()                                           
     chi_proxy(3) = chi(3)%get_proxy()                                           
-    mm_proxy = mm%get_proxy()  
-    
+    mm_proxy = mm%get_proxy()
+
+    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
+    dim_diff_chi = chi_proxy(1)%vspace%get_dim_space_diff( )
+
     nqp_h=qr%get_nqp_h()
     nqp_v=qr%get_nqp_v()
     zp=>qr%get_xqp_v()
@@ -550,7 +555,8 @@ contains
     ndf      = chi_proxy(1)%vspace%get_ndf()
     undf     = chi_proxy(1)%vspace%get_undf()
     diff_dim = chi_proxy(1)%vspace%get_dim_space_diff( )
-    allocate(diff_basis(diff_dim,ndf,nqp_h,nqp_v) )
+    allocate( diff_basis(diff_dim,ndf,nqp_h,nqp_v),               &
+              diff_basis_chi(dim_diff_chi, ndf_chi, nqp_h, nqp_v) )
 
     dim = mm_proxy%fs_from%get_dim_space_diff( )
     allocate(basis(dim,ndf,nqp_h,nqp_v) )
@@ -561,21 +567,24 @@ contains
     call mm_proxy%fs_from%compute_basis_function(                                 &
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
+    call chi_proxy(1)%vspace%compute_diff_basis_function( &
+           diff_basis_chi, ndf_chi, nqp_h, nqp_v, xp, zp)
+
     do cell = 1, chi_proxy(1)%vspace%get_ncell()                                
        map => chi_proxy(1)%vspace%get_cell_dofmap(cell)                     
 
        call compute_mass_matrix_w0_code( cell,                              &
                                          nlayers,                           &
-                                         ndf,                               &
                                          mm_proxy%ncell_3d,                 &
-                                         basis,                             &
                                          mm_proxy%local_stencil,            &
-                                         undf,                              &
-                                         map,                               &
-                                         diff_basis,                        &
                                          chi_proxy(1)%data,                 &
                                          chi_proxy(2)%data,                 &
                                          chi_proxy(3)%data,                 &
+                                         ndf,                               &
+                                         undf,                              &
+                                         map,                               &
+                                         basis,                             &
+                                         diff_basis_chi,                    &
                                          nqp_h,                             &
                                          nqp_v,                             &
                                          wh,                                &
@@ -633,37 +642,37 @@ contains
     dim = mm_proxy%fs_from%get_dim_space( )
     allocate(basis(dim,ndf,nqp_h,nqp_v) )
 
-    call chi_proxy(1)%vspace%compute_diff_basis_function(                   &
+    call chi_proxy(1)%vspace%compute_diff_basis_function( &
          diff_basis,ndf_chi, nqp_h, nqp_v, xp, zp )
 
-    call mm_proxy%fs_from%compute_basis_function(                                 &
+    call mm_proxy%fs_from%compute_basis_function( &
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
-    do cell = 1, chi_proxy(1)%vspace%get_ncell()                                
-       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)                     
+    do cell = 1, chi_proxy(1)%vspace%get_ncell()
+       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)
        orientation_w1 => mm_proxy%fs_from%get_cell_orientation ( cell )
 
        call compute_mass_matrix_w1_code( cell,                              &
                                          nlayers,                           &
-                                         ndf,                               &
                                          mm_proxy%ncell_3d,                 &
+                                         mm_proxy%local_stencil,            &
+                                         chi_proxy(1)%data,                 &
+                                         chi_proxy(2)%data,                 &
+                                         chi_proxy(3)%data,                 &
+                                         ndf,                               &
                                          basis,                             &
                                          orientation_w1,                    &
-                                         mm_proxy%local_stencil,            &
                                          ndf_chi,                           &
                                          undf_chi,                          &
                                          map_chi,                           &
                                          diff_basis,                        &
-                                         chi_proxy(1)%data,                 &
-                                         chi_proxy(2)%data,                 &
-                                         chi_proxy(3)%data,                 &
                                          nqp_h,                             &
                                          nqp_v,                             &
                                          wh,                                &
                                          wv                                 &
                                          )
     end do
-    
+
     deallocate(basis, diff_basis)
     
   end subroutine invoke_compute_mass_matrix_w1
@@ -692,11 +701,11 @@ contains
     real(kind=r_def), pointer :: zp(:)   => null()
     real(kind=r_def), pointer :: wh(:), wv(:) => null()
 
-    chi_proxy(1) = chi(1)%get_proxy()                                           
-    chi_proxy(2) = chi(2)%get_proxy()                                           
-    chi_proxy(3) = chi(3)%get_proxy()                                           
-    mm_proxy = mm%get_proxy()  
-    
+    chi_proxy(1) = chi(1)%get_proxy()
+    chi_proxy(2) = chi(2)%get_proxy()
+    chi_proxy(3) = chi(3)%get_proxy()
+    mm_proxy = mm%get_proxy()
+
     nqp_h=qr%get_nqp_h()
     nqp_v=qr%get_nqp_v()
     zp=>qr%get_xqp_v()
@@ -714,38 +723,38 @@ contains
     dim = mm_proxy%fs_from%get_dim_space( )
     allocate(basis(dim,ndf,nqp_h,nqp_v) )
 
-    call chi_proxy(1)%vspace%compute_diff_basis_function(                   &
+    call chi_proxy(1)%vspace%compute_diff_basis_function( &
          diff_basis,ndf_chi, nqp_h, nqp_v, xp, zp )
 
-    call mm_proxy%fs_from%compute_basis_function(                                 &
+    call mm_proxy%fs_from%compute_basis_function( &
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
-    do cell = 1, chi_proxy(1)%vspace%get_ncell()                                
-       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)   
+    do cell = 1, chi_proxy(1)%vspace%get_ncell()
+       map_chi => chi_proxy(1)%vspace%get_cell_dofmap(cell)
 
        orientation_w2 => mm_proxy%fs_from%get_cell_orientation( cell )
 
        call compute_mass_matrix_w2_code( cell,                              &
                                          nlayers,                           &
-                                         ndf,                               &
                                          mm_proxy%ncell_3d,                 &
+                                         mm_proxy%local_stencil,            &
+                                         chi_proxy(1)%data,                 &
+                                         chi_proxy(2)%data,                 &
+                                         chi_proxy(3)%data,                 &
+                                         ndf,                               &
                                          basis,                             &
                                          orientation_w2,                    &
-                                         mm_proxy%local_stencil,            &
                                          ndf_chi,                           &
                                          undf_chi,                          &
                                          map_chi,                           &
                                          diff_basis,                        &
-                                         chi_proxy(1)%data,                 &
-                                         chi_proxy(2)%data,                 &
-                                         chi_proxy(3)%data,                 &
                                          nqp_h,                             &
                                          nqp_v,                             &
                                          wh,                                &
                                          wv                                 &
                                          )
     end do
-    
+
     deallocate(basis, diff_basis)
     
   end subroutine invoke_compute_mass_matrix_w2
@@ -1090,17 +1099,17 @@ contains
        map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
 
        call gp_rhs_code( nlayers,                     &
-                         ndf, undf,  &
-                         map, basis, &
                          rhs_proxy%data, &
-                         ndf_f, undf_f, &
-                         map_f, f_basis, &
                          field_proxy%data, &
-                         ndf_chi, undf_chi, &
-                         map_chi, chi_diff_basis, &
                          chi_proxy(1)%data, &
                          chi_proxy(2)%data, &
                          chi_proxy(3)%data , &
+                         ndf, undf,  &
+                         map, basis, &
+                         ndf_f, undf_f, &
+                         map_f, f_basis, &
+                         ndf_chi, undf_chi, &
+                         map_chi, chi_diff_basis, &
                          nqp_h, nqp_v, wh, wv )
     end do
 
@@ -1189,21 +1198,21 @@ contains
        orientation => field_proxy%vspace%get_cell_orientation ( cell )
 
        call gp_vector_rhs_code( nlayers, &
-                                ndf, undf, &
-                                map, basis, &
                                 rhs_proxy(1)%data, &
                                 rhs_proxy(2)%data, &
                                 rhs_proxy(3)%data, &
-                                ndf_f, undf_f, &
-                                map_f, f_basis, &
-                                orientation, &
                                 field_proxy%data, &
-                                ndf_chi, undf_chi, &
-                                map_chi, chi_basis, &
-                                chi_diff_basis, &
                                 chi_proxy(1)%data, &
                                 chi_proxy(2)%data, &
                                 chi_proxy(3)%data, &
+                                ndf, undf, &
+                                map, basis, &
+                                ndf_f, undf_f, &
+                                map_f, f_basis, &
+                                ndf_chi, undf_chi, &
+                                map_chi, chi_basis, &
+                                chi_diff_basis, &
+                                orientation, &
                                 nqp_h, nqp_v, wh, wv )
     end do
 
@@ -1345,301 +1354,7 @@ contains
                            )           
     end do 
   end subroutine invoke_flux_rhs
-!-------------------------------------------------------------------------------  
-!> Invoke_vorticity_rhs_kernel: Invoke the RHS of the vorticity equation
-  subroutine invoke_vorticity_rhs( rhs, u, chi, qr )
-
-    use vorticity_rhs_kernel_mod, only : vorticity_rhs_code
-
-    type( field_type ),     intent( in ) :: rhs, u
-    type( field_type ),     intent( in ) :: chi(3) 
-    type( quadrature_type), intent( in ) :: qr
-
-    integer          :: cell
-    integer          :: ndf_xi, undf_xi, dim_diff_xi, &
-                        ndf_u, undf_u, dim_u, &
-                        ndf_chi, undf_chi, dim_diff_chi, &
-                        nqp_h, nqp_v
-
-
-    integer, pointer :: map_xi(:) => null(), &
-                        map_u(:) => null(), & 
-                        map_chi(:) => null(), &
-                        orientation_u(:) => null(), &
-                        orientation_xi(:) => null()
-
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:)   => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()  
-
-    type( field_proxy_type )        :: rhs_proxy, u_proxy
-    type( field_proxy_type )        :: chi_proxy(3) 
-    
-    real(kind=r_def), dimension(:,:,:,:), allocatable :: &
-                                  basis_u, &
-                                  diff_basis_xi, &
-                                  diff_basis_chi
-    rhs_proxy    = rhs%get_proxy()
-    u_proxy      = u%get_proxy()
-    chi_proxy(1) = chi(1)%get_proxy()
-    chi_proxy(2) = chi(2)%get_proxy()
-    chi_proxy(3) = chi(3)%get_proxy()
-
-    ndf_u  = u_proxy%vspace%get_ndf( )
-    undf_u = u_proxy%vspace%get_undf( )
-    dim_u  = u_proxy%vspace%get_dim_space( ) 
-
-    ndf_xi  = rhs_proxy%vspace%get_ndf( )
-    undf_xi = rhs_proxy%vspace%get_undf( )
-    dim_diff_xi  = rhs_proxy%vspace%get_dim_space_diff( ) 
-
-    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
-    undf_chi = chi_proxy(1)%vspace%get_undf( )
-    dim_diff_chi = chi_proxy(1)%vspace%get_dim_space_diff( ) 
-
-    nqp_h=qr%get_nqp_h()
-    nqp_v=qr%get_nqp_v()
-    zp=>qr%get_xqp_v()
-    xp=>qr%get_xqp_h()
-    wh=>qr%get_wqp_h()
-    wv=>qr%get_wqp_v()
-
-    allocate( basis_u(dim_u, ndf_u, nqp_h, nqp_v), &
-              diff_basis_xi(dim_diff_xi, ndf_xi, nqp_h, nqp_v), &
-              diff_basis_chi(dim_diff_chi, ndf_chi, nqp_h, nqp_v) )         
-    
-    call u_proxy%vspace%compute_basis_function( &
-         basis_u, ndf_u, nqp_h, nqp_v, xp, zp)  
-    call rhs_proxy%vspace%compute_diff_basis_function( &
-         diff_basis_xi, ndf_xi, nqp_h, nqp_v, xp, zp)           
-    call chi_proxy(1)%vspace%compute_diff_basis_function( &
-         diff_basis_chi, ndf_chi, nqp_h, nqp_v, xp, zp)
-        
-    
-    do cell = 1, rhs_proxy%vspace%get_ncell()
-       map_u   => u_proxy%vspace%get_cell_dofmap( cell )
-       map_xi  => rhs_proxy%vspace%get_cell_dofmap( cell )
-       map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
-       orientation_u => u_proxy%vspace%get_cell_orientation ( cell )
-       orientation_xi => rhs_proxy%vspace%get_cell_orientation ( cell )
-
-       call vorticity_rhs_code( &
-                           rhs_proxy%vspace%get_nlayers(), &
-                           ndf_xi, &
-                           undf_xi, &
-                           map_xi, &
-                           diff_basis_xi, &
-                           orientation_xi, &
-                           rhs_proxy%data, &
-                           ndf_u, &
-                           undf_u, &
-                           map_u, &
-                           basis_u, &   
-                           orientation_u, &
-                           u_proxy%data, &
-                           ndf_chi, &
-                           undf_chi, &
-                           map_chi, &
-                           diff_basis_chi, &   
-                           chi_proxy(1)%data, &
-                           chi_proxy(2)%data, &
-                           chi_proxy(3)%data, &
-                           nqp_h, &
-                           nqp_v, &
-                           wh, &
-                           wv &
-                           )           
-    end do 
-    deallocate( basis_u, diff_basis_xi, diff_basis_chi )
-  end subroutine invoke_vorticity_rhs
-
-!-------------------------------------------------------------------------------  
-!> Invoke_initial_rho_kernel: Invoke the initialisation of the density by
-!> Galerkin projection
-  subroutine invoke_initial_rho_kernel( rho, chi, qr ) 
-    use initial_rho_kernel_mod, only: initial_rho_code
-
-    type( field_type ),     intent( in ) :: rho
-    type( field_type ),     intent( in ) :: chi(3) 
-    type( quadrature_type), intent( in ) :: qr
-
-    integer          :: cell
-    integer          :: ndf_rho, undf_rho, dim_rho, &
-                        ndf_chi, undf_chi, dim_chi, dim_diff_chi, &
-                        nqp_h, nqp_v
-
-
-    integer, pointer :: map_rho(:) => null(), &
-                        map_chi(:) => null()
-
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:)   => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()  
-
-    type( field_proxy_type )        :: rho_proxy
-    type( field_proxy_type )        :: chi_proxy(3) 
-    
-    real(kind=r_def), dimension(:,:,:,:), allocatable :: &
-                                  basis_rho, &
-                                  basis_chi, &
-                                  diff_basis_chi
-
-    rho_proxy    = rho%get_proxy()
-    chi_proxy(1) = chi(1)%get_proxy()
-    chi_proxy(2) = chi(2)%get_proxy()
-    chi_proxy(3) = chi(3)%get_proxy()
-
-    ndf_rho  = rho_proxy%vspace%get_ndf( )
-    undf_rho = rho_proxy%vspace%get_undf( )
-    dim_rho  = rho_proxy%vspace%get_dim_space( ) 
-
-    ndf_chi  = chi_proxy(1)%vspace%get_ndf( )
-    undf_chi = chi_proxy(1)%vspace%get_undf( )
-    dim_chi  = chi_proxy(1)%vspace%get_dim_space( ) 
-    dim_diff_chi  = chi_proxy(1)%vspace%get_dim_space_diff( ) 
-
-
-    nqp_h=qr%get_nqp_h()
-    nqp_v=qr%get_nqp_v()
-    zp=>qr%get_xqp_v()
-    xp=>qr%get_xqp_h()
-    wh=>qr%get_wqp_h()
-    wv=>qr%get_wqp_v()
-
-    allocate( basis_rho(dim_rho, ndf_rho, nqp_h, nqp_v), &
-              basis_chi(dim_chi, ndf_chi, nqp_h, nqp_v), &
-              diff_basis_chi(dim_diff_chi, ndf_chi, nqp_h, nqp_v))         
  
-    call rho_proxy%vspace%compute_basis_function( &
-         basis_rho, ndf_rho, nqp_h, nqp_v, xp, zp)
-   
-    call chi_proxy(1)%vspace%compute_basis_function( &
-         basis_chi, ndf_chi, nqp_h, nqp_v, xp, zp)
-
-    call chi_proxy(1)%vspace%compute_diff_basis_function( &
-         diff_basis_chi, ndf_chi, nqp_h, nqp_v, xp, zp)
-         
-        
-    do cell = 1, rho_proxy%vspace%get_ncell()
-       map_rho => rho_proxy%vspace%get_cell_dofmap( cell )
-       map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
-       call initial_rho_code( &
-                               rho_proxy%vspace%get_nlayers(), &
-                               ndf_rho, &
-                               undf_rho, &
-                               map_rho, &
-                               basis_rho, &
-                               rho_proxy%data, &
-                               ndf_chi, &
-                               undf_chi, &
-                               map_chi, &
-                               basis_chi, &
-                               diff_basis_chi, &
-                               chi_proxy(1)%data, &
-                               chi_proxy(2)%data, &
-                               chi_proxy(3)%data, &
-                               nqp_h, &
-                               nqp_v, &
-                               wh, &
-                               wv &
-                               )
-    end do
-    deallocate( basis_rho, basis_chi )
-  end subroutine invoke_initial_rho_kernel
- 
-! Linear kernels
-!-------------------------------------------------------------------------------  
-!> Invoke_linear_rtheta_kernel: Invoke the RHS of the theta equation
-  subroutine invoke_linear_rtheta_kernel( r_theta, u,  phi, chi, qr )
-
-    use linear_rtheta_kernel_mod, only : linear_rtheta_code
-
-    type( field_type ), intent( in ) :: r_theta, u, phi
-    type( field_type ), intent( in ) :: chi(3)
-    type( quadrature_type), intent( in ) :: qr
-
-    integer                 :: cell, nlayers, nqp_h, nqp_v
-    integer                 :: ndf_w0, undf_w0, dim_w0, dim_diff_w0
-    integer                 :: ndf_w2, undf_w2, dim_w2
-    integer, pointer        :: map_w2(:), map_w0(:), orientation_w2(:) => null()
-
-    type( field_proxy_type )        :: r_theta_proxy, u_proxy, phi_proxy 
-    type( field_proxy_type )        :: chi_proxy(3)
-    
-    real(kind=r_def), allocatable  :: basis_w2(:,:,:,:), &
-                                      basis_w0(:,:,:,:), &
-                                      diff_basis_w0(:,:,:,:) 
-
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:) => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()
-
-    r_theta_proxy   = r_theta%get_proxy()
-    u_proxy         = u%get_proxy()
-    phi_proxy    = phi%get_proxy()
-    chi_proxy(1) = chi(1)%get_proxy()
-    chi_proxy(2) = chi(2)%get_proxy()
-    chi_proxy(3) = chi(3)%get_proxy()
-
-    nlayers = r_theta_proxy%vspace%get_nlayers()
-
-    nqp_h=qr%get_nqp_h()
-    nqp_v=qr%get_nqp_v()
-    zp=>qr%get_xqp_v()
-    xp=>qr%get_xqp_h()
-    wh=>qr%get_wqp_h()
-    wv=>qr%get_wqp_v()
-
-    ndf_w2      = u_proxy%vspace%get_ndf( )
-    dim_w2      = u_proxy%vspace%get_dim_space( )
-    undf_w2     = u_proxy%vspace%get_undf()
-    allocate(basis_w2(dim_w2,ndf_w2,nqp_h,nqp_v))
-
-    ndf_w0      = r_theta_proxy%vspace%get_ndf( )
-    dim_w0      = r_theta_proxy%vspace%get_dim_space( )
-    dim_diff_w0 = r_theta_proxy%vspace%get_dim_space_diff( )
-    undf_w0     = r_theta_proxy%vspace%get_undf()
-    allocate(basis_w0(dim_w0,ndf_w0,nqp_h,nqp_v))
-    allocate(diff_basis_w0(dim_diff_w0,ndf_w0,nqp_h,nqp_v))
-
-    call u_proxy%vspace%compute_basis_function(                     &
-        basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)    
-
-    call r_theta_proxy%vspace%compute_basis_function(basis_w0, ndf_w0,      & 
-         nqp_h, nqp_v, xp, zp)    
-
-    call r_theta_proxy%vspace%compute_diff_basis_function(                  &
-         diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)
-
-    
-    do cell = 1, r_theta_proxy%vspace%get_ncell()
-       map_w0 => r_theta_proxy%vspace%get_cell_dofmap( cell )
-       map_w2 => u_proxy%vspace%get_cell_dofmap( cell )
-
-       orientation_w2 => u_proxy%vspace%get_cell_orientation ( cell )
-
-       call linear_rtheta_code( nlayers, &
-                                ndf_w0, undf_w0, &
-                                map_w0, &
-                                basis_w0, &
-                                r_theta_proxy%data, &
-                                ndf_w2, undf_w2, &
-                                map_w2, &
-                                basis_w2, &
-                                orientation_w2, &
-                                u_proxy%data, &                        
-                                diff_basis_w0, &   
-                                phi_proxy%data, &
-                                chi_proxy(1)%data, &
-                                chi_proxy(2)%data, &
-                                chi_proxy(3)%data,  &
-                                nqp_h, nqp_v, wh, wv &
-                                )
-    end do 
-
-    deallocate(basis_w2, basis_w0, diff_basis_w0)
-  end subroutine invoke_linear_rtheta_kernel 
-  
 !-------------------------------------------------------------------------------  
 !> Invoke_ru_kernel: Invoke the RHS of the u equation
   subroutine invoke_linear_ru_kernel( r_u, u, rho, theta, phi, chi, qr )
@@ -1758,123 +1473,6 @@ contains
     
   end subroutine invoke_linear_ru_kernel
   
-!-------------------------------------------------------------------------------  
-!> Invoke_rrho_kernel: Invoke the RHS of the rho equation
-  subroutine invoke_linear_rrho_kernel( r_rho, u, phi, chi, qr )
-
-    use linear_rrho_kernel_mod, only : linear_rrho_code
-
-    type( field_type ), intent( in ) :: r_rho, u, phi
-    type( field_type ), intent( in ) :: chi(3)
-    type( quadrature_type), intent( in ) :: qr
-
-    integer                 :: cell, nlayers, nqp_v, nqp_h
-    integer                 :: ndf_w0, ndf_w2, ndf_w3
-    integer                 :: undf_w0, undf_w2, undf_w3
-    integer                 :: dim_w0, diff_dim_w0, dim_w2, diff_dim_w2,dim_w3
-    integer, pointer  :: map_w3(:), map_w2(:), map_w0(:), orientation_w2(:) => null()
-
-    type( field_proxy_type )        :: r_rho_proxy, u_proxy, phi_proxy
-    type( field_proxy_type )        :: chi_proxy(3)
-    
-    real(kind=r_def), allocatable  :: basis_w3(:,:,:,:), &
-                                      basis_w2(:,:,:,:), &
-                                      basis_w0(:,:,:,:), &
-                                      diff_basis_w2(:,:,:,:), &
-                                      diff_basis_w0(:,:,:,:)
-
-    real(kind=r_def), pointer :: xp(:,:) => null()
-    real(kind=r_def), pointer :: zp(:) => null()
-    real(kind=r_def), pointer :: wh(:), wv(:) => null()
-
-
-    r_rho_proxy  = r_rho%get_proxy()
-    u_proxy      = u%get_proxy()
-    phi_proxy    = phi%get_proxy()
-    chi_proxy(1) = chi(1)%get_proxy()
-    chi_proxy(2) = chi(2)%get_proxy()
-    chi_proxy(3) = chi(3)%get_proxy()
-    
-    nlayers = r_rho_proxy%vspace%get_nlayers()
-    nqp_h=qr%get_nqp_h()
-    nqp_v=qr%get_nqp_v()
-    zp=>qr%get_xqp_v()
-    xp=>qr%get_xqp_h()
-    wh=>qr%get_wqp_h()
-    wv=>qr%get_wqp_v()
-
-    ndf_w3  = r_rho_proxy%vspace%get_ndf( )
-    dim_w3  = r_rho_proxy%vspace%get_dim_space( )
-    undf_w3 = r_rho_proxy%vspace%get_undf()
-    allocate(basis_w3(dim_w3,ndf_w3,nqp_h,nqp_v))
-
-    ndf_w2      = u_proxy%vspace%get_ndf( )
-    dim_w2      = u_proxy%vspace%get_dim_space( )
-    diff_dim_w2 = u_proxy%vspace%get_dim_space_diff( )
-    undf_w2     = u_proxy%vspace%get_undf()
-    allocate(basis_w2(dim_w2,ndf_w2,nqp_h,nqp_v))
-    allocate(diff_basis_w2(diff_dim_w2,ndf_w2,nqp_h,nqp_v))
-
-    ndf_w0      = chi_proxy(1)%vspace%get_ndf( )
-    dim_w0      = chi_proxy(1)%vspace%get_dim_space( )
-    diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff( )
-    undf_w0     = chi_proxy(1)%vspace%get_undf()
-    allocate(basis_w0(dim_w0,ndf_w0,nqp_h,nqp_v))
-    allocate(diff_basis_w0(diff_dim_w0,ndf_w0,nqp_h,nqp_v))
-
-    call r_rho_proxy%vspace%compute_basis_function(basis_w3, ndf_w3,     & 
-                                                   nqp_h, nqp_v, xp, zp)
-
-    call u_proxy%vspace%compute_basis_function(basis_w2, ndf_w2,         & 
-                                               nqp_h, nqp_v, xp, zp)
-
-    call chi_proxy(1)%vspace%compute_basis_function(basis_w0, ndf_w0,    & 
-                                                    nqp_h, nqp_v, xp, zp)
-    call u_proxy%vspace%compute_diff_basis_function(                     &
-         diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)
-    call chi_proxy(1)%vspace%compute_diff_basis_function(                &
-         diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)
-
-    do cell = 1, r_rho_proxy%vspace%get_ncell()
-
-       map_w3 => r_rho_proxy%vspace%get_cell_dofmap( cell )
-       map_w2 => u_proxy%vspace%get_cell_dofmap( cell )
-       map_w0 => chi_proxy(1)%vspace%get_cell_dofmap( cell )
-       orientation_w2 => u_proxy%vspace%get_cell_orientation( cell )
-
-       call linear_rrho_code( nlayers,                          &
-                              ndf_w3,                           &
-                              undf_w3,                          &
-                              map_w3,                           &
-                              basis_w3,                         &
-                              r_rho_proxy%data,                 &
-                              ndf_w2,                           &
-                              undf_w2,                          &
-                              map_w2,                           &
-                              basis_w2,                         &
-                              diff_basis_w2,                    &
-                              orientation_w2,                   &
-                              u_proxy%data,                     &
-                              ndf_w0,                           &
-                              undf_w0,                          &
-                              map_w0,                           &
-                              basis_w0,                         &
-                              diff_basis_w0,                    &   
-                              phi_proxy%data,                   &
-                              chi_proxy(1)%data,                &
-                              chi_proxy(2)%data,                &
-                              chi_proxy(3)%data,                &
-                              nqp_h,                            &
-                              nqp_v,                            &
-                              wh,                               &
-                              wv                                &
-                              )
-    end do 
-  
-    deallocate(basis_w3, basis_w2, diff_basis_w2, basis_w0, diff_basis_w0)
-
-  end subroutine invoke_linear_rrho_kernel
-
 !> Invoke_compute_geopotential_kernel: Invoke the computation of the
 !! geopotential
   subroutine invoke_compute_geopotential_kernel( phi, chi )
@@ -1898,13 +1496,13 @@ contains
      do cell = 1, phi_proxy%vspace%get_ncell()
        map_w0 => phi_proxy%vspace%get_cell_dofmap( cell )
        call compute_geopotential_code( phi_proxy%vspace%get_nlayers(), &
-                                       phi_proxy%vspace%get_ndf( ), &
-                                       phi_proxy%vspace%get_undf( ), &
-                                       map_w0, &
                                        phi_proxy%data, &
                                        chi_proxy(1)%data, &
                                        chi_proxy(2)%data, &
-                                       chi_proxy(3)%data  &
+                                       chi_proxy(3)%data, &
+                                       phi_proxy%vspace%get_ndf( ), &
+                                       phi_proxy%vspace%get_undf( ), &
+                                       map_w0                        &
                                      )
     end do 
   end subroutine invoke_compute_geopotential_kernel

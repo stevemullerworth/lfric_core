@@ -31,7 +31,7 @@ type, public, extends(kernel_type) :: rtheta_kernel_type
   private
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_INC,  W0),                              &
-       arg_type(GH_FIELD,   GH_READ, W0),                              &       
+       arg_type(GH_FIELD,   GH_READ, W0),                              &
        arg_type(GH_FIELD,   GH_READ, W2),                              &
        arg_type(GH_FIELD,   GH_READ, W3)                               &
        /)
@@ -76,7 +76,7 @@ end function rtheta_kernel_constructor
 !! @param[in] undf_w2  The number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column for w2 
 !! @param[in] w2_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points 
-!! @param[in] orientation the orientation arrays for the velocity field
+!! @param[in] w2_orientation the orientation arrays for the velocity field
 !! @param[in] f the mass flux field
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3  The number of unique degrees of freedom  for w3
@@ -87,20 +87,21 @@ end function rtheta_kernel_constructor
 !! @param[in] nqp_v the number of vertical quadrature points
 !! @param[in] wqp_h the weights of the horizontal quadrature points
 !! @param[in] wqp_v the weights of the vertical quadrature points
+
 subroutine rtheta_code(nlayers,                                                &
+                       r_theta, theta, f, rho,                                 &
                        ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis,       &
-                       r_theta, theta,                                         &
-                       ndf_w2, undf_w2, map_w2, w2_basis, orientation, f,      &
-                       ndf_w3, undf_w3, map_w3, w3_basis, rho,                 &
+                       ndf_w2, undf_w2, map_w2, w2_basis, w2_orientation,      &
+                       ndf_w3, undf_w3, map_w3, w3_basis,                      &
                        nqp_h, nqp_v, wqp_h, wqp_v )
-                               
+
   
   !Arguments
   integer, intent(in) :: nlayers, nqp_h, nqp_v
   integer, intent(in) :: ndf_w0, ndf_w2, ndf_w3, undf_w0, undf_w2, undf_w3
 
   integer, dimension(ndf_w0), intent(in) :: map_w0
-  integer, dimension(ndf_w2), intent(in) :: map_w2, orientation
+  integer, dimension(ndf_w2), intent(in) :: map_w2, w2_orientation
   integer, dimension(ndf_w3), intent(in) :: map_w3
 
   real(kind=r_def), dimension(1,ndf_w0,nqp_h,nqp_v), intent(in) :: w0_basis  
@@ -134,7 +135,7 @@ subroutine rtheta_code(nlayers,                                                &
       theta_e(df)  = theta(  map_w0(df) + k )
     end do
     do df = 1, ndf_w2
-      f_e(df) = f( map_w2(df) + k )*real(orientation(df),r_def)
+      f_e(df) = f( map_w2(df) + k )*real(w2_orientation(df),r_def)
     end do
     do df = 1, ndf_w3
       rho_e(df) = rho( map_w3(df) + k )

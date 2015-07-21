@@ -30,7 +30,7 @@ implicit none
 type, public, extends(kernel_type) :: compute_geopotential_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,   GH_READ, W0),                              &
+       arg_type(GH_FIELD,   GH_WRITE, W0),                             &
        arg_type(GH_FIELD*3, GH_READ, W0)                               &
        /)
   integer :: iterates_over = CELLS
@@ -65,13 +65,14 @@ end function compute_geopotential_kernel_constructor
 !! @param[in] chi_1 Real array, the physical x coordinates
 !! @param[in] chi_2 Real array, the physical y coordinates
 !! @param[in] chi_3 Real array, the physical z coordinates
-subroutine compute_geopotential_code(nlayers,ndf,undf,map,phi, &
-                                     chi_1,chi_2,chi_3)
+subroutine compute_geopotential_code(nlayers,phi, &
+                                     chi_1,chi_2,chi_3, &
+                                     ndf,undf,map)
   
   !Arguments
   integer, intent(in) :: nlayers, ndf, undf
   integer, dimension(ndf), intent(in) :: map
-  real(kind=r_def), dimension(undf), intent(inout) :: phi
+  real(kind=r_def), dimension(undf), intent(inout)   :: phi
   real(kind=r_def), dimension(undf), intent(in)    :: chi_1
   real(kind=r_def), dimension(undf), intent(in)    :: chi_2
   real(kind=r_def), dimension(undf), intent(in)    :: chi_3

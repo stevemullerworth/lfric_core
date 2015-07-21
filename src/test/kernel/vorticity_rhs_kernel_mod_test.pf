@@ -139,25 +139,25 @@ contains
 
     call vorticity_rhs_code( &
                            rhs_p%vspace%get_nlayers(), &
+                           rhs_p%data, &
+                           u_p%data, &
+                           chi_p(1)%data, &
+                           chi_p(2)%data, &
+                           chi_p(3)%data, &
                            ndf_xi, &
                            undf_xi, &
                            map_xi, &
                            diff_basis_xi, &
                            orientation_xi, &
-                           rhs_p%data, &
                            ndf_u, &
                            undf_u, &
                            map_u, &
                            basis_u, &   
                            orientation_u, &
-                           u_p%data, &
                            ndf_chi, &
                            undf_chi, &
                            map_chi, &
                            diff_basis_chi, &   
-                           chi_p(1)%data, &
-                           chi_p(2)%data, &
-                           chi_p(3)%data, &
                            nqp_h, &
                            nqp_v, &
                            wh, &

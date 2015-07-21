@@ -10,6 +10,7 @@ export EXTERNAL_DYNAMIC_LIBRARIES = netcdff esmf
 export EXTERNAL_STATIC_LIBRARIES =
 
 export ROOT = ../..
+export PSYCLONE_DIR = $(ROOT)/src/psyclone
 
 include $(ROOT)/make/include.mk
 include $(MAKE_DIR)/compiler.mk
@@ -48,16 +49,16 @@ all: modules
 
 .PHONY: modules
 modules: applications
-	$(MAKE) -f dynamo.mk modules
+	$(MAKE) -f make/dynamo.mk modules
 
 .PHONY: applications
 applications:
-	$(MAKE) -f dynamo.mk applications
+	$(MAKE) -f make/dynamo.mk applications
 
 .PHONY: unused-check
 unused-check:
-	$(MAKE) -f examine.mk unused-check
+	$(MAKE) -f make/examine.mk unused-check
 
 .PHONY: clean
 clean:
-	$(MAKE) -f dynamo.mk clean
+	$(MAKE) -f make/dynamo.mk clean

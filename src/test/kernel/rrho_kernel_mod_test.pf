@@ -100,19 +100,19 @@ contains
        map_w3 => r_rho_proxy%vspace%get_cell_dofmap( cell )
        map_w2 => u_proxy%vspace%get_cell_dofmap( cell )
        orientation_w2 => u_proxy%vspace%get_cell_orientation( cell )
-       
+
        call rrho_code( nlayers,                          &
+                       r_rho_proxy%data,                 &
+                       u_proxy%data,                     &
                        ndf_w3,                           &
                        undf_w3,                          &
                        map_w3,                           &
                        basis_w3,                         &
-                       r_rho_proxy%data,                 &
                        ndf_w2,                           &
                        undf_w2,                          &
                        map_w2,                           &
                        diff_basis_w2,                    &
                        orientation_w2,                   &
-                       u_proxy%data,                     &
                        nqp_h,                            &
                        nqp_v,                            &
                        wh,                               &

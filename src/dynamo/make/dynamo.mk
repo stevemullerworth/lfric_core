@@ -81,10 +81,14 @@ $(OBJ_DIR)/%.x: $$($$(shell echo $$* | tr a-z A-Z)_OBJS)
 # otherwise they will fight over the dependency database.
 #
 $(OBJ_DIR)/programs.mk: $(OBJ_DIR)/dependencies.mk | $(OBJ_DIR)
-	$(MAKE) -f examine.mk $(OBJ_DIR)/programs.mk OBJ_SUBDIRS="$(OBJ_SUBDIRS)"
+	$(MAKE) -f make/examine.mk $(OBJ_DIR)/programs.mk OBJ_SUBDIRS="$(OBJ_SUBDIRS)"
 
-$(OBJ_DIR)/dependencies.mk: ALWAYS | $(OBJ_DIR)
-	$(MAKE) -f examine.mk $(OBJ_DIR)/dependencies.mk OBJ_SUBDIRS="$(OBJ_SUBDIRS)"
+$(OBJ_DIR)/dependencies.mk: PSY | $(OBJ_DIR)
+	$(MAKE) -f make/examine.mk $(OBJ_DIR)/dependencies.mk OBJ_SUBDIRS="$(OBJ_SUBDIRS)"
+
+.PHONY: PSY
+PSY:
+	$(MAKE) -f make/psyclone.mk
 
 .PHONY: ALWAYS
 ALWAYS:

@@ -17,11 +17,11 @@
 module compute_mass_matrix_kernel_w2_mod
 use constants_mod,           only: r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, func_type,            &
-                                   GH_OPERATOR, GH_FIELD,          &
-                                   GH_READ, GH_WRITE,              &
-                                   W0, W2, GH_DIFF_BASIS,          &
-                                   CELLS
+use argument_mod,            only: arg_type, func_type,             &
+                                   GH_OPERATOR, GH_FIELD,           &
+                                   GH_READ, GH_WRITE,               &
+                                   W0, W2, GH_BASIS, GH_DIFF_BASIS, &
+                                   GH_ORIENTATION, CELLS
 
 use coordinate_jacobian_mod, only: coordinate_jacobian
 implicit none
@@ -36,8 +36,9 @@ type, public, extends(kernel_type) :: compute_mass_matrix_kernel_w2_type
        arg_type(GH_OPERATOR, GH_WRITE, W2, W2),                        &
        arg_type(GH_FIELD*3,  GH_READ,  W0)                             &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
-       func_type(W0, GH_DIFF_BASIS)                                    &
+  type(func_type) :: meta_funcs(2) = (/                                &
+       func_type(W0, GH_DIFF_BASIS),                                   &
+       func_type(W2, GH_BASIS, GH_ORIENTATION)                         &
        /)
   integer :: iterates_over = CELLS
 
@@ -63,13 +64,6 @@ contains
 type(compute_mass_matrix_kernel_w2_type) function compute_mass_matrix_constructor() result(self)
   return
 end function compute_mass_matrix_constructor
-  
-subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
-                               basis,  orientation, mm,                       &
-                               ndf_chi, undf_chi,                             &
-                               map_chi, diff_basis_chi, &   ! arrays
-                               chi1, chi2, chi3,                & ! dof vectors
-                               nqp_h, nqp_v, wqp_h, wqp_v )
 
 !> @brief This subroutine computes the mass matrix for the w2 space
 !! @param[in] cell Integer: The cell number
@@ -77,7 +71,7 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
 !! @param[in] ndf Integer: The number of degrees of freedom per cell.
 !! @param[in] ncell_3d Integer: ncell*ndf
 !! @param[in] basis Real: 4-dim array holding VECTOR basis functions evaluated at quadrature points.
-!! @param[in] orientation, the cell orientation array for a w2 field
+!! @param[in] orientation_w2, the cell orientation array for a w2 field
 !! @param[in] mm Real array, the local stencil or mass matrix
 !! @param[in] ndf_chi Integer: number of degrees of freedum per cell for chi field
 !! @param[in] undf_chi Integer: number of unique degrees of freedum  for chi field
@@ -91,17 +85,27 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
 !! @param[in] wqp_h Real array. Quadrature weights horizontal
 !! @param[in] wqp_v Real array. Quadrature weights vertical
 
+subroutine compute_mass_matrix_w2_code(cell, nlayers, ncell_3d,     &
+                                       mm,                          &
+                                       chi1, chi2, chi3,            &
+                                       ndf_w2, basis_w2,   &
+                                       orientation_w2,              &
+                                       ndf_chi, undf_chi, map_chi,  &
+                                       diff_basis_chi,              &
+                                       nqp_h, nqp_v, wqp_h, wqp_v )
+
   !Arguments
   integer,   intent(in)     :: cell, nqp_h, nqp_v
-  integer,   intent(in)     :: nlayers, ndf
+  integer,   intent(in)     :: nlayers
   integer,   intent(in)     :: ncell_3d
+  integer,   intent(in)     :: ndf_w2
+  real(kind=r_def), dimension(3,ndf_w2,nqp_h,nqp_v), intent(in) :: basis_w2
+  integer, dimension(ndf_w2), intent(in)     :: orientation_w2
   integer,   intent(in)     :: ndf_chi
   integer,   intent(in)     :: undf_chi
   integer, dimension(ndf_chi), intent(in)     :: map_chi
-  integer, dimension(ndf),     intent(in)     :: orientation
-  real(kind=r_def), dimension(ndf,ndf,ncell_3d),  intent(inout)  :: mm
+  real(kind=r_def), dimension(ndf_w2,ndf_w2,ncell_3d),  intent(inout)  :: mm
   real(kind=r_def), dimension(3,ndf_chi,nqp_h,nqp_v), intent(in) :: diff_basis_chi
-  real(kind=r_def), dimension(3,ndf,nqp_h,nqp_v), intent(in)     :: basis
   real(kind=r_def), dimension(undf_chi), intent(inout) :: chi1
   real(kind=r_def), dimension(undf_chi), intent(inout) :: chi2
   real(kind=r_def), dimension(undf_chi), intent(inout) :: chi3
@@ -117,11 +121,10 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
 
-
   !loop over layers: Start from 1 as in this loop k is not an offset
   do k = 1, nlayers
      ik = k + (cell-1)*nlayers
-     
+
      ! indirect the chi coord field here
      do df = 1, ndf_chi
         chi1_e(df) = chi1(map_chi(df) + k - 1)
@@ -131,19 +134,19 @@ subroutine compute_mass_matrix_w2_code(cell, nlayers, ndf, ncell_3d,          &
 
     call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
                              diff_basis_chi, jac, dj)
-    do df2 = 1, ndf
-       do df = df2, ndf ! mass matrix is symmetric
+    do df2 = 1, ndf_w2
+       do df = df2, ndf_w2 ! mass matrix is symmetric
           mm(df,df2,ik) = 0.0_r_def
           do qp2 = 1, nqp_v
              do qp1 = 1, nqp_h
                 integrand = wqp_h(qp1) * wqp_v(qp2) *        & 
                      dot_product(                            &
                      matmul(jac(:,:,qp1,qp2),                &
-                            real(orientation(df),r_def)      & 
-                            *basis(:,df,qp1,qp2)),           &
+                            real(orientation_w2(df),r_def)      &
+                            *basis_w2(:,df,qp1,qp2)),           &
                      matmul(jac(:,:,qp1,qp2),                &
-                            real(orientation(df2),r_def)     &
-                            *basis(:,df2,qp1,qp2)) )         &
+                            real(orientation_w2(df2),r_def)     &
+                            *basis_w2(:,df2,qp1,qp2)) )         &
                      /dj(qp1,qp2) 
                 mm(df,df2,ik) = mm(df,df2,ik) + integrand
              end do

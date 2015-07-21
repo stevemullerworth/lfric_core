@@ -110,22 +110,22 @@ contains
     call mm_p%fs_from%compute_basis_function(                            &
          basis, ndf, nqp_h, nqp_v, xp, zp ) 
 
-    cell = 1                           
-    map => chi_p(1)%vspace%get_cell_dofmap(cell)                     
+    cell = 1
+    map => chi_p(1)%vspace%get_cell_dofmap(cell)
 ! Create the data
     mm_p%local_stencil(:,:,:) = 0.0_r_def
     call compute_mass_matrix_w0_code( cell,                              &
                                       nlayers,                           &
-                                      ndf,                               &
                                       mm_p%ncell_3d,                     &
-                                      basis,                             &
                                       mm_p%local_stencil,                &
-                                      undf,                              &
-                                      map,                               &
-                                      diff_basis,                        &
                                       chi_p(1)%data,                     &
                                       chi_p(2)%data,                     &
                                       chi_p(3)%data,                     &
+                                      ndf,                               &
+                                      undf,                              &
+                                      map,                               &
+                                      basis,                             &
+                                      diff_basis,                        &
                                       nqp_h,                             &
                                       nqp_v,                             &
                                       wh,                                &
