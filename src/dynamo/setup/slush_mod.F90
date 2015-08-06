@@ -5,12 +5,12 @@
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 
-!> @brief Defines variables which are either temporary or have not yet been given a 
-!> home.
+!> @brief Defines variables which are either temporary or have not yet been
+!> given a home.
 
-!> @details When developing dynamo code, developers should this as a scratch place
-!> for variables. This module is intending to be regularly reviewed to move out or
-!> delete temporary variables
+!> @details When developing dynamo code, developers should this as a scratch
+!> place for variables. This module is intending to be regularly reviewed to
+!> move out or delete temporary variables
 
 module slush_mod
 
@@ -18,10 +18,13 @@ module slush_mod
 
   implicit none
 
-  !> Total number of horizontal cells in the domain on the local partition 
-  integer :: num_cells
-  !> Number of vertical layers
-  integer :: num_layers
+  !> For a biperiodic mesh, the number of horizontal cells in the x-direction of
+  !> the global domain
+  !> For a cubed-sphere mesh it is the number of cells across a face.
+  integer :: num_cells_x
+  !> Number of horizontal cells in the y-direction of the global domain
+  !> (not used for cubed-sphere meshes)
+  integer :: num_cells_y
   !> Order of the function space
   integer :: element_order
   !> Flag for whether mesh is on a sphere or not
@@ -35,9 +38,10 @@ module slush_mod
   !> Number of dofs in a particular function space (4,:) per entity (:,0:3)
   integer :: w_dof_entity(4,0:3)
 
-! Moved into mesh object
-! !> Grid spacing in the z-direction
-! real(kind=r_def)  :: dz
+  !> Grid spacing in the x-direction
+  real(kind=r_def)  :: dx
+  !> Grid spacing in the y-direction
+  real(kind=r_def)  :: dy
 
   real(kind=r_def)  :: f_lat            ! Latitude for f-plane tests
 

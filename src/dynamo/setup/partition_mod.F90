@@ -266,6 +266,15 @@ end function partition_constructor
                                      num_core, &
                                      num_owned, &
                                      num_halo )
+
+! The cells in the biperiodic domain are numbered (globally) starting at 1
+! in the SW corner and incrementing to num_cells_x in the SE corner. This
+! repeats over the next row (to the north) and repeats until cell
+! (num_cells_x*num_cells_y) is reached in the NE corner
+
+  use linked_list_mod, only : linked_list_type, add_item, add_unique_item, clear_list
+  use log_mod,         only : log_event, LOG_LEVEL_ERROR
+
   implicit none
 
   type(global_mesh_type), intent(in) :: global_mesh
@@ -280,80 +289,170 @@ end function partition_constructor
   integer,               intent(out)   :: num_owned
   integer,               intent(out)   :: num_halo( : )
 
-  call partitioner_rectangular_panels( global_mesh, &
-                                       1, &
-                                       xproc, &
-                                       yproc, &
-                                       local_rank, &
-                                       total_ranks, &
-                                       halo_depth, &
-                                       partitioned_cells, &
-                                       num_core, &
-                                       num_owned, &
-                                       num_halo )
+  integer :: local_xproc, local_yproc ! x- and y-dirn processor id of this partition
+  integer :: start_x   ! global cell id of start of the domain on this partition in x-dirn
+  integer :: num_x     ! number of cells in the domain on this partition in x-dirn
+  integer :: start_y   ! global cell id of start of the domain on this partition in y-dirn
+  integer :: num_y     ! number of cells in the domain on this partition in y-dirn
+  integer :: num_in_list !total number of cells known to this partition
+  integer :: num_added ! number of cells added to the linked list
+  integer :: ix, iy    ! loop counters over cells on this partition in x- and y-dirns
+
+  type(linked_list_type), pointer :: curr=>null()  ! the current position at which items will be added
+                                                   ! to the list that holds cells known to this partition
+  type(linked_list_type), pointer :: start=>null() ! start of the list that holds cells known to this partition
+  type(linked_list_type), pointer :: last_core=>null() ! location of the last core cell in the list of cells
+  type(linked_list_type), pointer :: last_owned=>null() ! location of the last owned cell in the list of cells
+  type(linked_list_type), pointer :: last_halo=>null() ! location of the last halo cell in the list of cells
+  type(linked_list_type), pointer :: curr_pos=>null() ! current position when looping over subsections of cells
+
+  integer :: i         ! loop counter over all items being sorted in the bubble sort
+  integer :: swap_temp ! temporary swap space used to swap items in the bubble sort
+  logical :: swapped   ! flag set to true if the current iteration of the bubble sort swapped any items
+  integer :: start_sort, end_sort ! range over which to sort cells
+  integer :: depth     ! counter over the halo depths
+  integer :: orig_num_in_list ! number of cells in list before halos are added
+
+  if ( xproc*yproc /= total_ranks ) then
+   call log_event( 'Invalid decomposition used for biperiodic partitioner', &
+                   LOG_LEVEL_ERROR )
+  end if
+
+  !convert the local rank number into a local xproc and yproc
+  local_xproc = modulo(local_rank,xproc)
+  local_yproc = local_rank/xproc
+
+  !Work out the start index and number of cells (in x- and y-dirn) for
+  !the local partition - this algorithm should spread out the number of
+  !cells each partition gets fairly evenly
+  start_x = int( ( real( local_xproc ) * real( global_mesh%get_num_cells_x() )/ &
+                   real( xproc ) ) + 0.5 ) + 1
+  num_x   = int( ( real( local_xproc+1 ) * real( global_mesh%get_num_cells_x() )/ &
+                   real( xproc ) ) + 0.5 ) - start_x + 1
+
+  start_y = int( ( real( local_yproc ) * real( global_mesh%get_num_cells_y() )/ &
+                   real( yproc ) ) + 0.5 ) + 1
+  num_y   = int( ( real( local_yproc + 1 ) * real( global_mesh%get_num_cells_y() )/ &
+                   real( yproc ) ) + 0.5 ) - start_y + 1
+
+  !Create a linked list of cells known to this partition
+  !Start with the core cells - those with all dofs wholly owned by the partition
+  num_in_list = 0
+  do iy = start_y + 1, start_y+num_y - 2
+    do ix = start_x + 1, start_x+num_x - 2
+      call add_item( curr,global_mesh%get_cell_id(1, ix-1, iy-1) )
+      if(.not.associated(start))start => curr
+      num_in_list = num_in_list+1
+    end do
+  end do
+  num_core = num_in_list
+
+  ! Store location of last core cell in the linked list
+  last_core => curr
+
+  ! Now add the owned cells - those still owned by the partition -
+  ! but may have dofs shared with halo cells
+  ! Those cells along the top/bottom
+  do ix = start_x, start_x+num_x-1
+    call add_item( curr,global_mesh%get_cell_id(1, ix-1, start_y-1) )
+    num_in_list = num_in_list+1
+    if(.not.associated(start))start => curr
+    call add_unique_item( start,curr,global_mesh%get_cell_id(1, ix-1, start_y+num_y-2), num_added )
+    num_in_list = num_in_list+num_added
+  end do
+  ! Those along the left/right
+  do iy = start_y+1, start_y+num_y-2
+    call add_unique_item( start,curr,global_mesh%get_cell_id(1, start_x-1, iy-1), num_added )
+    num_in_list = num_in_list+num_added
+    call add_unique_item( start,curr,global_mesh%get_cell_id(1, start_x+num_x-2, iy-1), num_added )
+    num_in_list = num_in_list+num_added
+  end do
+  num_owned = num_in_list-num_core
+
+  ! Store location of last owned cell in the linked list
+  last_owned => curr
+
+  ! Add all cells that are in a single depth halo around each of the owned cells
+  ! Start by applying a stencil around the first cell after the last core cell
+  ! (i.e. the first owned cell) - or the first cell (if there are no core cells)
+  if( associated(last_core) )then
+   curr_pos => last_core%next
+  else
+   curr_pos => start
+  end if
+  orig_num_in_list = num_in_list
+  call apply_stencil( global_mesh, &
+                      curr_pos, &
+                      num_owned, &
+                      start, &
+                      curr, &
+                      num_in_list )
+
+  num_halo(1) = num_in_list - orig_num_in_list
+
+  curr_pos => last_owned%next
+  do depth = 2,halo_depth
+    ! Store location of last halo cell in the linked list
+    last_halo => curr
+    orig_num_in_list = num_in_list
+    call apply_stencil( global_mesh, &
+                        curr_pos, &
+                        num_halo(depth-1), &
+                        start, &
+                        curr, &
+                        num_in_list )
+    num_halo(depth) = num_in_list - orig_num_in_list
+    curr_pos = last_halo%next
+  end do
+
+  allocate( partitioned_cells(num_in_list) )
+  curr => start
+  do i = 1,num_in_list
+    partitioned_cells(i) = curr%dat
+    curr => curr%next
+  end do
+
+  !Deallocate the list
+  call clear_list( start )
+
+  ! Cell ids within the separate groups have to be in numerical order.
+  ! Core cells are already correctly ordered so now (bubble) sort the other groups
+  !
+  !Sort owned cells
+  start_sort = num_core + 1
+  end_sort = num_core + num_owned
+  do
+    swapped = .false.
+    do i = start_sort,end_sort-1
+      if(partitioned_cells(i) > partitioned_cells(i+1))then
+        swap_temp = partitioned_cells(i)
+        partitioned_cells(i) = partitioned_cells(i+1)
+        partitioned_cells(i+1) = swap_temp
+        swapped = .true.
+      end if
+    end do
+    if( .not.swapped )exit
+  end do
+  !
+  !Sort halo cells in their groups of halo depths
+  do depth = 1,halo_depth
+    start_sort = end_sort + 1
+    end_sort = start_sort + num_halo(depth) - 1
+    do
+      swapped = .false.
+      do i = start_sort,end_sort-1
+        if(partitioned_cells(i) > partitioned_cells(i+1))then
+          swap_temp = partitioned_cells(i)
+          partitioned_cells(i) = partitioned_cells(i+1)
+          partitioned_cells(i+1) = swap_temp
+          swapped = .true.
+        end if
+      end do
+      if( .not.swapped )exit
+    end do
+  end do
 
   end subroutine partitioner_biperiodic
-
-!> Partitions the mesh on cubed_sphere. It returns the global ids of
-!> the cells in the given partition.
-!>
-!> @param [in] global_mesh A global mesh object that describes the layout
-!>                         of the global mesh
-!> @param [in] xproc Number of processors along x-direction
-!> @param [in] yproc Number of processors along y-direction
-!> @param local_rank [in] Local MPI rank number
-!> @param total_ranks [in] Total number of MPI ranks
-!> @param [in] halo_depth The depth to which halos will be created
-!> @param partitioned_cells [out] Returned array that holds the global ids of all
-!>                          cells in local partition
-!> @param num_core [out] Number of cells that are wholly owned by the partition
-!>                 (i.e. all dofs in these cells are wholly owned by the
-!>                 partition). The cell ids of these cells appear first in the
-!>                 <code>partitioned_cells</code> array
-!> @param num_owned [out] Number of cells that are owned by the partition,
-!>                  but may have dofs that are also owned by halo cells. The
-!>                  cell ids of these cells follow the core cells in the
-!>                  <code>partitioned_cells</code> array
-!> @param num_halo [out] Number of cells that are halo cells. The cell ids
-!>                 of these cells follow the owned cells in the
-!>                 <code>partitioned_cells</code> array
-  subroutine partitioner_cubedsphere( global_mesh, &
-                                      xproc, &
-                                      yproc, &
-                                      local_rank, &
-                                      total_ranks, &
-                                      halo_depth, &
-                                      partitioned_cells, &
-                                      num_core, &
-                                      num_owned, &
-                                      num_halo )
-  implicit none
-
-  type(global_mesh_type), intent(in) :: global_mesh
-
-  integer,               intent(in)    :: xproc
-  integer,               intent(in)    :: yproc
-  integer,               intent(in)    :: local_rank
-  integer,               intent(in)    :: total_ranks
-  integer,               intent(in)    :: halo_depth
-  integer, allocatable,  intent(inout) :: partitioned_cells( : )
-  integer,               intent(out)   :: num_core
-  integer,               intent(out)   :: num_owned
-  integer,               intent(out)   :: num_halo( : )
-
-  call partitioner_rectangular_panels( global_mesh, &
-                                       6, &
-                                       xproc, &
-                                       yproc, &
-                                       local_rank, &
-                                       total_ranks, &
-                                       halo_depth, &
-                                       partitioned_cells, &
-                                       num_core, &
-                                       num_owned, &
-                                       num_halo )
-
-  end subroutine partitioner_cubedsphere
 
 
 !> Returns a single partition of cubed-sphere mesh for use when running the
@@ -423,7 +522,8 @@ end function partition_constructor
      LOG_LEVEL_ERROR )
   endif
 
-  num_core = global_mesh%get_ncells()
+  num_core = 6 * global_mesh%get_num_cells_x() * &
+                 global_mesh%get_num_cells_y()
   num_owned = 0
   do depth = 1, halo_depth
     num_halo(depth) = 0
@@ -437,46 +537,60 @@ end function partition_constructor
   end subroutine partitioner_cubedsphere_serial
 
 
+!> Partitions the mesh on a cubed sphere. It returns the global ids of
+!> the cells in the given partition.
+!>
+!> @param [in] global_mesh A global mesh object that describes the layout
+!>                         of the global mesh
+!> @param [in] xproc Number of processors along x-direction
+!> @param [in] yproc Number of processors along y-direction
+!> @param local_rank [in] Local MPI rank number
+!> @param total_ranks [in] Total number of MPI ranks
+!> @param [in] halo_depth The depth to which halos will be created
+!> @param partitioned_cells [out] Returned array that holds the global ids of all
+!>                          cells in local partition
+!> @param num_core [out] Number of cells that are wholly owned by the partition
+!>                 (i.e. all dofs in these cells are wholly owned by the
+!>                 partition). The cell ids of these cells appear first in the
+!>                 <code>partitioned_cells</code> array
+!> @param num_owned [out] Number of cells that are owned by the partition,
+!>                  but may have dofs that are also owned by halo cells. The
+!>                  cell ids of these cells follow the core cells in the
+!>                  <code>partitioned_cells</code> array
+!> @param num_halo [out] Number of cells that are halo cells. The cell ids
+!>                 of these cells follow the owned cells in the
+!>                 <code>partitioned_cells</code> array
+  subroutine partitioner_cubedsphere( global_mesh, &
+                                      xproc, &
+                                      yproc, &
+                                      local_rank, &
+                                      total_ranks, &
+                                      halo_depth, &
+                                      partitioned_cells, &
+                                      num_core, &
+                                      num_owned, &
+                                      num_halo )
 
-  ! Helper function that partitions a mesh that is formed from a number of rectangular panels.
-  subroutine partitioner_rectangular_panels( global_mesh, &
-                                             num_panels, &
-                                             xproc, &
-                                             yproc, &
-                                             local_rank, &
-                                             total_ranks, &
-                                             halo_depth, &
-                                             partitioned_cells, &
-                                             num_core, &
-                                             num_owned, &
-                                             num_halo )
+! The cells in the biperiodic domain are numbered (globally) starting at 1
+! in the SW corner and incrementing to num_cells_x in the SE corner. This
+! repeats over the next row (to the north) and repeats until cell
+! (num_cells_x*num_cells_y) is reached in the NE corner
 
-  use linked_list_mod,       only : linked_list_type, add_item, add_unique_item, clear_list
-  use reference_element_mod, only : W
+  use linked_list_mod, only : linked_list_type, add_item, add_unique_item, clear_list
 
   implicit none
 
-  type(global_mesh_type), intent(in) :: global_mesh                ! A global mesh object 
+  type(global_mesh_type), intent(in) :: global_mesh
 
-  integer,                intent(in)    :: num_panels              ! Number of panels that make up the mesh
-  integer,                intent(in)    :: xproc                   ! Number of processors along x-direction
-  integer,                intent(in)    :: yproc                   ! Number of processors along y-direction
-  integer,                intent(in)    :: local_rank              ! Local MPI rank number
-  integer,                intent(in)    :: total_ranks             ! Total number of MPI ranks
-  integer,                intent(in)    :: halo_depth              ! The depth to which halos will be created
-  integer, allocatable,   intent(inout) :: partitioned_cells( : )  ! Returned array that holds the global ids of
-                                                                   ! all cells in local partition
-  integer,                intent(out)   :: num_core                ! Number of cells that are wholly owned by the partition
-                                                                   ! (i.e. all dofs in these cells are wholly owned by the
-                                                                   ! partition). The cell ids of these cells appear first in the
-                                                                   ! partitioned_cells array
-  integer,                intent(out)   :: num_owned               ! Number of cells that are owned by the partition,
-                                                                   ! but may have dofs that are also owned by halo cells. The
-                                                                   ! cell ids of these cells follow the core cells in the
-                                                                   ! partitioned_cells array
-  integer,                intent(out)   :: num_halo( : )           ! Number of cells that are halo cells. The cell ids
-                                                                   ! of these cells follow the owned cells in the
-                                                                   ! partitioned_cells array
+  integer,               intent(in)    :: xproc
+  integer,               intent(in)    :: yproc
+  integer,               intent(in)    :: local_rank
+  integer,               intent(in)    :: total_ranks
+  integer,               intent(in)    :: halo_depth
+  integer, allocatable,  intent(inout) :: partitioned_cells( : )
+  integer,               intent(out)   :: num_core
+  integer,               intent(out)   :: num_owned
+  integer,               intent(out)   :: num_halo( : )
 
   integer :: face      ! which face of the cube is implied by local_rank (0->5)
   integer :: start_cell ! lowest cell id of the face implaced by local_rank
@@ -498,39 +612,16 @@ end function partition_constructor
   type(linked_list_type), pointer :: last_halo=>null() ! location of the last halo cell in the list of cells
   type(linked_list_type), pointer :: curr_pos=>null() ! current position when looping over subsections of cells
 
-  integer :: i            ! loop counter
-  integer :: cell         ! starting point for num_cells_x calculation
-  integer :: cell_next(4) ! The cells around the cell being queried
-  integer :: num_cells_x  ! number of cells across a panel in x-direction
-  integer :: num_cells_y  ! number of cells across a panel in y-direction
-  integer :: swap_temp    ! temporary swap space used to swap items in the bubble sort
-  logical :: swapped      ! flag set to true if the current iteration of the bubble sort swapped any items
+  integer :: i         ! loop counter over all items being sorted in the bubble sort
+  integer :: swap_temp ! temporary swap space used to swap items in the bubble sort
+  logical :: swapped   ! flag set to true if the current iteration of the bubble sort swapped any items
   integer :: start_sort, end_sort ! range over which to sort cells
-  integer :: depth        ! counter over the halo depths
+  integer :: depth     ! counter over the halo depths
   integer :: orig_num_in_list ! number of cells in list before halos are added
 
-  if(num_panels==1)then
-    ! A single panelled mesh might be rectangluar - so find the dimensions
-    ! Find num_cells_x by walking west-wards through the mesh until you're back where you started
-    cell=1
-    call global_mesh%get_cell_next(cell,cell_next)
-    num_cells_x=1
-    do i=1,global_mesh%get_ncells()
-      if(cell_next(W)==cell)exit
-      num_cells_x=num_cells_x+1
-      call global_mesh%get_cell_next(cell_next(W),cell_next)
-    end do
-    ! Infer num_cells_y from the total domin size and num_cells_x
-    num_cells_y=global_mesh%get_ncells()/num_cells_x
-  else
-    ! For multi-panel meshes, the panels must be square
-    num_cells_x = nint(sqrt(float(global_mesh%get_ncells())/float(num_panels)))
-    num_cells_y = num_cells_x
-  endif
-
   !convert the local rank number into a face number and a local xproc and yproc
-  face = int(float(num_panels)*(real(local_rank)/real(total_ranks)))+1
-  start_cell = (num_cells_x*num_cells_y)*(face-1)+1
+  face = int(6.0*(real(local_rank)/real(total_ranks)))+1
+  start_cell = (global_mesh%get_num_cells_x()*global_mesh%get_num_cells_y())*(face-1)+1
   start_rank = xproc*yproc*(face-1)
   local_xproc = modulo(local_rank-start_rank,xproc)
   local_yproc = (local_rank-start_rank)/xproc
@@ -538,14 +629,14 @@ end function partition_constructor
   !Work out the start index and number of cells (in x- and y-dirn) for
   !the local partition - this algorithm should spread out the number of
   !cells each partition gets fairly evenly
-  start_x = int( ( real( local_xproc ) * real( num_cells_x )/ &
+  start_x = int( ( real( local_xproc ) * real( global_mesh%get_num_cells_x() )/ &
                    real( xproc ) ) + 0.5 ) + 1
-  num_x   = int( ( real( local_xproc + 1 ) * real( num_cells_x )/ &
+  num_x   = int( ( real( local_xproc + 1 ) * real( global_mesh%get_num_cells_x() )/ &
                    real( xproc ) ) + 0.5 ) - start_x + 1
 
-  start_y = int( ( real( local_yproc ) * real( num_cells_y )/ &
+  start_y = int( ( real( local_yproc ) * real( global_mesh%get_num_cells_y() )/ &
                    real( yproc ) ) + 0.5 ) + 1
-  num_y   = int( ( real( local_yproc + 1 ) * real( num_cells_y )/ &
+  num_y   = int( ( real( local_yproc + 1 ) * real( global_mesh%get_num_cells_y() )/ &
                    real( yproc ) ) + 0.5 ) - start_y + 1
 
   !Create a linked list of cells known to this partition
@@ -629,25 +720,9 @@ end function partition_constructor
   call clear_list( start )
 
   ! Cell ids within the separate groups have to be in numerical order.
-  ! so (bubble) sort the separate groups
+  ! Core cells are already correctly ordered so now (bubble) sort the other groups
   !
-  !Sort core cells
-  start_sort = 1
-  end_sort = num_core
-  do
-    swapped = .false.
-    do i = start_sort,end_sort-1
-      if(partitioned_cells(i) > partitioned_cells(i+1))then
-        swap_temp = partitioned_cells(i)
-        partitioned_cells(i) = partitioned_cells(i+1)
-        partitioned_cells(i+1) = swap_temp
-        swapped = .true.
-      end if
-    end do
-    if( .not.swapped )exit
-  end do
-  !
-  ! Sort owned cells
+  !Sort owned cells
   start_sort = num_core + 1
   end_sort = num_core + num_owned
   do
@@ -681,7 +756,7 @@ end function partition_constructor
     end do
   end do
 
-  end subroutine partitioner_rectangular_panels
+  end subroutine partitioner_cubedsphere
 
 
 !> @brief Applies a single depth stencil around a collection of cells and adds

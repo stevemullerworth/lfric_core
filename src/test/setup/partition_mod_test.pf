@@ -88,6 +88,8 @@ contains
 
   procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
 
+  integer :: num_cells_x
+  integer :: num_cells_y
   integer :: xproc
   integer :: yproc
   integer :: local_rank
@@ -102,19 +104,24 @@ contains
   integer :: lid
   integer :: gid
 
+  real(r_def) :: dx
+  real(r_def) :: dy
+
   character(len = str_def) :: filename
 
   !------------------------------------------------
   ! Test partition_biperiodic (on a single process)
   !------------------------------------------------
+  num_cells_x = 3
+  num_cells_y = 3
   xproc = 1
   yproc = 1
+  dx = 6000.0_r_def
+  dy = 2000.0_r_def
   local_rank = this%local_rank
   total_ranks = this%total_ranks
-  halo_depth = 1
-
-  filename = 'data/ugrid_quads_2d_biperiodic_8x8.nc' 
-  global_mesh = global_mesh_type( filename )
+  halo_depth=1
+  global_mesh=global_mesh_type( num_cells_x ,num_cells_y, dx, dy )
   partitioner_ptr => partitioner_biperiodic
   !
   ! Generate the partition
@@ -128,13 +135,13 @@ contains
   !
   ! Test functionality of the partition object we've just created
   num_cells_in_layer = partition%get_num_cells_in_layer()
-  @assertEqual( 64, num_cells_in_layer )
+  @assertEqual( 9, num_cells_in_layer )
 
   num_cells_core = partition%get_num_cells_core()
-  @assertEqual( 36, num_cells_core )
+  @assertEqual( 1, num_cells_core )
 
   num_cells_owned = partition%get_num_cells_owned()
-  @assertEqual( 28, num_cells_owned )
+  @assertEqual( 8, num_cells_owned )
 
   num_cells_halo = partition%get_num_cells_halo(1)
   @assertEqual( 0, num_cells_halo )
@@ -144,11 +151,11 @@ contains
 
   lid = 1
   gid = partition%get_gid_from_lid( lid )
-  @assertEqual( 18, gid )
+  @assertEqual( 5, gid )
 
   gid = 4
   lid = partition%get_lid_from_gid( gid )
-  @assertEqual( 40, lid )
+  @assertEqual( 5, lid )
 
 !> @todo  Can't test a parallel biperiodic partition until the unit tests can
 !>        be run in parallel - but that will be another ticket
@@ -156,6 +163,8 @@ contains
 !  !---------------------------------------
 !  !Test partition_biperiodic (in parallel)
 !  !---------------------------------------
+!  num_cells_x = 10
+!  num_cells_y = 10
 !  xproc = 2
 !  yproc = 2
 !  local_rank = 2
@@ -163,8 +172,8 @@ contains
 !  halo_depth = 2
 !  !
 !  ! Set a new global mesh - everything else is the same as previous test
-!  filename = 'data/ugrid_quads_2d.nc' 
-!  global_mesh = global_mesh_type( filename )
+!  global_mesh = global_mesh_type( num_cells_x , &
+!                                  num_cells_y )
 !  !
 !  ! Generate the partition
 !  partition = partition_type( global_mesh, &
@@ -212,7 +221,7 @@ contains
   total_ranks = this%total_ranks
   halo_depth = 1
 
-  filename = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc' 
+  filename = 'data/ugrid_quads_2d.nc' 
   global_mesh = global_mesh_type( filename )
   partitioner_ptr => partitioner_cubedsphere_serial
 

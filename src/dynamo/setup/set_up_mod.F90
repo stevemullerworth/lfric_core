@@ -37,6 +37,7 @@ contains
     use log_mod,         only : log_event, LOG_LEVEL_INFO
     use slush_mod,       only : element_order,                                &
                                 l_spherical, w_unique_dofs, w_dof_entity,     &
+                                dx, dy, num_cells_x, num_cells_y,             &
                                 xproc, yproc, local_rank, total_ranks,        &
                                 l_fplane, f_lat
 
@@ -68,13 +69,19 @@ contains
     yproc = 1
 !> @todo Eventually xproc and yproc will be inputted into Dynamo (and not hard-coded).
 !>       When this happens their values will need to be checked to make sure they are
-!>       sensible
+!>       sensible  - e.g. that they are consistent with the values of num_cells_x
+!>       and num_cells_y 
 
     ! hard-coded these numbers are
     l_fplane      = .true.
+    num_cells_x   = 12
+    num_cells_y   = 12
     nlayers       = 5
     element_order = 0
     l_spherical   = .true.
+! Horizontal spacings for cartesian grid    
+    dx = 6000.0_r_def 
+    dy = 2000.0_r_def
 ! Vertical spacing for all grids    
     dz = 2000.0_r_def
 
@@ -88,10 +95,14 @@ contains
 
     ! Generate the global mesh and choose a partitioning strategy by setting
     ! a function pointer to point at the appropriate partitioning routine
-    global_mesh=global_mesh_type( filename )
     if ( l_spherical ) then
+      global_mesh=global_mesh_type( filename )
       partitioner_ptr => partitioner_cubedsphere_serial
     else
+      global_mesh=global_mesh_type( num_cells_x, &
+                                    num_cells_y, &
+                                    dx,& 
+                                    dy )
       partitioner_ptr => partitioner_biperiodic
       if ( l_fplane ) f_lat = PI/4.0_r_def
     end if

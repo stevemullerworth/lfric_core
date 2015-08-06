@@ -31,6 +31,11 @@ type, public :: global_mesh_type
   integer, allocatable :: edge_on_cell_2d(:,:)
 !> Full domain cells either side of an edge
   integer, allocatable :: cell_on_edge_2d(:,:)
+
+!> no of cells across a face (or across full domain in x-dirn for biperiodic)
+  integer              :: num_cells_x
+!> no of cells across a face, perpendicular to num_cells_x (or across full domain in y-dirn for biperiodic)
+  integer              :: num_cells_y
 !> Total number of vertices in the full domain
   integer              :: nverts
 !> Total number of edges in the full domain
@@ -65,6 +70,15 @@ contains
 !> Get the total number of cells in the global domain
 !> @return The total number of cells in the global domain
   procedure, public :: get_ncells
+!> Get the number of cells across a face in the global domain
+!> @return The number of cells across a face (or across full domain in x-dirn
+!> for biperiodic meshes)
+  procedure, public :: get_num_cells_x
+!> Get the number of cells across a face (in a direction perpendicular to
+!> num_cells_x) in the global domain
+!> @return The number of cells across a face (or across full domain in y-dirn
+!> for biperiodic meshes)
+  procedure, public :: get_num_cells_y
 !> Get the maximum number of cells that can be incident with a vertex (the
 !> actual number of cells at a particular vertex could be less (eg. in a cubed
 !> sphere mesh, there are generally four cells incident with a vertex except
@@ -110,15 +124,228 @@ contains
 end type global_mesh_type
 
 interface global_mesh_type
-  module procedure global_mesh_constructor
+  module procedure global_mesh_constructor_biperiodic
+  module procedure global_mesh_constructor_cubedsphere
   module procedure global_mesh_constructor_unit_test_data
 end interface
 
 contains
 
-!> Construct a global mesh object to hold the connectivities
-!> that fully describe the 2D topology of the mesh
-function global_mesh_constructor( filename ) result(self)
+!> Construct a the full domain cell to cell connectivities for a
+!> biperiodic mesh
+function global_mesh_constructor_biperiodic( num_cells_x, num_cells_y, dx, dy ) result(self)
+
+use reference_element_mod, only : nfaces_h, &
+                                  W, S, E, N, &
+                                  SWB, SEB, NEB, NWB, SWT, SET, NET, NWT, &
+                                  WB, SB, EB, NB
+implicit none
+
+integer, intent(in) :: num_cells_x
+integer, intent(in) :: num_cells_y
+real(kind=r_def), intent(in) :: dx
+real(kind=r_def), intent(in) :: dy
+
+type(global_mesh_type) :: self
+
+integer :: i,j
+integer :: id
+real(kind=r_def) :: xstart
+real(kind=r_def) :: ystart
+
+! Defaults for a biperiodic mesh
+self%ncells = num_cells_x*num_cells_y
+self%num_cells_x = num_cells_x
+self%num_cells_y = num_cells_y
+self%nverts_per_cell = 4
+self%nedges_per_cell=4
+self%max_cells_per_vertex=4
+
+! Populate cell to cell connectivity
+allocate( self%cell_next_2d( nfaces_h, self%ncells ) )
+do j = 1,num_cells_y
+  do i = 1,num_cells_x
+
+    id = (j-1)*num_cells_x+i
+
+! Calculate the global ids of the cells next to this one
+! j-1 cell (South face)
+    self%cell_next_2d(S,id) = id - num_cells_x
+! i+1 cell (East face)
+    self%cell_next_2d(E,id) = id + 1
+! j+1 cell (North face)
+    self%cell_next_2d(N,id) = id + num_cells_x
+! i-1 cell (West face)
+    self%cell_next_2d(W,id) = id - 1
+
+! Now do periodicity/connectivity along edges
+! South
+    if (j == 1)then
+      self%cell_next_2d(S,id) = self%cell_next_2d(S,id)+num_cells_x*num_cells_y
+    end if
+! North
+    if (j == num_cells_y)then
+      self%cell_next_2d(N,id) = self%cell_next_2d(N,id)-num_cells_x*num_cells_y
+    endif
+! West
+    if (i == 1)then
+      self%cell_next_2d(W,id) = self%cell_next_2d(W,id)+num_cells_x
+    end if
+! East
+    if (i == num_cells_x)then
+      self%cell_next_2d(E,id) = self%cell_next_2d(E,id)-num_cells_x
+    endif
+
+  end do
+end do
+
+! Populate vertices around each cell
+allocate( self%vert_on_cell_2d( self%nverts_per_cell, self%ncells ) )
+self%nverts = 0
+self%vert_on_cell_2d = 0
+do i = 1,self%ncells
+! 1. south west corner of cell
+  if(self%vert_on_cell_2d(SWB,i) == 0)then
+    self%nverts = self%nverts + 1
+    self%vert_on_cell_2d(SWB,i) = self%nverts
+    if(self%cell_next_2d(W,i) > 0)then                     ! and south east corner of cell to west 
+      self%vert_on_cell_2d(SEB,self%cell_next_2d(W,i)) = self%nverts
+      if(self%cell_next_2d(S,self%cell_next_2d(W,i)) > 0)then      ! and north east corner of cell to south west
+        self%vert_on_cell_2d(NEB,self%cell_next_2d(S,self%cell_next_2d(W,i))) = self%nverts
+      end if
+    end if
+    if(self%cell_next_2d(S,i) > 0)then                     ! and north west corner of cell to south
+      self%vert_on_cell_2d(NWB, self%cell_next_2d(S,i)) = self%nverts
+      if(self%cell_next_2d(W,self%cell_next_2d(S,i)) > 0)then      ! and again north east corner of cell to south west (in case other route to southwest goes through a missing cell)
+        self%vert_on_cell_2d(NEB,self%cell_next_2d(W,self%cell_next_2d(S,i))) = self%nverts
+      end if
+    end if
+  end if
+! 2. south east corner of cell
+  if(self%vert_on_cell_2d(SEB,i) == 0)then
+    self%nverts = self%nverts + 1
+    self%vert_on_cell_2d(SEB,i) = self%nverts
+    if(self%cell_next_2d(E,i) > 0)then                     ! and south west corner of cell to east 
+      self%vert_on_cell_2d(SWB,self%cell_next_2d(E,i)) = self%nverts
+      if(self%cell_next_2d(S,self%cell_next_2d(E,i)) > 0)then      ! and north west corner of cell to south east
+        self%vert_on_cell_2d(NWB,self%cell_next_2d(S,self%cell_next_2d(E,i))) = self%nverts
+      end if
+    end if
+    if(self%cell_next_2d(S,i) > 0)then                     ! and north east corner of cell to south
+      self%vert_on_cell_2d(NEB,self%cell_next_2d(S,i)) = self%nverts
+      if(self%cell_next_2d(E,self%cell_next_2d(S,i)) > 0)then      ! and again north west corner of cell to south east (in case other route to southeast goes through a missing cell)
+        self%vert_on_cell_2d(NWB,self%cell_next_2d(E,self%cell_next_2d(S,i))) = self%nverts
+      end if
+    end if
+  end if
+! 3. north east corner of cell
+  if(self%vert_on_cell_2d(NEB,i) == 0)then
+    self%nverts = self%nverts + 1
+    self%vert_on_cell_2d(NEB,i) = self%nverts
+    if(self%cell_next_2d(E,i) > 0)then                     ! and north west corner of cell to east 
+      self%vert_on_cell_2d(NWB,self%cell_next_2d(E,i)) = self%nverts
+      if(self%cell_next_2d(N,self%cell_next_2d(E,i)) > 0)then      ! and south west corner of cell to north east
+        self%vert_on_cell_2d(SWB,self%cell_next_2d(N,self%cell_next_2d(E,i))) = self%nverts
+      end if
+    end if
+    if(self%cell_next_2d(N,i) > 0)then                     ! and south east corner of cell to north
+      self%vert_on_cell_2d(SEB,self%cell_next_2d(N,i)) = self%nverts
+      if(self%cell_next_2d(E,self%cell_next_2d(N,i)) > 0)then      ! and again south west corner of cell to north east (in case other route to northeast goes through a missing cell)
+        self%vert_on_cell_2d(SWB,self%cell_next_2d(E,self%cell_next_2d(N,i))) = self%nverts
+      end if
+    end if
+  end if
+! 4. north west corner of cell
+  if(self%vert_on_cell_2d(NWB,i) == 0)then
+    self%nverts = self%nverts + 1
+    self%vert_on_cell_2d(NWB,i) = self%nverts
+    if(self%cell_next_2d(W,i) > 0)then                     ! and north east corner of cell to west 
+      self%vert_on_cell_2d(NEB,self%cell_next_2d(W,i)) = self%nverts
+      if(self%cell_next_2d(N,self%cell_next_2d(W,i)) > 0)then      ! and south east corner of cell to north west
+        self%vert_on_cell_2d(SEB,self%cell_next_2d(N,self%cell_next_2d(W,i))) = self%nverts
+      end if
+    end if
+    if(self%cell_next_2d(N,i) > 0)then                     ! and south west corner of cell to north
+      self%vert_on_cell_2d(SWB,self%cell_next_2d(N,i)) = self%nverts
+      if(self%cell_next_2d(W,self%cell_next_2d(N,i)) > 0)then      ! and again south east corner of cell to north west (in case other route to northwest goes through a missing cell)
+        self%vert_on_cell_2d(SEB,self%cell_next_2d(W,self%cell_next_2d(N,i))) = self%nverts
+      end if
+    end if
+  end if
+end do
+
+! Populate edges around each cell
+allocate( self%edge_on_cell_2d( self%nedges_per_cell, self%ncells ))
+self%nedges = 0
+self%edge_on_cell_2d = 0
+do i = 1,self%ncells
+! 1. south edge of cell
+  if(self%edge_on_cell_2d(SB,i) == 0)then
+    self%nedges = self%nedges + 1
+    self%edge_on_cell_2d(SB,i) = self%nedges
+    if(self%cell_next_2d(S,i) > 0)then             ! and north edge of cell to south
+      self%edge_on_cell_2d(NB,self%cell_next_2d(S,i)) = self%nedges
+    end if
+  end if
+! 2. east edge of cell
+  if(self%edge_on_cell_2d(EB,i) == 0)then
+    self%nedges = self%nedges + 1
+    self%edge_on_cell_2d(EB,i) = self%nedges
+    if(self%cell_next_2d(E,i) > 0)then             ! and west edge of cell to east
+      self%edge_on_cell_2d(WB,self%cell_next_2d(E,i)) = self%nedges
+    end if
+  end if
+! 3. north edge of cell
+  if(self%edge_on_cell_2d(NB,i) == 0)then
+    self%nedges = self%nedges + 1
+    self%edge_on_cell_2d(NB,i) = self%nedges
+    if(self%cell_next_2d(N,i) > 0)then             ! and south edge of cell to north
+      self%edge_on_cell_2d(SB,self%cell_next_2d(N,i)) = self%nedges
+    end if
+  end if
+! 4. west edge of cell
+  if(self%edge_on_cell_2d(WB,i) == 0)then
+    self%nedges = self%nedges + 1
+    self%edge_on_cell_2d(WB,i) = self%nedges
+    if(self%cell_next_2d(W,i) > 0)then             ! and east edge of cell to west
+      self%edge_on_cell_2d(EB,self%cell_next_2d(W,i)) = self%nedges
+    end if
+  end if
+end do
+
+! Populate cells around each vertex
+allocate(self%cell_on_vert_2d( self%max_cells_per_vertex, self%nverts ))
+call calc_cell_on_vertex( self%vert_on_cell_2d, &
+                          self%nverts_per_cell, &
+                          self%ncells, &
+                          self%cell_on_vert_2d, &
+                          self%max_cells_per_vertex, &
+                          self%nverts)
+
+! Populate cells either side of each edge
+allocate(self%cell_on_edge_2d( 2, self%nedges ))  ! There can only ever be 2 cells incident on an edge (whatever the topography!)
+call calc_cell_on_edge(self%edge_on_cell_2d, &
+                       self%nedges_per_cell, &
+                       self%ncells, &
+                       self%cell_on_edge_2d, &
+                       self%nedges)
+
+allocate( self%vert_coords(3, self%nverts) )
+xstart=-(dx*num_cells_x/2.0)
+ystart=-(dy*num_cells_y/2.0)
+do i = 1,self%ncells
+  self%vert_coords(1,self%vert_on_cell_2d(1,i)) = xstart+real(modulo(i-1,num_cells_x))*dx
+  self%vert_coords(2,self%vert_on_cell_2d(1,i)) = ystart+real((i-1)/num_cells_y)*dy
+  self%vert_coords(3,self%vert_on_cell_2d(1,i)) = 0.0
+end do
+
+
+end function global_mesh_constructor_biperiodic
+
+
+!> Construct a the full domain cell to cell connectivities for a
+!> cubed-sphere mesh
+function global_mesh_constructor_cubedsphere( filename ) result(self)
 
 use constants_mod,  only: str_def
 use ugrid_2d_mod,   only: ugrid_2d_type
@@ -164,6 +391,9 @@ self%nverts_per_cell      = num_nodes_per_face
 self%nedges_per_cell      = num_edges_per_face
 self%max_cells_per_vertex = max_num_faces_per_node
 
+self%num_cells_x = nint(sqrt(float(nface_in)/6.0))
+self%num_cells_y = self%num_cells_x
+
 allocate( self%vert_coords(3, nvert_in) )
 call ugrid_2d%get_node_coords(self%vert_coords)
 
@@ -192,7 +422,7 @@ call calc_cell_on_edge( self%edge_on_cell_2d, &
                         self%cell_on_edge_2d, &
                         nedge_in )
 
-end function global_mesh_constructor
+end function global_mesh_constructor_cubedsphere
 
 subroutine calc_cell_on_vertex(vert_on_cell, &
                                verts_per_cell, &
@@ -398,6 +628,28 @@ function get_nverts_per_cell( self ) result (nverts_per_cell)
 end function get_nverts_per_cell
 
 
+function get_num_cells_x( self ) result (num_cells_x)
+
+class(global_mesh_type), intent(in) :: self
+
+integer :: num_cells_x
+
+num_cells_x = self%num_cells_x
+
+end function get_num_cells_x
+
+
+
+function get_num_cells_y( self ) result (num_cells_y)
+
+class(global_mesh_type), intent(in) :: self
+
+integer :: num_cells_y
+
+num_cells_y = self%num_cells_y
+
+end function get_num_cells_y
+
 
 function get_max_cells_per_vertex( self ) result (max_cells_per_vertex)
 
@@ -468,6 +720,8 @@ function global_mesh_constructor_unit_test_data() result (self)
   ! Vertices: Bottom Left (south-west)
   ! Edges:    Left        (west)
   ! Faces:    Left        (west)
+  self%num_cells_x = 3
+  self%num_cells_y = 3
   self%ncells      = 9
 
   self%nverts_per_cell = 4

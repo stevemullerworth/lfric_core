@@ -66,6 +66,8 @@ contains
  
   type(global_mesh_type) :: global_mesh
 
+  integer :: num_cells_x
+  integer :: num_cells_y
   integer :: cell_id
   integer :: verts(4)
   integer :: edges(4)
@@ -81,52 +83,64 @@ contains
   character(len = str_def) :: filename
 
   !-------------------------------------
-  ! Test construction of a biperiodic mesh
+  ! Test generation of a biperiodic mesh
   !-------------------------------------
-
-  filename = 'data/ugrid_quads_2d_biperiodic_8x8.nc' 
-  global_mesh = global_mesh_type( filename )
+  num_cells_x = 3
+  num_cells_y = 3
+  dx = 6000.0_r_def
+  dy = 2000.0_r_def
   !
   ! Generate the global_mesh
-  cell_id = global_mesh%get_cell_id( 1, 0, 0 )
-  @assertEqual( 1, cell_id )
+  global_mesh = global_mesh_type( num_cells_x, &
+                                  num_cells_y, &
+                                  dx, &
+                                  dy )
   !
   ! Test functionality of the global_mesh object we've just created
-  cell_id = global_mesh%get_cell_id( 1, 2, 2 )
-  @assertEqual( 51, cell_id )
+  cell_id=global_mesh%get_cell_id( 1, 0, 0 )
+  @assertEqual( 1, cell_id )
 
-  call global_mesh%get_vert_on_cell( 6, verts )
-  @assertEqual( 12, verts(1) )
-  @assertEqual( 14, verts(2) )
-  @assertEqual( 13, verts(3) )
-  @assertEqual( 11, verts(4) )
+  cell_id=global_mesh%get_cell_id( 1, 2, 2 )
+  @assertEqual( 9, cell_id )
 
-  call global_mesh%get_cell_on_vert( 15, cells )
-  @assertEqual(  7, cells(1) )
-  @assertEqual(  8, cells(2) )
-  @assertEqual( 63, cells(3) )
-  @assertEqual( 64, cells(4) )
+  call global_mesh%get_vert_on_cell( 2, verts )
+  @assertEqual( 2, verts(1) )
+  @assertEqual( 5, verts(2) )
+  @assertEqual( 6, verts(3) )
+  @assertEqual( 3, verts(4) )
 
-  call global_mesh%get_edge_on_cell( 6, edges )
-  @assertEqual( 14, edges(1) )
-  @assertEqual( 18, edges(2) )
-  @assertEqual( 17, edges(3) )
-  @assertEqual( 16, edges(4) )
+  call global_mesh%get_cell_on_vert( 3, cells )
+  @assertEqual( 1, cells(1) )
+  @assertEqual( 2, cells(2) )
+  @assertEqual( 4, cells(3) )
+  @assertEqual( 5, cells(4) )
 
-  call global_mesh%get_cell_on_edge( 17, cells(1:2) )
-  @assertEqual(  6, cells(1) )
-  @assertEqual(  7, cells(2) )
+  call global_mesh%get_edge_on_cell( 2, edges )
+  @assertEqual( 2, edges(1) )
+  @assertEqual( 5, edges(2) )
+  @assertEqual( 6, edges(3) )
+  @assertEqual( 7, edges(4) )
+
+  call global_mesh%get_cell_on_edge( 6, cells(1:2) )
+  @assertEqual( 2, cells(1) )
+  @assertEqual( 3, cells(2) )
 
   ncells = global_mesh%get_ncells()
-  @assertEqual( 64, ncells )
+  @assertEqual( 9, ncells )
+
+  ncells_x = global_mesh%get_num_cells_x()
+  @assertEqual( num_cells_x, ncells_x )
+
+  ncells_y = global_mesh%get_num_cells_y()
+  @assertEqual( num_cells_y, ncells_y )
 
   max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
   @assertEqual( 4, max_cells_on_vert )
 
   !---------------------------------------
-  ! Test construction of a cubed-sphere mesh
+  ! Test generation of a cubed-sphere mesh
   !---------------------------------------
-  filename = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc' 
+  filename = 'data/ugrid_quads_2d.nc' 
   global_mesh = global_mesh_type( filename )
   !
   ! Generate the global_mesh
@@ -161,6 +175,12 @@ contains
 
   ncells = global_mesh%get_ncells()
   @assertEqual( 96, ncells )
+
+  ncells_x = global_mesh%get_num_cells_x()
+  @assertEqual( 4, ncells_x )
+
+  ncells_y=global_mesh%get_num_cells_y()
+  @assertEqual( 4, ncells_y )
 
   max_cells_on_vert=global_mesh%get_max_cells_per_vertex()
   @assertEqual( 4, max_cells_on_vert )
