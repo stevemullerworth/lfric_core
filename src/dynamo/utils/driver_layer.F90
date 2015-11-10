@@ -23,16 +23,15 @@ contains
 !>          dumps the value to file
 !> @deprecated This is a tempoary implementation until a proper i/o + plotting
 !> stategy is implemented
-!> @param[in] step  The current timestep
 !> @param[in] n_out The number of output fields to generate from f
 !> @param[in] f     A field to compute output data from
 !> @param[in] mesh  The mesh object the model runs on
 !> @param[in] chi   A 3D coordinate field
 !> @param[in] fname The name of the field to be output
-  subroutine interpolated_output(step, n_out, f, mesh, chi, fname) 
+  subroutine interpolated_output(n_out, f, mesh, chi, fname) 
 
     use log_mod,                   only: log_event, log_scratch_space, LOG_LEVEL_INFO
-    use constants_mod,             only: r_def  
+    use constants_mod,             only: r_def, str_max_filename
     use field_mod,                 only: field_type
     use find_output_cell_mod,      only: find_output_cell
     use evaluate_output_field_mod, only: evaluate_output_field    
@@ -42,8 +41,6 @@ contains
     implicit none
 ! Mesh
     type (mesh_type),   intent(in) :: mesh
-! Timestep
-    integer,            intent(in) :: step
 ! Dimension of input field
     integer,            intent(in) :: n_out
 ! Field to output
@@ -51,14 +48,12 @@ contains
 ! Coodinate fields
     type( field_type ), intent(in) :: chi(3)  
 ! name of field
-    character(6),       intent(in) :: fname
+    character(str_max_filename), intent(in) :: fname
 
     integer                       :: nx(3), i, j, k, out_cell, dir 
     integer, parameter            :: OUTPUT_UNIT = 21
     real(kind=r_def), allocatable :: x_out(:,:,:,:), f_out(:,:,:,:)  
     real(kind=r_def)              :: dx(3)
-    character(18)                 :: outname
-    character(8)                  :: outtime
 
     type (domain_limits) :: domain_size
 
@@ -102,15 +97,10 @@ contains
     end do
 
 
-! Write output field to a file indexed by the timestep and the field name
-! File is formatted to allow easy matlab plotting
-    write(outtime,'(i8.8)') step
-    outname = fname//outtime//'.m'
-
-    write( log_scratch_space, '(A,A)' ) 'Writing interpolated output: ',outname
+    write( log_scratch_space, '(A,A)' ) 'Writing interpolated output: ',trim(fname)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
   
-    open(OUTPUT_UNIT, file = outname, status = "replace")
+    open(OUTPUT_UNIT, file = trim(fname), status = "replace")
     write(OUTPUT_UNIT,*) 'II = ',nx(1),';'
     write(OUTPUT_UNIT,*) 'JJ = ',nx(2),';'
     write(OUTPUT_UNIT,*) 'KK = ',nx(3),';'

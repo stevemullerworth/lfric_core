@@ -7,7 +7,7 @@
 !> @brief Algorithm to process and dump fields to file
 module output_alg_mod
   
-  use constants_mod,                     only: r_def
+  use constants_mod,                     only: r_def, str_max_filename
   use mesh_mod,                          only: mesh_type
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type, W0, W3
@@ -15,6 +15,7 @@ module output_alg_mod
   use driver_layer,                      only: interpolated_output
   use quadrature_mod,                    only: quadrature_type, QR3
   use operator_mod,                      only: operator_type
+  use restart_control_mod,               only: restart_type
  
   use psy,                               only: invoke_set_field_scalar
   implicit none
@@ -30,13 +31,14 @@ contains
 !>          regular grid and writes them to .m formated files indexed by a 
 !>          timestep stamp
 !> @param[in] n integer giving the time step index
+!> @param[in] rs checkpoint/restart type with timestepping information
 !> @param[inout] theta the potential temperature field
 !> @param[inout] u the vector wind field
 !> @param[inout] rho the density field
 !> @param[inout] chi the fem coordinate field array
 !> @param[in] mesh  The mesh all fields are on
 !> @param[inout] mm_w0 The mass matrix operator for the field to be projected to
-  subroutine output_alg(n, theta, u, rho, chi, mesh, mm_w0)
+  subroutine output_alg(n, rs, theta, u, rho, chi, mesh, mm_w0)
 
     implicit none
  
@@ -44,6 +46,7 @@ contains
     type(field_type),    intent(inout) :: theta, u, rho, chi(3)
     type(mesh_type),     intent(in)    :: mesh
     type(operator_type), intent(inout) :: mm_w0
+    type(restart_type),  intent(in)    :: rs
 
     ! output variables
     integer :: dir
@@ -53,6 +56,7 @@ contains
     type( field_type ) :: W3_projected_field(1)
     type( quadrature_type ), pointer :: qr => null()
     type( function_space_type )      :: fs
+    character(len=str_max_filename)  :: fname
 
     qr => qr%get_instance(QR3,9,3)
 
@@ -62,20 +66,22 @@ contains
     end do
     W3_projected_field(1) = field_type( vector_space = fs%get_instance(mesh, W3) )
 
-
     call galerkin_projection_algorithm(W0_projected_field(1), theta, mesh, chi, &
                                        SCALAR_FIELD, qr, mm=mm_w0)
-    call interpolated_output(n, SCALAR_FIELD, W0_projected_field(1), mesh, chi, &
-                             'theta_')
+    fname=trim(rs%ts_fname("diag_theta",n))//".m"
+    call interpolated_output(SCALAR_FIELD, W0_projected_field(1), mesh, chi, &
+                             fname)
     call invoke_set_field_scalar(0.0_r_def, W3_projected_field(1)) 
     call galerkin_projection_algorithm(W3_projected_field(1), rho, mesh, chi, &
                                        SCALAR_FIELD, qr)
-    call interpolated_output(n, SCALAR_FIELD, W3_projected_field(1), mesh, chi, &
-                             'rho___')
+    fname=trim(rs%ts_fname("diag_rho",n))//".m"
+    call interpolated_output(SCALAR_FIELD, W3_projected_field(1), mesh, chi, &
+                             fname)
     call galerkin_projection_algorithm(W0_projected_field(:), u, mesh, chi, &
                                        VECTOR_FIELD, qr, mm=mm_w0)
-    call interpolated_output(n, VECTOR_FIELD, W0_projected_field(:), mesh, chi, &
-                             'u_____')
+    fname=trim(rs%ts_fname("diag_u",n))//".m"
+    call interpolated_output(VECTOR_FIELD, W0_projected_field(:), mesh, chi, &
+                             fname)
 
   end subroutine output_alg
 

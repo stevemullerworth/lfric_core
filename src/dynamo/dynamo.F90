@@ -35,7 +35,9 @@ program dynamo
   use set_up_mod,              only : set_up
   use assign_coordinate_field_mod, only : assign_coordinate_field
   use field_io_mod,            only : write_state_netcdf                      &
-                                    , write_state_plain_text
+                                    , write_state_plain_text                  &
+                                    , read_state_netcdf
+  use restart_control_mod,     only : restart_type
   
   use log_mod,                 only : log_event,         &
                                       log_set_level,     &
@@ -68,6 +70,8 @@ program dynamo
                                       argument_length, &
                                       argument_status
   character( 6 )                   :: argument
+  type(restart_type)               :: restart
+  character(len=str_max_filename)  :: rs_fname
 
   ! Set defaults for the rank information to be for a serial run
   total_ranks = 1
@@ -95,7 +99,6 @@ program dynamo
                                argument,        &
                                argument_length, &
                                argument_status )
-
     if ( argument_status > 0 ) then
       call log_event( 'Unable to retrieve command line argument', &
                       LOG_LEVEL_ERROR )
@@ -107,8 +110,8 @@ program dynamo
     end if
 
     if ( argument == '-debug' ) then
-      call log_set_level( LOG_LEVEL_TRACE )
-      call log_event( 'Switching to full debug output', LOG_LEVEL_DEBUG )
+       call log_set_level( LOG_LEVEL_TRACE )
+       call log_event( 'Switching to full debug output', LOG_LEVEL_DEBUG )
     else
       write( log_scratch_space, '( A, A, A )' ) "Unrecognised argument >", &
                                                 trim( argument ), &
@@ -116,7 +119,12 @@ program dynamo
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
+
   end do cli_argument_loop 
+
+! get the check point restart information
+  rs_fname="restart.nml"
+  restart = restart_type(rs_fname)
 
   call set_up(mesh, local_rank, total_ranks)
 
@@ -130,37 +138,81 @@ program dynamo
   u     = field_type(vector_space = function_space%get_instance(mesh, W2))
   rho   = field_type(vector_space = function_space%get_instance(mesh, W3))
 
-  n_fields = 1
-  allocate(state(1:n_fields))
-  state(1) = theta
-  call write_state_netcdf( n_fields, state, 'field_before.nc' )
-  deallocate(state)
+  if( restart%read_file() ) then
+     allocate(state(4))
+     n_fields = 1
+     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("rho"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(1) = field_type(vector_space = function_space%get_instance(mesh, W3) )
+     call read_state_netcdf(n_fields, state(1), trim(restart%startfname("rho")) )
+     rho = state(1)
+
+     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("u"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(2) = field_type(vector_space = function_space%get_instance(mesh, W2) )
+     call read_state_netcdf(n_fields, state(2), trim(restart%startfname("u")) )
+     u = state(2)
+
+     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("theta"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(3) = field_type(vector_space = function_space%get_instance(mesh, W0) )
+     call read_state_netcdf(n_fields, state(3), trim(restart%startfname("theta")) )
+     theta = state(3)
+
+     write(log_scratch_space,'(A,A)') "Reading file:",trim(restart%startfname("xi"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(4) = field_type(vector_space = function_space%get_instance(mesh, W1) )
+     call read_state_netcdf(n_fields, state(4), trim(restart%startfname("xi")) )
+     xi = state(4)
+
+     deallocate(state)
+  end if
 
   call log_event( "Dynamo: computing W0 coordinate fields", LOG_LEVEL_INFO )
   call assign_coordinate_field(mesh, chi)
 
   if ( L_NONLINEAR ) then
     if ( L_SEMI_IMPLICIT ) then
-      call iter_timestep_alg( mesh, chi, u, rho, theta, xi)
+      call iter_timestep_alg( mesh, chi, u, rho, theta, xi, restart)
     else
-      call rk_alg_timestep( mesh, chi, u, rho, theta, xi)                       
+      call rk_alg_timestep( mesh, chi, u, rho, theta, xi, restart)                       
     end if
   else
-    call lin_rk_alg_timestep( mesh, chi, u, rho, theta)   
+    call lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)   
   end if
-
    ! do some i/o
   call rho%log_field(   LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'rho' )
   call theta%log_field( LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'theta' )
   call u%log_field(     LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, 'u' )
 
-  n_fields = 3
+  if( restart%write_file() ) then 
+     n_fields = 1
+     allocate(state(4))
+     write(log_scratch_space,'(A,A)') "writing file:",  &
+          trim(restart%endfname("rho"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(1) = rho
+     call write_state_netcdf( n_fields, state, trim(restart%endfname("rho")) )
 
-  allocate(state(1:n_fields))
-  state(1) = rho
-  state(2) = theta
-  state(3) = u
-  call write_state_plain_text( n_fields, state, 'field_output.txt' )
+     write(log_scratch_space,'(A,A)') "writing file:",  &
+          trim(restart%endfname("u"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(2) = u
+     call write_state_netcdf( n_fields, state(2), trim(restart%endfname("u")) )
+
+     write(log_scratch_space,'(A,A)') "writing file:",  &
+          trim(restart%endfname("theta"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(3) = theta
+     call write_state_netcdf( n_fields, state(3), trim(restart%endfname("theta")) )
+
+     write(log_scratch_space,'(A,A)') "writing file:",  &
+          trim(restart%endfname("xi"))
+     call log_event(log_scratch_space,LOG_LEVEL_INFO)
+     state(4) = xi
+     call write_state_netcdf( n_fields, state(4), trim(restart%endfname("xi")) )
+  end if
+
   deallocate(state)
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )

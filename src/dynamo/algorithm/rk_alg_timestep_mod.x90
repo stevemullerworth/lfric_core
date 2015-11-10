@@ -37,20 +37,21 @@ module rk_alg_timestep_mod
   use geopotential_gradient_kernel_mod,  only: geopotential_gradient_kernel_type
   use vorticity_advection_kernel_mod,    only: vorticity_advection_kernel_type
 
-  use mesh_mod,      only: mesh_type
-  use field_mod,     only: field_type
+  use mesh_mod,       only: mesh_type
+  use field_mod,      only: field_type
   use function_space_mod, &
-                     only: function_space_type, W0, W1, W2, W3
-  use solver_mod,    only: solver_algorithm
-  use constants_mod, only: r_def, SOLVER_OPTION, DT, NT, L_ROTATING
-  use quadrature_mod, only : quadrature_type, QR3
+                      only: function_space_type, W0, W1, W2, W3
+  use solver_mod,     only: solver_algorithm
+  use constants_mod,  only: r_def, SOLVER_OPTION, DT, L_ROTATING
+  use quadrature_mod, only: quadrature_type, QR3
   use galerkin_projection_algorithm_mod, &
-                     only : galerkin_projection_algorithm
-  use driver_layer,  only : interpolated_output
-  use operator_mod,  only : operator_type
+                      only: galerkin_projection_algorithm
+  use driver_layer,   only: interpolated_output
+  use operator_mod,   only: operator_type
   use conservation_algorithm_mod, &
-                     only : conservation_algorithm
+                      only: conservation_algorithm
   use output_alg_mod, only: output_alg
+  use restart_control_mod, only: restart_type
 
   implicit none
 
@@ -75,8 +76,9 @@ contains
   !> @param[inout] u The 3D wind field
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
-  !> @param[inout] xi The vorticity field
-  subroutine rk_alg_timestep( mesh, chi, u, rho, theta, xi)
+  !> @param[inout] xi The vorticity field  
+  !> @param[in] restart checkpoint/restart type with timestepping information
+  subroutine rk_alg_timestep( mesh, chi, u, rho, theta, xi, restart)
 
     implicit none
 
@@ -86,6 +88,8 @@ contains
     type( field_type ), intent( inout ) :: chi(3)
     ! prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, xi
+    ! restart control 
+    type( restart_type ), intent( in )  :: restart
     ! temporary fields
     type( field_type ) :: u_n, rho_n, theta_n,       &
                           r_u, r_rho, r_theta,       &
@@ -96,9 +100,10 @@ contains
     type( field_type ), allocatable :: rt_prediction(:),  &
                                        ru_prediction(:),  &
                                        rr_prediction(:)
+    type( field_type ) :: projected_field(3)
 
     integer :: theta_fs, u_fs, rho_fs, xi_fs
-    integer :: n, output_freq
+    integer :: n
     integer :: stage, num_rk_stage, st
     real(kind=r_def), allocatable :: ak(:,:)
     type(function_space_type) :: fs
@@ -107,6 +112,7 @@ contains
                           SCALAR_FIELD = 1
 
     type(operator_type) :: mm_w2, mm_w1, mm_w0
+    integer :: ts_init
 
     ! SSP3 weights
     num_rk_stage = 3
@@ -153,6 +159,10 @@ contains
     mm_w1 = operator_type(fs%get_instance(mesh, W1),fs%get_instance(mesh, W1))
     mm_w2 = operator_type(fs%get_instance(mesh, W2),fs%get_instance(mesh, W2))
 
+    do stage = 1,3
+      projected_field(stage) = field_type                                      &
+                               (vector_space = fs%get_instance(mesh, theta_fs))
+    end do
 
     !Construct PSy layer given a list of kernels. This is the line the code
     !generator may parse and do its stuff.
@@ -163,23 +173,28 @@ contains
     ! Construct initial conditions
     call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
 
-    call invoke( initial_theta_kernel_type( theta, chi ) )
-    call invoke( initial_rho_kernel_type ( rho, chi, qr ) )
-    call invoke_set_field_scalar(0.0_r_def, u)
-    call invoke_set_field_scalar(0.0_r_def, xi)
+    if(.not.restart%read_file()) then ! no check point to start from
+       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
+       call invoke( initial_theta_kernel_type( theta, chi ) )
+       call invoke( initial_rho_kernel_type ( rho, chi, qr ) )
+       call invoke_set_field_scalar(0.0_r_def, u)
+       call invoke_set_field_scalar(0.0_r_def, xi)
+    end if
     call invoke_set_field_scalar(0.0_r_def, mass_flux)
 
     call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr),           &
                  compute_mass_matrix_kernel_w1_type(mm_w1, chi, qr),           &
                  compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
 
-    call output_alg(0, theta, u, rho, chi, mesh, mm_w0)
-    call conservation_algorithm(0, mesh, rho, u, theta, xi, geopotential, chi)
+    !=== Intial output and output frequency ==================================! 
+    ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+    call output_alg(ts_init, restart, theta, u, rho, chi, mesh, mm_w0)
+    call conservation_algorithm(ts_init, mesh, rho, u, theta, xi, &
+                                geopotential, chi)
 
     !==========================================================================
     ! Timestep
-    output_freq = NT
-    do n = 1,NT
+    do n = restart%ts_start(),restart%ts_end()
       call log_event( "/****************************************************************************\ ", &
                       LOG_LEVEL_TRACE )
       write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', n
@@ -281,8 +296,8 @@ contains
 
       end do
 
-      if ( mod(n, output_freq) == 0 ) then
-        call output_alg(n, theta, u, rho, chi, mesh, mm_w0)
+      if ( mod(n, (restart%ts_start()+restart%diag_freq()) )  == 0 ) then
+         call output_alg(n, restart, theta, u, rho, chi, mesh, mm_w0)
       end if
       call conservation_algorithm(n, mesh, rho, u, theta, xi, geopotential, chi)
 

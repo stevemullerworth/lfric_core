@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
+!  The copyright relating to this work is owned jointly by the Crown, 
 ! Met Office and NERC 2014. 
 ! However, it has been created with the help of the GungHo Consortium, 
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
@@ -33,12 +33,13 @@ module lin_rk_alg_timestep_mod
   use field_mod,     only: field_type 
   use function_space_mod, only: function_space_type, W0, W1, W2, W3
   use galerkin_projection_algorithm_mod, only : galerkin_projection_algorithm
-  use constants_mod, only: r_def, SOLVER_OPTION, DT, NT
+  use constants_mod, only: r_def, SOLVER_OPTION, DT, str_max_filename
   use quadrature_mod, only : quadrature_type, QR3
   use solver_mod,     only : solver_algorithm
   use driver_layer,  only : interpolated_output
   use operator_mod,  only : operator_type
   use mesh_mod,      only: mesh_type
+  use restart_control_mod, only: restart_type
 
   implicit none
 
@@ -63,9 +64,10 @@ contains
   !> @param[inout] u The 3D wind field
   !> @param[inout] rho The density
   !> @param[inout] theta The potential temperature
+  !> @param[in] restart checkpoint/restart type with timestepping information
   !> @deprecated The Usefulness of the linear model is to be re-evaluated at 
   !>             the end of the Gung-Ho project and removed if possible
-  subroutine lin_rk_alg_timestep( mesh, chi, u, rho, theta)
+  subroutine lin_rk_alg_timestep( mesh, chi, u, rho, theta, restart)
 
     implicit none
 
@@ -74,6 +76,8 @@ contains
     type( field_type ), intent( inout ) :: chi(3)
 ! prognostic fields    
     type( field_type ), intent( inout ) :: u, rho, theta 
+! restart timestep and filename information
+    type(restart_type), intent( in )    :: restart
 ! temporary fields    
     type( field_type ) :: u_n, rho_n, theta_n,       &
                           r_u, r_rho, r_theta,       &
@@ -86,7 +90,7 @@ contains
     type( field_type ) :: projected_field(3)                                       
     
     integer :: theta_fs, u_fs, rho_fs
-    integer :: n, output_freq
+    integer :: n, ts_init
     integer :: stage, num_rk_stage, st
     real(kind=r_def), allocatable :: ak(:,:)
     type(function_space_type) :: fs
@@ -95,6 +99,7 @@ contains
                           scalar_field = 1
 
     type(operator_type) :: mm_w2, mm_w0  
+    character(len=str_max_filename) :: fname
     
 ! SSP3 weights
     num_rk_stage = 3
@@ -153,9 +158,12 @@ contains
 
     ! Construct initial conditions
     call log_event( "Dynamo: computing initial fields", LOG_LEVEL_INFO )
-    call invoke( initial_theta_kernel_type( theta, chi ) )
-    call invoke_set_field_scalar(0.0_r_def, u)
-    call invoke_set_field_scalar(0.0_r_def, rho)
+    if(.not.restart%read_file()) then ! no check point to start from
+       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
+       call invoke( initial_theta_kernel_type( theta, chi ) )
+       call invoke_set_field_scalar(0.0_r_def, u)
+       call invoke_set_field_scalar(0.0_r_def, rho)
+    end if
 
     call invoke( compute_mass_matrix_kernel_w0_type(mm_w0, chi, qr) )
     call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
@@ -167,16 +175,15 @@ contains
                                       , scalar_field       &
                                       , qr                 &
                                       , mm=mm_w0 ) 
-
-    call interpolated_output( 0                  &
-                            , scalar_field       &
+    ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
+    fname=trim(restart%ts_fname('diag_theta',ts_init))//".m"
+    call interpolated_output( scalar_field       &
                             , projected_field(1) &
                             , mesh               &
                             , chi                &
-                            , 'theta_')
+                            , fname)
 
     call invoke_set_field_scalar(0.0_r_def, projected_field(1))
-
     call galerkin_projection_algorithm( projected_field(1) &
                                       , rho                &
                                       , mesh               &
@@ -184,12 +191,12 @@ contains
                                       , scalar_field       &
                                       , qr                 &
                                       , mm=mm_w0 )
-    call interpolated_output( 0                  &
-                            , scalar_field       &
+    fname=trim(restart%ts_fname('diag_rho',ts_init))//".m"
+    call interpolated_output(scalar_field       &
                             , projected_field(1) &
                             , mesh               &
                             , chi                &
-                            , 'rho___' )                    
+                            , fname )                    
 
     call galerkin_projection_algorithm( projected_field(:) &
                                       , u                  &
@@ -198,18 +205,16 @@ contains
                                       , vector_field       &
                                       , qr                 &
                                       , mm=mm_w0 )
-
-    call interpolated_output( 0                  &
-                            , vector_field       &
+    fname=trim(restart%ts_fname('diag_u',ts_init))//".m"
+    call interpolated_output(vector_field       &
                             , projected_field(:) &
                             , mesh               &
                             , chi                &
-                            , 'u_____')
+                            , fname)
 
 !================================================================================    
     ! Timestep
-    output_freq = NT 
-    do n = 1,NT
+    do n = restart%ts_start(),restart%ts_end()
       call log_event( '/****************************************************************************/ ', &
                       LOG_LEVEL_INFO )
       write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', n
@@ -271,19 +276,22 @@ contains
         call rho_inc%log_minmax(LOG_LEVEL_TRACE, 'rho_inc');
 
       end do
-      if ( mod(n, output_freq) == 0 ) then
+      if ( mod(n, (restart%ts_start()+restart%diag_freq()) )  == 0 ) then
         call galerkin_projection_algorithm(projected_field(1),                 &
-             theta, mesh, chi, scalar_field, qr, mm=mm_w0) 
-        call interpolated_output(n, scalar_field, projected_field(1),          & 
-                                 mesh, chi, 'theta_')
+             theta, mesh, chi, scalar_field, qr, mm=mm_w0)
+        fname=trim(restart%ts_fname('diag_theta',n))//".m"
+        call interpolated_output(scalar_field, projected_field(1),             & 
+                                 mesh, chi, fname)
         call galerkin_projection_algorithm(projected_field(1),                 &
              rho,   mesh, chi, scalar_field, qr, mm=mm_w0)
-        call interpolated_output(n, scalar_field, projected_field(1),          &
-                                 mesh, chi, 'rho___')                    
+        fname=trim(restart%ts_fname('diag_rho',n))//".m"
+        call interpolated_output(scalar_field, projected_field(1),             &
+                                 mesh, chi, fname)                    
         call galerkin_projection_algorithm(projected_field(:),                 &
              u,     mesh, chi, vector_field, qr, mm=mm_w0)
-        call interpolated_output(n, vector_field, projected_field(:),          &
-                                 mesh, chi, 'u_____')     
+        fname=trim(restart%ts_fname('diag_u',n))//".m"
+        call interpolated_output(vector_field, projected_field(:),             &
+                                 mesh, chi, fname)     
       end if
       write( log_scratch_space, '(A,I0)' ) 'End of timestep ', n
       call log_event( log_scratch_space, LOG_LEVEL_INFO )

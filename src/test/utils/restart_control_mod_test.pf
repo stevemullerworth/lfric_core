@@ -1,0 +1,66 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module restart_control_mod_test
+  implicit none
+
+contains
+  @test
+  subroutine restart_control_test()
+    use pFunit_Mod
+    use constants_mod,       only : str_max_filename
+    use restart_control_mod, only : restart_type
+    use log_mod,             only : log_set_level, LOG_LEVEL_WARNING
+
+    implicit none
+    character(len=str_max_filename) :: rs_fname
+    character(len=str_max_filename) :: fname,tname    
+    type(restart_type) :: restart
+    integer :: ts_start, ts_end, df
+    logical :: ck_r, ck_w
+
+    call log_set_level(LOG_LEVEL_WARNING) ! resart logs at INFO
+
+    write(rs_fname,'(A)') "data/rs_test.nml"
+    restart = restart_type(rs_fname)
+
+    ! now for some tests 
+    ts_start=4
+    ts_end=6
+    df=3
+    ck_r=.true.
+    ck_w=.true.
+
+    @assertEqual(restart%ts_start(),ts_start)
+    @assertEqual(restart%ts_end(),ts_end)
+    @assertEqual(restart%diag_freq(),df)
+    @assertTrue(restart%read_file().eqv.ck_r)
+    @assertTrue(restart%write_file().eqv.ck_w)
+    
+    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
+         "rho",".T",ts_start-1
+    fname=restart%startfname("rho")
+    @assertEqual(tname,fname)
+
+    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
+         "rho",".T",ts_end
+    fname=restart%endfname("rho")
+    @assertEqual(tname,fname)
+
+    write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
+         "rho",".T",7
+    fname=restart%ts_fname("rho",7)
+    @assertEqual(tname,fname)
+    
+
+  end subroutine restart_control_test
+
+
+end module restart_control_mod_test
+
