@@ -86,7 +86,7 @@ contains
     logical :: ck_r, ck_w
 
     write(rs_fname,'(A)') "data/rs_test.nml"
-    restart = restart_type(rs_fname)
+    restart = restart_type(rs_fname, 0, 1)
 
     ! now for some tests 
     ts_start=4

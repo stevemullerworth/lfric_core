@@ -5,7 +5,17 @@
 # GungHo Consortium, whose members are identified at
 # https://puma.nerc.ac.uk/trac/GungHo/wiki
 ##############################################################################
-NPES=1
+
+rm -f PET*
+rm -f *.err
+rm -f *.out
+
+export XPROC=1
+export YPROC=1
+
+export NPANELS=1
+
+NPES=$(($NPANELS * $XPROC * $YPROC ))
 
 EXE=dynamo
 

@@ -75,12 +75,7 @@ program dynamo
   character( 6 )                   :: argument
   type(restart_type)               :: restart
 
-  ! Set defaults for the rank information to be for a serial run
-  total_ranks = 1
-  local_rank  = 0
-
-  ! Initialise ESMF and get the true rank information from the virtual machine
-  ! (although, for now, don't use it - only serial runs are allowed)
+  ! Initialise ESMF and get the rank information from the virtual machine
   CALL ESMF_Initialize(vm=vm, defaultlogfilename="dynamo.Log", &
                   logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc /= ESMF_SUCCESS) call log_event( 'Failed to initialise ESMF.', LOG_LEVEL_ERROR )
@@ -88,9 +83,8 @@ program dynamo
   call ESMF_VMGet(vm, localPet=localPET, petCount=petCount, rc=rc)
   if (rc /= ESMF_SUCCESS) call log_event( 'Failed to get the ESMF virtual machine.', LOG_LEVEL_ERROR )
 
-  if (petCount /= 1 .OR. localPet /= 0)then
-    call log_event( 'Currently, Dynamo can only run on a single process.', LOG_LEVEL_ERROR )
-  endif
+  total_ranks = petCount
+  local_rank  = localPET
 
   call log_event( 'Dynamo running...', LOG_LEVEL_INFO )
 
@@ -126,7 +120,7 @@ program dynamo
 
   ! Configure Dynamo
   call log_event( "Dynamo: Calling configure_dynamo(restart)", LOG_LEVEL_INFO )
-  call configure_dynamo(restart)
+  call configure_dynamo( restart, local_rank, total_ranks )
 
   ! Set up mesh and element order
   call set_up(mesh, local_rank, total_ranks)

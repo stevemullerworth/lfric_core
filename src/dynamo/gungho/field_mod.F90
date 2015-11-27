@@ -18,6 +18,8 @@ module field_mod
   use function_space_mod, only: function_space_type
   use mesh_mod,           only: mesh_type
 
+  use ESMF
+
   implicit none
 
   private
@@ -37,14 +39,47 @@ module field_mod
 
     !> Each field has a pointer to the function space on which it lives
     type( function_space_type ), pointer         :: vspace => null( )
-    !> Allocatable array of type real which holds the values of the field
-    real(kind=r_def), allocatable         :: data( : )
+    !> Pointer array of type real which holds the values of the field
+    real(kind=r_def), pointer             :: data( : ) => null()
+    !> The data for each field is held within an ESMF array component
+    type(ESMF_Array) :: esmf_array
 
   contains
 
     !> Function to get a proxy with public pointers to the data in a
     !! field_type.
     procedure, public :: get_proxy
+
+    !> Starts a halo exchange operation on the field. The halo exchange
+    !> is non-blocking, so this call only starts the process. On Return
+    !> from this call, outbound data will have been transferred, but no
+    !> guarantees are made for in-bound data elements at this stage.
+    !! @param[in] depth The depth to which the halos should be exchanged
+    procedure, public :: halo_exchange_start
+
+    !> Wait (i.e. block) until the transfer of data in a halo exchange
+    !> (started by a call to halo_exchange_start) has completed.
+    !! @param[in] depth The depth to which the halos have been exchanged
+    procedure, public :: halo_exchange_finish
+
+    !> Perform a global sum operation on the field
+    !> @return The global sum of the field values over all ranks
+    procedure, public :: get_sum
+
+    !> Calculate the global minimum of the field
+    !> @return The minimum of the field values over all ranks
+    procedure, public :: get_min
+
+    !> Calculate the global maximum of the field
+    !> @return The maximum of the field values over all ranks
+    procedure, public :: get_max
+
+    !> Wait (i.e. block) until all current non-blocking reductions
+    !> (sum, max, min) are complete.
+    !>
+    !> ESMF have only implemented blocking reductions, so this
+    !> subroutine currently returns without waiting.
+    procedure reduction_finish
 
     !> Sends the field contents to the log
     !! @param[in] title A title added to the log before the data is written out
@@ -65,9 +100,6 @@ module field_mod
 
     !> Routine to return the mesh used by this field
     procedure         :: get_mesh
-
-    !> Returns size of data(:) member of field_type
-    procedure         :: get_data_size
 
     !> Overloaded assigment operator
     procedure         :: field_type_assign
@@ -121,6 +153,162 @@ contains
 
   end function get_proxy
 
+  !> Construct a <code>field_type</code> object.
+  !>
+  !> @param [in] vector_space the function space that the field lives on
+  !> @return self the field
+  !>
+  function field_constructor(vector_space) result(self)
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
+    implicit none
+
+    type(function_space_type), target, intent(in) :: vector_space
+
+    type(field_type), target :: self
+
+    integer, allocatable :: global_dof_id(:)
+    integer :: rc
+
+    self%vspace => vector_space
+
+    allocate(global_dof_id(self%vspace%get_last_dof_halo()))
+    call self%vspace%get_global_dof_id(global_dof_id)
+
+    ! Create an ESMF array - this allows us to perform halo exchanges
+    ! This call allocates the memory for the field data - we can extract a
+    ! pointer to that allocated memory next
+    self%esmf_array = &
+      ESMF_ArrayCreate( distgrid=self%vspace%get_distgrid(), &
+                        typekind=ESMF_TYPEKIND_R8, &
+                        haloSeqIndexList= &
+                             global_dof_id( self%vspace%get_last_dof_owned()+1 &
+                                           :self%vspace%get_last_dof_halo() ), &
+                        rc=rc )
+
+    ! Extract and store the pointer to the fortran array
+    if (rc == ESMF_SUCCESS) &
+      call ESMF_ArrayGet(array=self%esmf_array, farrayPtr=self%data, rc=rc)
+
+    if (rc /= ESMF_SUCCESS) call log_event( &
+       'ESMF failed to allocate space for field data.', &
+       LOG_LEVEL_ERROR )
+
+    deallocate(global_dof_id)
+
+  end function field_constructor
+
+  !> Destroy a scalar <code>field_type</code> instance.
+  subroutine field_destructor_scalar(self)
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
+    implicit none
+    type(field_type), intent(inout)    :: self
+    integer :: rc
+
+    nullify(self%vspace)
+    if(associated(self%data)) then
+      call ESMF_ArrayDestroy(self%esmf_array, rc=rc)
+      if (rc /= ESMF_SUCCESS ) &
+        call log_event( "ESMF failed to destroy a field", LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine field_destructor_scalar
+
+  !> Destroy a 1d array of <code>field_type</code> instances.
+  subroutine field_destructor_array1d(self)
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
+    implicit none
+    type(field_type), intent(inout)    :: self(:)
+    integer :: i
+    integer :: rc
+
+    do i=lbound(self,1), ubound(self,1)
+      nullify(self(i)%vspace)
+      if(associated(self(i)%data)) then
+        call ESMF_ArrayDestroy(self(i)%esmf_array, rc=rc)
+        if (rc /= ESMF_SUCCESS ) &
+          call log_event( "ESMF failed to destroy a field", LOG_LEVEL_ERROR )
+      end if
+    end do
+
+  end subroutine field_destructor_array1d
+
+  !> Destroy a 2d array of <code>field_type</code> instances.
+  subroutine field_destructor_array2d(self)
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
+    implicit none
+    type(field_type), intent(inout)    :: self(:,:)
+    integer :: i,j
+    integer :: rc
+
+    do i=lbound(self,1), ubound(self,1)
+      do j=lbound(self,2), ubound(self,2)
+        nullify(self(i,j)%vspace)
+        if(associated(self(i,j)%data)) then
+          call ESMF_ArrayDestroy(self(i,j)%esmf_array, rc=rc)
+          if (rc /= ESMF_SUCCESS ) &
+            call log_event( "ESMF failed to destroy a field", LOG_LEVEL_ERROR )
+        end if
+      end do
+    end do
+
+  end subroutine field_destructor_array2d
+
+  !> Assignment operator between field_type pairs.
+  !>
+  !> @param[out] dest   field_type lhs
+  !> @param[in]  source field_type rhs
+  subroutine field_type_assign(dest, source)
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
+    implicit none
+    class(field_type), intent(out)     :: dest
+    class(field_type), intent(in)      :: source
+
+    integer, allocatable :: global_dof_id(:)
+    integer :: rc
+
+    dest%vspace => source%vspace
+
+    allocate(global_dof_id(source%vspace%get_last_dof_halo()))
+    call source%vspace%get_global_dof_id(global_dof_id)
+
+    ! Create an ESMF array - this allows us to perform halo exchanges
+    ! This call allocates the memory for the field data - we can extract a
+    ! pointer to that allocated memory next
+    dest%esmf_array = &
+      ESMF_ArrayCreate( distgrid=source%vspace%get_distgrid(), &
+                        typekind=ESMF_TYPEKIND_R8, &
+                        haloSeqIndexList= &
+                             global_dof_id( source%vspace%get_last_dof_owned()+1 &
+                                           :source%vspace%get_last_dof_halo() ), &
+                        rc=rc )
+
+    ! Extract and store the pointer to the fortran array
+    if (rc == ESMF_SUCCESS) &
+      call ESMF_ArrayGet(array=dest%esmf_array, farrayPtr=dest%data, rc=rc)
+
+    if (rc /= ESMF_SUCCESS) call log_event( &
+       'ESMF failed to allocate space for field data.', &
+       LOG_LEVEL_ERROR )
+
+    deallocate(global_dof_id)
+
+    dest%data(:) = source%data(:)
+
+  end subroutine field_type_assign
+
+  !---------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !---------------------------------------------------------------------------
 
   !> Function to get mesh information from the field.
   !>
@@ -137,111 +325,148 @@ contains
     return
   end function get_mesh
 
-  !> Construct a <code>field_type</code> object.
-  !>
-  !> @param [in] vector_space the function space that the field lives on
-  !> @return self the field
-  !>
-  function field_constructor(vector_space) result(self)
+  !! Start a halo exchange operation on the field
+  !!
+  subroutine halo_exchange_start( self, depth )
 
-    type(function_space_type), target, intent(in) :: vector_space
-
-    type(field_type), target :: self
-
-    self%vspace => vector_space
-
-    ! allocate the array in memory
-    allocate(self%data(self%vspace%get_undf()))
-
-  end function field_constructor
-
-  !> Destroy a scalar <code>field_type</code> instance.
-  subroutine field_destructor_scalar(self)
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
     implicit none
-    type(field_type), intent(inout)    :: self
 
-    nullify(self%vspace)
-    if(allocated(self%data)) then
-      deallocate(self%data)
-    end if
+    class( field_type ), target, intent(inout) :: self
+    integer, intent(in) :: depth
+    type(ESMF_RouteHandle) :: haloHandle
+    integer :: rc
 
-  end subroutine field_destructor_scalar
+    haloHandle=self%vspace%get_haloHandle(depth)
+    call ESMF_ArrayHalo( self%esmf_array, &
+                         routehandle=haloHandle, &
+                         routesyncflag=ESMF_ROUTESYNC_NBSTART, &
+                         rc=rc )
 
-  !> Destroy a 1d array of <code>field_type</code> instances.
-  subroutine field_destructor_array1d(self)
+    if (rc /= ESMF_SUCCESS) call log_event( &
+       'ESMF failed to start the halo exchange.', &
+       LOG_LEVEL_ERROR )
+
+  end subroutine halo_exchange_start
+
+  !! Wait for a halo exchange to complete
+  !!
+  subroutine halo_exchange_finish( self, depth )
+
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
     implicit none
-    type(field_type), intent(inout)    :: self(:)
-    integer :: i
 
-    do i=lbound(self,1), ubound(self,1)
-      nullify(self(i)%vspace)
-      if(allocated(self(i)%data)) then
-        deallocate(self(i)%data)
-      end if
-    end do
+    class( field_type ), target, intent(inout) :: self
+    integer, intent(in) :: depth
+    type(ESMF_RouteHandle) :: haloHandle
+    integer :: rc
 
-  end subroutine field_destructor_array1d
+    haloHandle=self%vspace%get_haloHandle(depth)
+    call ESMF_ArrayHalo( self%esmf_array, &
+                         routehandle=haloHandle, &
+                         routesyncflag=ESMF_ROUTESYNC_NBWAITFINISH, &
+                         rc=rc )
 
-  !> Destroy a 2d array of <code>field_type</code> instances.
-  subroutine field_destructor_array2d(self)
-    implicit none
-    type(field_type), intent(inout)    :: self(:,:)
-    integer :: i,j
+    if (rc /= ESMF_SUCCESS) call log_event( &
+       'ESMF failed to finish the halo exchange.', &
+       LOG_LEVEL_ERROR )
 
-    do i=lbound(self,1), ubound(self,1)
-      do j=lbound(self,2), ubound(self,2)
-        nullify(self(i,j)%vspace)
-        if(allocated(self(i,j)%data)) then
-          deallocate(self(i,j)%data)
-        end if
-      end do
-    end do
+  end subroutine halo_exchange_finish
 
-  end subroutine field_destructor_array2d
+  !! Start performing a global sum operation on the field
+  !!
+  function get_sum(self) result (answer)
 
-  !> Return the size of storage in instance's data member.
-  !>
-  !> @return fsize Size of data member.
-  pure function get_data_size(self) result(fsize)
-    class(field_type), intent(in)      :: self
-    integer(kind=i_def)                :: fsize
-    
-    if(allocated(self%data)) then
-      fsize = size(self%data)
-    else
-      fsize = -1_i_def
-    end if
+    class(field_type), intent(in) :: self
 
-  end function get_data_size
+    real(r_def) :: answer
 
-  !> Assignment operator between field_type pairs.
-  !>
-  !> @param[out] dest   field_type lhs
-  !> @param[in]  source field_type rhs
-  subroutine field_type_assign(dest, source)
-    implicit none
-    class(field_type), intent(out)     :: dest
-    class(field_type), intent(in)      :: source
+    type(ESMF_VM) :: vm
+    integer :: rc
 
-    integer(kind=i_def)                :: field_size
+    call ESMF_VMGetCurrent(vm=vm, rc=rc)
+! Currently ESMF has only implemented blocking reductions. Using anything
+! other than ESMF_SYNC_BLOCKING for syncflag results in an error
+    call ESMF_VMAllFullReduce(vm, &
+                              self%data, &
+                              answer, &
+                              self%vspace%get_last_dof_owned(), &
+                              ESMF_REDUCE_SUM, &
+                              syncflag = ESMF_SYNC_BLOCKING, &
+                              rc=rc)
+  end function get_sum
 
-    dest%vspace => source%vspace
+  !! Start the calculation of the global minimum of the field
+  !!
+  function get_min(self) result (answer)
 
-    field_size = source%get_data_size()
+    class(field_type), intent(in) :: self
 
-    if(allocated(dest%data)) then
-      deallocate(dest%data)
-    end if
+    real(r_def) :: answer
 
-    allocate(dest%data(field_size))
+    type(ESMF_VM) :: vm
+    integer :: rc
 
-    dest%data(:) = source%data(:)
+    call ESMF_VMGetCurrent(vm=vm, rc=rc)
+! Currently ESMF has only implemented blocking reductions. Using anything
+! other than ESMF_SYNC_BLOCKING for syncflag results in an error
+    call ESMF_VMAllFullReduce(vm, &
+                              self%data, &
+                              answer, &
+                              self%vspace%get_last_dof_owned(), &
+                              ESMF_REDUCE_MIN, &
+                              syncflag = ESMF_SYNC_BLOCKING, &
+                              rc=rc)
+  end function get_min
 
-  end subroutine field_type_assign
+  !! Start the calculation of the global maximum of the field
+  !!
+  function get_max(self) result (answer)
 
-  !---------------------------------------------------------------------------
-  ! Contained functions/subroutines
-  !---------------------------------------------------------------------------
+    class(field_type), intent(in) :: self
+
+    real(r_def) :: answer
+
+    type(ESMF_VM) :: vm
+    integer :: rc
+
+    call ESMF_VMGetCurrent(vm=vm, rc=rc)
+! Currently ESMF has only implemented blocking reductions. Using anything
+! other than ESMF_SYNC_BLOCKING for syncflag results in an error
+    call ESMF_VMAllFullReduce(vm, &
+                              self%data, &
+                              answer, &
+                              self%vspace%get_last_dof_owned(), &
+                              ESMF_REDUCE_MAX, &
+                              syncflag = ESMF_SYNC_BLOCKING, &
+                              rc=rc)
+  end function get_max
+
+  !! Wait for any current (non-blocking) reductions (sum, max, min) to complete
+  !!
+  !! Currently, ESMF has only implemented blocking reductions, so there is
+  !! no need to ever call this subroutine. It is left in here to complete the
+  !! API so when non-blocking reductions are implemented, we can support them
+  subroutine reduction_finish(self)
+
+    class(field_type), intent(in) :: self
+
+    type(ESMF_VM) :: vm
+    integer :: rc
+    integer :: fs
+
+    fs=self%which_function_space()  ! reduction_finish currently does nothing.
+                                    ! The "self" that is passed in automatically
+                                    ! to a type-bound subroutine is not used -
+                                    ! so the compilers complain -  have to use
+                                    ! it for something harmless.
+
+    call ESMF_VMGetCurrent(vm=vm, rc=rc)
+    call ESMF_VMCommWaitAll(vm=vm, rc=rc)
+
+  end subroutine reduction_finish
 
   !> Sends the field contents to the log
   !!

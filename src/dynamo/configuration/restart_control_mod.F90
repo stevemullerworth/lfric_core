@@ -30,12 +30,23 @@ module restart_control_mod
   type, public :: restart_type
 
      private
+     !> Whether to read a checkpoint
      logical :: checkpoint_read 
+     !> The starting timestep
      integer :: timestep_start
+     !> The end timestep
      integer :: timestep_end 
+     !> Whether to write a checkpoint
      logical :: checkpoint_write
+     !> A string of characters that will form the beginning of all
+     !! checkpoint/restart files
      character(len=str_max_filename) :: restart_stem_name 
+     !> The frequency of diagnostic measurement
      integer :: diagnostic_frequency
+     !> A string of characters that will be appended to the name
+     !! of checkpoint/restart files to describe which rank wrote
+     !! the file. This will be an empty string for serial runs,
+     character(len=str_max_filename) :: rank_name
 
    contains
 
@@ -90,13 +101,17 @@ contains
 
   !> @brief Constructor for the restart_type.
   !> @param[in] fname The filename of the namelist file
+  !> @param[in] local_rank The rank number of the local rank
+  !> @param[in] total_ranks The total number of ranks in the run
   !> @detail Opens, reads and closes namelist file (with error reporting),
   !!         sets the values of the data attributes from the namelist file 
   !!         and does some sanity checking to help prevent user error for 
   !!         timestep start and end values.
-  function restart_constructor(fname) result(self)
+  function restart_constructor(fname, local_rank, total_ranks) result(self)
     implicit none
     character(len=str_max_filename), intent(in) :: fname ! the name of the nml file
+    integer, intent(in) :: local_rank
+    integer, intent(in) :: total_ranks
     type(restart_type)                          :: self
     logical            :: checkpoint_read, checkpoint_write
     integer, parameter :: funit = 555
@@ -115,27 +130,24 @@ contains
     ! Open restart file
     open(funit,file=trim(fname),iostat=ierr,status='old',iomsg=ioerrmsg)
     if(ierr/=0) then
-       write( log_scratch_space,'(A)') "problems opening File..."
-       call log_event(log_scratch_space,LOG_LEVEL_INFO)
-       call log_event(ioerrmsg,LOG_LEVEL_ERROR)
-    end if   
-    ! Read restart file
-    read(funit,nml=restart_nml,iostat=ierr,iomsg=ioerrmsg)
-    if(ierr/=0) then
-       write(*,*) checkpoint_read
-       write(*,*) timestep_start
-       write(*,*) timestep_end
-       write(*,*) checkpoint_write
-       write(*,*) trim(restart_stem_name)
-       write(*,*) diagnostic_frequency
-       write( log_scratch_space,'(A)') "problems reading File ..."
+       write( log_scratch_space,'(A,A)') "Problems opening namelist file:", &
+                                        fname
        call log_event(log_scratch_space,LOG_LEVEL_INFO)
        call log_event(ioerrmsg,LOG_LEVEL_ERROR)
     end if
-    ! Close restart file
+    
+    read(funit,nml=restart_nml,iostat=ierr,iomsg=ioerrmsg)
+    if(ierr/=0) then
+       write( log_scratch_space,'(A,A)') "Problems reading namelist file:", &
+                                        fname
+       call log_event(log_scratch_space,LOG_LEVEL_INFO)
+       call log_event(ioerrmsg,LOG_LEVEL_ERROR)
+    end if
+
     close(funit,iostat=ierr,iomsg=ioerrmsg)
     if(ierr/=0) then
-       write( log_scratch_space,'(A,A)') "Closing File:",fname
+       write( log_scratch_space,'(A,A)') "Problems closing namelist file:", &
+                                        fname
        call log_event(log_scratch_space,LOG_LEVEL_INFO)
        call log_event(ioerrmsg,LOG_LEVEL_ERROR)
     end if
@@ -178,6 +190,22 @@ contains
                            timestep_limit
        call log_event(log_scratch_space,LOG_LEVEL_ERROR)
     end if
+    if(total_ranks>=1000000) then
+       write(log_scratch_space,'(A)')  &
+            "restart_type: total_ranks too big, checkpoint/restart "// &
+            "filenames only have six characters for the rank id"
+       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
+    end if
+
+    ! Set up rank string to be appended to filenames
+    ! This is required before the sanity test on checkpoint_read is run as
+    ! rank_name is used (when it calls startfname)
+    if( total_ranks == 1 )then
+      self%rank_name=""
+    else
+      write(self%rank_name,"("".Rank"",I6.6)")local_rank
+    end if
+
     if(self%checkpoint_read) then
        write(log_scratch_space,'(A,A)') "Re-starting Dynamo:", &
             trim(self%startfname(""))
@@ -196,8 +224,8 @@ contains
     character(len=str_max_filename) :: startfname
     integer :: ts_minus_1
     ts_minus_1 = self%timestep_start - 1
-    write(startfname,'(A,A,A,A,I6.6)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",ts_minus_1
+    write(startfname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
+         trim(field_name),".T",ts_minus_1,trim(self%rank_name)
 
   end function startfname
 
@@ -207,8 +235,8 @@ contains
     class(restart_type), intent(in) :: self
     character(len=*),    intent(in) :: field_name
     character(len=str_max_filename) :: endfname
-    write(endfname,'(A,A,A,A,I6.6)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",self%timestep_end
+    write(endfname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
+         trim(field_name),".T",self%timestep_end,trim(self%rank_name)
 
   end function endfname
 
@@ -219,8 +247,8 @@ contains
     character(len=*),    intent(in) :: field_name
     integer,             intent(in) :: ts
     character(len=str_max_filename) :: ts_fname
-    write(ts_fname,'(A,A,A,A,I6.6)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",ts
+    write(ts_fname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
+         trim(field_name),".T",ts,trim(self%rank_name)
 
   end function ts_fname
 

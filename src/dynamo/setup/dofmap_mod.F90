@@ -999,6 +999,8 @@ subroutine orientation_populate(mesh, ncells, ndf, ndf_entity, is_scalar, select
      if ( orientation(cell,df) == -1 ) write(6,*) cell,df
     end do
   end do    
+  deallocate( face_orientation )
+  deallocate( edge_orientation )
 end subroutine orientation_populate
 
 end module dofmap_mod

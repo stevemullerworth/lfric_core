@@ -71,10 +71,9 @@ contains
     ! (across a single face for a cubed-sphere mesh)
     integer :: xproc, yproc
 
-    ! Get the processor decomposition
-    ! Code is not set up to run in parallel - so hardcode for now
-    xproc = 1
-    yproc = 1
+    ! Until we have configuration, set up xproc and yproc for square decomposition
+    xproc=max(1,int(sqrt(real(total_ranks/6.0))))
+    yproc=max(1,int(sqrt(real(total_ranks/6.0))))
 !> @todo Eventually xproc and yproc will be inputted into Dynamo (and not hard-coded).
 !>       When this happens their values will need to be checked to make sure they are
 !>       sensible

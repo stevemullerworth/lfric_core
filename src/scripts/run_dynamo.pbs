@@ -18,6 +18,11 @@
 # Portable Batch System (PBS). For example Archer or the Met Office Cray systems
 #
 
-NPES=1
+export XPROC=1
+export YPROC=1
+
+export NPANELS=6
+
+NPES=$(($NPANELS * $XPROC * $YPROC ))
 
 aprun -n $NPES ./dynamo

@@ -144,7 +144,7 @@ contains
 !>          choice of linear solver, etc.
 !> @param[out] restart Contains checkpoint/restart information (name of input
 !>                     data file, start/end timestep, output frequency etc.)   
-subroutine configure_dynamo(restart)
+subroutine configure_dynamo( restart, local_rank, total_ranks )
 
   use constants_mod, only: str_max_filename, str_long
   use log_mod,       only: log_event, log_scratch_space, &
@@ -153,6 +153,8 @@ subroutine configure_dynamo(restart)
   implicit none
 
   type( restart_type ), intent(out) :: restart
+  integer, intent(in) :: local_rank
+  integer, intent(in) :: total_ranks
 
   integer, parameter                :: funit = 777
   integer                           :: ierr
@@ -248,7 +250,7 @@ subroutine configure_dynamo(restart)
   end if
 
   ! ----------- Get the restart/checkpoint information ------------------------!
-  restart = restart_type(restart_filename)
+  restart = restart_type(restart_filename, local_rank, total_ranks)
 
   !============ Set some configuration options  ===============================!
   ! Check for l_spherical and l_fplane not accidentally being true at same time
