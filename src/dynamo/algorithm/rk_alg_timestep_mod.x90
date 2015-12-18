@@ -295,7 +295,7 @@ contains
 
       end do
        !---------End of timestep diagnostics ----------------------------------!
-      if ( mod(timestep, (restart%ts_start()+restart%diag_freq()) )  == 0 ) then
+      if ( mod(timestep, (restart%ts_start()+restart%diag_freq() - 1) )  == 0 ) then
         call output_alg(timestep, restart, theta, u, rho, chi, mesh, mm_w0)
       end if
       call conservation_algorithm(timestep, mesh, rho, u, theta, xi, &

@@ -102,17 +102,17 @@ contains
     @assertTrue(restart%write_file().eqv.ck_w)
 
     write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho",".T",ts_start-1
+         "rho","_T",ts_start-1
     fname=restart%startfname("rho")
     @assertEqual(tname,fname)
 
     write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho",".T",ts_end
+         "rho","_T",ts_end
     fname=restart%endfname("rho")
     @assertEqual(tname,fname)
 
     write(tname,'(A,A,A,A,I6.6)') "hswarez_100day","_", &
-         "rho",".T",7
+         "rho","_T",7
     fname=restart%ts_fname("rho",7)
     @assertEqual(tname,fname)
 

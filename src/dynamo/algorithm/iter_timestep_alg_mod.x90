@@ -239,7 +239,7 @@ contains
        end do
        !=== End Section 3.1 ===================================================!
        !=== Section 3.4: End of timestep diagnostics ==========================!
-       if ( mod(timestep, (restart%ts_start()+restart%diag_freq()) ) == 0 ) then
+       if ( mod(timestep, (restart%ts_start()+restart%diag_freq() - 1) ) == 0 ) then
          call output_alg(timestep, restart, state_np1(2), state_np1(1), &
                          state_np1(3), chi, mesh, mm_w0)
        end if

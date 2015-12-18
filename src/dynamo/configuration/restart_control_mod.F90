@@ -225,7 +225,7 @@ contains
     integer :: ts_minus_1
     ts_minus_1 = self%timestep_start - 1
     write(startfname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",ts_minus_1,trim(self%rank_name)
+         trim(field_name),"_T",ts_minus_1,trim(self%rank_name)
 
   end function startfname
 
@@ -236,7 +236,7 @@ contains
     character(len=*),    intent(in) :: field_name
     character(len=str_max_filename) :: endfname
     write(endfname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",self%timestep_end,trim(self%rank_name)
+         trim(field_name),"_T",self%timestep_end,trim(self%rank_name)
 
   end function endfname
 
@@ -248,7 +248,7 @@ contains
     integer,             intent(in) :: ts
     character(len=str_max_filename) :: ts_fname
     write(ts_fname,'(A,A,A,A,I6.6,A)') trim(self%restart_stem_name),"_", &
-         trim(field_name),".T",ts,trim(self%rank_name)
+         trim(field_name),"_T",ts,trim(self%rank_name)
 
   end function ts_fname
 
