@@ -65,7 +65,8 @@ module iter_timestep_alg_mod
   use rhs_alg_mod,                       only: rhs_alg
   use advection_alg_mod,                 only: advection_alg
   use output_alg_mod,                    only: output_alg
-  use si_solver_alg_mod,                 only: si_solver_alg
+  use si_solver_alg_mod,                 only: si_solver_alg, si_solver_init
+  use lhs_alg_mod,                       only: lhs_init
 
   ! Handles
   use fs_continuity_mod,                 only: W0, W1, W2, W3
@@ -256,6 +257,8 @@ contains
     call invoke_copy_field_data(u,     state_np1(1))
     call invoke_copy_field_data(theta, state_np1(2))
     call invoke_copy_field_data(rho,   state_np1(3))
+    call si_solver_init(state_np1, runtime_constants)
+    call lhs_init(state_np1)
 
     do timestep = restart%ts_start(),restart%ts_end()
        call log_event( &

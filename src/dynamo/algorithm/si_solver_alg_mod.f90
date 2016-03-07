@@ -39,8 +39,14 @@ module si_solver_alg_mod
 
   implicit none
   integer, parameter :: bundle_size = 3
+  type(field_type), private :: mm_diagonal(bundle_size)
+  type(field_type), private :: dx(bundle_size), Ax(bundle_size), &
+                               residual(bundle_size), s(bundle_size), &
+                               w(bundle_size)
+  type(field_type), allocatable, private :: v(:,:)
   private
   public :: si_solver_alg
+  public :: si_solver_init
  
 contains
 !>@brief Setup for the semi-implicit solver, extracts mass matrix diagonals and 
@@ -86,6 +92,29 @@ contains
     call mixed_gmres_alg(x0, rhs0, rhs, x_ref, delta, tau_dt, runtime_constants)
 
   end subroutine si_solver_alg
+!=============================================================================!
+
+  subroutine si_solver_init(x0, runtime_constants)
+    implicit none
+    type(field_type),             intent(in) :: x0(bundle_size)
+    type(runtime_constants_type), intent(in) :: runtime_constants
+    integer                                  :: iter
+
+    mm_diagonal(1) = runtime_constants%get_mass_matrix_diagonal(2)
+    mm_diagonal(2) = runtime_constants%get_mass_matrix_diagonal(0)
+    mm_diagonal(3) = runtime_constants%get_mass_matrix_diagonal(3)
+
+    call clone_bundle(x0, dx, bundle_size)
+    call clone_bundle(x0, Ax, bundle_size)
+    call clone_bundle(x0, s, bundle_size)
+    call clone_bundle(x0, w, bundle_size)
+    call clone_bundle(x0, residual, bundle_size)
+    allocate(  v(bundle_size,gcrk) )
+    do iter = 1,gcrk
+      call clone_bundle(x0, v(:,iter), bundle_size)
+    end do
+ 
+  end subroutine si_solver_init
 
 !=============================================================================!
 !>@brief GMRES solver adapted for solving the semi-implicit equations
@@ -115,10 +144,6 @@ contains
 
 
     ! The temporary fields
-    type(field_type)         :: mm_diagonal(bundle_size)
-    type(field_type)         :: dx(bundle_size), Ax(bundle_size), &
-                                residual(bundle_size), s(bundle_size), &
-                                w(bundle_size), v(bundle_size, gcrk)
 
     ! the scalars
     real(kind=r_def)         :: h(gcrk+1, gcrk), u(gcrk), g(gcrk+1)
@@ -132,18 +157,7 @@ contains
     integer                  :: postcon = solver_preconditioner_diagonal
 
 
-    mm_diagonal(1) = runtime_constants%get_mass_matrix_diagonal(2)
-    mm_diagonal(2) = runtime_constants%get_mass_matrix_diagonal(0)
-    mm_diagonal(3) = runtime_constants%get_mass_matrix_diagonal(3)
 
-    call clone_bundle(x0, dx, bundle_size)
-    call clone_bundle(x0, Ax, bundle_size)
-    call clone_bundle(x0, s, bundle_size)
-    call clone_bundle(x0, w, bundle_size)
-    call clone_bundle(x0, residual, bundle_size)
-    do iter = 1,gcrk
-      call clone_bundle(x0, v(:,iter), bundle_size)
-    end do
 
     err = bundle_inner_product(rhs0, rhs0, bundle_size)
     sc_err = max( sqrt(err), 1.0e-5_r_def )
@@ -324,7 +338,6 @@ contains
     integer, intent(in) :: option
     integer :: i
 
-    i = option
     if ( option == solver_preconditioner_none ) then
       do i = 1,bundle_size
         call invoke_copy_field_data( x(i), y(i) )
