@@ -40,6 +40,11 @@ module rtheta_supg_kernel_mod_test
 
   integer(i_def), parameter :: element_order = 0
 
+  real(r_def),    parameter :: dt = 10.0
+  real(r_def),    parameter :: alpha = 0.5
+  integer(i_def), parameter :: outer_iterations = 2
+  integer(i_def), parameter :: inner_iterations = 2
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -48,6 +53,9 @@ contains
     use finite_element_config_mod, only : finite_element_shape_quadrilateral
     use mesh_mod,                  only : PLANE_BI_PERIODIC
     use reference_element_mod,     only : reference_cube, reference_element
+    use frig_config_mod,           only : frig_timestepping_config
+    use timestepping_config_mod,   only : timestepping_method_semi_implicit, &
+                                          timestepping_runge_kutta_method_ssp3
 
     implicit none
 
@@ -65,6 +73,13 @@ contains
     integer(i_def) :: ndf_w0, undf_w0, dim_w0, dim_diff_w0
     integer(i_def) :: ndf_w2, dim_w2
     integer(i_def) :: ndf_w3, dim_w3
+
+    call frig_timestepping_config( timestepping_method_semi_implicit, &
+                                   dt, &
+                                   alpha, &
+                                   outer_iterations, &
+                                   inner_iterations, &
+                                   timestepping_runge_kutta_method_ssp3 ) 
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()

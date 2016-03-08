@@ -8,7 +8,8 @@ module frig_config_mod
   public :: frig_base_mesh_config,           frig_initial_density_config, &
             frig_extrusion_config,           frig_finite_element_config,  &
             frig_initial_temperature_config, frig_initial_wind_config,    &
-            frig_idealised_config,           frig_planet_config
+            frig_idealised_config,           frig_planet_config,          &
+            frig_timestepping_config
 
   integer, parameter :: temporary_unit = 3
 
@@ -337,5 +338,54 @@ contains
     if (condition /= 0) stop 'frig_subgrid_config: Unable to close temporary file'
 
   end subroutine frig_subgrid_config
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine frig_timestepping_config( method, &
+                                       dt, &
+                                       alpha, &
+                                       outer_iterations, &
+                                       inner_iterations, &
+                                       runge_kutta_method )
+
+    use timestepping_config_mod, only : read_timestepping_namelist, &
+                                        key_from_method, &
+                                        key_from_runge_kutta_method
+    implicit none
+
+    integer(i_def),        intent(in) :: method
+    real(r_def),           intent(in) :: dt
+    real(r_def),           intent(in) :: alpha
+    integer(i_def),        intent(in) :: outer_iterations
+    integer(i_def),        intent(in) :: inner_iterations
+    integer(i_def),        intent(in) :: runge_kutta_method
+
+    integer     :: condition
+
+    open( temporary_unit, status='scratch', action='readwrite', &
+          iostat=condition )
+    if (condition /= 0) then
+      write( 6, '("frig_timestepping_config: ", I0)' ) condition
+      stop
+    end if
+
+    write( temporary_unit, '("&timestepping")')
+    write( temporary_unit, '("method = ", A)') &
+                                key_from_method( method )
+    write( temporary_unit, '("dt = ", E14.7)') dt
+    write( temporary_unit, '("alpha = ", E14.7)') alpha
+    write( temporary_unit, '("outer_iterations = ", I0)') outer_iterations
+    write( temporary_unit, '("inner_iterations = ", I0)') inner_iterations
+    write( temporary_unit, '("runge_kutta_method = ", A)') &
+                                key_from_runge_kutta_method( runge_kutta_method )
+
+    write( temporary_unit, '("/")')
+
+    rewind(temporary_unit)
+    call read_timestepping_namelist( temporary_unit )
+
+    close(temporary_unit, iostat=condition )
+    if (condition /= 0) stop 'frig_timestepping_config: Unable to close temporary file'
+
+  end subroutine frig_timestepping_config
 
 end module frig_config_mod

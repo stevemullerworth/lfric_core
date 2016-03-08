@@ -57,7 +57,9 @@ contains
 
     use finite_element_config_mod, only : finite_element_shape_quadrilateral
     use frig_config_mod,           only : frig_initial_temperature_config, &
-                                          frig_planet_config
+                                          frig_planet_config, &
+                                          frig_idealised_config
+    use idealised_config_mod,      only : idealised_test_gravity_wave
     use mesh_mod,                  only : PLANE_BI_PERIODIC
     use reference_element_mod,     only : reference_cube, reference_element
 
@@ -78,6 +80,7 @@ contains
 
     call frig_initial_temperature_config( bvf_square )
     call frig_planet_config( radius, gravity, omega, rd, cp, p_zero, scaling )
+    call frig_idealised_config( idealised_test_gravity_wave )
 
     reference_element = finite_element_shape_quadrilateral
     call reference_cube()
