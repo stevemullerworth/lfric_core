@@ -1,0 +1,6 @@
+namelist biperiodic_deppt
+
+  method                  : enumeration[ euler,trapezoidal,midpoint ]
+  n_dep_pt_iterations     : integer
+
+end namelist biperiodic_deppt

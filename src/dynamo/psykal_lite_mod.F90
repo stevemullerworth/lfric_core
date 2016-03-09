@@ -1249,6 +1249,70 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
 end subroutine invoke_calc_departure_wind
 !-------------------------------------------------------------------------------
 
+!-------------------------------------------------------------------------------
+!> invoke_calc_deppts: Invoke the calculation of departure points in 1D
+subroutine invoke_calc_deppts(u_n,u_np1,dep_pts,direction,dep_pt_method)
+
+  use calc_departure_point_kernel_mod,  only : calc_departure_point_code
+  use stencil_dofmap_mod,               only : stencil_dofmap_type, &
+                                               STENCIL_1DX, &
+                                               STENCIL_1DY
+  use flux_direction_mod,               only : x_direction, y_direction
+  use subgrid_config_mod,               only : transport_stencil_length
+
+  implicit none
+
+  type( field_type ), intent( in )    :: u_n
+  type( field_type ), intent( in )    :: u_np1
+  type( field_type ), intent( inout ) :: dep_pts
+  integer, intent(in)                 :: direction
+  integer, intent(in)                 :: dep_pt_method
+
+  type( field_proxy_type )        :: u_n_proxy
+  type( field_proxy_type )        :: u_np1_proxy
+  type( field_proxy_type )        :: dep_pts_proxy
+  type(stencil_dofmap_type), pointer  :: map=>null()
+
+  integer, pointer        :: stencil_map_w2(:,:) => null()
+
+  integer                 :: cell
+  integer                 :: nlayers
+  integer                 :: ndf_w2
+  integer                 :: undf_w2
+
+  u_n_proxy    = u_n%get_proxy()
+  u_np1_proxy  = u_np1%get_proxy()
+  dep_pts_proxy = dep_pts%get_proxy()
+
+  ndf_w2  = u_n_proxy%vspace%get_ndf()
+  undf_w2 = u_n_proxy%vspace%get_undf()
+
+  if (direction .EQ. x_direction) then
+    map => u_n_proxy%vspace%ll_get_instance(STENCIL_1DX,transport_stencil_length)
+  elseif (direction .EQ. y_direction) then
+    map => u_n_proxy%vspace%ll_get_instance(STENCIL_1DY,transport_stencil_length)
+  endif
+
+  nlayers = u_n_proxy%vspace%get_nlayers()
+
+  do cell=1,u_n_proxy%vspace%get_ncell()
+
+    stencil_map_w2 => map%get_dofmap(cell)
+
+    call calc_departure_point_code( nlayers,                      &
+                                    dep_pts_proxy%data,           &
+                                    transport_stencil_length,     &
+                                    undf_w2,                      &
+                                    ndf_w2,                       &
+                                    stencil_map_w2,               &
+                                    u_n_proxy%data,               &
+                                    u_np1_proxy%data,             &
+                                    direction,                    &
+                                    dep_pt_method )
+
+  end do
+
+end subroutine invoke_calc_deppts
 
 !-------------------------------------------------------------------------------   
 !> Perform a global sum on a scalar

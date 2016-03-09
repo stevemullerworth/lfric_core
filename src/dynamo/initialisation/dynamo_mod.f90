@@ -36,16 +36,17 @@ contains
 
     character(*), parameter :: filename = 'dynamo_configuration.nml'
     character(*), parameter :: &
-                            required_configuration(10) = ['finite_element ', &
-                                                          'formulation    ', &
-                                                          'base_mesh      ', &
-                                                          'initial_wind   ', &
-                                                          'planet         ', &
-                                                          'restart        ', &
-                                                          'solver         ', &
-                                                          'subgrid        ', &
-                                                          'timestepping   ', &
-                                                          'extrusion      ']
+                            required_configuration(11) = ['finite_element   ', &
+                                                          'formulation      ', &
+                                                          'base_mesh        ', &
+                                                          'initial_wind     ', &
+                                                          'planet           ', &
+                                                          'restart          ', &
+                                                          'solver           ', &
+                                                          'subgrid          ', &
+                                                          'timestepping     ', &
+                                                          'biperiodic_deppt ', &
+                                                          'extrusion        ']
 
     logical              :: okay
     logical, allocatable :: success_map(:)

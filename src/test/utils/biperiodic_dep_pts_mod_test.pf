@@ -1,0 +1,118 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!> Test the departure point calculations for the biperiodic domain
+!>
+module biperiodic_dep_pts_mod_test
+  implicit none
+
+contains
+
+  @test
+  subroutine find_local_x_value_test()
+    use pFUnit_Mod
+    use constants_mod, only: r_def
+    use biperiodic_deppts_mod, only: find_local_x_value
+
+    real(kind=r_def) :: x_original,local_coordinate_value, tol
+    integer :: iEdge,nCellEdges
+
+    tol = 10.0e-8_r_def
+
+    nCellEdges = 10
+
+    x_original = -3.4_r_def
+    call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(1, iEdge)
+    @assertEqual(0.6_r_def, local_coordinate_value,tol)
+
+    x_original = -2.4_r_def
+    call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(2, iEdge)
+    @assertEqual(0.6_r_def, local_coordinate_value,tol)
+
+    x_original = 3.4_r_def
+    call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(8, iEdge)
+    @assertEqual(0.4_r_def, local_coordinate_value,tol)
+
+    x_original = 4.4_r_def
+    call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(9, iEdge)
+    @assertEqual(0.4_r_def, local_coordinate_value,tol)
+
+  end subroutine find_local_x_value_test
+
+  @test
+  subroutine calc_u_at_x_test()
+    use pFUnit_Mod
+    use constants_mod, only: r_def
+    use biperiodic_deppts_mod, only: calc_u_at_x
+
+    real(kind=r_def) :: x_in, u_at_x, tol
+    real(kind=r_def), allocatable :: wind_values(:)
+    integer :: nCellEdges
+
+    tol = 10.0e-8_r_def
+    nCellEdges = 4
+
+    allocate(wind_values(1:nCellEdges))
+
+    wind_values=(/ 1.0_r_def,2.0_r_def,3.0_r_def,4.0_r_def /)
+    x_in = 0.4_r_def
+    u_at_x = calc_u_at_x(x_in,nCellEdges,wind_values)
+    @assertEqual(2.4_r_def, u_at_x,tol)
+
+    deallocate(wind_values)
+  end subroutine calc_u_at_x_test
+
+
+  @test
+  subroutine calc_dep_point_test()
+
+    use pFUnit_Mod
+    use constants_mod, only: r_def
+    use biperiodic_deppts_mod, only: calc_dep_point
+    use biperiodic_deppt_config_mod, only: biperiodic_deppt_method_euler, biperiodic_deppt_method_midpoint, biperiodic_deppt_method_trapezoidal
+
+    implicit none
+
+    real(kind=r_def) :: x_arrival, deltaT, x_departure, tol
+    integer :: n_dep_pt_iterations, nCellEdges
+    real(kind=r_def), allocatable :: u_n(:),u_np1(:)
+
+    tol = 10.0e-8_r_def
+
+    nCellEdges = 4
+
+    allocate(u_n(1:nCellEdges))
+    allocate(u_np1(1:nCellEdges))
+    u_n   = (/ 0.5_r_def,0.6_r_def,0.7_r_def,0.8_r_def /)
+    u_np1 = (/ 0.5_r_def,0.6_r_def,0.7_r_def,0.8_r_def /)
+
+    x_arrival = 0.4_r_def
+    deltaT = 2.0_r_def
+    n_dep_pt_iterations = 1
+
+    x_departure =  calc_dep_point( x_arrival,nCellEdges,u_n,u_np1,deltaT,     &
+                                    biperiodic_deppt_method_euler, n_dep_pt_iterations )
+    @assertEqual(1.28_r_def, x_departure,tol)
+
+    x_departure =  calc_dep_point( x_arrival,nCellEdges,u_n,u_np1,deltaT,     &
+                                    biperiodic_deppt_method_midpoint, n_dep_pt_iterations )
+    @assertEqual(1.152_r_def, x_departure,tol)
+
+    x_departure =  calc_dep_point( x_arrival,nCellEdges,u_n,u_np1,deltaT,     &
+                                    biperiodic_deppt_method_trapezoidal, n_dep_pt_iterations )
+    @assertEqual(1.152_r_def, x_departure,tol)
+
+    deallocate(u_n)
+    deallocate(u_np1)
+
+  end subroutine calc_dep_point_test
+
+end module biperiodic_dep_pts_mod_test

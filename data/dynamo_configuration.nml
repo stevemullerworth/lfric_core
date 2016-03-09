@@ -88,3 +88,8 @@
   inner_iterations   = 2
   runge_kutta_method = 'ssp3'
 /
+
+&biperiodic_deppt
+  method             = 'euler'
+  n_dep_pt_iterations     = 1
+/

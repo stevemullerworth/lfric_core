@@ -9,7 +9,7 @@ module frig_config_mod
             frig_extrusion_config,           frig_finite_element_config,  &
             frig_initial_temperature_config, frig_initial_wind_config,    &
             frig_idealised_config,           frig_planet_config,          &
-            frig_timestepping_config
+            frig_timestepping_config,        frig_biperiodic_deppt_config
 
   integer, parameter :: temporary_unit = 3
 
@@ -228,7 +228,7 @@ contains
 
     open( temporary_unit, status='scratch', action='readwrite', &
           iostat=condition )
-    if (condition /= 0) stop 'frig_initial_temperature_config: Unable to open temporary file'
+    if (condition /= 0) stop 'frig_initial_wind_config: Unable to open temporary file'
 
     write( temporary_unit, '("&initial_wind")' )
     write( temporary_unit, '("profile = ''", A, "''")' ) key_from_profile(profile)
@@ -241,7 +241,7 @@ contains
     call read_initial_wind_namelist( temporary_unit )
 
     close(temporary_unit, iostat=condition )
-    if (condition /= 0) stop 'frig_initial_temperature_config: Unable to close temporary file'
+    if (condition /= 0) stop 'frig_initial_wind_config: Unable to close temporary file'
 
   end subroutine frig_initial_wind_config
 
@@ -387,5 +387,41 @@ contains
     if (condition /= 0) stop 'frig_timestepping_config: Unable to close temporary file'
 
   end subroutine frig_timestepping_config
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine frig_biperiodic_deppt_config( method, &
+                                            n_dep_pt_iterations )
+
+    use biperiodic_deppt_config_mod, only : read_biperiodic_deppt_namelist, &
+                                        key_from_method
+    implicit none
+
+    integer(i_def),        intent(in) :: method
+    integer(i_def),        intent(in) :: n_dep_pt_iterations
+
+    integer     :: condition
+
+    open( temporary_unit, status='scratch', action='readwrite', &
+          iostat=condition )
+    if (condition /= 0) then
+      write( 6, '("frig_biperiodic_deppts_config: ", I0)' ) condition
+      stop
+    end if
+
+    write( temporary_unit, '("&biperiodic_deppt")')
+    write( temporary_unit, '("method = ", A)') &
+                                key_from_method( method )
+    write( temporary_unit, '("n_dep_pt_iterations = ", I0)') n_dep_pt_iterations
+
+    write( temporary_unit, '("/")')
+
+    rewind(temporary_unit)
+    call read_biperiodic_deppt_namelist( temporary_unit )
+
+    close(temporary_unit, iostat=condition )
+    if (condition /= 0) stop 'frig_biperiodic_deppt_config: Unable to close temporary file'
+
+  end subroutine frig_biperiodic_deppt_config
+
 
 end module frig_config_mod
