@@ -65,7 +65,7 @@ subroutine set_colours(num_cells,              &
   character(len=*), parameter :: prefix="[Compute Colours] Failure to allocate "
 
   ! Determine largest neighbour element that will be a subscript to cell_next
-  maxcell = maxval(cell_next(:nfaces_h, :num_cells))
+  maxcell = maxval(cell_next(:nfaces_h, :))
 
   allocate(colour_map(0:maxcell), stat=astat)
   if(astat/=0) then
