@@ -226,7 +226,7 @@
 {%-   set config_label = config | lower + '_' + label %}
     [[run_{{config_label}}_dynamo]]
         inherit = {{family}}, {{family}}_RUN_ENVIRONMENT
-        pre-script = {{command_list(TARGET_BASE_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
+        pre-script = {{command_list(TARGET_BASE_SETUP, TARGET_RUN_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
         script = "rose task-run --verbose --debug --app-key=dynamo --command-key={{TARGET_RUN_METHOD}} --opt-conf-key={{config}}"
         post-script = "cp dynamo-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/dynamo.{{config}}.{{compiler}}.out.txt"
         [[[environment]]]
