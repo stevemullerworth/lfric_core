@@ -1133,6 +1133,7 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,direction,rho_stencil_length)
 !------------------------------------------------------------------------------- 
 subroutine invoke_conservative_fluxes(    rho,          &
                                           dep_pts,      &
+                                          u_piola,      &
                                           mass_flux,    &
                                           a0_coeffs,    &
                                           a1_coeffs,    &
@@ -1150,6 +1151,7 @@ subroutine invoke_conservative_fluxes(    rho,          &
 
   type(field_type), intent(in)      :: rho
   type(field_type), intent(in)      :: dep_pts
+  type(field_type), intent(in)      :: u_piola
   type(field_type), intent(inout)   :: mass_flux
   type(field_type), intent(in)      :: a0_coeffs
   type(field_type), intent(in)      :: a1_coeffs
@@ -1157,7 +1159,8 @@ subroutine invoke_conservative_fluxes(    rho,          &
   integer, intent(in)               :: direction
   integer, intent(in)               :: stencil_size
 
-  type( field_proxy_type )  :: mass_flux_proxy, dep_pts_proxy, rho_proxy
+  type( field_proxy_type )  :: mass_flux_proxy, dep_pts_proxy, rho_proxy,     &
+                               u_piola_proxy
   type( field_proxy_type )  :: a0_coeffs_proxy, a1_coeffs_proxy, a2_coeffs_proxy
 
   type(stencil_dofmap_type), pointer  :: map => null()
@@ -1173,6 +1176,7 @@ subroutine invoke_conservative_fluxes(    rho,          &
 
   rho_proxy     = rho%get_proxy()
   dep_pts_proxy = dep_pts%get_proxy()
+  u_piola_proxy = u_piola%get_proxy()
 
   ndf_w3  = rho_proxy%vspace%get_ndf()
   undf_w3 = rho_proxy%vspace%get_undf()
@@ -1218,6 +1222,7 @@ subroutine invoke_conservative_fluxes(    rho,          &
                                    map_w2,                      &
                                    mass_flux_proxy%data,        &
                                    dep_pts_proxy%data,          &
+                                   u_piola_proxy%data,          &
                                    stencil_size,                &
                                    stencil_map,                 &
                                    direction,                   &

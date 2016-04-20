@@ -72,7 +72,8 @@ end function conservative_flux_kernel_constructor
 !! @param[in] ndf_w2 Integer, the number of degrees of freedom per cell
 !! @param[in] map_w2 Integer array holding the dofmap for the cell at the base of the column
 !! @param[inout] flux Real array, the flux values which are calculated
-!! @param[inout] dep_pts Real array, the departure points
+!! @param[in] dep_pts Real array, the departure points
+!! @param[in] u_piola Real array, the Piola winds
 !! @param[in] stencil_length Integer The length of the 1D stencil
 !! @param[in] stencil_map Integer array holding the dofmaps for the stencil
 !! @param[in] direction Integer the direction in which to calculate the fluxes
@@ -91,6 +92,7 @@ subroutine conservative_flux_code( nlayers,              &
                                    map_w2,               &
                                    flux,                 &
                                    dep_pts,              &
+                                   u_piola,              &
                                    stencil_length,       &
                                    stencil_map,          &
                                    direction,            &
@@ -118,6 +120,7 @@ subroutine conservative_flux_code( nlayers,              &
   integer, dimension(ndf_w2), intent(in)                :: map_w2
   real(kind=r_def), dimension(undf_w2), intent(inout)   :: flux
   real(kind=r_def), dimension(undf_w2), intent(in)      :: dep_pts
+  real(kind=r_def), dimension(undf_w2), intent(in)      :: u_piola
   integer, intent(in)                                   :: stencil_length
   integer, intent(in)                                   :: stencil_map(1:stencil_length)
   integer, intent(in)                                   :: direction
@@ -200,7 +203,7 @@ subroutine conservative_flux_code( nlayers,              &
 
     mass_total = mass_from_whole_cells + mass_frac
 
-    flux( map_w2(df1) + k ) = sign(mass_total/deltaT,departure_dist)
+    flux( map_w2(df1) + k ) = sign(mass_total/deltaT,u_piola( map_w2(df1) + k ))
 
     if (allocated(index_array)) deallocate(index_array)
     if (allocated(local_density_index)) deallocate(local_density_index)
