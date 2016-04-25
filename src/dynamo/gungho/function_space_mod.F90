@@ -1105,7 +1105,8 @@ function get_stencil_dofmap(self, stencil_shape, stencil_size) result(map)
                                                             self%ndof_cell,   &
                                                             self%mesh,        &
                                                             self%master_dofmap))
-      loop => loop%next
+     ! reset loop back to the head of the list
+     loop => self%dofmap_list%get_head()
     end if
     ! otherwise check for the id we want
     if ( id == loop%payload%get_id() ) then
