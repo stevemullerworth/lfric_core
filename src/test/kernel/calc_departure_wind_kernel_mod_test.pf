@@ -30,6 +30,7 @@ module calc_departure_wind_kernel_mod_test
     type(field_type)         :: piola_field
     type(field_type)         :: departure_field
     real(r_def), allocatable :: diff_basis_chi(:,:,:)
+    real(r_def), allocatable :: nodal_basis_u(:,:,:)
   contains
     procedure setUp
     procedure tearDown
@@ -59,7 +60,7 @@ contains
     type(function_space_type), pointer :: w2_fs => null()
 
     integer(i_def) :: ndf_chi, ndf
-    integer(i_def) :: diff_dim_chi
+    integer(i_def) :: dim_u, diff_dim_chi
 
     integer :: i
 
@@ -78,6 +79,9 @@ contains
     this%departure_field =  field_type( vector_space = w2_fs )
     u_piola = this%piola_field%get_proxy()
     ndf  = u_piola%vspace%get_ndf()
+
+    dim_u  = u_piola%vspace%get_dim_space( )
+    allocate( this%nodal_basis_u(dim_u, ndf, ndf) )
 
     w0_fs => function_space_collection%get_fs( this%mesh, element_order, W0 )
     do i = 1,3
@@ -99,6 +103,7 @@ contains
 
     class(calc_departure_wind_test_type), intent(inout) :: this
 
+    deallocate( this%nodal_basis_u )
     deallocate( this%diff_basis_chi )
 
     call function_space_collection%clear()
@@ -119,13 +124,13 @@ contains
     type(field_proxy_type)    :: u_piola, u_departure_wind, chi_p(3)
 
     real(kind=r_def), pointer :: nodes(:,:) => null()
-    real(kind=r_def)          :: answer, piola_wind_value
+    real(kind=r_def)          :: answer, physical_wind_value
     real(r_def), parameter    :: tol = 1.0e-12_r_def
     real(r_def), parameter    :: dx = 6.0_r_def, &
                                  dy = 1.0_r_def, &
                                  dz = 2.0_r_def
 
-    integer                   :: i, j, k, cell
+    integer                   :: i, j, k, cell, df
     integer                   :: nlayers
     integer                   :: ndf_chi, ndf
     integer                   :: undf_chi, undf
@@ -166,28 +171,34 @@ contains
     nodes => u_piola%vspace%get_nodes()
     call chi_p(1)%vspace%compute_nodal_diff_basis_function(this%diff_basis_chi, ndf_chi, ndf, nodes)
 
+    call u_piola%vspace%compute_nodal_basis_function(this%nodal_basis_u, ndf, ndf, nodes)
+
+
     cell = 1
     map     => u_piola%vspace%get_cell_dofmap( cell )
     map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
 
-    piola_wind_value = 3.0_r_def
-    u_piola%data(:) = piola_wind_value
+    physical_wind_value = 3.0_r_def
+
+    do df =  1,ndf
+      u_piola%data(map(df)) = physical_wind_value*dot_product(this%nodal_basis_u(:,df,df),abs(this%nodal_basis_u(:,df,df)))
+    end do
     u_departure_wind%data(:) = 0.0_r_def
 
-    call calc_departure_wind_code(nlayers,                      &
-                                  u_departure_wind%data,        &
-                                  u_piola%data,                 &
-                                  chi_p(1)%data,                &
-                                  chi_p(2)%data,                &
-                                  chi_p(3)%data,                &
-                                  ndf, undf, map,               &
-                                  ndf_chi, undf_chi, map_chi,   &
-                                  this%diff_basis_chi           &
+    call calc_departure_wind_code(nlayers,                                  &
+                                  u_departure_wind%data,                    &
+                                  u_piola%data,                             &
+                                  chi_p(1)%data,                            &
+                                  chi_p(2)%data,                            &
+                                  chi_p(3)%data,                            &
+                                  ndf, undf, map, this%nodal_basis_u,       &
+                                  ndf_chi, undf_chi, map_chi,               &
+                                  this%diff_basis_chi                       &
                                   )
 
-    answer = piola_wind_value/(dx*dy*dz)
-    do i=1,ndf
-      @assertEqual(answer, u_departure_wind%data(map(i)), tol)
+    answer = physical_wind_value/(dx*dy*dz)
+    do df = 1,ndf
+      @assertEqual(answer, u_departure_wind%data(map(df)), tol)
     end do
 
   end subroutine test_all

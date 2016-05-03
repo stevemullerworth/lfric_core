@@ -9,7 +9,12 @@
 
 !> @brief Kernel to compute the wind used for calculating the departure points
 !! in the dimensionally split advection scheme. Input is the Piola wind and
-!! output is the departure wind.
+!! output is the departure wind. The u_departure_wind variable is being used to
+!! store the departure winds and we wish to have a positive u_departure_wind
+!! representing a postive physical wind. Since u_departure_wind should not be
+!! multiplied by the basis functions themselves in order to evaluate them, we
+!! remove any dependency on the direction of the basis functions by multiplying
+!! the u_piola wind values by the nodal basis functions.
 
 module calc_departure_wind_kernel_mod
 use kernel_mod,              only : kernel_type
@@ -33,7 +38,8 @@ type, public, extends(kernel_type) :: calc_departure_wind_kernel_type
        arg_type(GH_FIELD,    GH_READ,  W2),                            &
        arg_type(GH_FIELD*3,  GH_READ,  W0)                             &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                &
+  type(func_type) :: meta_funcs(2) = (/                                &
+       func_type(W2, GH_BASIS),                                        &
        func_type(W0, GH_DIFF_BASIS)                                    &
        /)
   integer :: iterates_over = CELLS
@@ -64,6 +70,7 @@ end function calc_departure_wind_kernel_constructor
 !> @param[in] ndf The number of degrees of freedom per cell for the output field
 !> @param[in] undf The number of unique degrees of freedom for the output field
 !> @param[in] map Integer array holding the dofmap for the cell at the base of the column for the output field
+!> @param[in] nodal_basis_u The nodal basis functions evaluated at the nodal points for the W2 field
 !> @param[inout] u_departure_wind The output field containing the departure wind used to calculate departure points
 !> @param[in] u_piola The input field for the Piola wind
 !> @param[in] chi1 the array of coordinates in the first direction
@@ -77,7 +84,7 @@ subroutine calc_departure_wind_code(nlayers,                                  &
                                     u_departure_wind,                         &
                                     u_piola,                                  &
                                     chi1, chi2, chi3,                         &
-                                    ndf, undf, map,                           &
+                                    ndf, undf, map, nodal_basis_u,            &
                                     ndf_chi, undf_chi, map_chi,               &
                                     diff_basis_chi                            &
                                     )
@@ -88,6 +95,7 @@ subroutine calc_departure_wind_code(nlayers,                                  &
   integer,                                    intent(in)    :: ndf, undf, &
                                                                ndf_chi, undf_chi
   integer,          dimension(ndf),           intent(in)    :: map
+  real(kind=r_def), dimension(3,ndf,ndf),     intent(in)    :: nodal_basis_u
   integer,          dimension(ndf_chi),       intent(in)    :: map_chi
   real(kind=r_def), dimension(undf),          intent(in)    :: u_piola
   real(kind=r_def), dimension(undf_chi),      intent(in)    :: chi1, chi2, chi3
@@ -108,7 +116,9 @@ subroutine calc_departure_wind_code(nlayers,                                  &
     call coordinate_jacobian(ndf_chi, ndf, 1, chi1_e, chi2_e, chi3_e,  &
                              diff_basis_chi, jacobian, dj)
     do df = 1,ndf
-      u_departure_wind(map(df)+k) = u_piola(map(df)+k)/dj(df,1)
+      u_departure_wind(map(df)+k) =                                           &
+          dot_product(nodal_basis_u(:,df,df),abs(nodal_basis_u(:,df,df)))*    &
+          u_piola(map(df)+k)/dj(df,1)
     end do
   end do
 

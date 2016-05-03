@@ -1245,9 +1245,10 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
   integer                 :: cell, nlayers
   integer                 :: ndf_chi, ndf
   integer                 :: undf_chi, undf
-  integer                 :: diff_dim_chi
+  integer                 :: dim_u, diff_dim_chi
   integer, pointer        :: map_chi(:), map(:) => null()
 
+  real(kind=r_def), allocatable  :: nodal_basis_u(:,:,:)
   real(kind=r_def), allocatable  :: diff_basis_chi(:,:,:)
   real(kind=r_def), pointer :: nodes(:,:) => null()
   integer :: ii
@@ -1262,6 +1263,8 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
 
   ndf  = u_piola_p%vspace%get_ndf( )
   undf = u_piola_p%vspace%get_undf()
+  dim_u = u_piola_p%vspace%get_dim_space()
+  allocate(nodal_basis_u(dim_u, ndf, ndf))
 
   ndf_chi  = chi_p(1)%vspace%get_ndf( )
   undf_chi = chi_p(1)%vspace%get_undf()
@@ -1274,17 +1277,18 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi)
   do cell = 1, u_piola_p%vspace%get_ncell()
      map     => u_piola_p%vspace%get_cell_dofmap( cell )
      map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
-     call calc_departure_wind_code( nlayers,                    &
-                                    u_departure_wind_p%data,    &
-                                    u_piola_p%data,             &
-                                    chi_p(1)%data,              &
-                                    chi_p(2)%data,              &
-                                    chi_p(3)%data,              &
-                                    ndf, undf, map,             &
-                                    ndf_chi, undf_chi, map_chi, &
-                                    diff_basis_chi              &
+     call calc_departure_wind_code( nlayers,                                  &
+                                    u_departure_wind_p%data,                  &
+                                    u_piola_p%data,                           &
+                                    chi_p(1)%data,                            &
+                                    chi_p(2)%data,                            &
+                                    chi_p(3)%data,                            &
+                                    ndf, undf, map, nodal_basis_u,            &
+                                    ndf_chi, undf_chi, map_chi,               &
+                                    diff_basis_chi                            &
                                      )
   end do
+  deallocate(nodal_basis_u)
   deallocate(diff_basis_chi)
 end subroutine invoke_calc_departure_wind
 !-------------------------------------------------------------------------------
