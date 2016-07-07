@@ -272,7 +272,7 @@ contains
 
   end subroutine test_space
 
- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine test_stencil_point( this )
 
     use stencil_dofmap_mod,    only: stencil_dofmap_type, STENCIL_POINT
@@ -359,15 +359,15 @@ contains
 
     map => test_fs%get_cell_dofmap(1)
     @assertEqual( map, stencil_map(:,1) )
-    map => test_fs%get_cell_dofmap(mesh%get_cell_next( N, 1 ))
-    @assertEqual( map, stencil_map(:,2) )
     map => test_fs%get_cell_dofmap(mesh%get_cell_next( S, 1 ))
+    @assertEqual( map, stencil_map(:,2) )
+    map => test_fs%get_cell_dofmap(mesh%get_cell_next( N, 1 ))
     @assertEqual( map, stencil_map(:,3) )
     map => test_fs%get_cell_dofmap(&
-          mesh%get_cell_next(2,mesh%get_cell_next( N, 1 )))
+          mesh%get_cell_next(S,mesh%get_cell_next( S, 1 )))
     @assertEqual( map, stencil_map(:,4) )
     map => test_fs%get_cell_dofmap(&
-              mesh%get_cell_next(4,mesh%get_cell_next( S, 1 )))
+              mesh%get_cell_next(N,mesh%get_cell_next( N, 1 )))
     @assertEqual( map, stencil_map(:,5) )
 
   end subroutine test_stencil_1dy
