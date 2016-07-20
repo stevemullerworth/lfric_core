@@ -70,6 +70,8 @@
             generate_{{label}}_biperiodic  => check_{{label}}_biperiodic_metadata
             generate_{{label}}_biperiodic  => check_{{label}}_biperiodic_data
 {%-    endif %}
+            compile_with_{{label}} => run_{{label}}_boundary_test
+            run_{{label}}_boundary_test => check_{{label}}_boundary_test
 {%-    for config in science_configs %}
 {#-       At the point where we have more than one compiler or target we will #}
 {#-       need some logic here.                                               #}
@@ -258,6 +260,18 @@
         [[[environment]]]
         DYNAMO_CONFIG = {{config}}
 {%- endfor %}
+
+    [[run_{{label}}_boundary_test]]
+        inherit = {{family}}, {{family}}_RUN_ENVIRONMENT
+        pre-script = {{command_list(TARGET_BASE_SETUP, TARGET_RUN_SETUP, compiler_setup[compiler], TARGET_REVEAL_SETUP)}}
+        script = rose task-run --app-key=boundary_test --command-key={{TARGET_RUN_METHOD}}
+        post-script = cp boundary_test-checksums.txt $DYNAMO_DESTINATION_DIRECTORY/boundary_test.{{compiler}}.checksums.txt
+        [[[environment]]]
+            OMP_NUM_THREADS=2
+
+    [[check_{{label}}_boundary_test]]
+        inherit = {{family}}, {{family}}_TECHNICAL_ENVIRONMENT
+        script = rose task-run --app-key=check_boundary
 
     [[generate_{{label}}_cubedsphere]]
         inherit = {{family}}, {{family}}_TECHNICAL_ENVIRONMENT

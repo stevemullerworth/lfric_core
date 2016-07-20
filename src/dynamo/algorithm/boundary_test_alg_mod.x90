@@ -1,0 +1,87 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief Algorithm to test the automatic code gen of a number of functions 
+
+module boundary_test_alg_mod
+  use constants_mod,                     only: r_def, i_def
+  use field_mod,                         only: field_type
+  use log_mod,                           only: log_event,         &
+                                               LOG_LEVEL_INFO
+
+  implicit none
+  private
+  type( field_type ) :: Ax_u, Ax_xi
+
+  public :: boundary_test_alg_init
+  public :: boundary_test_alg
+
+contains
+
+  subroutine boundary_test_alg_init(mesh_id, u, xi)
+    use finite_element_config_mod,         only: element_order
+    use function_space_collection_mod,     only: function_space_collection
+    use function_space_mod,                only: function_space_type    
+ 
+    implicit none
+    integer(i_def),     intent(in)    :: mesh_id 
+    type( field_type ), intent(inout) :: u, xi
+
+    type(function_space_type), pointer :: u_fs  => null()
+    type(function_space_type), pointer :: xi_fs => null()
+
+    u_fs  => function_space_collection%get_fs ( mesh_id, element_order,        &
+                                                u%which_function_space()     )
+    xi_fs => function_space_collection%get_fs ( mesh_id, element_order,        &
+                                                xi%which_function_space()     )
+    Ax_u  = field_type( vector_space = u_fs )
+    Ax_xi = field_type( vector_space = xi_fs )
+    call log_event( "Dynamo: initialised boundary test algorithm", LOG_LEVEL_INFO )
+
+  end subroutine boundary_test_alg_init
+
+  subroutine boundary_test_alg(u, xi)
+
+    use psykal_lite_mod,          only: invoke_set_field_scalar, &
+                                        invoke_times_field, &
+                                        invoke_set_boundary_kernel
+    use matrix_vector_kernel_mod, only: matrix_vector_kernel_type
+    !use set_boundary_kernel_mod,  only: set_boundary_kernel_type
+    use runtime_constants_mod,    only: get_mass_matrix
+    use operator_mod,             only: operator_type
+
+    implicit none
+    type( field_type ), intent( inout ) :: u, xi
+
+    type(operator_type), pointer :: mm_w2, mm_w1 => null()
+    real(r_def), parameter       :: bc_value = 3.0_r_def
+
+    mm_w2 => get_mass_matrix(2)  
+    call invoke_set_field_scalar( 0.0_r_def, u )
+    call invoke_set_field_scalar( 0.0_r_def, Ax_u )
+    call invoke_set_boundary_kernel(u, bc_value)
+    call invoke( matrix_vector_kernel_type( Ax_u, u, mm_w2) )
+
+    mm_w1 => get_mass_matrix(1)
+    call invoke_set_field_scalar( 0.0_r_def, xi )
+    call invoke_set_field_scalar( 0.0_r_def, Ax_xi )
+    call invoke_set_boundary_kernel(xi, bc_value)
+    call invoke( matrix_vector_kernel_type( Ax_xi, xi, mm_w1) )
+
+    ! Ax_u and Ax_xi now only contain non-zero terms for boundary dofs and
+    ! for dofs whose domain overlaps boundary dofs. To test the boundary
+    ! conditions it is necessary to zero the non-boundary dof terms.
+    ! This is achieved by multiplying by u or xi (which are non-zero only 
+    ! on the boundary)
+    call invoke_times_field(Ax_u,  u,  u)
+    call invoke_times_field(Ax_xi, xi, xi)
+
+    call log_event( "Dynamo: finished boundary test algorithm", LOG_LEVEL_INFO )
+
+  end subroutine boundary_test_alg
+
+end module boundary_test_alg_mod

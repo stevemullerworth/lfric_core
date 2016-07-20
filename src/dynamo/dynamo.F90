@@ -34,8 +34,7 @@ program dynamo
   use finite_element_config_mod,      only : element_order
   use formulation_config_mod,         only : nonlinear, transport_only
   use operator_mod,                   only : operator_type
-  use function_space_collection_mod,  only : function_space_collection_type, &
-                                             function_space_collection
+  use function_space_collection_mod,  only : function_space_collection
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
   use lin_rk_alg_timestep_mod,        only : lin_rk_alg_init, &
@@ -140,7 +139,7 @@ program dynamo
   ! needed by the timstepping algorithms such as mass matrix operators, mass
   ! matrix diagonal fields and the geopotential field
 
-  call create_runtime_constants(mesh_id, chi, theta, u, rho, xi)
+  call create_runtime_constants(mesh_id, chi)
 
   geopotential = get_geopotential()
 
@@ -184,9 +183,7 @@ program dynamo
                         "stopping program! ",LOG_LEVEL_ERROR)
          stop
       end select
-
     else
-
 
        if ( nonlinear ) then    ! Nonlinear timestepping options
 

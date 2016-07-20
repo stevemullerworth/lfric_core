@@ -86,16 +86,10 @@ contains
   !> Subroutine to create the runtime constants
   !> @param[in] mesh_id the mesh_id
   !> @param[inout] chi the coordinate field
-  !> @param[in] theta the theta field
-  !> @param[in] u the u field
-  !> @param[in] rho the rho field
-  !> @param[in] xi the xi field
-  subroutine create_runtime_constants( mesh_id, chi, theta, u, &
-                                       rho, xi)
+  subroutine create_runtime_constants( mesh_id, chi)
     implicit none
 
     integer(i_def),           intent(in)            :: mesh_id
-    type(field_type),         intent(in)            :: theta, u, rho, xi
     type(field_type),         target, intent(inout) :: chi(3)
 
 
@@ -103,10 +97,6 @@ contains
     type(function_space_type), pointer :: w1_fs    => null()
     type(function_space_type), pointer :: w2_fs    => null()
     type(function_space_type), pointer :: w3_fs    => null()
-    type(function_space_type), pointer :: theta_fs => null()
-    type(function_space_type), pointer :: u_fs     => null()
-    type(function_space_type), pointer :: rho_fs   => null()
-    type(function_space_type), pointer :: xi_fs    => null()
 
 
 
@@ -120,16 +110,6 @@ contains
     w1_fs => function_space_collection%get_fs( mesh_id, element_order, W1 )
     w2_fs => function_space_collection%get_fs( mesh_id, element_order, W2 )
     w3_fs => function_space_collection%get_fs( mesh_id, element_order, W3 )
-
-    theta_fs => function_space_collection%get_fs ( mesh_id, element_order        &
-                                                 ,theta%which_function_space() )
-    u_fs => function_space_collection%get_fs ( mesh_id, element_order            &
-                                                 ,u%which_function_space() )
-    rho_fs => function_space_collection%get_fs ( mesh_id, element_order          &
-                                                 ,rho%which_function_space() )
-    xi_fs => function_space_collection%get_fs ( mesh_id, element_order           &
-                                                 ,xi%which_function_space() )
-
     !================= Create quadrature object =====================!
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
@@ -137,7 +117,7 @@ contains
 
     !=================== Create geopotential field ============================!
 
-    geopotential = field_type( vector_space = theta_fs )
+    geopotential = field_type( vector_space = w0_fs )
 
     call invoke( compute_geopotential_kernel_type( geopotential, chi ) )
 
@@ -171,10 +151,10 @@ contains
 
     !================= Create mass matrix diagonal fields =====================!
 
-    mm0_diag = field_type( vector_space = theta_fs )
-    mm1_diag = field_type( vector_space = xi_fs    )
-    mm2_diag = field_type( vector_space = u_fs     )
-    mm3_diag = field_type( vector_space = rho_fs   )
+    mm0_diag = field_type( vector_space = w0_fs )
+    mm1_diag = field_type( vector_space = w1_fs    )
+    mm2_diag = field_type( vector_space = w2_fs     )
+    mm3_diag = field_type( vector_space = w3_fs   )
 
 
     call invoke_set_field_scalar(0.0_r_def,mm0_diag)

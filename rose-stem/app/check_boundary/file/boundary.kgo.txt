@@ -1,0 +1,4 @@
+Fraction checksum u = 0.0000000000000000
+Exponent checksum u = 0
+Fraction checksum xi = 0.0000000000000000
+Exponent checksum xi = 0

@@ -562,8 +562,8 @@ subroutine basis_setup( element_order, dynamo_fs, ndof_vert,  ndof_cell        &
         ly(idx) = j(j2l_edge(i,2))
         lz(idx) = j(j2l_edge(i,3))
         unit_vec(idx,:) = tangent_to_edge(i,:)
-        if (i <= nedges_h )          dof_on_vert_boundary(idx,1) = 0
-        if (i >= nedges - nedges_h ) dof_on_vert_boundary(idx,2) = 0
+        if (i <= nedges_h )         dof_on_vert_boundary(idx,1) = 0
+        if (i > nedges - nedges_h ) dof_on_vert_boundary(idx,2) = 0
         idx = idx + 1
       end do
     end do

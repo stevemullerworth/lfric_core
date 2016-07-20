@@ -1518,4 +1518,108 @@ subroutine invoke_calc_deppts(u_n,u_np1,dep_pts,direction,dep_pt_method)
 
 end subroutine invoke_calc_deppts
 
+!-------------------------------------------------------------------------------
+subroutine invoke_set_boundary_kernel(field, bc)
+  use set_boundary_kernel_mod, only: set_boundary_code
+  use mesh_mod,                only: mesh_type ! Work around for intel_v15 failues on the Cray
+
+  implicit none
+
+  type(field_type), intent(inout) :: field
+  real(kind=r_def), intent(in)    :: bc
+
+  integer, pointer :: boundary_dofs(:,:) => null()
+  integer, pointer :: map(:) => null()
+  integer :: cell,  nlayers
+  integer :: ndf, undf
+  type(mesh_type)        :: mesh
+  type(field_proxy_type) :: f_proxy
+
+  f_proxy = field%get_proxy()
+  nlayers = f_proxy%vspace%get_nlayers()
+  mesh = field%get_mesh()
+  undf = f_proxy%vspace%get_undf()
+  ndf  = f_proxy%vspace%get_ndf()
+      
+  if (f_proxy%is_dirty(depth=1)) then
+    call f_proxy%halo_exchange(depth=1)
+  end if 
+
+  boundary_dofs => f_proxy%vspace%get_boundary_dofs()
+
+  do cell=1,mesh%get_last_halo_cell(1)
+         
+    map => f_proxy%vspace%get_cell_dofmap(cell)
+         
+    CALL set_boundary_code(nlayers, &
+                           f_proxy%data, &
+                           ndf, &
+                           undf, &
+                           map, &
+                           boundary_dofs, &
+                           bc)
+         
+  end do 
+       
+  call f_proxy%set_dirty()
+       
+end subroutine invoke_set_boundary_kernel
+
+!> invoke_times_field: times the values of field1 by field2 and put result in
+!>field_res
+!> c = a/b
+  subroutine invoke_times_field(field1,field2,field_res)
+    use log_mod,  only : log_event, LOG_LEVEL_ERROR
+    use mesh_mod, only: mesh_type ! Work around for intel_v15 failues on the Cray
+    implicit none
+    type( field_type ), intent(in )    :: field1,field2
+    type( field_type ), intent(inout ) :: field_res
+    type( field_proxy_type)            :: field1_proxy,field2_proxy      &
+                                        , field_res_proxy
+    integer(kind=i_def)                :: i,undf
+    integer(kind=i_def)                :: depth, dplp
+    type(mesh_type)                    :: mesh
+
+    field1_proxy = field1%get_proxy()
+    field2_proxy = field2%get_proxy()
+    field_res_proxy = field_res%get_proxy()
+
+    !sanity check
+    undf = field1_proxy%vspace%get_undf()
+    if(undf /= field2_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:times_field:field1 and field2 live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+    if(undf /= field_res_proxy%vspace%get_undf() ) then
+      ! they are not on the same function space
+      call log_event("Psy:times_field:field1 and result_field live on different w-spaces" &
+                    , LOG_LEVEL_ERROR)
+      !abort
+      stop
+    endif
+    !$omp parallel do schedule(static), default(none), shared(field1_proxy,field2_proxy, field_res_proxy, undf),  private(i)
+    do i = 1,undf
+      field_res_proxy%data(i) = field1_proxy%data(i)*field2_proxy%data(i)
+    end do
+    !$omp end parallel do
+
+    mesh = field_res%get_mesh()
+    depth = mesh%get_halo_depth()
+    
+    do dplp = 1, depth
+      if( field1_proxy%is_dirty(depth=dplp) .or. &
+          field2_proxy%is_dirty(depth=dplp) ) then
+        call field_res_proxy%set_dirty()
+      else
+        call field_res_proxy%set_clean(dplp)
+      end if
+    end do
+
+  end subroutine invoke_times_field
+
+!-------------------------------------------------------------------------------   
+
 end module psykal_lite_mod
