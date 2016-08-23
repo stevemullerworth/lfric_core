@@ -799,7 +799,7 @@ and $\Pi^{\left(k+1\right)}$ will be diagnosed from the equation of state using 
 
 
 
-\subsection{\label{sub:Advection}Advection}
+\section{\label{sec:Advection}Advection}
 
 The Eulerian advection scheme need to compute 3 terms:
 \begin{equation}
@@ -814,15 +814,21 @@ for the continuity equation
 \begin{equation}
 \frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta\label{eq:adv_p_temperature_advection}
 \end{equation}
- for the potential temperature equation. All for a given advecting
+ for the potential temperature equation, all for a given advecting
 wind field $\overline{\mathbf{u}}$.
 
+\subsection{Method of Lines Advection\label{sub:Method-Of-Lines-Advection}}
+The Method of Lines Advection scheme seeks to compute time integrated advection terms through solving advection equations for the desired quantity. 
+The advection equations are space-time split with the temporal aspects solved through using a multistage Runge-Kutta scheme and the spatial terms computed using either the default
+finite element operators, as detailed in Section \ref{sub:Finite-Element-Advection} below or through mapping to a finite volume space and using finite volume operators as detailed in
+Section \ref{sub:Finite-Volume-Advection}. The desired output will be diagnosed terms that are high order in time (from the RK scheme) and high order in space (from the FEM/FV operators).
+If a fully explicit RK scheme is used then this will place a stability constraint on the CFL number and hence the timestep. This can partially be overcome by a combination of low order RK schemes, substepping or increasing the number of stages. For instance using a $2^{\rm{nd}}$-order $m$-stage RKSSP scheme the maximum CFL number is $m-1$ whilst a $p$-order $m$-stage RKSSP scheme has a maximum CFL constraint of $m+1-p$. 
 
-\subsubsection{Finite-Element Advection\label{sub:Finite-Element-Advection}}
+\subsubsection{Finite-Element Advection Operators\label{sub:Finite-Element-Advection}}
 
-The finite element advection scheme simply uses the finite element
-machinery to project the deisred terms in to the correct spaces. This
-means that is inherently limited by the order of the finite element
+The finite element advection operators simply uses the finite element
+machinery to project the desired terms into the correct spaces. This
+means that it is inherently limited by the order of the finite element
 spaces so that for the lowest order spaces the advection terms would
 only be formally $1^{{\rm st}}$ order. The mass flux $\widetilde{\mathbf{F}}$
 is defined as being the projection of $\rho\overline{\mathbf{u}}$
@@ -841,16 +847,16 @@ flux
 \begin{equation}
 \left\langle \mathbf{v},\left(\frac{\bm{\xi}}{\rho}\right)\times\widetilde{\mathbf{F}}\right\rangle .\label{eq:fem_momentum_adv}
 \end{equation}
- Finally the potential temperature advection term defined as the is
+ Finally the potential temperature advection term defined as
 the projection into the potential temperature space, which for $\theta\in\mathbb{W}_{0}$
 is
 \begin{equation}
 \left\langle \gamma,\frac{\widetilde{\mathbf{F}}}{\rho}.\nabla\theta\right\rangle .\label{eq:fem_p_temperature_advection}
 \end{equation}
- In all cases the mass flux is used as the advecting field for consistency.
-Where this is normalised by the density, the same density as in the
+ In all cases the mass flux is used as the advecting field for consistency,
+where this is normalised by the density, the same density as in the
 mass flux computation \eqref{eq:fem_mass_flux} is used. If $\theta$
-is continuous then this method can lead to a noisy advection scheme.
+is continuous then the finite element advectino operator method can lead to a noisy advection scheme.
 A common method to combat this is to use the Streamline-Upwind-Petrov-Galerkin
 method, where the test function for the space is modified to include
 an upwinding, i.e
@@ -861,17 +867,42 @@ where $\mu$ is a user defined parameter and $\Delta$ is some measure
 of the average grid spacing. Applying \eqref{eq:supg} to \eqref{eq:nonlinear_thermo-1-1}
 and rearranging gives
 \begin{equation}
-\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle =-\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle -R_{\theta}^{supg}.\label{eq:theta_supg}
+\left\langle \gamma,\frac{\partial\theta}{\partial t}\right\rangle =-\left\langle \gamma,\mathbf{u}.\nabla\theta\right\rangle -R_{\theta}^{supg},\label{eq:theta_supg}
 \end{equation}
 with
 \begin{equation}
 R_{\theta}^{supg}=\frac{\mu}{\Delta}\left\langle \frac{\widetilde{\mathbf{F}}}{\left|\widetilde{\mathbf{F}}\right|}.\nabla\gamma,\frac{\partial\theta}{\partial t}+\mathbf{u}.\nabla\theta\right\rangle \label{eq:Rtheta_supg}
 \end{equation}
 which is the residual error in the $\theta$ equation tested by the
-upwind component of the test function.
+upwind component of the test function. To obtain a higher order scheme it may be possible to embed the operators in a higher order space and use some information from surrounding cells to constrain the extra degrees of freedom.
+
+\subsubsection{Finite-Volume Advection Operators\label{sub:Finite-Volume-Advection}}
+Here FV-type operators are used to compute high order in space terms for use in the advection scheme. The first step is to map the desired spaces to a finite volume space. If lowest order elements are used this is the identity mapping, for higher-order elements this is equivalent to mapping to a low order finite element space on a higher resolution grid and so can use the same machineary as is envisioned for the subgrid paramterization routines. 
+To compute the high order approximation a polynomial function is fitted to the pointwise data values and evaluated where needed. In principle these could be 3D or 2D + 1D polynomials with a least squares fit. However to simplify things 1D polynomials are used, furthermore non-orthogonality and non-uniformity of the mesh are ignored.
+To compute the mass flux an order $p$ polynomial is fitted through $p+1$ cells centred on the upwind cell of the face on which the flux lives. The integral of this polynomial is set to match the integral of the cell values computed in computational space as follows, the polynomial set is given by 
+\begin{equation}
+\widetilde{\rho} = \sum_{i=0}^{p}a_i x^i,\label{eq:high_order_rho}
+\end{equation}
+and the polynomial coefficients are obtained by solving 
+\begin{equation}
+\int_{cell_i}\widetilde{\rho} = \int_{cell_i}\rho \equiv \rho_{i},\label{eq:high_order_rho_integral}
+\end{equation}
+over all cells $i$ in the stencil and where $\rho_i$ is the value of the density field in cell $i$. This is equivalent to solving a matrix vector system 
+\begin{equation}
+C \mathbf{a} = \mathbf{r}\label{eq:high_order_rho_matrix}
+\end{equation}
+where $\mathbf{a}=\left[a_0,\,a_1,\,...,\,a_p\right]^T$ is the vector of coefficents and $\mathbf{r}=\left[\rho_{i-j},\,\rho_{i-j+1},\,...,\,\rho_{i},\,....\right]^T$  is the values in the stencil and $C^{i,j} = \int_{cell_j} x^i$. Since all computations are done in computational space only a single set of coefficients $a_i$ need to be computed and then reused for every cell.
+
+To compute the advective update a similar method is used however in this case the approximating polynomial is set to match the grid point values of the underlying fields and then its analytic derivative is computed and used to update the advected field, therefore we solve the system
+\begin{equation}
+C \mathbf{a} = \mathbf{t}\label{eq:high_order_theta_matrix}
+\end{equation}
+where now $\mathbf{t}=\left[\theta_{i-j},\,\theta_{i-j+1},\,...,\,\theta_{i},\,....\right]^T$  are the values in the stencil and $C^{i,j} = j^i$. 
+
+In both cases once an update in the computational $x$ direction is computed the process is repeated in the computational $y$ and $z$ directions to provide a full 3D update.
 
 
-\section{Directionally split advection scheme\label{sub:COSMIC-Advection}}
+\subsection{Directionally split advection scheme\label{sub:COSMIC-Advection}}
 This section describes the directionally split advection scheme, commonly known as COSMIC (Conservative Operator Splitting in Multi-dimensions with Inherent Constancy), and its implementation within Dynamo. References for the scheme include \cite{Leonard_etal_1996}, \cite{putlin07} and \cite{lin_rood_96}. The scheme is currently coded assuming that $\rho\in \mathbb{W}_3$ and velocity ${\bf u}\in \mathbb{W}_2$ are both at lowest order, $k=0$, and has been implemented as a finite-volume transport method. The scheme has also only initially been written for the two horizontal directions on the orthogonal biperiodic domain. Within this section we refer to $\chi_1$ and $\chi_2$ coordinate directions as $x$ and $y$ directions respectively since this is simpler and consistent with the COSMIC literature.
 
 Since the density field is at lowest order then the density values can be thought of as being the cell-volume mean. Formally though we introduce $\bar{\rho}$  which is
@@ -1083,7 +1114,7 @@ by $6x^{2}y\left(z+1\right)^{3}$ which for the example above is $4320$
 dofs.
 
 
-\subsection{linear Results}
+\subsection{Linear Results}
 
 
 \subsubsection{Vertical Slice Tests}
@@ -1264,6 +1295,104 @@ on the background balanced state.}
 
 \centering{}\protect\caption{\label{fig:Spherical-Rotating-Gravity-wave-test_p1}Rotating gravity
 wave test with order $k=1$ elements and $C12$ grid with $10$ levels. Using explicit timestepping with $\Delta t = 1$s}
+\end{figure}
+
+\subsection{Advection\label{sec:Advection_results}}
+\begin{figure}
+\begin{centering}
+\subfloat[u]{\includegraphics[scale=0.5]{advection_u0}}\subfloat[v]{\includegraphics[scale=0.5]{advection_v0}}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:advection_initial_uv}Initial wind field for advection test with rotated flow so that one rotation takes 12 days}
+\end{figure}
+
+The method of lines advection scheme is tested through advection of a double Gaussian hill around a sphere for one rotation with a rotated flow. The velocities are prescribed and there is no vertical velocity so that the advection test is purely in 2D. The initial horizontal wind field is shown in Figure \ref{fig:advection_initial_uv}. Tracer proxies for density and potential temperarture are initialised in $\mathbb{W}_3$ and $\mathbb{W}_{\theta}$ respectively using lowest order elements and the advection equation is solved in conservative and advective form using the method of lines apporach with fv spatial operators. The timestepping uses a RKSSP(4,3) scheme ($4$-stages, $3^{\rm{rd}}$-order) and the spatial operators are either quadratic or quartic for $\mathbb{W}_3$ fields, and cubic or quintic for  $\mathbb{W}_{\theta}$ fields. 
+\begin{figure}
+\begin{centering}
+\includegraphics[scale=0.5]{mol_advection_errors}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:advection_errors}L2 errors after one rotation for the advection test. For comparison the first and second order conveergence lines are also shown}
+\end{figure}
+The test is initially run at C12 ($6\times12\times12$ cells) resolution with a timestep of $\Delta t=3600$ s and then the resolution is doubled and timestep halved each time. The final $L2$ errors are computed after one revolution, Figure \ref{fig:advection_errors}. The final profiles and errors for the quadratic FV polynomial fit to $\mathbb{W}_3$ is in Figure  \ref{fig:quadratic_w3} and for the cubic fit to  $\mathbb{W}_{\theta}$ is in Figure  \ref{fig:cubic_wt}. Repeating the experiment but using the Finite Element operators produces the results in Figures \ref{fig:fem_w3} and \ref{fig:fem_w0}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_rho}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_rho}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_rho}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_rho}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_drho}}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:quadratic_w3}
+Final profiles (left column) and errors (right column) for the conservative flux form advection of a $\mathbb{W}_3$ field with quadratic fv operators}
+\end{figure}
+
+\begin{figure}
+\begin{centering}
+\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_theta}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_cubic_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_theta}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_cubic_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_theta}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_cubic_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_theta}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_cubic_dtheta}}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:cubic_wt}
+Final profiles (left column) and errors (right column) for the nonconservative advective form advection of a $\mathbb{W}_{\theta}$ field with cubic fv operators}
+\end{figure}
+
+\begin{figure}
+\begin{centering}
+\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_rho}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_rho}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_rho}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_drho}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_rho}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_drho}}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:fem_w3}
+Final profiles (left column) and errors (right column) for the conservative flux form advection of a $\mathbb{W}_3$ field with fem operators}
+\end{figure}
+
+
+\begin{figure}
+\begin{centering}
+\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_theta}}\subfloat[C12]{\includegraphics[scale=0.3]{c12_fem_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_theta}}\subfloat[C24]{\includegraphics[scale=0.3]{c24_fem_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_theta}}\subfloat[C48]{\includegraphics[scale=0.3]{c48_fem_dtheta}}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_theta}}\subfloat[C96]{\includegraphics[scale=0.3]{c96_fem_dtheta}}
+\par\end{centering}
+\centering{}\protect\caption{\label{fig:fem_w0}
+Final profiles (left column) and errors (right column) for the advective form advection of a $\mathbb{W}_0$ field with fem operators}
 \end{figure}
 
 \newpage\resetcounters

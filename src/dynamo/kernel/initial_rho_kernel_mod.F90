@@ -16,20 +16,9 @@ use argument_mod,               only : arg_type, func_type,            &
                                        W0, W3,                         &
                                        GH_BASIS, GH_DIFF_BASIS,        &
                                        CELLS
-use base_mesh_config_mod,       only : geometry, &
-                                       base_mesh_geometry_spherical
-use constants_mod,              only : r_def, PI
-use coord_transform_mod,        only : xyz2llr, central_angle
-use idealised_config_mod,       only : test,                         &
-                                       idealised_test_cold_bubble,   &
-                                       idealised_test_gaussian_hill, &
-                                       idealised_test_cosine_hill,   &
-                                       idealised_test_slotted_cylinder
-use initial_density_config_mod, only : r1, x1, y1, r2, x2, y2,     &
-                                       tracer_max, tracer_background
+use constants_mod,              only : r_def
+use idealised_config_mod,       only : test
 use kernel_mod,                 only : kernel_type
-use planet_config_mod,          only : p_zero, Rd, kappa
-use reference_profile_mod,      only : reference_profile
 
 implicit none
 
@@ -90,9 +79,9 @@ subroutine initial_rho_code(nlayers, rho, chi_1, chi_2, chi_3, &
                             ndf_w0, undf_w0, map_w0, w0_basis, w0_diff_basis, &
                             nqp_h, nqp_v, wqp_h, wqp_v )
 
-   use matrix_invert_mod,       only : matrix_invert
-   use coordinate_jacobian_mod, only : coordinate_jacobian
-
+   use matrix_invert_mod,             only : matrix_invert
+   use coordinate_jacobian_mod,       only : coordinate_jacobian
+   use analytic_density_profiles_mod, only : analytic_density
   ! needs to compute the integral of rho_df * P
   ! P_analytic over a single column
 
@@ -117,17 +106,8 @@ subroutine initial_rho_code(nlayers, rho, chi_1, chi_2, chi_3, &
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
   real(kind=r_def), dimension(ndf_w0)          :: chi_1_e, chi_2_e, chi_3_e
-  real(kind=r_def)                             :: exner_ref, rho_ref, theta_ref, &
-                                                  integrand
+  real(kind=r_def)                             :: rho_ref, integrand
   real(kind=r_def)                             :: x(3)
-  real(kind=r_def)            :: l, dt
-  real(kind=r_def), parameter :: XC = 0.0_r_def, &
-                                 XR = 4000.0_r_def, &
-                                 ZC_cold = 3000.0_r_def, &
-                                 ZR = 2000.0_r_def
-  real(kind=r_def)            :: long, lat, radius
-  real(kind=r_def)            :: l1, l2
-  real(kind=r_def)            :: h1, h2
 
   ! compute the RHS & LHS integrated over one cell and solve
   do k = 0, nlayers-1
@@ -149,74 +129,7 @@ subroutine initial_rho_code(nlayers, rho, chi_1, chi_2, chi_3, &
             x(2) = x(2) + chi_2_e(df2)*w0_basis(1,df2,qp1,qp2)
             x(3) = x(3) + chi_3_e(df2)*w0_basis(1,df2,qp1,qp2)
           end do
-          call reference_profile(exner_ref, rho_ref, theta_ref, x, test)
-
-          if ( geometry == base_mesh_geometry_spherical ) then
-            call xyz2llr(x(1),x(2),x(3),long,lat,radius)
-            call central_angle(long,lat,x1,y1,l1)
-            call central_angle(long,lat,x2,y2,l2)
-          else
-            long = x(1)
-            lat = x(2)
-            l1 = sqrt((long-x1)**2 + (lat-y1)**2)
-            l2 = sqrt((long-x2)**2 + (lat-y2)**2)
-          end if
-
-          select case( test )
-            case( idealised_test_cold_bubble )
-              l = sqrt( ((x(1)-XC)/XR)**2 + ((x(3)-ZC_cold)/ZR)**2 )
-              if ( l <= 1.0_r_def ) then
-                dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
-                theta_ref = theta_ref - dt/exner_ref
-                rho_ref = p_zero/(Rd*theta_ref) * exner_ref**( (1.0_r_def - kappa )/ kappa )
-              end if
-            case( idealised_test_GAUSSIAN_HILL )
-              h1 = tracer_max*exp( -(l1/r1)**2 )
-              h2 = tracer_max*exp( -(l2/r2)**2 )
-              rho_ref = h1 +h2
-            case( idealised_test_cosine_hill )
-              if ( l1 < r1 ) then
-                h1 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l1/r1)*PI))
-              else
-                h1 = tracer_background
-              end if
-              if (l2 < r2) then
-                h2 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l2/r2)*PI))
-              else
-                h2 = tracer_background
-              end if
-              rho_ref = h1+h2
-            case( idealised_test_slotted_cylinder )
-              ! Cylinder 1
-              if ( l1 < r1 ) then
-                if (abs(long-x1) > r1/6.0_r_def) then
-                  h1 = tracer_max
-                else
-                  if (lat < y1-r1*5.0_r_def/12.0_r_def) then
-                    h1 = tracer_max
-                  else
-                    h1 = tracer_background
-                  end if
-                end if
-              else
-                h1 = tracer_background
-              end if
-              ! Cylinder 2
-              if ( l2 < r2 ) then
-                if (abs(long-x2) > r2/6.0_r_def) then
-                  h2 = tracer_max
-                else
-                  if (lat > y2+r2*5.0_r_def/12.0_r_def) then
-                    h2 = tracer_max
-                  else
-                    h2 = tracer_background
-                  end if
-                end if
-              else
-                h2 = tracer_background
-              end if
-              rho_ref = h1 + h2
-          end select
+          rho_ref = analytic_density(x, test)
 
           integrand =  w3_basis(1,df1,qp1,qp2) * rho_ref * dj(qp1,qp2)
           rhs_e(df1) = rhs_e(df1) + wqp_h(qp1)*wqp_v(qp2)*integrand

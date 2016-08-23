@@ -33,7 +33,6 @@ program dynamo
   use field_mod,                      only : field_type
   use finite_element_config_mod,      only : element_order
   use formulation_config_mod,         only : nonlinear, transport_only
-  use operator_mod,                   only : operator_type
   use function_space_collection_mod,  only : function_space_collection
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
@@ -42,10 +41,12 @@ program dynamo
   use runge_kutta_init_mod,           only : runge_kutta_init
   use rk_alg_timestep_mod,            only : rk_alg_init, &
                                              rk_alg_step
-  use transport_config_mod,           only : scheme, transport_scheme_rk, &
+  use transport_config_mod,           only : scheme, &
+                                             transport_scheme_method_of_lines, &
                                              transport_scheme_cosmic
   use rk_transport_mod,               only : rk_transport_init, &
-                                             rk_transport_step
+                                             rk_transport_step, &
+                                             rk_transport_final
   use cosmic_transport_alg_mod,       only : cosmic_transport_init, &
                                              cosmic_transport_step
   use conservation_algorithm_mod,     only : conservation_algorithm
@@ -66,9 +67,7 @@ program dynamo
                                            timestepping_method_rk
   use derived_config_mod,             only : set_derived_config
   use runtime_constants_mod,          only : create_runtime_constants, &
-                                             get_geopotential, &
-                                             get_mass_matrix, &
-                                             get_mass_matrix_diagonal
+                                             get_geopotential
 
 
   implicit none
@@ -94,7 +93,6 @@ program dynamo
   ! temps to hold things retrieved from runtime_constants
   ! that are needed for output
   type( field_type )               :: geopotential
-  type(operator_type)              :: mm_w0
 
 
   integer                          :: timestep, ts_init
@@ -143,9 +141,6 @@ program dynamo
 
   geopotential = get_geopotential()
 
-  mm_w0 = get_mass_matrix(0)
-
-
   !-----------------------------------------------------------------------------
   ! model step 
   !-----------------------------------------------------------------------------
@@ -159,23 +154,23 @@ program dynamo
     if ( transport_only ) then
 
       select case( scheme )
-        case ( transport_scheme_rk)
+        case ( transport_scheme_method_of_lines)
           if (timestep == restart%ts_start()) then 
             ! Initialise and output initial conditions on first timestep
             call runge_kutta_init()
-            call rk_transport_init( mesh_id, u, rho)
+            call rk_transport_init( mesh_id, u, rho, theta)
             call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
             ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id)
           end if
-          call rk_transport_step( mesh_id, chi, u, rho)
+          call rk_transport_step( mesh_id, chi, u, rho, theta)
         case ( transport_scheme_cosmic)
           if (timestep == restart%ts_start()) then 
             ! Initialise and output initial conditions on first timestep
             call cosmic_transport_init(mesh_id, u)
             call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
             ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+            call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id)
           end if
           call cosmic_transport_step( mesh_id, chi, rho)
         case default
@@ -194,7 +189,7 @@ program dynamo
                call iter_alg_init(mesh_id, u, rho, theta)
                call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
                ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id)
                call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
              end if
              call iter_alg_step(chi, u, rho, theta, xi)
@@ -206,7 +201,7 @@ program dynamo
                call rk_alg_init( mesh_id, u, rho, theta)
                call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO )
                ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id)
                call conservation_algorithm(timestep, mesh_id, rho, u, theta, xi, geopotential, chi)
              end if
              call rk_alg_step( mesh_id, chi, u, rho, theta, xi)
@@ -228,7 +223,7 @@ program dynamo
                call lin_rk_alg_init( mesh_id, u, rho, theta)
                call log_event( "Dynamo: Outputting initial fields", LOG_LEVEL_INFO ) 
                ts_init = max( (restart%ts_start() - 1), 0 ) ! 0 or t previous.
-               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id, mm_w0)
+               call output_alg(ts_init, theta, xi, u, rho, chi, mesh_id)
              end if
                call lin_rk_alg_step( mesh_id, chi, u, rho, theta)
            case default
@@ -255,7 +250,7 @@ program dynamo
 
     if ( mod(timestep, diagnostic_frequency) == 0 ) then
       call log_event("Dynamo: writing diagnostic output", LOG_LEVEL_INFO)
-      call output_alg(timestep, theta, xi, u, rho, chi, mesh_id, mm_w0)
+      call output_alg(timestep, theta, xi, u, rho, chi, mesh_id)
     end if
 
 
@@ -308,6 +303,11 @@ program dynamo
      call log_event(log_scratch_space,LOG_LEVEL_INFO)
      checkpoint_output(4) = xi
      call write_state_netcdf( 1, checkpoint_output(4), trim(restart%endfname("xi")) )
+  end if
+
+  ! Call timestep finalizers
+  if ( transport_only .and. scheme == transport_scheme_method_of_lines) then
+    call rk_transport_final( mesh_id, rho, theta)
   end if
 
   call log_event( 'Dynamo completed', LOG_LEVEL_INFO )

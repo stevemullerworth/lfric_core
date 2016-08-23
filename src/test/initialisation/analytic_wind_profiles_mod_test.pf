@@ -68,13 +68,13 @@ contains
     llr = (/ PI, PI/4.0_r_def, radius + 10000.0_r_def /)
     xyz = (/ 1000.0_r_def, 75000.0_r_def, 5000.0_r_def /)
     u0 = 20.0_r_def
-    a = PI/8.0_r_def
+    a = 1.0_r_def/8.0_r_def
 
     u = analytic_wind(llr, initial_wind_profile_solid_body_rotation, 2, (/ u0, a /))
 
-    v(1) = u0 * ( cos(llr(2))*cos(a) &
-                + sin(llr(1))*sin(llr(2))*sin(a) )
-    v(2) = u0 * cos(llr(1))*sin(a)
+    v(1) = u0 * ( cos(llr(2))*cos(a*PI) &
+                + sin(llr(1))*sin(llr(2))*sin(a*PI) )
+    v(2) = u0 * cos(llr(1))*sin(a*PI)
     v(3) = 0.0_r_def
 
     @assertEqual(v, u)

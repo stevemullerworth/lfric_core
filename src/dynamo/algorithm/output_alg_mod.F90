@@ -11,7 +11,7 @@ module output_alg_mod
   use interpolated_output_mod,           only: interpolated_output
   use function_space_collection_mod,     only: function_space_collection
   use field_mod,                         only: field_type
-  use finite_element_config_mod,         only: element_order, wtheta_on
+  use finite_element_config_mod,         only: element_order
   use fs_continuity_mod,                 only: W0, W3, Wtheta
   use galerkin_projection_algorithm_mod, only: galerkin_projection_algorithm
   use nodal_output_alg_mod,              only: nodal_output_alg
@@ -23,6 +23,7 @@ module output_alg_mod
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
   use mesh_mod,                          only: mesh_type
   use mesh_collection_mod,               only: mesh_collection
+  use runtime_constants_mod,             only: get_mass_matrix
 
   implicit none
 
@@ -42,15 +43,13 @@ contains
 !> @param[inout] rho the density field
 !> @param[inout] chi the fem coordinate field array
 !> @param[in] mesh_id  The id of the mesh all fields are on
-!> @param[inout] mm_w0 The mass matrix operator for the field to be projected to
-  subroutine output_alg(n, theta, xi, u, rho, chi, mesh_id, mm_w0)
+  subroutine output_alg(n, theta, xi, u, rho, chi, mesh_id)
 
     implicit none
  
     integer(i_def),      intent(in)    :: n
     type(field_type),    intent(inout) :: theta, xi, u, rho, chi(3)
     integer(i_def),      intent(in)    :: mesh_id
-    type(operator_type), intent(inout) :: mm_w0
 
     ! output variables
     integer :: dir
@@ -58,13 +57,14 @@ contains
     integer, parameter :: VECTOR_FIELD = 3, &
                           SCALAR_FIELD = 1
     type( field_type ) :: W0_projected_field(3)
-    type( field_type ) :: Wtheta_projected_field(1)
     type( field_type ) :: W3_projected_field(1)
+    type( field_type ) :: Wt_projected_field(1)
     type( quadrature_type )          :: qr
     type( mesh_type ), pointer       :: mesh => null()
     character(len=str_max_filename)  :: fname
     ! local rank to write out a filename for each rank
     character(len=str_max_filename)  :: rank_name
+    type(operator_type), pointer       :: mm => null()
 
     qr = quadrature_type(element_order+3, GAUSSIAN)
     mesh => mesh_collection%get_mesh( mesh_id )
@@ -90,39 +90,47 @@ contains
                        vector_space = function_space_collection%get_fs(mesh_id,          &
                                                                        element_order, &
                                                                        W3) )
+      Wt_projected_field(1) = field_type(                                             &
+                       vector_space = function_space_collection%get_fs(mesh_id,          &
+                                                                       element_order, &
+                                                                       Wtheta) )
 
-      if ( wtheta_on ) then
-        Wtheta_projected_field(1) = field_type(                                       &
-                          vector_space = function_space_collection%get_fs(mesh_id,        &
-                                                                         element_order, &
-                                                                         Wtheta) )
-        call galerkin_projection_algorithm(Wtheta_projected_field(1), theta, mesh_id, chi, &
-                                           SCALAR_FIELD, qr)
-      else
-        call galerkin_projection_algorithm(W0_projected_field(1), theta, mesh_id, chi, &
-                                           SCALAR_FIELD, qr, mm=mm_w0)
-      end if
+      ! theta
       fname=trim(ts_fname("interp_theta",n, rank_name))
-      if( wtheta_on ) then
-        call interpolated_output(SCALAR_FIELD, Wtheta_projected_field(1), mesh_id, chi, &
-                               fname)
+      if ( theta%which_function_space() == Wtheta ) then
+        mm => get_mass_matrix(5)
+        call galerkin_projection_algorithm(Wt_projected_field(1), theta, mesh_id, chi, &
+                                           SCALAR_FIELD, qr, mm=mm)
+        call interpolated_output(SCALAR_FIELD, Wt_projected_field(1), mesh_id, chi, &
+                                 fname)
       else
+        mm => get_mass_matrix(0)
+        call galerkin_projection_algorithm(W0_projected_field(1), theta, mesh_id, chi, &
+                                           SCALAR_FIELD, qr, mm=mm)
         call interpolated_output(SCALAR_FIELD, W0_projected_field(1), mesh_id, chi, &
-                               fname)
+                                 fname)
       end if
+
+      mm => get_mass_matrix(0)
+
+      ! rho
       call invoke_set_field_scalar(0.0_r_def, W3_projected_field(1)) 
       call galerkin_projection_algorithm(W3_projected_field(1), rho, mesh_id, chi, &
                                          SCALAR_FIELD, qr)
       fname=trim(ts_fname("interp_rho",n, rank_name))
       call interpolated_output(SCALAR_FIELD, W3_projected_field(1), mesh_id, chi, &
                                fname)
+
+      ! u
       call galerkin_projection_algorithm(W0_projected_field(:), u, mesh_id, chi, &
-                                         VECTOR_FIELD, qr, mm=mm_w0)
+                                         VECTOR_FIELD, qr, mm=mm)
       fname=trim(ts_fname("interp_u",n, rank_name))
       call interpolated_output(VECTOR_FIELD, W0_projected_field(:), mesh_id, chi, &
                                fname)
+
+      ! xi
       call galerkin_projection_algorithm(W0_projected_field(:), xi, mesh_id, chi, &
-                                         VECTOR_FIELD, qr, mm=mm_w0)
+                                         VECTOR_FIELD, qr, mm=mm)
       fname=trim(ts_fname("interp_xi",n, rank_name))
       call interpolated_output(VECTOR_FIELD, W0_projected_field(:), mesh_id, chi, &
                                fname)

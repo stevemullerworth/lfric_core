@@ -1,0 +1,197 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+module sample_poly_flux_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+
+  use field_mod,                     only : field_type,      &
+                                            field_proxy_type
+  use fs_continuity_mod,             only : W2, W3
+  use function_space_mod,            only : function_space_type
+  use pFUnit_Mod
+  use quadrature_mod,                only : quadrature_type, GAUSSIAN
+  use stencil_dofmap_mod,            only : stencil_dofmap_type, STENCIL_CROSS
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: sample_poly_flux_test_type
+    private
+    type(function_space_type), pointer :: w2_fs => null()
+    type(function_space_type), pointer :: w3_fs => null()
+    type(field_type)                   :: rho, u, flux 
+    real(r_def), allocatable           :: basis_u(:,:,:)
+    type(stencil_dofmap_type), pointer :: stencil => null()
+   
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type sample_poly_flux_test_type
+
+  integer(i_def), parameter :: element_order = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : finite_element_shape_quadrilateral
+    use mesh_mod,                  only : PLANE_BI_PERIODIC
+    use reference_element_mod,     only : reference_cube, reference_element
+
+    implicit none
+
+    class(sample_poly_flux_test_type), intent(inout) :: this
+
+    type(field_proxy_type)    :: u_p, rho_p
+
+    integer(i_def) :: dim_u, ndf_u
+    integer(i_def) :: mesh_id
+
+    reference_element = finite_element_shape_quadrilateral
+    call reference_cube()
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
+
+    this%w2_fs => function_space_collection%get_fs(mesh_id, element_order, W2)
+    this%w3_fs => function_space_collection%get_fs(mesh_id, element_order, W3)
+
+    this%u = field_type( vector_space = this%w2_fs )
+    u_p    = this%u%get_proxy()
+    ndf_u  = u_p%vspace%get_ndf( )    
+    dim_u  = u_p%vspace%get_dim_space( )
+
+    this%rho  = field_type( vector_space = this%w3_fs )
+    this%flux = field_type( vector_space = this%w2_fs )
+
+    rho_p    = this%rho%get_proxy()
+    this%stencil => rho_p%vspace%get_stencil_dofmap(STENCIL_CROSS,1)
+
+    allocate( this%basis_u(dim_u, ndf_u, ndf_u) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use reference_element_mod, only : deallocate_reference
+
+    implicit none
+
+    class(sample_poly_flux_test_type), intent(inout) :: this
+
+    deallocate( this%basis_u )
+
+    call function_space_collection%clear()
+    call deallocate_reference()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use sample_poly_flux_kernel_mod,     only : sample_poly_flux_code, &
+                                                sample_poly_flux_init
+
+    implicit none
+
+    class(sample_poly_flux_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: cell
+
+    ! Variables for testing sample_poly_flux
+
+    integer          :: ndf_rho, undf_rho, dim_u, &
+                        ndf_u, undf_u
+
+    integer, pointer :: stencil_map(:,:,:) => null(), &
+                        map_u(:,:) => null() 
+
+    real(kind=r_def), pointer :: nodes(:,:) => null()
+    type(field_proxy_type) :: flux_p, rho_p, u_p
+
+
+    ! Test flux computation
+
+    flux_p = this%flux%get_proxy()
+    rho_p  = this%rho%get_proxy()
+    u_p    = this%u%get_proxy()
+
+    ndf_u  = u_p%vspace%get_ndf( )
+    undf_u = u_p%vspace%get_undf( )
+
+    ndf_rho  = rho_p%vspace%get_ndf( )
+    undf_rho = rho_p%vspace%get_undf( )
+
+    nodes => u_p%vspace%get_nodes( )
+    call u_p%vspace%compute_nodal_basis_function( this%basis_u, &
+                                                  ndf_u,       &
+                                                  ndf_u,       &
+                                                  nodes )
+
+    stencil_map => this%stencil%get_whole_dofmap()
+    map_u => flux_p%vspace%get_whole_dofmap()
+
+    ! Create the data
+    cell = 5
+    u_p%data(:) = 0.0_r_def
+    rho_p%data(:) = 2.0_r_def
+
+!    u_p%data(map_u(1,cell)+0) = 2.0_r_def
+!    u_p%data(map_u(3,cell)+0) = 3.0_r_def
+    rho_p%data(stencil_map(1,1,cell)) = 3.0_r_def
+    rho_p%data(stencil_map(1,2,cell)) = 1.0_r_def
+    rho_p%data(stencil_map(1,4,cell)) = 5.0_r_def
+
+    ! Intitialise kernel
+    call sample_poly_flux_init(2, flux_p%vspace%get_nlayers())
+    flux_p%data(:) = 0.0_r_def
+
+    call sample_poly_flux_code(flux_p%vspace%get_nlayers(), &
+                               flux_p%data, & 
+                               u_p%data, &
+                               rho_p%data, &
+                               ndf_u, & 
+                               undf_u, &
+                               map_u(:,cell), &
+                               this%basis_u, &
+                               ndf_rho, &
+                               undf_rho, &
+                               5, &
+                               stencil_map(:,:,cell) &
+                              )
+
+     answer = 0.0_r_def 
+     @assertEqual(answer, flux_p%data(map_u(3,cell) ), tol)
+     answer = 0.0_r_def 
+     @assertEqual(answer, flux_p%data(map_u(2,cell) ), tol)
+     answer = 0.0_r_def 
+     @assertEqual(answer, flux_p%data(map_u(6,cell) ), tol)
+
+  end subroutine test_all
+
+end module sample_poly_flux_kernel_mod_test

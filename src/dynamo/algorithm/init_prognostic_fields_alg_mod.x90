@@ -20,16 +20,19 @@ module init_prognostic_fields_alg_mod
   ! Configuration and restart/checkpoint options
   use finite_element_config_mod,       only: element_order, wtheta_on
   use formulation_config_mod,          only: nonlinear, transport_only
+  use transport_config_mod,            only: scheme, &
+                                             operators, &
+                                             transport_scheme_method_of_lines, &
+                                             transport_operators_fv
   use restart_control_mod,             only: restart_type
   ! I/O tools
   use field_io_mod,                    only: read_state_netcdf
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                 only: invoke_set_field_scalar, &
-                                             invoke_initial_theta_wtheta_kernel
+                                             invoke_initial_theta_kernel
 
   ! PsyKAl PSYClone kernels
-  use initial_theta_kernel_mod,        only: initial_theta_kernel_type
   use initial_rho_kernel_mod,          only: initial_rho_kernel_type
   use initial_u_kernel_mod,            only: initial_u_kernel_type
   use compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
@@ -91,13 +94,11 @@ contains
 
       call log_event( "Dynamo: Initialising prognostic fields", LOG_LEVEL_INFO )
 
-      ! Initialise Theta and Xi (all formulations)
-      if ( wtheta_on ) then
-        call invoke_initial_theta_wtheta_kernel( theta, chi )
-      else
-        call invoke( initial_theta_kernel_type( theta, chi ) )
-      end if
+      ! Initialise Xi
       call invoke_set_field_scalar(0.0_r_def, xi) 
+      ! Initialise theta
+      call invoke_initial_theta_kernel( theta, chi )
+
 
       ! Initialise U and Rho according to formulation
       if (  nonlinear .OR. transport_only ) then

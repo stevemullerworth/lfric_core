@@ -30,7 +30,7 @@ real(kind=r_def), allocatable :: x_vert( :,: )
 ! Vector directions
 real(kind=r_def), allocatable :: normal_to_face( :,: )
 real(kind=r_def), allocatable :: tangent_to_edge( :,: )
-
+real(kind=r_def), allocatable :: out_face_normal( :,: )
 ! Geometric information about the reference element
 integer :: nverts, nfaces, nedges
 integer :: nverts_h, nfaces_h, nedges_h
@@ -241,6 +241,7 @@ subroutine reference_cube()
   allocate ( x_vert(nverts,3) )
   allocate ( normal_to_face(nfaces,3))
   allocate ( tangent_to_edge(nedges,3) )
+  allocate ( out_face_normal(3,nfaces))
 
   ! Allocate arrays for derrived types
   ! all entities 
@@ -346,6 +347,14 @@ subroutine reference_cube()
   tangent_to_edge(ST,:) = I_VEC
   tangent_to_edge(ET,:) = J_VEC
   tangent_to_edge(NT,:) = I_VEC
+
+! Outward normal to each face
+  out_face_normal(:,W) = MINUS_I_VEC
+  out_face_normal(:,S) = MINUS_J_VEC
+  out_face_normal(:,E) = I_VEC
+  out_face_normal(:,N) = J_VEC
+  out_face_normal(:,B) = MINUS_K_VEC
+  out_face_normal(:,T) = K_VEC
   
   ! Entity select
   ! all entities   
@@ -465,6 +474,13 @@ subroutine reference_triangle()
   tangent_to_edge(PU ,:) = I_VEC
   tangent_to_edge(QU ,:) = Q_TANG_VEC
   tangent_to_edge(RU ,:) = R_TANG_VEC
+
+! Outward normal to each face
+  out_face_normal(:,P) = MINUS_J_VEC
+  out_face_normal(:,Q) = Q_NORM_VEC
+  out_face_normal(:,R) = R_NORM_VEC
+  out_face_normal(:,L) = MINUS_K_VEC
+  out_face_normal(:,U) = K_VEC
   
 end subroutine reference_triangle
 
@@ -478,6 +494,7 @@ subroutine deallocate_reference()
   if(allocated( x_vert ))deallocate ( x_vert )
   if(allocated( normal_to_face ))deallocate ( normal_to_face )
   if(allocated( tangent_to_edge ))deallocate ( tangent_to_edge )
+  if(allocated( out_face_normal ))deallocate ( out_face_normal )
 
   if(allocated( select_entity_all % faces ))deallocate ( select_entity_all % faces )
   if(allocated( select_entity_all % edges ))deallocate ( select_entity_all % edges )

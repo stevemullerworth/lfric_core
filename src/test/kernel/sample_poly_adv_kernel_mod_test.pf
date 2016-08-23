@@ -1,0 +1,197 @@
+!-----------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-----------------------------------------------------------------------------
+
+module sample_poly_adv_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+
+  use field_mod,                     only : field_type,      &
+                                            field_proxy_type
+  use fs_continuity_mod,             only : W2, Wtheta
+  use function_space_mod,            only : function_space_type
+  use pFUnit_Mod
+  use quadrature_mod,                only : quadrature_type, GAUSSIAN
+  use stencil_dofmap_mod,            only : stencil_dofmap_type, STENCIL_CROSS
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: sample_poly_adv_test_type
+    private
+    type(function_space_type), pointer :: w2_fs => null()
+    type(function_space_type), pointer :: wt_fs => null()
+    type(field_type)                   :: theta, u, adv 
+    real(r_def), allocatable           :: basis_u(:,:,:)
+    type(stencil_dofmap_type), pointer :: stencil => null()
+   
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type sample_poly_adv_test_type
+
+  integer(i_def), parameter :: element_order = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : finite_element_shape_quadrilateral
+    use mesh_mod,                  only : PLANE_BI_PERIODIC
+    use reference_element_mod,     only : reference_cube, reference_element
+
+    implicit none
+
+    class(sample_poly_adv_test_type), intent(inout) :: this
+
+    type(field_proxy_type)    :: u_p, theta_p
+
+    integer(i_def) :: dim_u, ndf_u, ndf_t
+    integer(i_def) :: mesh_id
+
+    reference_element = finite_element_shape_quadrilateral
+    call reference_cube()
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
+
+    this%w2_fs => function_space_collection%get_fs(mesh_id, element_order, W2)
+    this%wt_fs => function_space_collection%get_fs(mesh_id, element_order, Wtheta)
+
+    this%u = field_type( vector_space = this%w2_fs )
+    u_p    = this%u%get_proxy()
+    ndf_u  = u_p%vspace%get_ndf( )    
+    dim_u  = u_p%vspace%get_dim_space( )
+
+    this%theta = field_type( vector_space = this%wt_fs )
+    this%adv   = field_type( vector_space = this%wt_fs )
+
+    theta_p    = this%theta%get_proxy()
+    ndf_t      = theta_p%vspace%get_ndf( )    
+    this%stencil => theta_p%vspace%get_stencil_dofmap(STENCIL_CROSS,1)
+
+    allocate( this%basis_u(dim_u, ndf_u, ndf_t) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use reference_element_mod, only : deallocate_reference
+
+    implicit none
+
+    class(sample_poly_adv_test_type), intent(inout) :: this
+
+    deallocate( this%basis_u )
+
+    call function_space_collection%clear()
+    call deallocate_reference()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use sample_poly_adv_kernel_mod,     only : sample_poly_adv_code, &
+                                               sample_poly_adv_init
+
+    implicit none
+
+    class(sample_poly_adv_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: cell
+
+    ! Variables for testing sample_poly_adv
+
+    integer          :: ndf_theta, undf_theta, dim_u, &
+                        ndf_u, undf_u
+
+    integer, pointer :: stencil_map(:,:,:) => null(), &
+                        map_u(:,:) => null() 
+
+    real(kind=r_def), pointer :: nodes(:,:) => null()
+    type(field_proxy_type) :: adv_p, theta_p, u_p
+
+
+    ! Test adv computation
+
+    adv_p   = this%adv%get_proxy()
+    theta_p = this%theta%get_proxy()
+    u_p     = this%u%get_proxy()
+
+    ndf_u  = u_p%vspace%get_ndf( )
+    undf_u = u_p%vspace%get_undf( )
+
+    ndf_theta  = theta_p%vspace%get_ndf( )
+    undf_theta = theta_p%vspace%get_undf( )
+
+    nodes => theta_p%vspace%get_nodes( )
+    call u_p%vspace%compute_nodal_basis_function( this%basis_u, &
+                                                  ndf_u,        &
+                                                  ndf_theta,    &
+                                                  nodes )
+
+    stencil_map => this%stencil%get_whole_dofmap()
+    map_u => u_p%vspace%get_whole_dofmap()
+
+    ! Create the data
+    cell = 5
+    u_p%data(:) = 0.0_r_def
+    theta_p%data(:) = 2.0_r_def       
+    u_p%data(map_u(1,cell)+0) = 2.0_r_def
+    u_p%data(map_u(3,cell)+0) = 3.0_r_def
+    theta_p%data(stencil_map(1,1,cell)) = 3.0_r_def
+    theta_p%data(stencil_map(1,2,cell)) = 1.0_r_def
+    theta_p%data(stencil_map(1,4,cell)) = 5.0_r_def
+
+    ! Intitialise kernel
+    call sample_poly_adv_init(1, adv_p%vspace%get_nlayers())
+    adv_p%data(:) = 0.0_r_def
+
+    call sample_poly_adv_code(adv_p%vspace%get_nlayers(), &
+                              adv_p%data, & 
+                              theta_p%data, &
+                              u_p%data, &
+                              ndf_theta, &
+                              undf_theta, &
+                              ndf_u, &
+                              undf_u, & 
+                              map_u(:,cell), &
+                              this%basis_u, &
+                              5, &
+                              stencil_map(:,:,cell) &
+                              )
+     ! u.grad(theta) = 5, but need extra half factor to account for 
+     ! weighting of mass matrix term: int(1-z,z=0..1) = 1/2
+     ! that is not included here but would be for a full run
+     answer = 2.5_r_def 
+     @assertEqual(answer, adv_p%data(stencil_map(1,1,cell) ), tol)
+     answer = 0.0_r_def 
+     @assertEqual(answer, adv_p%data(stencil_map(1,1,cell)+1), tol)
+
+  end subroutine test_all
+
+end module sample_poly_adv_kernel_mod_test

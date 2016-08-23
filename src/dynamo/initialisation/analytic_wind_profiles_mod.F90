@@ -10,7 +10,7 @@
 !!          point based upon a specified analytic formula
 module analytic_wind_profiles_mod
 
-use constants_mod,      only : r_def
+use constants_mod,      only : r_def, pi
 use initial_wind_config_mod, only : &
                                initial_wind_profile_none,                &
                                initial_wind_profile_solid_body_rotation, &
@@ -46,9 +46,9 @@ function analytic_wind(chi, choice, num_options, option) result(u)
     case ( initial_wind_profile_none )
       u(:) = 0.0_r_def
     case ( initial_wind_profile_solid_body_rotation )
-      u(1) = option(1) * ( cos(chi(2))*cos(option(2)) &
-                       + sin(chi(1))*sin(chi(2))*sin(option(2)) )
-      u(2) = option(1) * cos(chi(1))*sin(option(2))
+      u(1) = option(1) * ( cos(chi(2))*cos(option(2)*pi) &
+                       + sin(chi(1))*sin(chi(2))*sin(option(2)*pi) )
+      u(2) = option(1) * cos(chi(1))*sin(option(2)*pi)
       u(3) = 0.0_r_def
     case ( initial_wind_profile_constant_uv )
       u(1) = option(1)

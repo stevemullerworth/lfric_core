@@ -1,174 +1,123 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Kernel computes the initial theta field for the gravity wave test
+!> @brief Kernel computes the initial theta field
 
-!> @detail The kernel computes initial theta perturbation field for the Klemp & Skamarock 
-!>         nonhydrostatic gravity wave test
+!> @detail The kernel computes initial theta perturbation field for theta in the space
+!>         of horizontally discontinuous, vertically continuous polynomials
 
 module initial_theta_kernel_mod
 
-use argument_mod,                  only: arg_type,                          &
-                                         GH_FIELD, GH_WRITE, GH_READ,       &
-                                         W0,                                &
-                                         CELLS
-use base_mesh_config_mod,          only: geometry, &
-                                         base_mesh_geometry_spherical
-use constants_mod,                 only: r_def, PI
-use coord_transform_mod,           only: xyz2llr
-use formulation_config_mod,        only: nonlinear
-use generate_global_gw_fields_mod, only: generate_global_gw_pert
-use idealised_config_mod,          only: test,              &
-                                         idealised_test_gravity_wave, &
-                                         idealised_test_cold_bubble,  &
-                                         idealised_test_warm_bubble
-use kernel_mod,                    only: kernel_type
-use planet_config_mod,             only: scaled_radius
-use reference_profile_mod,         only: reference_profile
+    use argument_mod,                  only: arg_type,  &
+        GH_FIELD, GH_WRITE, GH_READ,                    &
+        W0, ANY_SPACE_1, GH_BASIS,                      &
+        GH_DIFF_BASIS,                                  &
+        CELLS
+    use constants_mod,                 only: r_def, i_def
+    use kernel_mod,                    only: kernel_type
+    use idealised_config_mod,          only: test
 
-implicit none
+    implicit none
 
-!-------------------------------------------------------------------------------
-! Public types
-!-------------------------------------------------------------------------------
-!> The type declaration for the kernel. Contains the metadata needed by the Psy layer
-type, public, extends(kernel_type) :: initial_theta_kernel_type
-  private
-  type(arg_type) :: meta_args(2) = (/                                  &
-       arg_type(GH_FIELD,   GH_WRITE, W0),                             &
-       arg_type(GH_FIELD*3, GH_READ,  W0)                              &
-       /)
-  integer :: iterates_over = CELLS
+    !-------------------------------------------------------------------------------
+    ! Public types
+    !-------------------------------------------------------------------------------
+    !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
+    type, public, extends(kernel_type) :: initial_theta_kernel_type
+        private
+        type(arg_type) :: meta_args(2) = (/                               &
+            arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1),                  &
+            arg_type(GH_FIELD*3, GH_READ, W0)                             &
+            /)
+        integer :: iterates_over = CELLS
 
-contains
-  procedure, nopass :: initial_theta_code
-end type
+    contains
+        procedure, nopass :: initial_theta_code
+    end type
 
-!-------------------------------------------------------------------------------
-! Constructors
-!-------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------
+    ! Constructors
+    !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
-interface initial_theta_kernel_type
-   module procedure initial_theta_kernel_constructor
-end interface
+    ! overload the default structure constructor for function space
+    interface initial_theta_kernel_type
+        module procedure initial_theta_kernel_constructor
+    end interface
 
-!-------------------------------------------------------------------------------
-! Contained functions/subroutines
-!-------------------------------------------------------------------------------
-public initial_theta_code
+    !-------------------------------------------------------------------------------
+    ! Contained functions/subroutines
+    !-------------------------------------------------------------------------------
+    public initial_theta_code
 contains
 
-type(initial_theta_kernel_type) function initial_theta_kernel_constructor() result(self)
-  return
-end function initial_theta_kernel_constructor
+    type(initial_theta_kernel_type) function initial_theta_kernel_constructor() result(self)
+        return
+    end function initial_theta_kernel_constructor
 
-!> @brief The subroutine which is called directly by the psy layer
-!! @param[in] nlayers Integer the number of layers
-!! @param[in] ndf The number of degrees of freedom per cell
-!! @param[in] undf The number of unique degrees of freedom
-!! @param[in] map Integer array holding the dofmap for the cell at the base of the column
-!! @param[inout] theta Real array, the actual data
-!! @param[in] chi_1 Real array, the physical x coordinates
-!! @param[in] chi_2 Real array, the physical y coordinates
-!! @param[in] chi_3 Real array, the physical z coordinates
-subroutine initial_theta_code(nlayers, &
-                              theta, chi_1,chi_2,chi_3, &
-                              ndf,undf,map)
-  
-  !Arguments
-  integer, intent(in) :: nlayers, ndf, undf
-  integer, dimension(ndf), intent(in) :: map
-  real(kind=r_def), dimension(undf), intent(out) :: theta
-  real(kind=r_def), dimension(undf), intent(in)    :: chi_1
-  real(kind=r_def), dimension(undf), intent(in)    :: chi_2
-  real(kind=r_def), dimension(undf), intent(in)    :: chi_3
+      !> @brief The subroutine which is called directly by the Psy layer
+      !! @param[in] nlayers Integer the number of layers
+      !! @param[in] ndf_wtheta The number of degrees of freedom per cell for wtheta
+      !! @param[in] udf_wtheta The number of total degrees of freedom for wtheta
+      !! @param[in] map_wtheta Integer array holding the dofmap for the cell at the base of the column
+      !! @param[inout] theta Real array the data
+      !! @param[in] wtheta_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
+      !! @param[in] ndf_w0 The number of degrees of freedom per cell
+      !! @param[in] ndf_w0 The total number of degrees of freedom
+      !! @param[in] map_w0 Integer array holding the dofmap for the cell at the base of the column
+      !! @param[in] w0_basis Real 5-dim array holding basis functions evaluated at gaussian quadrature points
+      !! @param[inout] chi_1 Real array, the x component of the w0 coordinate field
+      !! @param[inout] chi_2 Real array, the y component of the w0 coordinate field
+      !! @param[inout] chi_3 Real array, the z component of the w0 coordinate field
 
-  !Internal variables
-  integer               :: df, k
-  real(kind=r_def), parameter :: THETA0 = 0.01_r_def
-  real(kind=r_def), parameter :: XC     = 0.0_r_def
-  real(kind=r_def), parameter :: YC     = 0.0_r_def
-  real(kind=r_def), parameter :: A      = 5000.0_r_def
-  real(kind=r_def), parameter :: H      = 10000.0_r_def
-  real(kind=r_def)            :: x(3)
-  real(kind=r_def)            :: theta_ref, exner_ref, rho_ref
-  real(kind=r_def)            :: lat, lon, r
-  real(kind=r_def)            :: theta_pert, nl
-  real(kind=r_def)            :: l, dt
-  real(kind=r_def), parameter :: XR = 4000.0_r_def, &
-                                 ZC_cold = 3000.0_r_def, &
-                                 ZC_hot = 260.0_r_def, &
-                                 ZR = 2000.0_r_def  
+      ! In Psyclone
 
-  ! Compute the pointwise theta profile
-  ! Set up use of nonlinear terms
-  if ( nonlinear ) then 
-    nl = 1.0
-  else
-    nl = 0.0
-  end if
+    subroutine initial_theta_code(nlayers, ndf_wtheta, undf_wtheta, map_wtheta, theta, &
+                                  ndf_w0, undf_w0, map_w0, w0_basis, chi_1, chi_2, chi_3)
 
-  ! Set up theta depending on domain shape and choice of idealised test 
-  if ( geometry == base_mesh_geometry_spherical ) then   ! SPHERICAL DOMAIN
+        use analytic_temperature_profiles_mod, only : analytic_temperature
 
-    ! Gravity wave test only for now
-    do k = 0, nlayers-1
-      do df = 1, ndf
-        x(1) = chi_1(map(df) + k)
-        x(2) = chi_2(map(df) + k)
-        x(3) = chi_3(map(df) + k)
-        ! Calculate reference profile for a chosen idealised test option
-        call reference_profile(exner_ref, rho_ref, theta_ref, x, test)
-        call xyz2llr(x(1), x(2), x(3), lon, lat, r)
-        theta_pert = generate_global_gw_pert(lon,lat,r-scaled_radius)
-        theta(map(df) + k) =  theta_pert + nl*theta_ref
-      end do
-    end do
+        implicit none
 
-  else                      ! BIPERIODIC PLANE DOMAIN
+        !Arguments
+        integer(kind=i_def), intent(in) :: nlayers, ndf_wtheta, ndf_w0, undf_wtheta, undf_w0
+        integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
+        integer(kind=i_def), dimension(ndf_w0), intent(in) :: map_w0
+        real(kind=r_def), dimension(undf_wtheta),          intent(inout) :: theta
+        real(kind=r_def), dimension(undf_w0),              intent(in)    :: chi_1, chi_2, chi_3
+        real(kind=r_def), dimension(1,ndf_w0,ndf_wtheta),  intent(in)    :: w0_basis
 
-    do k = 0, nlayers-1
-      do df = 1, ndf
-        x(1) = chi_1(map(df) + k)
-        x(2) = chi_2(map(df) + k)
-        x(3) = chi_3(map(df) + k)
-        ! Calculate reference profile for a chosen idealised test option
-        call reference_profile(exner_ref, rho_ref, theta_ref, x, test)
-        ! Calculate theta a chosen idealised test option
-        select case( test )
-          case( idealised_test_gravity_wave )  ! Gravity wave test
-            theta(map(df) + k) = THETA0 * sin ( PI * x(3) / H )             &
-                                 / ( 1.0_r_def + ( x(1) - XC )**2/A**2 ) +  &
-                                 nl*theta_ref 
-          case( idealised_test_cold_bubble )   ! Density current test
-            theta(map(df) + k) = theta_ref     
-            l = sqrt( ((x(1)-XC)/XR)**2 + ((x(3)-ZC_cold)/ZR)**2 )
-            if ( l <= 1.0_r_def ) then
-              dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
-              theta(map(df) + k) = theta_ref - dt/exner_ref
-            end if 
-          case( idealised_test_warm_bubble )   ! Warm bubble test
-            theta(map(df) + k) = theta_ref
-            l = sqrt( ((x(1)-XC))**2 + ((x(3)-ZC_hot))**2 )
-            if ( l <= 50.0_r_def ) then
-              dt = 0.5_r_def
-            else
-              dt = 0.5_r_def*exp(-(l-50.0_r_def)**2/(100.0_r_def)**2)
-            end if 
-            theta(map(df) + k) = theta_ref + dt
-        end select
-      end do
-    end do
+        !Internal variables
+        integer(kind=i_def)                 :: df, df0, k
+        real(kind=r_def), dimension(ndf_w0) :: chi_1_e, chi_2_e, chi_3_e
+        real(kind=r_def)                    :: x(3)
 
-  end if
+        ! compute the pointwise theta profile
 
-end subroutine initial_theta_code
+        do k = 0, nlayers-1
+          do df0 = 1, ndf_w0
+            chi_1_e(df0) = chi_1( map_w0(df0) + k)
+            chi_2_e(df0) = chi_2( map_w0(df0) + k)
+            chi_3_e(df0) = chi_3( map_w0(df0) + k)
+          end do
+
+          do df = 1, ndf_wtheta
+            x(:) = 0.0_r_def
+            do df0 = 1, ndf_w0
+              x(1) = x(1) + chi_1_e(df0)*w0_basis(1,df0,df)
+              x(2) = x(2) + chi_2_e(df0)*w0_basis(1,df0,df)
+              x(3) = x(3) + chi_3_e(df0)*w0_basis(1,df0,df)
+            end do
+
+            theta(map_wtheta(df) + k) = analytic_temperature(x, test)
+          end do
+        end do
+
+    end subroutine initial_theta_code
 
 end module initial_theta_kernel_mod

@@ -1,0 +1,137 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!> @brief Functions to compute a variety of analytic profiles
+!> @details Collection of functions to return the value of a field at a given
+!!          point based upon a specified analytic formula
+module analytic_density_profiles_mod
+
+use constants_mod,              only : r_def, pi
+use log_mod,                    only : log_event,                &
+                                       log_scratch_space,        &
+                                       LOG_LEVEL_ERROR
+use coord_transform_mod,        only : xyz2llr, central_angle
+use idealised_config_mod,       only : idealised_test_cold_bubble,   &
+                                       idealised_test_gaussian_hill, &
+                                       idealised_test_cosine_hill,   &
+                                       idealised_test_slotted_cylinder, &
+                                       idealised_test_gravity_wave
+use initial_density_config_mod, only : r1, x1, y1, r2, x2, y2,     &
+                                       tracer_max, tracer_background
+use base_mesh_config_mod,       only : geometry, &
+                                       base_mesh_geometry_spherical
+use planet_config_mod,          only : p_zero, Rd, kappa
+use reference_profile_mod,      only : reference_profile
+
+implicit none
+
+contains
+
+!> @brief Compute an analytic density field
+!> @param[in] chi Position in physical coordinates
+!> @param[in] choice Integer defining which specified formula to use
+!> @result density The result density field
+function analytic_density(chi, choice) result(density)
+
+  implicit none
+  real(kind=r_def), intent(in) :: chi(3)
+  integer,          intent(in) :: choice
+  real(kind=r_def)             :: density
+
+  real(kind=r_def)             :: l, dt
+  real(kind=r_def), parameter  :: XC = 0.0_r_def, &
+                                  XR = 4000.0_r_def, &
+                                  ZC_cold = 3000.0_r_def, &
+                                  ZR = 2000.0_r_def
+  real(kind=r_def)             :: long, lat, radius
+  real(kind=r_def)             :: l1, l2
+  real(kind=r_def)             :: h1, h2
+  real(kind=r_def)             :: pressure, temperature
+          
+  if ( geometry == base_mesh_geometry_spherical ) then
+    call xyz2llr(chi(1),chi(2),chi(3),long,lat,radius)
+    call central_angle(long,lat,x1,y1,l1)
+    call central_angle(long,lat,x2,y2,l2)
+  else
+    long = chi(1)
+    lat  = chi(2)
+    l1 = sqrt((long-x1)**2 + (lat-y1)**2)
+    l2 = sqrt((long-x2)**2 + (lat-y2)**2)
+  end if
+
+
+  select case( choice ) 
+  
+  case ( idealised_test_gravity_wave ) 
+    call reference_profile(pressure, density, temperature, chi, choice)
+ 
+  case ( idealised_test_cold_bubble ) 
+    call reference_profile(pressure, density, temperature, chi, choice)
+    l = sqrt( ((chi(1)-XC)/XR)**2 + ((chi(3)-ZC_cold)/ZR)**2 )
+    if ( l <= 1.0_r_def ) then
+      dt =  15.0_r_def/2.0_r_def*(cos(PI*l)+1.0_r_def)
+      temperature = temperature - dt/pressure
+      density = p_zero/(Rd*temperature) * pressure**( (1.0_r_def - kappa )/ kappa )
+    end if 
+
+  case( idealised_test_GAUSSIAN_HILL )
+    h1 = tracer_max*exp( -(l1/r1)**2 )
+    h2 = tracer_max*exp( -(l2/r2)**2 )
+    density = h1 +h2
+
+  case( idealised_test_cosine_hill )
+    if ( l1 < r1 ) then
+      h1 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l1/r1)*PI))
+    else
+      h1 = tracer_background
+    end if
+    if (l2 < r2) then
+      h2 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l2/r2)*PI))
+    else
+      h2 = tracer_background
+    end if
+    density = h1+h2
+
+  case( idealised_test_slotted_cylinder )
+    ! Cylinder 1
+    if ( l1 < r1 ) then
+      if (abs(long-x1) > r1/6.0_r_def) then
+        h1 = tracer_max
+      else
+        if (lat < y1-r1*5.0_r_def/12.0_r_def) then
+          h1 = tracer_max
+        else
+          h1 = tracer_background
+        end if
+      end if
+    else
+      h1 = tracer_background
+    end if
+    ! Cylinder 2
+    if ( l2 < r2 ) then
+      if (abs(long-x2) > r2/6.0_r_def) then
+        h2 = tracer_max
+      else
+        if (lat > y2+r2*5.0_r_def/12.0_r_def) then
+          h2 = tracer_max
+        else
+          h2 = tracer_background
+        end if
+      end if
+    else
+      h2 = tracer_background
+    end if
+    density = h1 + h2 
+  case default
+    write( log_scratch_space, '(A)' )  'Invalid density profile choice, stopping'
+    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+  end select
+
+end function analytic_density
+
+end module analytic_density_profiles_mod

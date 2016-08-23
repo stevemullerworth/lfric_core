@@ -112,10 +112,10 @@ contains
     END SUBROUTINE invoke_initial_u_kernel
 
   !------------------------------------------------------------------------------
-  !> invoke_initial_theta_wtheta_kernel: invoke the potential temperature initialization in the wtheta case
-  subroutine invoke_initial_theta_wtheta_kernel( theta, chi )
+  !> invoke_initial_theta_kernel: invoke the potential temperature initialization for a generic space
+  subroutine invoke_initial_theta_kernel( theta, chi )
 
-    use initial_theta_wtheta_kernel_mod, only : initial_theta_wtheta_code
+    use initial_theta_kernel_mod, only : initial_theta_code
 
     implicit none
 
@@ -159,7 +159,7 @@ contains
       map_wtheta => theta_proxy%vspace%get_cell_dofmap( cell )
       map_chi => chi_proxy(1)%vspace%get_cell_dofmap( cell )
 
-      call initial_theta_wtheta_code(cell,  &
+      call initial_theta_code(       &
         theta_proxy%vspace%get_nlayers(),   &
         ndf_wtheta,                         &
         undf_wtheta,                        &
@@ -174,7 +174,7 @@ contains
         chi_proxy(3)%data                   &
         )
     end do
-  end subroutine invoke_initial_theta_wtheta_kernel
+  end subroutine invoke_initial_theta_kernel
 
   !-------------------------------------------------------------------------------
   !> Invoke_rtheta_bd_kernel: Invoke the boundary part of the RHS of the theta equation
@@ -2404,4 +2404,169 @@ end subroutine invoke_set_boundary_kernel
 
 !-------------------------------------------------------------------------------   
 
+!-------------------------------------------------------------------------------   
+subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent) 
+
+  use sample_poly_flux_kernel_mod, only: sample_poly_flux_code
+  use stencil_dofmap_mod,          only: stencil_dofmap_type, STENCIL_CROSS
+  use log_mod, only : log_event, LOG_LEVEL_ERROR
+
+  implicit none
+
+  type(field_type), intent(inout)   :: flux
+  type(field_type), intent(in)      :: wind
+  type(field_type), intent(in)      :: density
+  integer, intent(in)               :: stencil_extent
+
+  type( field_proxy_type )  :: flux_proxy, wind_proxy, density_proxy
+
+  type(stencil_dofmap_type), pointer :: stencil => null()
+
+  integer, pointer :: map_w2(:,:)        => null()
+  integer, pointer :: stencil_map(:,:,:) => null()
+
+  integer :: undf_w3, ndf_w3
+  integer :: undf_w2, ndf_w2
+  integer :: cell
+  integer :: nlayers
+  integer :: stencil_size 
+  
+  real(kind=r_def), allocatable :: basis_w2(:,:,:)
+  integer :: dim_w2
+  real(kind=r_def), pointer :: nodes(:,:) => null()
+
+  flux_proxy    = flux%get_proxy()
+  wind_proxy    = wind%get_proxy()
+  density_proxy = density%get_proxy()
+
+  ndf_w3  = density_proxy%vspace%get_ndf()
+  undf_w3 = density_proxy%vspace%get_undf()
+
+  ndf_w2  = flux_proxy%vspace%get_ndf()
+  undf_w2 = flux_proxy%vspace%get_undf()
+  dim_w2  = flux_proxy%vspace%get_dim_space()
+  allocate (basis_w2(dim_w2, ndf_w2, ndf_w2))
+  nodes => flux_proxy%vspace%get_nodes( )
+  call flux_proxy%vspace%compute_basis_function_3d_xyz(basis_w2, ndf_w2, ndf_w2, nodes)
+
+  nlayers = flux_proxy%vspace%get_nlayers()
+
+  stencil => density_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, &
+                                                     stencil_extent)
+  stencil_size = stencil%get_size()
+  stencil_map => stencil%get_whole_dofmap()
+  map_w2 => flux_proxy%vspace%get_whole_dofmap()
+
+  if(wind_proxy%is_dirty(depth=1) ) then
+    call wind_proxy%halo_exchange(depth=1)
+  end if
+  ! This needs extending for larger haloes
+  if(density_proxy%is_dirty(depth=1) ) then
+    call density_proxy%halo_exchange(depth=1)
+  end if
+
+  do cell = 1, flux_proxy%vspace%get_ncell()
+
+      call sample_poly_flux_code( nlayers,                     &
+                                  flux_proxy%data,             &
+                                  wind_proxy%data,             &
+                                  density_proxy%data,          &
+                                  ndf_w2,                      &
+                                  undf_w2,                     &
+                                  map_w2(:,cell),              &
+                                  basis_w2,                    &
+                                  ndf_w3,                      &
+                                  undf_w3,                     &
+                                  stencil_size,                &
+                                  stencil_map(:,:,cell)        &
+                                  )
+
+  end do
+
+  call flux_proxy%set_dirty()
+
+end subroutine invoke_sample_poly_flux
+!------------------------------------------------------------------------------- 
+subroutine invoke_sample_poly_adv( adv, wind, tracer, stencil_extent) 
+
+  use sample_poly_adv_kernel_mod, only: sample_poly_adv_code
+  use stencil_dofmap_mod,          only: stencil_dofmap_type, STENCIL_CROSS
+  use log_mod, only : log_event, LOG_LEVEL_ERROR
+
+  implicit none
+
+  type(field_type), intent(inout)   :: adv
+  type(field_type), intent(in)      :: wind
+  type(field_type), intent(in)      :: tracer
+  integer, intent(in)               :: stencil_extent
+
+  type( field_proxy_type )  :: adv_proxy, wind_proxy, tracer_proxy
+
+  type(stencil_dofmap_type), pointer :: stencil => null()
+
+  integer, pointer :: map_w2(:,:)        => null()
+  integer, pointer :: stencil_map(:,:,:) => null()
+
+  integer :: undf_wt, ndf_wt
+  integer :: undf_w2, ndf_w2
+  integer :: cell
+  integer :: nlayers
+  integer :: stencil_size
+  
+  real(kind=r_def), allocatable :: basis_w2(:,:,:)
+  integer :: dim_w2
+  real(kind=r_def), pointer :: nodes(:,:) => null()
+
+  adv_proxy    = adv%get_proxy()
+  wind_proxy   = wind%get_proxy()
+  tracer_proxy = tracer%get_proxy()
+
+  ndf_wt  = tracer_proxy%vspace%get_ndf()
+  undf_wt = tracer_proxy%vspace%get_undf()
+
+  ndf_w2  = wind_proxy%vspace%get_ndf()
+  undf_w2 = wind_proxy%vspace%get_undf()
+  dim_w2  = wind_proxy%vspace%get_dim_space()
+  allocate (basis_w2(dim_w2, ndf_w2, ndf_wt))
+  nodes => tracer_proxy%vspace%get_nodes( )
+  call wind_proxy%vspace%compute_basis_function_3d_xyz(basis_w2, ndf_w2, ndf_wt, nodes)
+
+  nlayers = adv_proxy%vspace%get_nlayers()
+
+  stencil => tracer_proxy%vspace%get_stencil_dofmap(STENCIL_CROSS, &
+                                                    stencil_extent)
+  stencil_size = stencil%get_size()
+  stencil_map => stencil%get_whole_dofmap()
+  map_w2 => wind_proxy%vspace%get_whole_dofmap()
+
+  if(wind_proxy%is_dirty(depth=1) ) then
+    call wind_proxy%halo_exchange(depth=1)
+  end if
+  ! This needs extending for larger haloes
+  if(tracer_proxy%is_dirty(depth=1) ) then
+    call tracer_proxy%halo_exchange(depth=1)
+  end if
+
+  do cell = 1, adv_proxy%vspace%get_ncell()
+
+      call sample_poly_adv_code( nlayers,                     &
+                                 adv_proxy%data,              &
+                                 tracer_proxy%data,           &
+                                 wind_proxy%data,             &
+                                 ndf_wt,                      &
+                                 undf_wt,                     &
+                                 ndf_w2,                      &
+                                 undf_w2,                     &
+                                 map_w2(:,cell),              &
+                                 basis_w2,                    &
+                                 stencil_size,                &
+                                 stencil_map(:,:,cell)        &
+                                 )
+
+  end do
+
+  call adv_proxy%set_dirty()
+
+end subroutine invoke_sample_poly_adv
+!-------------------------------------------------------------------------------   
 end module psykal_lite_mod

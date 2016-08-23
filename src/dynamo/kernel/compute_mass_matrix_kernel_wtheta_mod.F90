@@ -1,155 +1,157 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
 
-!> @brief Provides access to the members of the wth_kernel class.
+!> @brief Provides access to the members of the wtheta_kernel class.
 
-!> @details Accessor functions for the w0_kernel class are defined in this module.
-
-!> @param RHS_w0_code              Code to implement the RHS for a w0 field
-!> @param gaussian_quadrature      Contains result of gaussian quadrature
+!> @details Accessor functions for the wtheta_kernel class are defined in this module.
 
 module compute_mass_matrix_kernel_wtheta_mod
-    use constants_mod,           only: r_def, i_def
-    use kernel_mod,              only: kernel_type
-    use argument_mod,            only: arg_type, func_type,                      &
-        GH_OPERATOR, GH_FIELD, GH_READ, GH_WRITE, &
-        W0, Wtheta, GH_BASIS, GH_DIFF_BASIS, &
-        CELLS
-    use coordinate_jacobian_mod, only: coordinate_jacobian
 
-    implicit none
+use argument_mod,              only: arg_type, func_type,                      &
+                                     GH_OPERATOR, GH_FIELD, GH_READ, GH_WRITE, &
+                                     W0, Wtheta, GH_BASIS, GH_DIFF_BASIS,          &
+                                     CELLS
+use coordinate_jacobian_mod,   only: coordinate_jacobian
+use constants_mod,             only: r_def
+use kernel_mod,                only: kernel_type
 
-    !-------------------------------------------------------------------------------
-    ! Public types
-    !-------------------------------------------------------------------------------
+implicit none
 
-    type, public, extends(kernel_type) :: compute_mass_matrix_kernel_wtheta_type
-        private
-        type(arg_type) :: meta_args(2) = (/                                  &
-            arg_type(GH_OPERATOR, GH_WRITE, Wtheta, Wtheta),                        &
-            arg_type(GH_FIELD*3,  GH_READ,  W0)                             &
-            /)
-        type(func_type) :: meta_funcs(2) = (/                                &
-            func_type(Wtheta, GH_BASIS),                          &
-            func_type(W0, GH_DIFF_BASIS)                          &
-            /)
-        integer :: iterates_over = CELLS
+!-------------------------------------------------------------------------------
+! Public types
+!-------------------------------------------------------------------------------
+type, public, extends(kernel_type) :: compute_mass_matrix_kernel_wtheta_type
+  private
+  type(arg_type) :: meta_args(2) = (/                                  &
+       arg_type(GH_OPERATOR, GH_WRITE, Wtheta, Wtheta),                &
+       arg_type(GH_FIELD*3,  GH_READ,  W0)                             &
+       /)
+  type(func_type) :: meta_funcs(2) = (/                                &
+       func_type(Wtheta, GH_BASIS),                                    &
+       func_type(W0, GH_DIFF_BASIS)                                    &
+       /)
+  integer :: iterates_over = CELLS
 
-    contains
-        procedure, nopass :: compute_mass_matrix_wtheta_code
-    end type
+contains
+  procedure, nopass :: compute_mass_matrix_wtheta_code
+end type compute_mass_matrix_kernel_wtheta_type
 
-    !-------------------------------------------------------------------------------
-    ! Constructors
-    !-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+! Constructors
+!-------------------------------------------------------------------------------
 
-    ! overload the default structure constructor for function space
-    interface compute_mass_matrix_kernel_wtheta_type
-        module procedure compute_mass_matrix_constructor
-    end interface
+! overload the default structure constructor for function space
+interface compute_mass_matrix_kernel_wtheta
+   module procedure compute_mass_matrix_constructor
+end interface
 
-    !-------------------------------------------------------------------------------
-    ! Contained functions/subroutines
-    !-------------------------------------------------------------------------------
-    public compute_mass_matrix_wtheta_code
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public compute_mass_matrix_wtheta_code
 contains
 
-    type(compute_mass_matrix_kernel_wtheta_type) function compute_mass_matrix_constructor() result(self)
-        return
-    end function compute_mass_matrix_constructor
+type(compute_mass_matrix_kernel_wtheta_type) function compute_mass_matrix_constructor() result(self)
+  return
+end function compute_mass_matrix_constructor
 
-    subroutine compute_mass_matrix_wtheta_code(cell, nlayers,  &
-        ncell_3d, mm, chi1, chi2, chi3, ndf_wtheta,            &
-        basis_wtheta,  ndf_chi,                                &
-        undf_chi, map_chi, diff_basis_chi,                     &
-        nqp_h, nqp_v, wqp_h, wqp_v )
-        !> @brief This subroutine computes the mass matrix for the wtheta space
-        !! @param[in] cell Integer: The cell number
-        !! @param[in] nlayers Integer: The number of layers.
-        !! @param[in] ncell_3d Integer: ncell*ndf_chi
-        !! @param[inout] mm Real: The mass matrix data array
-        !! @param[inout] chi1 Real: The data array for chi in the first dir
-        !! @param[inout] chi2 Real: The data array for chi in the 2nd dir
-        !! @param[inout] chi3 Real: The data array for chi in the 3rd dir
-        !! @param[in] ndf_wtheta Integer: The number of degrees of freedom per cell for wtheta.
-        !! @param[in] basis_wtheta Real: 4-dim array holding SCALAR basis functions evaluated at quadrature points.
-        !! @param[in] ndf_chi Integer: The number of degrees of freedom per cell.
-        !! @param[in] undf_chi Integer: number of unique degrees of freedum  for chi field
-        !! @param[in] map_chi Integer: Array holding the dofmap for the cell at the base of the column.
-        !! @param[in] diff_basis_chi Real: 4-dim array holding VECTOR differential basis functions evaluated at quadrature points.
-        !! @param[in] nqp_h Integer number of horizontal quadrature points
-        !! @param[in] nqp_v Integer number of vertical quadrature points
-        !! @param[in] wqp_h Real array. Quadrature weights horizontal
-        !! @param[in] wqp_v Real array. Quadrature weights vertical
+!> @brief This subroutine computes the mass matrix for the wtheta space
+!! @param[in] cell Integer: The cell number
+!! @param[in] nlayers Integer: The number of layers.
+!! @param[in] ndf Integer: The number of degrees of freedom per cell.
+!! @param[in] ncell_3d Integer: ncell*ndf
+!! @param[inout] mm Real: The mass matrix data array
+!! @param[in] ndf_wtheta Integer: The number of degrees of freedom per cell for the operator space.
+!! @param[in] basis_wtheta Real: 4-dim array holding SCALAR basis functions evaluated at quadrature points.
+!! @param[in] ndf_chi Integer: The number of degrees of freedom per cell for the coordinate field.
+!! @param[in] undf_chi Integer: number of unique degrees of freedum  for chi field
+!! @param[in] map_chi Integer: Array holding the dofmap for the cell at the base of the column.
+!! @param[in] diff_basis_chi Real: 4-dim array holding VECTOR differential basis functions evaluated at quadrature points.
+!! @param[inout] chi1 Real: The data array for chi in the first dir
+!! @param[inout] chi2 Real: The data array for chi in the 2nd dir
+!! @param[inout] chi3 Real: The data array for chi in the 3rd dir
+!! @param[in] nqp_h Integer number of horizontal quadrature points
+!! @param[in] nqp_v Integer number of vertical quadrature points
+!! @param[in] wqp_h Real array. Quadrature weights horizontal
+!! @param[in] wqp_v Real array. Quadrature weights vertical
+!!
+subroutine compute_mass_matrix_wtheta_code(    &
+                   cell, nlayers, ncell_3d,    &
+                   mm,                         &
+                   chi1, chi2, chi3,           &
+                   ndf_wtheta, basis_wtheta,   &
+                   ndf_chi, undf_chi,          &
+                   map_chi, diff_basis_chi,    &
+                   nqp_h, nqp_v, wqp_h, wqp_v)
 
-        !Arguments
-        integer(kind=i_def), intent(in)     :: cell, nqp_h, nqp_v
-        integer(kind=i_def), intent(in)     :: nlayers, ndf_chi, undf_chi, ndf_wtheta
-        integer(kind=i_def), intent(in)     :: ncell_3d
+  implicit none
 
-        integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
+  !Arguments
+  integer, intent(in)     :: cell, nqp_h, nqp_v
+  integer, intent(in)     :: nlayers, ndf_wtheta, ndf_chi, undf_chi
+  integer, intent(in)     :: ncell_3d
 
-        real(kind=r_def), dimension(ndf_wtheta,ndf_wtheta,ncell_3d),  intent(inout)  :: mm
+  integer, dimension(ndf_chi), intent(in) :: map_chi
 
-        real(kind=r_def), dimension(3,ndf_chi,nqp_h,nqp_v), intent(in) :: diff_basis_chi
-        real(kind=r_def), dimension(1,ndf_wtheta,nqp_h,nqp_v), intent(in)  :: basis_wtheta
+  real(kind=r_def), dimension(ndf_wtheta,ndf_wtheta,ncell_3d),  intent(inout)  :: mm
 
-        real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi1
-        real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi2
-        real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi3
+  real(kind=r_def), dimension(3,ndf_chi,nqp_h,nqp_v), intent(in) :: diff_basis_chi
+  real(kind=r_def), dimension(1,ndf_wtheta,nqp_h,nqp_v),  intent(in) :: basis_wtheta
 
-        real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
-        real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
+  real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi1
+  real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi2
+  real(kind=r_def), dimension(undf_chi), intent(inout)           :: chi3
 
-        !Internal variables
-        integer(kind=i_def)                                      :: df, df2, k, ik
-        integer(kind=i_def)                                      :: qp1, qp2
-        real(kind=r_def), dimension(ndf_chi)         :: chi1_e, chi2_e, chi3_e
-        real(kind=r_def)                             :: integrand
-        real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
-        real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
+  real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
+  real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
 
-        !loop over layers: Start from 1 as in this loop k is not an offset
-        do k = 1, nlayers
-            ik = k + (cell-1)*nlayers
+  !Internal variables
+  integer                                      :: df, df2, k, ik
+  integer                                      :: qp1, qp2
+  real(kind=r_def), dimension(ndf_chi)         :: chi1_e, chi2_e, chi3_e
+  real(kind=r_def)                             :: integrand
+  real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
+  real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
 
-            ! indirect the chi coord field here
-            do df = 1, ndf_chi
-                chi1_e(df) = chi1(map_chi(df) + k - 1)
-                chi2_e(df) = chi2(map_chi(df) + k - 1)
-                chi3_e(df) = chi3(map_chi(df) + k - 1)
-            end do
+  !loop over layers: Start from 1 as in this loop k is not an offset
+  do k = 1, nlayers
+    ik = k + (cell-1)*nlayers
 
-            call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
-                diff_basis_chi, jac, dj)
+    ! indirect the chi coord field here
+    do df = 1, ndf_chi
+      chi1_e(df) = chi1(map_chi(df) + k - 1)
+      chi2_e(df) = chi2(map_chi(df) + k - 1)
+      chi3_e(df) = chi3(map_chi(df) + k - 1)
+    end do
 
-            do df2 = 1, ndf_wtheta
-                do df = df2, ndf_wtheta
-                    mm(df,df2,ik) = 0.0_r_def
-                    do qp2 = 1, nqp_v
-                        do qp1 = 1, nqp_h
-                            integrand = wqp_h(qp1) * wqp_v(qp2) * &
-                                basis_wtheta(1,df,qp1,qp2)*basis_wtheta(1,df2,qp1,qp2)     * &
-                                dj(qp1,qp2)
-                            mm(df,df2,ik) = mm(df,df2,ik) + integrand
-                        end do
-                    end do
-                end do
-                do df = df2, 1, -1
-                    mm(df,df2,ik) = mm(df2,df,ik)
-                end do
+    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
+                             diff_basis_chi, jac, dj)
 
-            end do
+    do df2 = 1, ndf_wtheta
+      do df = df2, ndf_wtheta ! mass matrix is symmetric
+        mm(df,df2,ik) = 0.0_r_def
+        do qp2 = 1, nqp_v
+          do qp1 = 1, nqp_h
+            ! Wtheta mapping is x -> \hat{x}
+            integrand = wqp_h(qp1) * wqp_v(qp2) * & 
+                     basis_wtheta(1,df,qp1,qp2)*basis_wtheta(1,df2,qp1,qp2)  &
+                     *dj(qp1,qp2) 
+            mm(df,df2,ik) = mm(df,df2,ik) + integrand
+          end do
         end do
+      end do
+      do df = df2, 1, -1
+        mm(df,df2,ik) = mm(df2,df,ik)
+      end do
+    end do
+  end do ! end of k loop
 
-
-
-    end subroutine compute_mass_matrix_wtheta_code
+end subroutine compute_mass_matrix_wtheta_code
 
 end module compute_mass_matrix_kernel_wtheta_mod

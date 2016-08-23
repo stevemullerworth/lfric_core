@@ -21,6 +21,11 @@ module init_dynamo_mod
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
   use restart_control_mod,            only : restart_type
+  use formulation_config_mod,         only : transport_only
+  use transport_config_mod,           only : scheme, &
+                                             operators, &
+                                             transport_scheme_method_of_lines, &
+                                             transport_operators_fv
 
   implicit none
 
@@ -53,12 +58,16 @@ module init_dynamo_mod
 
 
     ! Create prognostic fields
-    if ( wtheta_on ) then
+    if ( (transport_only .and. &
+         scheme == transport_scheme_method_of_lines .and. &
+         operators == transport_operators_fv) .or. &
+         wtheta_on  ) then
+      ! Only use Wtheta for fv method of lines transport or if wtheta_on
       theta = field_type( vector_space = &
-                           function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
+                             function_space_collection%get_fs(mesh_id, element_order, Wtheta) )
     else
       theta = field_type( vector_space = &
-                           function_space_collection%get_fs(mesh_id, element_order, W0) )
+                         function_space_collection%get_fs(mesh_id, element_order, W0) )
     end if
     xi    = field_type( vector_space = &
                        function_space_collection%get_fs(mesh_id, element_order, W1) )
