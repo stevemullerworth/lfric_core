@@ -1,7 +1,0 @@
-include(CMakeForceCompiler)
-
-set(CMAKE_SYSTEM_NAME Linux)
-
-CMAKE_FORCE_C_COMPILER(cc Cray)
-CMAKE_FORCE_CXX_COMPILER(CC Cray)
-CMAKE_FORCE_Fortran_COMPILER(ftn Cray)

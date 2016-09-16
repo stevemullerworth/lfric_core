@@ -116,8 +116,6 @@ The minimum requirements for building Dynamo are:
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | Package  | Version  | Dependency Type | Purpose                               | Pointed to by...                         |
 +==========+==========+=================+=======================================+==========================================+
-| CMake    | 3.0.0    | Build           | pFUnit builds are prepared using this | PATH                                     |
-+----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | ESMF     | 7.0.0    | Build, Run      | Framework & Infrastructure library    | FFLAGS, LDFLAGS, LD_LIBRARY_PATH         |
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | GMake    | 3.81     | Build           | GNU's version of "make"               | PATH                                     |
@@ -130,11 +128,11 @@ The minimum requirements for building Dynamo are:
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | NetCDF   | 4.3.1.1  | Build, Run      | File I/O                              | FFLAGS, LDFLAGS, LD_LIBRARY_PATH         |
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
+| pFUnit   | 3.2.7    | Build           | Unit testing framework                | PATH, FFLAGS, LDFLAGS, PFUNIT            |
++----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | PSyclone | 1.2.4    | Build           | PSy layer generator                   | PATH, PYTHONPATH                         |
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | Python   | 2.7      | Build           | Required by the dependency analyser   | PATH                                     |
-+----------+----------+-----------------+---------------------------------------+------------------------------------------+
-| libxml2  | 2.9.1    | Build, Run      | Required by pFUnit                    | CPPFLAGS, LDFLAGS, PATH, LD_LIBRARY_PATH |
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
 | Zlib     | 1.2.8    | Build, Run      | Compression library used by NetCDF    | CPPFLAGS, LDFLAGS, LD_LIBRARY_PATH       |
 +----------+----------+-----------------+---------------------------------------+------------------------------------------+
@@ -233,8 +231,7 @@ n the same form as used for `DYNAMO_TEST_SUITE_TARGETS`, described below.
 This is done for Met Office users by the LFRic module system.
 
 Run ``make clean`` to remove all compiled application and unit test output
-should make fail to perform a rebuild and try again. If you want to delete the
-compiled pFUnit framework as well use ``make clean-all``
+should make fail to perform a rebuild and try again.
 
 The binary for Dynamo can be found in the ``bin`` directory in the top level of
 your working copy.
@@ -247,8 +244,8 @@ running make in those subdirectories:
  * ``src/test/Makefile`` - to build and run the unit tests
 
 .. NOTE::
-   At present the unit tests are only know to compile with GNU Fortran, Intel
-   Fortran and CMake. If not using these running ``make`` in the top level of
+   At present the unit tests are only know to compile with Intel Fortran and
+   CMake. If not using these running ``make`` in the top level of
    the working copy will produce errors which can be ignored if you're not
    interested in the unit tests.
 
@@ -265,7 +262,7 @@ directory. The quickest way to execute it is as follows::
 Explicitly Running The Unit Tests
 ---------------------------------
 
-The unit tests can be built and run by from the  top level directory ('trunk')
+The unit tests can be built and run by from the top level directory ('trunk')
 with the following::
 
   make test

@@ -77,11 +77,3 @@ clean:
 	$(MAKE) -C src/dynamo clean
 	$(MAKE) -C src/test clean
 	$(MAKE) -C src/functional-test clean
-
-# Clean both dynamo and pFUnit builds.
-#
-.PHONY: clean-all
-clean-all:
-	$(MAKE) -C src/dynamo clean ALL=1
-	$(MAKE) -C src/test clean ALL=1
-	$(MAKE) -C src/functional-test clean ALL=1

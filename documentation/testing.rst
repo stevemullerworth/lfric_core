@@ -12,12 +12,12 @@ Unit testing is intended to exercise a discrete, well contained and defined,
 "unit" of code. This will generally be a class, ("type" in Fortran parlance)
 module or part thereof.
 
-Tests of this kind are found under ``src/unit-test`` in a tree which mirrors
+Tests of this kind are found under ``src/test`` in a tree which mirrors
 that in ``src/dynamo``. This is intended to make it easy to find the tests
 corresponding to a particular piece of functionality.
 
-We use the pFUnit framework, documentation for which may be found in
-``src/pfunit/documentation``.
+We use the pFUnit framework, documentation for which may be found at
+`https://sourceforge.net/projects/pfunit/files/Documentation/pFUnit3-ReferenceManual.pdf`_.
 
 Tests are identified with the ``.pf`` extension while support code in normal
 ``.[fF]90`` files may also be included. ``.pf`` files are normal Fortran files
@@ -186,20 +186,28 @@ value because they do not.
 If the unit calls down to help procedures any configuration they make use of
 must also be feigned.
 
-Problems With pFUnit
-~~~~~~~~~~~~~~~~~~~~
+Robust Mode or Non-robust Mode?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently there is an issue with pFUnit whereby it will report finding errors,
-then tell you no errors were found and exit with "Okay".
+pFUnit offers two modes of operation: "robust" and "non-robust".
 
-This is an issue with running in "robust mode". In this mode each test is run
-in a subprocess. This is the mode you want to run in as it means an error (as
-opposed to a failure) in the test will not cause the whole test suite to exit.
-It should also mean that each test is unable to affect any other test. Sadly
-this is not currently the case as there is leakage between tests.
+In robust mode each test is run in a subprocess. This is the mode you want to
+run in as it means an error (as opposed to a failure) in the test will not
+cause the whole test suite to exit. It should also mean that each test is
+unable to affect any other test.
 
-To find out what is failing you can run the tests by hand in non-robust mode.
-To do this change to ``src/unit-test`` and run ``../../build/unit-test/test``.
+Sadly robust mode is rather flawed at the moment. There is leakage between
+tests which should theoretically be isolated. This leads to nasty side-effects
+between tests.
+
+Also MPI tests, which need now and hope to implement soon, are not allowed in
+robust mode.
+
+There is also an odd behaviour where errors are reported, then you are told
+there were no errors and the suite exits with "Okay".
+
+In light of all this we have chosen to forgoe robust mode until it can be made
+to work properly and in parallel.
 
 Functional Testing
 ^^^^^^^^^^^^^^^^^^

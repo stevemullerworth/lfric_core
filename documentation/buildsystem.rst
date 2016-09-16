@@ -112,13 +112,7 @@ Cleaning
 ^^^^^^^^
 
 As with many build systems it is possible to ``make clean`` to delete Dynamo
-and all its build artefacts. You should, however, be aware that this does not
-delete the pFUnit installation made as part of the build process. This is by
-design as people do not generally want to rebuild pFUnit every time they clean
-out their project build.
-
-When you want to rebuild your code with a different compiler, use
-``make clean-all``. This will clean pFUnit as well.
+and all its build artefacts.
 
 Testing
 ^^^^^^^
