@@ -171,6 +171,10 @@
         [[[job submission]]]
             method = {{TARGET_BATCHER}}
 
+{%- macro ensureDestination() %}
+                     mkdir -p $DESTINATION
+                     chmod 755 $DESTINATION
+{%- endmacro %}
     [[PUBLISH]]
         [[[environment]]]
             DESTINATION = ~/public_html/dynamo-{{TARGET_OPT}}
@@ -243,6 +247,7 @@
     [[publish_api_log]]
         inherit = PUBLISH, TECHNICAL, LOCAL
         pre-script = """
+{{ensureDestination()}}
                      cp `cat $DYNAMO_DESTINATION_DIRECTORY/api.doxygen.log.path`.out $DYNAMO_DESTINATION_DIRECTORY/api.doxygen.out
                      cp `cat $DYNAMO_DESTINATION_DIRECTORY/api.doxygen.log.path`.err $DYNAMO_DESTINATION_DIRECTORY/api.doxygen.err
                      """
@@ -255,6 +260,9 @@
 {%- if 'publish_api_documentation' in scheduledTasks %}
     [[publish_api_documentation]]
         inherit = PUBLISH, LOCAL, TECHNICAL
+        pre-script = """
+{{ensureDestination()}}
+                     """
         script = rose task-run --app-key=publish --command-key=directory
         [[[environment]]]
             DIRECTORY = $DYNAMO_SOURCE_DIRECTORY/documentation/api
@@ -273,6 +281,9 @@
 {%- if 'publish_design_documentation' in scheduledTasks %}
     [[publish_design_documentation]]
         inherit = PUBLISH, LOCAL, TECHNICAL
+        pre-script = """
+{{ensureDestination()}}
+                     """
         script = rose task-run --app-key=publish --command-key=tar-file
         [[[environment]]]
             FILE = $DYNAMO_SOURCE_DIRECTORY/documentation/design-documents.tar
@@ -333,6 +344,7 @@
     [[publish_{{label}}_compile]]
         inherit = PUBLISH, {{family}}, LOCAL
         pre-script = """
+{{ensureDestination()}}
                      mkdir -p $DYNAMO_DESTINATION_DIRECTORY
                      RELATIVE_DESTINATION_DIRECTORY=`echo $DYNAMO_DESTINATION_DIRECTORY | sed "s|$HOME/||"`
                      scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/dynamo.{{compiler}}.log.path .
@@ -376,6 +388,7 @@
     [[plot_{{configuration_label}}]]
         inherit = PUBLISH, {{family}}, TARGET
         pre-script = """
+ {{ensureDestination()}}
                      mkdir -p ~/public_html/dynamo-{{TARGET_OPT}}/model_output/{{configuration_label}}/nodal_data
                      chmod 755 ~/public_html/dynamo-{{TARGET_OPT}}/model_output
                      chmod 755 ~/public_html/dynamo-{{TARGET_OPT}}/model_output/{{configuration_label}}
@@ -402,15 +415,17 @@
 {%-       if 'copy_results_' + configuration_label in scheduledTasks %}
     [[copy_results_{{configuration_label}}]]
         inherit = PUBLISH, {{family}}, LOCAL
-        script = """
-                 scp -pr {{TARGET_HOST}}:public_html/dynamo-{{TARGET_OPT}}/model_output ~/public_html/dynamo-{{TARGET_OPT}}
-                 """
+        pre-script = """
+{{ensureDestination()}}
+                     """
+        script = scp -pr {{TARGET_HOST}}:public_html/dynamo-{{TARGET_OPT}}/model_output ~/public_html/dynamo-{{TARGET_OPT}}
 {%- endif %}
 
 {%-       if 'publish_' + label + '_' +  configuration|lower|replace('-','foo') in scheduledTasks %}
     [[publish_{{label}}_{{configuration|lower|replace('-','foo')}}]]
         inherit = PUBLISH, {{family}}, LOCAL
         pre-script = """
+{{ensureDestination()}}
                      mkdir -p $DYNAMO_DESTINATION_DIRECTORY
                      RELATIVE_DESTINATION_DIRECTORY=`echo $DYNAMO_DESTINATION_DIRECTORY | sed "s|$HOME/||"`
                      scp {{TARGET_HOST}}:$RELATIVE_DESTINATION_DIRECTORY/dynamo.{{configuration}}.{{compiler}}.log.path .

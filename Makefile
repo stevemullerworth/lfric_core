@@ -65,6 +65,17 @@ test-suite:
 	    rose stem --name=$(shell basename `pwd`)-$$target --opt-conf-key=$$target ; \
 	done
 
+.PHONY:nightly-suite
+nightly-suite:
+	@if [ -z "$(DYNAMO_TEST_SUITE_TARGETS)" ] ; then \
+	    echo *** Please set the DYNAMO_TEST_SUITE_TARGETS environment variable. ; \
+	    exit 1 ; \
+	fi
+	@for target in $(DYNAMO_TEST_SUITE_TARGETS) ; do \
+	    echo Launching nightly test suite against $$target ; \
+	    rose stem --name=$(shell basename `pwd`)-$$target --group=nightly --opt-conf-key=$$target ; \
+	done
+
 # Build the projects documentation. This includes both API and design documents.
 .PHONY: doc docs
 doc docs:

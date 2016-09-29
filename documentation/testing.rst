@@ -312,12 +312,12 @@ As of the time of writing available groups are:
 
 Just running ``rose stem``, without specifying a group, causes the developer
 tests to be run. If you want to run the nightly tests you must use ``rose
-stem --group=nightly``.
+stem --group=nightly``. Alternatively using ``make nightly-suite`` will run
+the nightly tests on all platforms usually targeted by ``make test-suite``.
 
 Nightly tests will publish various reports to your
 ``~/public_html/dynamo-<target>`` (where "target" will be a platform listed in the
-``DYNAMO_TEST_SUITE_TARGETS``) directory. If this does not exist you will see
-suite failures.
+``DYNAMO_TEST_SUITE_TARGETS``) directory.
 
 By default nightly tests will be run on the Met Office SPICE server farm. 
 To run on Cray you need to specify the target explicitly using
