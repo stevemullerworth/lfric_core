@@ -18,7 +18,8 @@ module set_up_mod
   use base_mesh_config_mod,      only : filename, &
                                         geometry, &
                                         base_mesh_geometry_spherical
-  use constants_mod,             only : i_def, r_def, str_def, l_def, PI
+  use constants_mod,             only : i_def, r_def, str_def, l_def, PI, imdi &
+                                      , str_max_filename
   use extrusion_config_mod,      only : number_of_layers,           &
                                         domain_top,                 &
                                         method,                     &
@@ -46,6 +47,7 @@ module set_up_mod
                                          partitioner_cubedsphere_serial,   &
                                          partitioner_cubedsphere,          &
                                          partitioner_biperiodic
+
 
   implicit none
 
@@ -93,6 +95,7 @@ contains
     character(str_def) :: domain_desc, partition_desc
 
     integer(i_def) :: global_mesh_id
+    integer(i_def) :: npanels
 
     call log_event( "set_up: Generating/reading the mesh", LOG_LEVEL_INFO )
 
@@ -106,16 +109,12 @@ contains
     ! Setup reference cube
     call reference_cube()
 
-    ! Generate the global mesh and choose a partitioning strategy by setting
-    ! a function pointer to point at the appropriate partitioning routine
-    global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename )
-    global_mesh    => global_mesh_collection%get_global_mesh( global_mesh_id )
-
     if ( geometry == base_mesh_geometry_spherical ) then
 
+      npanels = 6
       if(total_ranks == 1 .or. mod(total_ranks,6) == 0)then
         ranks_per_panel = total_ranks/6
-        domain_desc="6x"
+        domain_desc = "6x"
       else
         call log_event( "set_up: Total number of processors must be a"// &
                         " multiple of 6 for a cubed-sphere domain.", &
@@ -133,6 +132,7 @@ contains
                         LOG_LEVEL_INFO )
       end if
     else
+      npanels = 1
       ranks_per_panel=total_ranks
       domain_desc=""
 
@@ -140,6 +140,17 @@ contains
       call log_event( "set_up: Setting up biperiodic plane partitioner ", &
                       LOG_LEVEL_INFO )
     end if
+
+    ! Generate the global mesh and choose a partitioning strategy by setting
+    ! a function pointer to point at the appropriate partitioning routine
+    global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename     &
+                                                                , npanels )
+    global_mesh    => global_mesh_collection%get_global_mesh( global_mesh_id )
+
+    if ( .not. associated(global_mesh) )                                       &
+      call log_event( "set_up: Global mesh not in collection"                  &
+                    , LOG_LEVEL_ERROR )
+
 
     if(auto)then
     ! For automatic partitioning, try to partition into the squarest possible

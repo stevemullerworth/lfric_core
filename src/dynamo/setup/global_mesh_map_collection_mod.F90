@@ -39,6 +39,13 @@ module global_mesh_map_collection_mod
     !> source for all maps in this collection.
     integer(i_def)         :: source_ncells
 
+    !> An unused allocatable integer that prevents an intenal compiler error
+    !> with the Gnu Fortran compiler. Adding an allocatable forces the compiler
+    !> to accept that the object has a finaliser. It gets confused without it.
+    !> This is a workaround for GCC bug id 61767 - when this bug is fixed, the
+    !> integer can be removed.
+    integer(i_def), allocatable :: dummy_for_gnu
+
   contains
 
     !> @brief  Returns the id of the source global mesh object
@@ -232,12 +239,11 @@ end subroutine clear
 
 !==============================================================================
 
-! Global mesh map collection destructor
 subroutine global_mesh_map_collection_destructor(self)
 
   implicit none
 
-  type (global_mesh_map_collection_type), intent(inout) :: self
+  type(global_mesh_map_collection_type), intent(inout) :: self
 
   call self%clear()
 

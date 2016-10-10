@@ -35,7 +35,6 @@ module global_mesh_map_collection_mod_test
   integer(i_def), parameter :: cell_factor_SourceToTarget = 4
 
   integer(i_def) :: SourceToTarget_gid_map( 4, 4  )
-  integer(i_def) :: dumb( 4, 3  )
 
 contains
 
@@ -117,17 +116,6 @@ contains
     ! Test that a null pointer is returned if no map is present
     test_global_mesh_map => global_mesh_map_collection%get_global_mesh_map(source_id)
     @assertNotAssociated(test_global_mesh_map) 
-
-
-    ! Add stuff that does nothiing but would flag info/error messages, Check log
-    ! for the output as pfunit complains if you send it to stdout
-
-    ! Try to map a global mesh to its own id
-    call global_mesh_map_collection%add_global_mesh_map(source_id, SourceToTarget_gid_map)
-
-    ! Try to add a map that already exists
-    call global_mesh_map_collection%add_global_mesh_map(target_id, dumb)
-
 
     ! Tear down the collection
     call global_mesh_map_collection%clear()

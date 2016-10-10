@@ -26,31 +26,31 @@ type, extends(linked_list_data_type), public :: global_mesh_type
 !> Horizontal coords of vertices in full domain
   real(kind=r_def), allocatable :: vert_coords(:,:)
 !> Full domain cell to cell connectivities
-  integer, allocatable :: cell_next_2d(:,:)
+  integer(i_def), allocatable :: cell_next_2d(:,:)
 !> Full domain vertices on a cell
-  integer, allocatable :: vert_on_cell_2d(:,:)
+  integer(i_def), allocatable :: vert_on_cell_2d(:,:)
 !> Full domain cells that surround a vertex
-  integer, allocatable :: cell_on_vert_2d(:,:)
+  integer(i_def), allocatable :: cell_on_vert_2d(:,:)
 !> Full domain edges on a cell
-  integer, allocatable :: edge_on_cell_2d(:,:)
+  integer(i_def), allocatable :: edge_on_cell_2d(:,:)
 !> Full domain cells either side of an edge
-  integer, allocatable :: cell_on_edge_2d(:,:)
+  integer(i_def), allocatable :: cell_on_edge_2d(:,:)
 !> Full domain list the cells that vertices are allocated to
   integer(i_def), allocatable :: vert_cell_owner(:)
 !> Full domain list the cells that edges are allocated to
   integer(i_def), allocatable :: edge_cell_owner(:)
 !> Total number of vertices in the full domain
-  integer              :: nverts
+  integer(i_def)       :: nverts
 !> Total number of edges in the full domain
-  integer              :: nedges
+  integer(i_def)       :: nedges
 !> total number of cells in full domain
-  integer              :: ncells
+  integer(i_def)       :: ncells
 !> number of vertices on each cell
-  integer              :: nverts_per_cell
+  integer(i_def)       :: nverts_per_cell
 !> number of edges on each cell
-  integer              :: nedges_per_cell
+  integer(i_def)       :: nedges_per_cell
 !> maximum number of cells around a vertex
-  integer              :: max_cells_per_vertex
+  integer(i_def)       :: max_cells_per_vertex
 !> Collection of global mesh maps in global cell ids
   type(global_mesh_map_collection_type) :: global_mesh_maps
 
@@ -195,13 +195,13 @@ type(ugrid_2d_type) :: ugrid_2d
 class(ugrid_file_type), allocatable :: file_handler
 
 ! dimensions from file
-integer :: nvert_in
-integer :: nface_in
-integer :: nedge_in
-integer :: num_nodes_per_face
-integer :: num_nodes_per_edge
-integer :: num_edges_per_face
-integer :: max_num_faces_per_node
+integer(i_def) :: nvert_in
+integer(i_def) :: nface_in
+integer(i_def) :: nedge_in
+integer(i_def) :: num_nodes_per_face
+integer(i_def) :: num_nodes_per_edge
+integer(i_def) :: num_edges_per_face
+integer(i_def) :: max_num_faces_per_node
 
 ! loop counter over entities (vertices or edges)
 integer(i_def) :: ientity
@@ -222,10 +222,9 @@ call ugrid_2d%get_dimensions( num_nodes              = nvert_in, &
 global_mesh_id_counter = global_mesh_id_counter + 1
 
 call self%set_id(global_mesh_id_counter)
-
-self%nverts = nvert_in
-self%nedges = nedge_in
-self%ncells = nface_in
+self%nverts  = nvert_in
+self%nedges  = nedge_in
+self%ncells  = nface_in
 self%nverts_per_cell      = num_nodes_per_face
 self%nedges_per_cell      = num_edges_per_face
 self%max_cells_per_vertex = max_num_faces_per_node
@@ -275,7 +274,7 @@ end do
 
 ! Initialise values in this objects global mesh maps collection
 self%global_mesh_maps = global_mesh_map_collection_type                        &
-                                         ( global_mesh_id_counter, self%ncells )
+                                                 ( self%get_id(), self%ncells )
 
 end function global_mesh_constructor
 
@@ -300,15 +299,15 @@ subroutine calc_cell_on_vertex(vert_on_cell, &
                                nvert)
 implicit none
 
-integer, intent(in)  :: verts_per_cell, ncell
-integer, intent(in)  :: vert_on_cell(verts_per_cell, ncell)
-integer, intent(in)  :: cells_per_vert, nvert
-integer, intent(out) :: cell_on_vert(cells_per_vert, nvert)
+integer(i_def), intent(in)  :: verts_per_cell, ncell
+integer(i_def), intent(in)  :: vert_on_cell(verts_per_cell, ncell)
+integer(i_def), intent(in)  :: cells_per_vert, nvert
+integer(i_def), intent(out) :: cell_on_vert(cells_per_vert, nvert)
 
-integer :: cell
-integer :: vertno
-integer :: cellno
-integer :: vert
+integer(i_def) :: cell
+integer(i_def) :: vertno
+integer(i_def) :: cellno
+integer(i_def) :: vert
 
 cell_on_vert = 0
 
@@ -348,15 +347,15 @@ subroutine calc_cell_on_edge( edge_on_cell, &
                               nedge)
 implicit none
 
-integer, intent(in)  :: edges_per_cell, ncell
-integer, intent(in)  :: edge_on_cell(edges_per_cell, ncell)
-integer, intent(in)  :: nedge
-integer, intent(out) :: cell_on_edge(2, nedge)
+integer(i_def), intent(in)  :: edges_per_cell, ncell
+integer(i_def), intent(in)  :: edge_on_cell(edges_per_cell, ncell)
+integer(i_def), intent(in)  :: nedge
+integer(i_def), intent(out) :: cell_on_edge(2, nedge)
 
-integer :: cell
-integer :: edgeno
-integer :: cellno
-integer :: edge
+integer(i_def) :: cell
+integer(i_def) :: edgeno
+integer(i_def) :: cellno
+integer(i_def) :: edge
 
 cell_on_edge=0
 
@@ -388,12 +387,12 @@ implicit none
 
 class(global_mesh_type), intent(in) :: self
 
-integer, intent(in) :: cell_number
-integer, intent(in) :: x_cells, y_cells
+integer(i_def), intent(in) :: cell_number
+integer(i_def), intent(in) :: x_cells, y_cells
 
-integer :: cell_id
+integer(i_def) :: cell_id
 
-integer :: index, dist, i
+integer(i_def) :: index, dist, i
 
 cell_id=cell_number
 
@@ -436,8 +435,8 @@ implicit none
 
 class(global_mesh_type), intent(in) :: self
 
-integer, intent(in)  :: vertex_number
-integer, intent(out) :: cells(:)
+integer(i_def), intent(in)  :: vertex_number
+integer(i_def), intent(out) :: cells(:)
 
 cells = self%cell_on_vert_2d(:,vertex_number)
 
@@ -451,8 +450,8 @@ subroutine get_cell_on_edge( self, edge_number, cells)
 implicit none
 
 class(global_mesh_type), intent(in) :: self
-integer, intent(in) :: edge_number
-integer, intent(out) :: cells(:)
+integer(i_def), intent(in)  :: edge_number
+integer(i_def), intent(out) :: cells(:)
 
 cells=self%cell_on_edge_2d(:,edge_number)
 
@@ -465,7 +464,7 @@ function get_nverts( self ) result (nverts)
 
 class(global_mesh_type), intent(in) :: self
 
-integer :: nverts
+integer(i_def) :: nverts
 
 nverts = self%nverts
 
@@ -478,7 +477,7 @@ function get_nedges( self ) result (nedges)
 
 class(global_mesh_type), intent(in) :: self
 
-integer :: nedges
+integer(i_def) :: nedges
 
 nedges = self%nedges
 
@@ -491,7 +490,7 @@ function get_ncells( self ) result (ncells)
 
 class(global_mesh_type), intent(in) :: self
 
-integer :: ncells
+integer(i_def) :: ncells
 
 ncells = self%ncells
 
@@ -504,7 +503,7 @@ function get_max_cells_per_vertex( self ) result (max_cells_per_vertex)
 
 class(global_mesh_type), intent(in) :: self
 
-integer :: max_cells_per_vertex
+integer(i_def) :: max_cells_per_vertex
 
 max_cells_per_vertex = self%max_cells_per_vertex
 
@@ -545,7 +544,7 @@ function get_nverts_per_cell( self ) result (nverts_per_cell)
 
   implicit none
   class(global_mesh_type), intent(in) :: self
-  integer :: nverts_per_cell
+  integer(i_def)                      :: nverts_per_cell
 
   nverts_per_cell = self%nverts_per_cell
 
@@ -558,7 +557,7 @@ function get_nedges_per_cell( self ) result (nedges_per_cell)
 
   implicit none
   class(global_mesh_type), intent(in) :: self
-  integer                             :: nedges_per_cell
+  integer(i_def)                      :: nedges_per_cell
 
   nedges_per_cell = self%nedges_per_cell
 
@@ -572,7 +571,7 @@ subroutine get_cell_next (self, cell_gid, cell_next)
   implicit none
   class (global_mesh_type), intent(in)  :: self
   integer (i_def),          intent(in)  :: cell_gid
-  integer(i_def),           intent(out) :: cell_next(:)
+  integer (i_def),          intent(out) :: cell_next(:)
 
   cell_next(:) = self%cell_next_2d(:,cell_gid)
 
@@ -585,7 +584,7 @@ subroutine get_vert_coords (self, vert_gid, vert_coords)
 
   implicit none
   class (global_mesh_type), intent(in)  :: self
-  integer,                  intent(in)  :: vert_gid
+  integer(i_def),           intent(in)  :: vert_gid
   real(r_def),              intent(out) :: vert_coords(:)
 
   vert_coords(1:2) = self%vert_coords(1:2,vert_gid)
@@ -655,7 +654,7 @@ function global_mesh_constructor_unit_test_data() result (self)
   ! Vertices: Bottom Left (south-west)
   ! Edges:    Left        (west)
   ! Faces:    Left        (west)
-  self%ncells      = 9
+  self%ncells = 9
 
   self%nverts_per_cell = 4
   self%nedges_per_cell = 4
@@ -762,8 +761,12 @@ function global_mesh_constructor_unit_test_data() result (self)
   self%cell_on_edge_2d(:,24) = [9, 0]
 
   self%vert_cell_owner(:) = [1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 7, 8, 9, 9]
-  self%edge_cell_owner(:) = [1, 2, 3, 1, 2, 3, 3, 4, 5, 6, 4, 5, 6, 6, &
+  self%edge_cell_owner(:) = [1, 2, 3, 1, 2, 3, 3, 4, 5, 6, 4, 5, 6, 6,         &
                              7, 8, 9, 7, 8, 9, 9, 7, 8, 9]
+
+  ! Initialise values in this objects global mesh maps collection
+  self%global_mesh_maps = global_mesh_map_collection_type                      &
+                                                 ( self%get_id(), self%ncells )
 
 end function global_mesh_constructor_unit_test_data
 
@@ -788,8 +791,6 @@ subroutine clear(self)
   if (allocated(self%vert_cell_owner))   deallocate( self%vert_cell_owner )
   if (allocated(self%edge_cell_owner))   deallocate( self%edge_cell_owner )
 
-  call self%global_mesh_maps%clear()
-  
   return
 end subroutine clear
 

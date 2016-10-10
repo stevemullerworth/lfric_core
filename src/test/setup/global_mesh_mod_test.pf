@@ -70,14 +70,14 @@ contains
   type(global_mesh_map_collection_type), pointer ::                            &
                                          global_mesh_map_collection => null()
 
-  integer :: cell_id
-  integer :: verts(4)
-  integer :: edges(4)
-  integer :: cells(4)
-  integer :: ncells
-  integer :: ncells_x
-  integer :: ncells_y
-  integer :: max_cells_on_vert
+  integer(i_def) :: cell_id
+  integer(i_def) :: verts(4)
+  integer(i_def) :: edges(4)
+  integer(i_def) :: cells(4)
+  integer(i_def) :: ncells
+  integer(i_def) :: ncells_x
+  integer(i_def) :: ncells_y
+  integer(i_def) :: max_cells_on_vert
   integer(i_def) :: cell_owner
 
   real(r_def) :: dx

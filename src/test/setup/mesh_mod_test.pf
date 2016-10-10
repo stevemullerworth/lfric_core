@@ -71,7 +71,7 @@ contains
 
     class( mesh_test_type ), intent( inout ) :: this
 
-    integer(i_def) :: test_global_mesh_id
+    integer(i_def) :: global_mesh_id
 
     call feign_base_mesh_config( 'foo',                             &
                                  base_mesh_geometry_spherical,      &
@@ -84,10 +84,10 @@ contains
     call reference_cube()
 
     global_mesh_collection = global_mesh_collection_type()
+    global_mesh_id = global_mesh_collection%add_unit_test_global_mesh()
 
-    test_global_mesh_id =  global_mesh_collection%add_unit_test_global_mesh()
-    this%global_mesh    => global_mesh_collection%get_global_mesh( test_global_mesh_id )
-    this%partition      =  partition_type()
+    this%global_mesh => global_mesh_collection%get_global_mesh(global_mesh_id)
+    this%partition   =  partition_type()
 
   end subroutine setUp
 

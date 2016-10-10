@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-----------------------------------------------------------------------------
 
@@ -9,17 +9,23 @@
 !>
 module global_mesh_collection_mod_test
 
-  use constants_mod,              only: i_def, str_max_filename
-  use global_mesh_mod,            only: global_mesh_type
-  use global_mesh_collection_mod, only: global_mesh_collection_type            &
-                                      , global_mesh_collection
+  use constants_mod,                  only: i_def, str_max_filename, imdi
+  use global_mesh_mod,                only: global_mesh_type
+  use global_mesh_map_mod,            only: global_mesh_map_type
+  use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
+  use global_mesh_collection_mod,     only: global_mesh_collection_type        &
+                                          , global_mesh_collection
+
 
   use pFUnit_Mod
 
   implicit none
-  
+
   private
-  public :: test_all
+  public :: test_cubesphere                         &
+          , test_biperiodic                         &
+          , test_initial_global_mesh_map_collection &
+          , test_multigrid
 
   @TestCase
   type, extends(TestCase), public :: global_mesh_collection_test_type
@@ -29,16 +35,26 @@ module global_mesh_collection_mod_test
     type(global_mesh_type) :: TestGlobalMesh
 
   contains
-    procedure setUp
-    procedure tearDown
-    procedure test_all
+    procedure :: setUp
+    procedure :: tearDown
+    procedure :: test_cubesphere                         
+    procedure :: test_biperiodic 
+    procedure :: test_initial_global_mesh_map_collection 
+    procedure :: test_multigrid
+
   end type global_mesh_collection_test_type
 
   character(str_max_filename), parameter ::                                    &
-      CubedSphereFile = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc' 
+      CubedSphereFile = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc'
   character(str_max_filename), parameter :: &
-      BiPeriodicFile  = 'data/ugrid_quads_2d_biperiodic_8x8.nc' 
+      BiPeriodicFile  = 'data/ugrid_quads_2d_biperiodic_8x8.nc'
 
+  character(str_max_filename), parameter ::                                    &
+      MultiGridFiles(4) =                                                      &
+                  [ 'data/CubedSphere96Cell.nc  '     &! 4x4   panel
+                  , 'data/CubedSphere384Cell.nc '     &! 8x8   panel
+                  , 'data/CubedSphere1536Cell.nc'     &! 16x16 panel
+                  , 'data/CubedSphere6144Cell.nc'     ]! 32x32 panel
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -61,49 +77,345 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
-  subroutine test_all( this )
+  subroutine test_cubesphere ( this )
 
     implicit none
 
     class(global_mesh_collection_test_type), intent(inout) :: this
 
-    type(global_mesh_type), pointer :: CubedSphere_mesh => null()
-    type(global_mesh_type), pointer :: BiPeriodic_mesh  => null()
-    type(global_mesh_type), pointer :: test_mesh        => null()
+    type(global_mesh_type), pointer   :: global_mesh => null()
+    type(global_mesh_collection_type) :: global_mesh_collection
 
-    type(global_mesh_type), pointer :: tmp_global_mesh  => null()
+    character(str_max_filename)       :: filename
 
-    integer (i_def) :: n_meshes
-    integer (i_def) :: test_global_mesh_id
-    integer (i_def) :: CubedSphere_mesh_id
-    integer (i_def) :: BiPeriodic_mesh_id
+    integer (i_def) :: global_mesh_id
+    integer (i_def) :: global_mesh_duplicate_id
+    integer (i_def) :: npanels
+    
+    npanels  = 6
+    filename = CubedSphereFile
 
     ! Create a mesh collection
     global_mesh_collection = global_mesh_collection_type()
 
-    ! Load in 3 global meshes, 
-    ! 1) Cubed-sphere
-    ! 2) Bi-periodic
-    ! 3) Global Test Mesh
+    global_mesh_id =  global_mesh_collection %                             &
+                        add_new_global_mesh( filename, npanels )
+    global_mesh    => global_mesh_collection %                             &
+                        get_global_mesh( global_mesh_id )
 
-    test_global_mesh_id = global_mesh_collection%add_unit_test_global_mesh()
+    ! Test that something is returned
+    @assertAssociated ( global_mesh )
 
-    CubedSphere_mesh_id = global_mesh_collection%add_new_global_mesh( CubedSphereFile )
-    BiPeriodic_mesh_id  = global_mesh_collection%add_new_global_mesh( BiPeriodicFile  )
+    ! Test that it has the right id
+    @assertTrue ( global_mesh%get_id() == global_mesh_id )
 
-    test_mesh        => global_mesh_collection%get_global_mesh( test_global_mesh_id )
-    CubedSphere_mesh => global_mesh_collection%get_global_mesh( CubedSphere_mesh_id )
-    BiPeriodic_mesh  => global_mesh_collection%get_global_mesh( BiPeriodic_mesh_id  )
+    call global_mesh_collection%clear()
 
+  end subroutine test_cubesphere
+
+
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_biperiodic ( this )
+
+    implicit none
+
+    class(global_mesh_collection_test_type), intent(inout) :: this
+
+    type(global_mesh_type), pointer   :: global_mesh => null()
+    type(global_mesh_collection_type) :: global_mesh_collection
+
+    character(str_max_filename)       :: filename
+
+    integer (i_def) :: global_mesh_id
+    integer (i_def) :: global_mesh_duplicate_id
+    integer (i_def) :: npanels
+    
+    npanels  = 1
+    filename = BiPeriodicFile
+
+    ! Create a mesh collection
+    global_mesh_collection = global_mesh_collection_type()
+
+    global_mesh_id =  global_mesh_collection %                             &
+                        add_new_global_mesh( filename, npanels )
+    global_mesh    => global_mesh_collection %                             &
+                        get_global_mesh( global_mesh_id )
+
+    ! Test that something is returned
+    @assertAssociated ( global_mesh )
+
+    ! Test that it has the right id
+    @assertTrue ( global_mesh%get_id() == global_mesh_id )
+
+    call global_mesh_collection%clear()
+
+  end subroutine test_biperiodic
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_initial_global_mesh_map_collection ( this )
+
+    implicit none
+
+    class(global_mesh_collection_test_type), intent(inout) :: this
+
+    type(global_mesh_collection_type) :: global_mesh_collection
+    type(global_mesh_type), pointer   :: global_mesh => null()
+    type(global_mesh_map_collection_type), pointer                             &
+                                      :: global_mesh_map_collection => null()
+
+    integer (i_def) :: global_mesh_id
+    integer (i_def) :: global_mesh_duplicate_id
+    integer (i_def) :: npanels
+    
+    ! Create a mesh collection
+    global_mesh_collection = global_mesh_collection_type()
+
+    ! Add the Unit Test Global Mesh
+    global_mesh_id =  global_mesh_collection % add_unit_test_global_mesh()
+    global_mesh    => global_mesh_collection % get_global_mesh( global_mesh_id )
+
+    ! Test that something is returned
+    @assertAssociated ( global_mesh )
+
+    ! Test that it has the right id
+    @assertTrue ( global_mesh%get_id() == global_mesh_id )
+
+    ! Get the global_mesh_map_collection
+    global_mesh_map_collection => global_mesh%get_global_mesh_maps()
+
+    ! Test the global mesh map collection
+    @assertAssociated ( global_mesh_map_collection )
+    @assertTrue ( global_mesh_map_collection%get_source_id()     == global_mesh_id )
+    @assertTrue ( global_mesh_map_collection%get_source_ncells() == global_mesh%get_ncells() )
+
+    call global_mesh_collection%clear()
+    call global_mesh_map_collection%clear()
+
+  end subroutine test_initial_global_mesh_map_collection
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_multigrid ( this )
+
+    class(global_mesh_collection_test_type), intent(inout) :: this
+
+    type(global_mesh_type), pointer :: global_mesh => null()
+    type(global_mesh_type), pointer :: MultiGrid1  => null()
+    type(global_mesh_type), pointer :: MultiGrid2  => null()
+    type(global_mesh_type), pointer :: MultiGrid3  => null()
+    type(global_mesh_type), pointer :: MultiGrid4  => null()
+
+
+    type(global_mesh_type), pointer :: tmp_global_mesh  => null()
+    type(global_mesh_map_collection_type), pointer :: &
+                                       global_mesh_map_collection => null()
+
+    type(global_mesh_map_type), pointer :: &
+                                       global_mesh_map => null()
+
+    type(global_mesh_collection_type) :: global_mesh_collection
+
+    integer (i_def) :: MultiGrid_id(4)
+
+
+    integer (i_def) :: tmp_int, i
+    integer (i_def) :: npanels
+    
+
+
+    integer(i_def), allocatable :: tmp_gid_map(:,:)
+
+    ! Create a mesh collection
+    global_mesh_collection = global_mesh_collection_type()
+
+    npanels = 6
+
+    do i=1, 4
+      MultiGrid_id(i) = global_mesh_collection %                               &
+                          add_new_global_mesh( MultiGridFiles(i), npanels )
+
+    end do
+
+    MultiGrid1 => global_mesh_collection%get_global_mesh( MultiGrid_id(1) )
+    MultiGrid2 => global_mesh_collection%get_global_mesh( MultiGrid_id(2) )
+    MultiGrid3 => global_mesh_collection%get_global_mesh( MultiGrid_id(3) )
+    MultiGrid4 => global_mesh_collection%get_global_mesh( MultiGrid_id(4) )
 
     ! Test ids are different
-    @assertTrue ( test_global_mesh_id /= CubedSphere_mesh_id )
-    @assertTrue ( BiPeriodic_mesh_id  /= CubedSphere_mesh_id )
-    @assertTrue ( BiPeriodic_mesh_id  /= test_global_mesh_id )
+    @assertTrue ( MultiGrid_id(1) /= MultiGrid_id(2) )
+    @assertTrue ( MultiGrid_id(2) /= MultiGrid_id(3) )
+    @assertTrue ( MultiGrid_id(3) /= MultiGrid_id(4) )
+
+    !===========================================================================
+    ! Test the number of maps assigned to each global mesh
+    ! Multigrid1  mesh should have 1 maps
+    ! Multigrid2  mesh should have 2 maps
+    ! Multigrid3  mesh should have 2 maps
+    ! Multigrid4  mesh should have 1 maps
+    !===========================================================================
+    ! MultiGrid 1
+    global_mesh                => global_mesh_collection %                     &
+                                    get_global_mesh(MultiGrid_id(1))
+    global_mesh_map_collection => global_mesh %                                &
+                                    get_global_mesh_maps()
+    global_mesh_map            => global_mesh_map_collection %                 &
+                                    get_global_mesh_map(MultiGrid_id(2))
+    @assertAssociated( global_mesh_map )
+
+
+    ! MultiGrid 2
+    global_mesh                => global_mesh_collection %                     &
+                                    get_global_mesh(MultiGrid_id(2))
+    global_mesh_map_collection => global_mesh %                                &
+                                    get_global_mesh_maps()
+
+    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(1))
+    @assertAssociated( global_mesh_map )
+    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+    @assertAssociated( global_mesh_map )
+
+    ! MultiGrid 3
+    global_mesh                => global_mesh_collection %                     &
+                                    get_global_mesh(MultiGrid_id(3))
+    global_mesh_map_collection => global_mesh %                                &
+                                    get_global_mesh_maps()
+
+    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(2))
+    @assertAssociated( global_mesh_map )
+    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(4))
+    @assertAssociated( global_mesh_map )
+
+    ! MultiGrid 4
+    global_mesh                => global_mesh_collection %                     &
+                                    get_global_mesh(MultiGrid_id(4))
+    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
+    global_mesh_map => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+    @assertAssociated( global_mesh_map )
+
+
+    ! Check the maps
+    !==============================================================================
+    ! 96 cell --> 384 cell
+    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(1))
+    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
+    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(2))
+
+    tmp_int = global_mesh_map % get_source_id()
+    @assertEqual( tmp_int, MultiGrid_id(1) )
+
+    tmp_int = global_mesh_map % get_target_id()
+    @assertEqual( tmp_int, MultiGrid_id(2) )
+
+    tmp_int = global_mesh_map % get_nsource_cells()
+    @assertEqual( 96, tmp_int )
+
+    tmp_int = global_mesh_map % get_ntarget_cells_per_source_cell()
+    @assertEqual( 4, tmp_int )
+
+
+    ! Check gid map
+    allocate(tmp_gid_map(4,1))
+
+    call global_mesh_map % get_cell_map([1], tmp_gid_map )  ! On panel 1
+    @assertEqual( [1,2,9,10], tmp_gid_map(:,1) )
+
+    call global_mesh_map % get_cell_map([16], tmp_gid_map ) ! On panel 1
+    @assertEqual( [55,56,63,64], tmp_gid_map(:,1)  )
+
+    call global_mesh_map % get_cell_map([40], tmp_gid_map ) ! On panel 3
+    @assertEqual( [151,152,159,160], tmp_gid_map(:,1)  )
+
+    call global_mesh_map % get_cell_map([70], tmp_gid_map ) ! On panel 5
+    @assertEqual( [275,276,283,284], tmp_gid_map(:,1)  )
+
+    deallocate(tmp_gid_map)
+
+    ! 384 cell --> 96 cell
+    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
+    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
+    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(1))
+
+    tmp_int = global_mesh_map%get_source_id()
+    @assertEqual( tmp_int, MultiGrid_id(2) )
+
+    tmp_int = global_mesh_map%get_target_id()
+    @assertEqual( tmp_int, MultiGrid_id(1) )
+
+    tmp_int = global_mesh_map%get_nsource_cells()
+    @assertEqual( 384, tmp_int )
+
+    tmp_int = global_mesh_map%get_ntarget_cells_per_source_cell()
+    @assertEqual( 1, tmp_int )
+
+
+    ! Check gid map
+    allocate(tmp_gid_map(1,1))
+
+    call global_mesh_map%get_cell_map([1], tmp_gid_map )  ! On panel 1
+    @assertEqual( [1], tmp_gid_map(:,1) )
+
+    call global_mesh_map%get_cell_map([55], tmp_gid_map ) ! On panel 1
+    @assertEqual( [16], tmp_gid_map(:,1)  )
+
+    call global_mesh_map%get_cell_map([160], tmp_gid_map ) ! On panel 3
+    @assertEqual( [40], tmp_gid_map(:,1)  )
+
+    call global_mesh_map%get_cell_map([283], tmp_gid_map ) ! On panel 5
+    @assertEqual( [70], tmp_gid_map(:,1)  )
+
+    deallocate(tmp_gid_map)
+
+
+
+    ! 384 cell --> 1536 cell
+    global_mesh                => global_mesh_collection % get_global_mesh(MultiGrid_id(2))
+    global_mesh_map_collection => global_mesh % get_global_mesh_maps()
+    global_mesh_map            => global_mesh_map_collection % get_global_mesh_map(MultiGrid_id(3))
+
+    tmp_int = global_mesh_map%get_source_id()
+    @assertEqual( tmp_int, MultiGrid_id(2) )
+
+    tmp_int = global_mesh_map%get_target_id()
+    @assertEqual( tmp_int, MultiGrid_id(3) )
+
+    tmp_int = global_mesh_map%get_nsource_cells()
+    @assertEqual( 384, tmp_int )
+
+    tmp_int = global_mesh_map%get_ntarget_cells_per_source_cell()
+    @assertEqual( 4,  tmp_int )
+
+
+    ! Check gid map
+    allocate(tmp_gid_map(4,1))
+
+    call global_mesh_map%get_cell_map([1], tmp_gid_map )    ! On panel 1
+    @assertEqual( [1,2,17,18], tmp_gid_map(:,1) )
+
+    call global_mesh_map%get_cell_map([120], tmp_gid_map )  ! On panel 2
+    @assertEqual( [463,464,479,480], tmp_gid_map(:,1)  )
+
+    call global_mesh_map%get_cell_map([170], tmp_gid_map )  ! On panel 3
+    @assertEqual( [675,676,691,692], tmp_gid_map(:,1)  )
+
+    call global_mesh_map%get_cell_map([287], tmp_gid_map )  ! On panel 5
+    @assertEqual( [1133,1134,1149,1150], tmp_gid_map(:,1)  )
+
+    deallocate(tmp_gid_map)
+
 
     ! Destroy global_mesh_collection
     call global_mesh_collection%clear()
- 
-  end subroutine test_all
+    call global_mesh_map_collection%clear()
+    call global_mesh_map%clear()
+
+  end subroutine test_multigrid
+
+
 
 end module global_mesh_collection_mod_test

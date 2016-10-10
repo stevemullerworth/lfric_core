@@ -31,34 +31,27 @@ module init_gungho_mod
 
   contains
 
-  subroutine init_gungho(mesh_id, local_rank, total_ranks,             &
+  subroutine init_gungho(mesh_id, local_rank, total_ranks,                     &
                          function_space_collection)
 
-    integer(i_def), intent(inout)                        :: mesh_id
+    integer(i_def), intent(out)   :: mesh_id
+    integer(i_def), intent(in)    :: total_ranks
+    integer(i_def), intent(in)    :: local_rank
 
-    type(function_space_collection_type), intent(inout)  :: function_space_collection
-    integer(i_def), intent(in)                           :: total_ranks
-    integer(i_def), intent(in)                           :: local_rank
+    type(function_space_collection_type)                                       &
+                  , intent(inout) :: function_space_collection
 
     ! Create top level collections
-    global_mesh_collection = global_mesh_collection_type()
-    mesh_collection        = mesh_collection_type()
-
-
+    global_mesh_collection    = global_mesh_collection_type()
+    mesh_collection           = mesh_collection_type()
+    function_space_collection = function_space_collection_type()
     ! Set up mesh
     call set_up(local_rank, total_ranks, mesh_id)
 
     write(log_scratch_space,'(A,I0)') "Gungho:Partition mesh, id=", mesh_id
     call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
-    ! Create top level function space collection
-
-    function_space_collection = function_space_collection_type()
-
     call log_event( 'Gungho initialised', LOG_LEVEL_INFO )
-
- 
-
 
   end subroutine init_gungho
 
