@@ -45,6 +45,7 @@ module init_prognostic_fields_alg_mod
   use field_mod,                       only: field_type
   use quadrature_mod,                  only: quadrature_type, GAUSSIAN
   use operator_mod,                    only: operator_type
+  use evaluator_xyz_mod,               only: evaluator_xyz_type
 
   ! Handles
   use fs_continuity_mod,               only: W0, W1, W2, W3, Wtheta
@@ -69,22 +70,23 @@ contains
     implicit none
 
     ! Mesh id
-    integer(i_def),  intent(in) :: mesh_id
+    integer(i_def),  intent(in)         :: mesh_id
     ! Coordinate fields
     type( field_type ), intent( inout ) :: chi(3)
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, xi
     ! Control
-    type( restart_type ), intent(in) :: restart
+    type( restart_type ), intent(in)    :: restart
 
-    type( quadrature_type )            :: qr
-    type( field_type ), allocatable    :: state(:)
-    type( field_type )                 :: r_u
-    type( operator_type )              :: mm_w2, mm_wtheta
-    type(function_space_type), pointer :: w2_fs, wtheta_fs    => null()
+    type( quadrature_type )             :: qr
+    type( field_type ), allocatable     :: state(:)
+    type( field_type )                  :: r_u
+    type( operator_type )               :: mm_w2, mm_wtheta
+    type(function_space_type), pointer  :: w2_fs, wtheta_fs    => null()
 
+    integer                             :: n_fields
+    type(evaluator_xyz_type)            :: evaluator
 
-    integer :: n_fields
 
     qr = quadrature_type( element_order + 3, GAUSSIAN )
 
@@ -97,8 +99,9 @@ contains
       ! Initialise Xi
       call invoke_set_field_scalar(0.0_r_def, xi) 
       ! Initialise theta
-      call invoke_initial_theta_kernel( theta, chi )
-
+      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, theta%which_function_space() )
+      evaluator = evaluator_xyz_type( wtheta_fs%get_ndf( ), wtheta_fs%get_nodes( ))
+      call invoke_initial_theta_kernel( theta, chi, evaluator )
 
       ! Initialise U and Rho according to formulation
       if (  nonlinear .OR. transport_only ) then
@@ -110,6 +113,7 @@ contains
         w2_fs    => function_space_collection%get_fs(mesh_id, &
                                                      element_order, &
                                                      W2)
+
         mm_w2 = operator_type( w2_fs, w2_fs )
         call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi, qr) )
         call solver_algorithm(u, r_u, mesh_id, chi, method, mm=mm_w2)

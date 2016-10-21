@@ -33,15 +33,7 @@ class function_space_mod::function_space_type {
 
     +clear()
     +compute_basis_function( <<out>>basis: real[::::], <<in>>ndf: integer, <<in>>qp_h: integer, <<in>>qp_v: integer, <<in>>x_qp: real[::], <<in>>z_qp[] )
-    +compute_basis_function_3d_xoyoz( <<out>>basis: real[:::::], <<in>>ndf: integer, <<in>>nqp_x: integer, <<in>>nqp_y: integer, <<in>>nqp_z: integer, <<in>>xqp_x: real[], <<in>>xqp_y[], <<in>>xqp_z: real[] )
-    +compute_basis_function_3d_xyoz( <<out>>basis: real[::::], <<in>>ndf: integer, <<in>>nqp_xy: integer, <<in>>nqp_z: integer, <<in>>xqp_xy: real[::], <<in>>xqp_z: real[] )
-    +compute_basis_function_3d_xyz( <<out>>basis: real[:::], <<in>>ndf: integer, <<in>>nqp_xyz: integer, <<in>>xqp_xyz: real[:::] )
     +compute_diff_basis_function( <<out>>dbasis: real[::::], <<in>>ndf: integer, <<in>>qp_h: integer, <<in>>qp_v: integer, <<in>>x_qp::real[::], <<in>>z_qp: real[] )
-    +compute_diff_basis_function_3d_xoyoz( <<out>>dbasis: real[:::::], <<in>>ndf: integer, <<in>>nqp_x: integer, <<in>>nqp_y: integer, <<in>>nqp_z: integer, <<in>>xqp_x::real[], <<in>>xqp_y: real[], <<in>>xqp_z: real[] )
-    +compute_diff_basis_function_3d_xyoz( <<out>>dbasis: real[::::], <<in>>ndf: integer, <<in>>nqp_xy: integer, <<in>>nqp_z: integer, <<in>>xqp_xy::real[::], <<in>>xqp_z: real[] )
-    +compute_diff_basis_function_3d_xyz( <<out>>dbasis: <<in>>real[:::], <<in>>ndf: integer, <<in>>nqp_xyz: integer, <<in>>xqp_xyz::real[::] )
-    +compute_nodal_basis_function( <<out>>basis: real[:::], <<in>>ndf: integer, <<in>>n_node: integer, <<in>>x_node::real[::] )
-    +compute_nodal_diff_basis_function( <<out>>dbasis: real[:::], <<in>>ndf: integer, <<in>>n_node: integer, <<in>>x_node: real[::] )
     +evaluate_function( <<in>> func_to_call: integer, <<in>> df: integer, <<in>> xi: real(:) ) : real[:]
     +evaluate_basis( <<in>>df: integer, <<in>>xi: real[3] ) : real[]
     +evaluate_diff_basis( <<in>>df: integer, <<in>>xi: real[3] ) : real[]

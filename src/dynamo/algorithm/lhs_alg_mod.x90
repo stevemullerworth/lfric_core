@@ -15,11 +15,13 @@ module lhs_alg_mod
                                                get_div, &
                                                get_mass_matrix
   use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
 
   implicit none
 
-  type(field_type),              private :: ones, w2_multiplicity, f_star, r_rho
-  type(field_type), allocatable, private :: lhs_tmp(:)
+  type(field_type),              private      :: ones, w2_multiplicity, f_star, r_rho
+  type(field_type), allocatable, private      :: lhs_tmp(:)
+  type(function_space_type), pointer, private :: u_fs => null()
 
   private
   public  :: lhs_alg
@@ -32,7 +34,6 @@ contains
   subroutine lhs_init(state)
     use field_bundle_mod,          only: clone_bundle
     use finite_element_config_mod, only: element_order
-    use function_space_mod,        only: function_space_type
     use psykal_lite_mod,           only: invoke_set_field_scalar
     use mesh_mod,                  only: mesh_type
     use multiplicity_kernel_mod,   only: multiplicity_kernel_type
@@ -42,7 +43,7 @@ contains
 
     type(field_type), intent(in) :: state(si_bundle_size)
 
-    type(function_space_type), pointer :: rho_fs, u_fs => null()
+    type(function_space_type), pointer :: rho_fs => null()
     integer(i_def),                    :: mesh_id
     integer                            :: fs_handle
 
@@ -126,6 +127,7 @@ contains
   use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
   use operator_mod,                      only: operator_type
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
+  use evaluator_xyz_mod,                 only: evaluator_xyz_type
   use rrho_kernel_mod,                   only: rrho_kernel_type
   use w3_solver_kernel_mod,              only: w3_solver_kernel_type
   use derived_config_mod,                only: si_bundle_size, bundle_size
@@ -145,6 +147,7 @@ contains
   type(operator_type), pointer :: mm_w2, mm_w0, mm_w3_inv, mm_wtheta => null()
   type(operator_type), pointer :: div => null()
   type(field_type),    pointer :: u ,theta, rho, exner, theta_ref, rho_ref => null()
+  type(evaluator_xyz_type)     :: evaluator
 
   mm_w0        => get_mass_matrix(0)
   mm_w2        => get_mass_matrix(2)
@@ -194,6 +197,7 @@ contains
  
 
   qr = quadrature_type(element_order+1, GAUSSIAN)
+  evaluator = evaluator_xyz_type( u_fs%get_ndf( ), u_fs%get_nodes( ) )
 
   ! Compute lhs_theta
   call invoke_set_field_scalar( 0.0_r_def, lhs_tmp(2) )
@@ -211,8 +215,7 @@ contains
   ! Compute lhs_rho
   ! Need to create u*rho^ref \in W2 for lhs_tmp(3) kernel -> sampled mass flux
   call invoke_set_field_scalar( 0.0_r_def, f_star )
-  call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho_ref )
-
+  call invoke_sample_flux_kernel( f_star, u, w2_multiplicity, rho_ref, evaluator )
   call invoke_set_field_scalar( 0.0_r_def, r_rho )
   call invoke( matrix_vector_kernel_type( r_rho, f_star, div) )
   call invoke_multiply_field(-1.0_r_def, r_rho, r_rho) 

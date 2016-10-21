@@ -7,12 +7,12 @@
 
 !>@brief compute the locally assembled SI operators
 module si_operators_alg_mod
-  use constants_mod,only: i_def, r_def
-  use operator_mod, only: operator_type
-  use field_mod,    only: field_type
-  use log_mod,      only: log_event, &
-                          LOG_LEVEL_INFO, &
-                          LOG_LEVEL_ERROR
+  use constants_mod,     only: i_def, r_def
+  use operator_mod,      only: operator_type
+  use field_mod,         only: field_type
+  use log_mod,           only: log_event, &
+                               LOG_LEVEL_INFO, &
+                               LOG_LEVEL_ERROR
   use solver_config_mod, only: preconditioner, &
                                solver_preconditioner_tridiagonal, &
                                normalise
@@ -100,6 +100,7 @@ end subroutine create_si_operators
 !> Subroutine to compute the si operators
 subroutine compute_si_operators(ref_state)
   use quadrature_mod,                  only: quadrature_type, GAUSSIAN
+  use evaluator_xyz_mod,               only: evaluator_xyz_type
   use weighted_m3_rho_kernel_mod,      only: weighted_m3_rho_kernel_type
   use weighted_m3_exner_kernel_mod,    only: weighted_m3_exner_kernel_type
   use weighted_div_kernel_mod,         only: weighted_div_kernel_type
@@ -130,7 +131,10 @@ subroutine compute_si_operators(ref_state)
   integer(i_def)                       :: mesh
   integer(i_def)                       :: fs_handle
   type(field_type)                     :: ones, w2_multiplicity
-  type(function_space_type),   pointer :: u_fs, theta_fs => null()
+  type(function_space_type),   pointer :: u_fs, theta_fs, rho_fs => null()
+  type(evaluator_xyz_type)             :: evaluator
+
+
 
   qr = quadrature_type(element_order+3, GAUSSIAN)
   theta  => ref_state(2)
@@ -158,7 +162,9 @@ subroutine compute_si_operators(ref_state)
   call invoke ( multiplicity_kernel_type( w2_multiplicity ) )
   call invoke_set_field_scalar( 1.0_r_def, ones )
   call invoke_set_field_scalar( 0.0_r_def, rho_at_u )
-  call invoke_sample_flux_kernel( rho_at_u, ones, w2_multiplicity, rho )
+
+  evaluator = evaluator_xyz_type( u_fs%get_ndf( ), u_fs%get_nodes( ) )
+  call invoke_sample_flux_kernel( rho_at_u, ones, w2_multiplicity, rho, evaluator )
 
   m0 => get_mass_matrix(0)
   fs_handle = ref_state(2)%which_function_space()
@@ -170,7 +176,10 @@ subroutine compute_si_operators(ref_state)
 
   ! compute terms for tridiagonal preconditioner
   if ( preconditioner == solver_preconditioner_tridiagonal ) then
-    call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi)
+    fs_handle = ref_state(3)%which_function_space()
+    rho_fs => function_space_collection%get_fs(mesh, element_order, fs_handle)
+    evaluator = evaluator_xyz_type( rho_fs%get_ndf( ), rho_fs%get_nodes( ) )
+    call invoke_compute_tri_precon_kernel(tri_precon, theta, rho, chi, evaluator)
   end if
   if ( normalise ) then
     if ( preconditioner == solver_preconditioner_tridiagonal) then

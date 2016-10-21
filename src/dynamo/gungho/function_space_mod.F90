@@ -223,17 +223,6 @@ contains
   !! functions
   procedure, public :: compute_basis_function
 
-  !> Subroutine to evaluate the basis function at a set of nodes
-  !> @param[out] basis real 3 dimensional array holding the evaluated basis 
-  !! functions
-  !> @param[in] ndf integer number of dofs
-  !> @param[in] n_node integer number of nodal points
-  !> @param[in] x_node real three dimensional array holding the nodal
-  !>            coordinates
-  !>@deprecated has been moved to the new evaluater_type and once that is
-  !supported, this can be removed (ticket #723)
-  procedure, public :: compute_nodal_basis_function
-
   !> @brief Evaluates the differential basis function for a given quadrature
   !>@deprecated has been moved to the new evaluater_type and once that is
   !supported, this can be removed
@@ -245,17 +234,6 @@ contains
   !> @param[out] dbasis real 3 dimensional array holding the evaluated basis 
   !> functions
   procedure, public :: compute_diff_basis_function
-
-  !> Subroutine to evaluate the differential basis function at a set of nodes
-  !> @param[out] dbasis real 3 dimensional array holding the evaluated
-  !!             differential basis functions
-  !> @param[in] ndf integer number of dofs
-  !> @param[in] n_node integer number of nodal points
-  !> @param[in] x_node real three dimensional array holding the nodal
-  !>            coordinates
-  !>@deprecated has been moved to the new evaluater_type and once that is
-  !supported, this can be removed (#723)
-  procedure, public :: compute_nodal_diff_basis_function
 
   !> @brief Gets the size of the space 
   !!(1 is scalar 3 is vector). Returns dim
@@ -828,32 +806,6 @@ subroutine compute_basis_function(self, basis, ndf, qp_h, qp_v, x_qp, z_qp)
 end subroutine compute_basis_function
 
 !-----------------------------------------------------------------------------
-! Evaluates the basis function for a given set of nodal points
-!-----------------------------------------------------------------------------
-subroutine compute_nodal_basis_function(self, basis, ndf, n_node, x_node)
-
-  implicit none
-  class(function_space_type), intent(in)  :: self
-
-  integer(i_def), intent(in) :: ndf
-  integer(i_def), intent(in) :: n_node
-
-  real(r_def), dimension(3,n_node),                  intent(in)  :: x_node
-  real(r_def), dimension(self%dim_space,ndf,n_node), intent(out) :: basis
-
-  ! local variables - loop counters
-  integer(i_def) :: df
-  integer(i_def) :: qp
-
-  do qp = 1, n_node
-    do df = 1, ndf
-      basis(:,df,qp) = self%evaluate_basis(df,x_node(:,qp))
-    end do
-  end do
-
-end subroutine compute_nodal_basis_function
-
-!-----------------------------------------------------------------------------
 ! Evaluates the differential basis function for a given quadrature
 !-----------------------------------------------------------------------------
 subroutine compute_diff_basis_function(self,                                & 
@@ -896,30 +848,6 @@ subroutine compute_diff_basis_function(self,                                &
   end do
 
 end subroutine compute_diff_basis_function
-
-!-----------------------------------------------------------------------------
-! Evaluates the diff basis function for a given set of nodal points
-!-----------------------------------------------------------------------------
-subroutine compute_nodal_diff_basis_function(self, &
-     dbasis, ndf, n_node, x_node)
-  implicit none
-  class(function_space_type), intent(in)  :: self
-  integer,                                                intent(in)  :: ndf
-  integer,                                                intent(in)  :: n_node
-  real(kind=r_def), dimension(3,n_node),                  intent(in)  :: x_node
-  real(kind=r_def), dimension(self%dim_space_diff,ndf,n_node), intent(out) :: dbasis
-
-  ! local variables - loop counters
-  integer :: df
-  integer :: qp
-
-  do qp = 1, n_node
-    do df = 1, ndf
-      dbasis(:,df,qp) = self%evaluate_diff_basis(df,x_node(:,qp))
-    end do
-  end do
-  
-end subroutine compute_nodal_diff_basis_function
 
 !-----------------------------------------------------------------------------
 ! Gets order for this space

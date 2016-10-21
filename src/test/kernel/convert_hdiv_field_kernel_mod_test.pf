@@ -16,6 +16,7 @@ module convert_hdiv_field_kernel_mod_test
                                             field_proxy_type
   use fs_continuity_mod,             only : W0, W2
   use function_space_mod,            only : function_space_type
+  use evaluator_xyz_mod,             only : evaluator_xyz_type
   use pFUnit_Mod
 
   implicit none
@@ -31,6 +32,7 @@ module convert_hdiv_field_kernel_mod_test
     type(field_type)                   :: chi(3)
     type(field_type)                   :: comp_field
     real(r_def), allocatable           :: diff_basis_chi(:,:,:), basis(:,:,:)
+    type(evaluator_xyz_type)           :: evaluator
   contains
     procedure setUp
     procedure tearDown
@@ -90,6 +92,8 @@ contains
     diff_dim_chi = chi_p(1)%vspace%get_dim_space_diff( )
     allocate( this%diff_basis_chi(diff_dim_chi, ndf_chi, ndf) )
 
+    this%evaluator = evaluator_xyz_type( this%w2_fs%get_ndf( ), this%w2_fs%get_nodes() )
+
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -113,6 +117,7 @@ contains
   subroutine test_all( this )
 
     use convert_hdiv_field_kernel_mod, only: convert_hdiv_field_code
+    use evaluate_function_mod,         only: BASIS, DIFF_BASIS
 
     implicit none
 
@@ -135,19 +140,19 @@ contains
 
     type(field_proxy_type) :: phys_p(3), comp_p
 
-    integer                 :: nlayers
-    integer                 :: ndf_chi, ndf
-    integer                 :: undf_chi, undf
-    integer                 :: element_order
-    integer, pointer        :: map_chi(:), map(:) => null()
-
-    real(kind=r_def), pointer :: nodes(:,:) => null()
-
+    integer                  :: nlayers
+    integer                  :: ndf_chi, ndf_comp
+    integer                  :: undf_chi, undf_comp
+    integer                  :: diff_dim_chi, dim_comp
+    integer                  :: element_order
+    integer, pointer         :: map_chi(:), map(:) => null()
+    type(evaluator_xyz_type) :: evaluator
 
     ! Insert Psykal_lite unpacking code here
     do i = 1,3
       chi_p(i) = this%chi(i)%get_proxy()
     end do
+    evaluator = this%evaluator
 
     ! Compute coordinates
     cell = 1
@@ -171,15 +176,16 @@ contains
 
     nlayers = comp_p%vspace%get_nlayers()
 
-    ndf  = comp_p%vspace%get_ndf( )
-    undf = comp_p%vspace%get_undf()
+    ndf_comp  = comp_p%vspace%get_ndf( )
+    undf_comp = comp_p%vspace%get_undf()
+    dim_comp  = comp_p%vspace%get_dim_space( )
 
     ndf_chi  = chi_p(1)%vspace%get_ndf( )
     undf_chi = chi_p(1)%vspace%get_undf()
+    diff_dim_chi = chi_p(1)%vspace%get_dim_space_diff( )
 
-    nodes => comp_p%vspace%get_nodes( )
-    call chi_p(1)%vspace%compute_nodal_diff_basis_function(this%diff_basis_chi, ndf_chi, ndf, nodes)
-    call comp_p%vspace%compute_nodal_basis_function(this%basis, ndf, ndf, nodes)
+    call evaluator%compute_evaluate( DIFF_BASIS, chi_p(1)%vspace, diff_dim_chi, ndf_chi, this%diff_basis_chi)
+    call evaluator%compute_evaluate( BASIS, comp_p%vspace, dim_comp, ndf_comp, this%basis)
 
     cell = 5
     map     => comp_p%vspace%get_cell_dofmap( cell )
@@ -200,7 +206,7 @@ contains
                                  chi_p(1)%data, &
                                  chi_p(2)%data, &
                                  chi_p(3)%data, &
-                                 ndf, undf, map, &
+                                 ndf_comp, undf_comp, map, &
                                  ndf_chi, undf_chi, map_chi, &
                                  this%basis, &
                                  this%diff_basis_chi &

@@ -30,7 +30,6 @@ module rhs_alg_mod
   use pressure_gradient_wtheta_kernel_mod, only: pressure_gradient_wtheta_kernel_type
   use psykal_lite_mod,                     only: invoke_axpy,               &
                                                  invoke_multiply_field,     &
-                                                 invoke_sample_flux_kernel, &
                                                  invoke_set_field_scalar,   &
                                                  invoke_copy_field_data,    &
                                                  invoke_ru_bd_kernel
@@ -39,6 +38,7 @@ module rhs_alg_mod
   use solver_config_mod,                   only: method
   use solver_mod,                          only: solver_algorithm
   use derived_config_mod,                  only: bundle_size
+
   implicit none
 
   private

@@ -17,6 +17,7 @@ module split_transport_alg_mod
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
+  use evaluator_xyz_mod,                 only: evaluator_xyz_type
   use psykal_lite_mod,                   only: invoke_set_field_scalar
   use log_mod,                           only: log_event,            &
                                                log_scratch_space,    &
@@ -74,31 +75,34 @@ contains
     type( field_type ) :: mass_flux_x, mass_flux_y
     type( field_type ) :: rho_n, rho_adv_x, rho_adv_y, rho_hat_adv_x, rho_hat_adv_y
 
-    type(function_space_type) :: fs
     type(function_space_type), pointer :: rho_fs   => null()
     type(function_space_type), pointer :: u_fs     => null()
+
+    type(evaluator_xyz_type)           :: evaluator
 
     rho_fs   => function_space_collection%get_fs( mesh_id, element_order, rho%which_function_space()   )
     u_fs   => function_space_collection%get_fs( mesh_id, element_order, u_n%which_function_space()   )
 
-    departure_wind_n    = field_type( vector_space = u_fs )
-    departure_wind_np1  = field_type( vector_space = u_fs )
-    dep_pts_x           = field_type( vector_space = u_fs )
-    dep_pts_y           = field_type( vector_space = u_fs )
-    mass_flux_x         = field_type( vector_space = u_fs )
-    mass_flux_y         = field_type( vector_space = u_fs )
+    departure_wind_n   = field_type( vector_space = u_fs )
+    departure_wind_np1 = field_type( vector_space = u_fs )
+    dep_pts_x          = field_type( vector_space = u_fs )
+    dep_pts_y          = field_type( vector_space = u_fs )
+    mass_flux_x        = field_type( vector_space = u_fs )
+    mass_flux_y        = field_type( vector_space = u_fs )
 
-    rho_n         = field_type( vector_space = rho_fs )
-    rho_adv_x     = field_type( vector_space = rho_fs )
-    rho_adv_y     = field_type( vector_space = rho_fs )
-    rho_hat_adv_x = field_type( vector_space = rho_fs )
-    rho_hat_adv_y = field_type( vector_space = rho_fs )
+    rho_n              = field_type( vector_space = rho_fs )
+    rho_adv_x          = field_type( vector_space = rho_fs )
+    rho_adv_y          = field_type( vector_space = rho_fs )
+    rho_hat_adv_x      = field_type( vector_space = rho_fs )
+    rho_hat_adv_y      = field_type( vector_space = rho_fs )
+
+    evaluator = evaluator_xyz_type( u_fs%get_ndf( ), u_fs%get_nodes( ) )
 
     call invoke_copy_field_data(rho,rho_n)
 
     ! Calculate the departure wind used to calculate the departure points
-    call invoke_calc_departure_wind(departure_wind_n,u_n,chi)
-    call invoke_calc_departure_wind(departure_wind_np1,u_np1,chi)
+    call invoke_calc_departure_wind(departure_wind_n,u_n,chi,evaluator)
+    call invoke_calc_departure_wind(departure_wind_np1,u_np1,chi,evaluator)
 
     ! Calculate the departure points for W2 nodal points at lowest order
     call invoke_set_field_scalar(0.0_r_def,dep_pts_x)

@@ -20,6 +20,7 @@ module sample_poly_flux_kernel_mod_test
   use pFUnit_Mod
   use quadrature_mod,                only : quadrature_type, GAUSSIAN
   use stencil_dofmap_mod,            only : stencil_dofmap_type, STENCIL_CROSS
+  use evaluator_xyz_mod,             only : evaluator_xyz_type
 
   implicit none
 
@@ -34,6 +35,7 @@ module sample_poly_flux_kernel_mod_test
     type(field_type)                   :: rho, u, flux 
     real(r_def), allocatable           :: basis_u(:,:,:)
     type(stencil_dofmap_type), pointer :: stencil => null()
+    type(evaluator_xyz_type)           :: evaluator
    
   contains
     procedure setUp
@@ -88,6 +90,8 @@ contains
 
     allocate( this%basis_u(dim_u, ndf_u, ndf_u) )
 
+    this%evaluator = evaluator_xyz_type( this%w2_fs%get_ndf( ), this%w2_fs%get_nodes() )
+
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -112,6 +116,7 @@ contains
 
     use sample_poly_flux_kernel_mod,     only : sample_poly_flux_code, &
                                                 sample_poly_flux_init
+    use evaluate_function_mod,           only : BASIS
 
     implicit none
 
@@ -131,27 +136,25 @@ contains
     integer, pointer :: stencil_map(:,:,:) => null(), &
                         map_u(:,:) => null() 
 
-    real(kind=r_def), pointer :: nodes(:,:) => null()
-    type(field_proxy_type) :: flux_p, rho_p, u_p
+    type(field_proxy_type)   :: flux_p, rho_p, u_p
+    type(evaluator_xyz_type) :: evaluator
 
 
     ! Test flux computation
 
-    flux_p = this%flux%get_proxy()
-    rho_p  = this%rho%get_proxy()
-    u_p    = this%u%get_proxy()
+    flux_p    = this%flux%get_proxy()
+    rho_p     = this%rho%get_proxy()
+    u_p       = this%u%get_proxy()
+    evaluator = this%evaluator
 
     ndf_u  = u_p%vspace%get_ndf( )
     undf_u = u_p%vspace%get_undf( )
+    dim_u  = u_p%vspace%get_dim_space( )
 
     ndf_rho  = rho_p%vspace%get_ndf( )
     undf_rho = rho_p%vspace%get_undf( )
 
-    nodes => u_p%vspace%get_nodes( )
-    call u_p%vspace%compute_nodal_basis_function( this%basis_u, &
-                                                  ndf_u,       &
-                                                  ndf_u,       &
-                                                  nodes )
+    call evaluator%compute_evaluate( BASIS, u_p%vspace, dim_u, ndf_u, this%basis_u)
 
     stencil_map => this%stencil%get_whole_dofmap()
     map_u => flux_p%vspace%get_whole_dofmap()
@@ -161,8 +164,6 @@ contains
     u_p%data(:) = 0.0_r_def
     rho_p%data(:) = 2.0_r_def
 
-!    u_p%data(map_u(1,cell)+0) = 2.0_r_def
-!    u_p%data(map_u(3,cell)+0) = 3.0_r_def
     rho_p%data(stencil_map(1,1,cell)) = 3.0_r_def
     rho_p%data(stencil_map(1,2,cell)) = 1.0_r_def
     rho_p%data(stencil_map(1,4,cell)) = 5.0_r_def

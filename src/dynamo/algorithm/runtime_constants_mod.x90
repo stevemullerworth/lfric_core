@@ -28,7 +28,7 @@ module runtime_constants_mod
   use mesh_mod,                          only: mesh_type
   use operator_mod,                      only: operator_type
   use quadrature_mod,                    only: quadrature_type, GAUSSIAN
-
+  use evaluator_xyz_mod,                 only: evaluator_xyz_type
 
   ! PsyKAl-lite kernels
   use psykal_lite_mod,                   only: invoke_set_field_scalar,  &
@@ -95,14 +95,13 @@ contains
 
     integer(i_def),           intent(in)            :: mesh_id
     type(field_type),         target, intent(inout) :: chi(3)
-
+    type(evaluator_xyz_type)                        :: evaluator
 
     type(function_space_type), pointer :: w0_fs     => null()
     type(function_space_type), pointer :: w1_fs     => null()
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
     type(function_space_type), pointer :: wtheta_fs => null()
-
 
     call log_event( "Dynamo: creating runtime_constants", LOG_LEVEL_INFO )
 
@@ -123,8 +122,8 @@ contains
     !=================== Create geopotential field ============================!
 
     geopotential = field_type( vector_space = w0_fs )
-
-    call invoke_compute_geopotential_kernel_type( geopotential, chi )
+    evaluator = evaluator_xyz_type( w0_fs%get_ndf( ), w0_fs%get_nodes( ) )
+    call invoke_compute_geopotential_kernel_type( geopotential, chi, evaluator )
 
     !=================== Create mass matrix operators =========================!
 
