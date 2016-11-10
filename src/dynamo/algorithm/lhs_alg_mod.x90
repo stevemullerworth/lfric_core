@@ -225,18 +225,18 @@ contains
   if(wtheta_on) then
     call invoke_rtheta_bd_kernel ( lhs_tmp(2), theta_ref, u, ones, qr )
     if ( operators == transport_operators_fv ) then
-      ! Use lumed mass matrix
+      ! Use lumped mass matrix
       call invoke( rtheta_wtheta_kernel_type( lhs_tmp(2), theta_ref, u, qr ) )
       call invoke_multiply_field_data( theta, mt_lumped, lhs(2) )
     else
       ! Use full mass matrix
-      call invoke( rtheta_wtheta_kernel_type( lhs_tmp(2), theta_ref, u, qr) )
+      call invoke( rtheta_wtheta_kernel_type( lhs_tmp(2), theta_ref, u, qr), &
+                   matrix_vector_kernel_type( lhs(2), theta, mm_wtheta ) )
     end if
   else
-    call invoke( rtheta_kernel_type( lhs_tmp(2), theta_ref, u, ones, qr) )
+    call invoke( rtheta_kernel_type( lhs_tmp(2), theta_ref, u, ones, qr), &
+                 matrix_vector_kernel_type( lhs(2), theta, mm_wtheta ) )
   end if
-  call invoke( matrix_vector_kernel_type( lhs(2), theta, mm_wtheta ) )
-
   call invoke_axpy( -tau_dt, lhs_tmp(2), lhs(2), lhs(2) ) 
 
   ! Compute lhs_rho
