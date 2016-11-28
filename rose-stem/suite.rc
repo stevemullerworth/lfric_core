@@ -41,34 +41,34 @@
 
 [cylc]
     UTC mode = True
-    [[event hooks]]
+    [[events]]
         mail events = timeout
         abort on timeout = True
 {%- if 'nightly' in groupsToRun %}
         abort on stalled = True
 {%- endif %}
-        timeout = 180 # 3 hours
+        timeout = PT3H
 
 {#- #########################################################################}
 {%- macro science( configuration, plotting=False ) %}
-{%-   set label = TARGET_SCIENCE_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
+{%-   set label =  TARGET_SCIENCE_COMPILER + '_fast-debug' %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
 {%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
-            compile_with_{{label}} => run_{{configuration|replace('-','foo')}}_{{label}}
+            compile_with_{{label}} => run_{{configuration}}_{{label}}
 {%-     if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS %}
-            run_{{configuration|replace('-','foo')}}_{{label}} => check_{{configuration|replace('-','foo')}}_{{label}}
+            run_{{configuration}}_{{label}} => check_{{configuration}}_{{label}}
 {%-     endif %}
 {%-   endif %}
 {%-   if plotting %}
-            run_{{configuration|replace('-','foo')}}_{{label}} => plot_{{configuration|replace('-','foo')}}_{{label}}
-            plot_{{configuration|replace('-','foo')}}_{{label}} => copy_results_{{configuration|replace('-','foo')}}_{{label}}
+            run_{{configuration}}_{{label}} => plot_{{configuration}}_{{label}}
+            plot_{{configuration}}_{{label}} => copy_results_{{configuration}}_{{label}}
 {%-   endif %}
 {%- endmacro %}
 {#- #########################################################################}
 {%- macro canned_test() %}
-{%-   set label = TARGET_SCIENCE_COMPILER | lower + '_' + 'fastfoodebug' %}
+{%-   set label = TARGET_SCIENCE_COMPILER | lower + '_' + 'fast-debug' %}
 {%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
@@ -78,7 +78,7 @@
 {%- endmacro %}
 {#- #########################################################################}
 {%- macro miniapp( appname ) %}
-{%-   set label = TARGET_SCIENCE_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
+{%-   set label = TARGET_SCIENCE_COMPILER|lower + '_fast-debug' %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
@@ -91,7 +91,7 @@
 {%- endmacro %}
 {#- #########################################################################}
 {%- macro cleanlines() %}
-{%-   set label =  TARGET_TECHNICAL_COMPILER | lower|replace('-','foo') + '_fastfoodebug' %}
+{%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
 {%-   if 'cleanliness' in TECHNICAL_DEVELOPER_TESTS %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
@@ -103,7 +103,7 @@
 {%- endmacro %}
 {#- Documentation, it's next to cleanlines ##################################}
 {%- macro godlines(publish=False) %}
-{%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fastfoodebug' %}
+{%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
 {%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
             purge_local => purge_target
             purge_target => export_for_{{label}}
@@ -123,7 +123,7 @@
 {#- #########################################################################}
 {%- macro check_compilers( build, publish=False ) %}
 {%-   for compiler in compiler_setup.keys() %}
-{%-     set label = compiler | lower + '_' + build | lower|replace('-','foo')%}
+{%-     set label = compiler | lower + '_' + build | lower%}
 {%-     set perform_run = TARGET_PERFORM_RUN %}
 {%-     if build == 'full-debug' and TARGET_PERFORM_DEBUG_RUN is defined %}
 {%-       set perform_run = TARGET_PERFORM_DEBUG_RUN %}
@@ -147,12 +147,12 @@
 {%-       if compiler in TARGET_PERFORM_FUNCTIONAL_TESTS %}
             compile_with_{{label}} => functional_test_with_{{label}}
 {%-       endif %}
-            compile_with_{{label}} => run_semifooimplicit_{{label}}
+            compile_with_{{label}} => run_semi-implicit_{{label}}
 {%-       if publish %}
-            run_semifooimplicit_{{label}}:finish => publish_{{label}}_semifooimplicit
+            run_semi-implicit_{{label}}:finish => publish_{{label}}_semi-implicit
 {%-       endif %}
 {%-       if compiler in TARGET_PERFORM_KGO_TESTS %}
-            run_semifooimplicit_{{label}} => check_semifooimplicit_{{label}}
+            run_semi-implicit_{{label}} => check_semi-implicit_{{label}}
 {%-       endif %}
 {%-     endif %}
 {%-   endfor %}
@@ -166,15 +166,18 @@
 {%-   endfor %}
 {%- endmacro %}
 [scheduling]
+    cycling mode        = integer
+    initial cycle point = 1
     [[queues]]
         [[[host_throttle]]]
             limit = {{ TARGET_THROTTLE }}
             members = root
     [[dependencies]]
-        graph = """
+        [[[R1]]]
+            graph = """
 {%- set scheduledTasks = schedule() | deduplicateSchedule() %}
 {{scheduledTasks}}
-                """
+                    """
 [runtime]
     [[root]]
         initial scripting = """
@@ -184,8 +187,8 @@
         script = "rose task-run"
         [[[events]]]
             mail events = retry, submission failed, submission timout, execution timeout
-            submission timeout = 720 # 12 hours
-            execution timeout  =  180 # 3 hours
+            submission timeout = PT12H
+            execution timeout  =  PT3H
         [[[environment]]]
             SOURCE_ROOT = $CYLC_SUITE_SHARE_DIR/source
             OUTPUT_ROOT = $CYLC_SUITE_SHARE_DIR/output
@@ -193,14 +196,14 @@
     [[ LOCAL ]]
         [[[remote]]]
             host = {{ ROSE_ORIG_HOST }}
-        [[[job submission]]]
-            method = background
+        [[[job]]]
+            batch system = background
 
     [[TARGET]]
         [[[remote]]]
             host = {{TARGET_HOST}}
-        [[[job submission]]]
-            method = {{TARGET_BATCHER}}
+        [[[job]]]
+            batch system = {{TARGET_BATCHER}}
 
 {%- macro ensureDestination() %}
                      mkdir -p $DESTINATION
@@ -243,9 +246,9 @@
 ##############################################################################
     [[TECHNICAL]]
         [[[environment]]]
-            DYNAMO_SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fastfoodebug
-            DYNAMO_DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fastfoodebug
-            DYNAMO_BUILD_ROOT            = {{TARGET_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fastfoodebug
+            DYNAMO_SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
+            DYNAMO_DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
+            DYNAMO_BUILD_ROOT            = {{TARGET_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
 
 {%- if 'check_for_unused_source' in scheduledTasks %}
     [[check_for_unused_source]]
@@ -326,7 +329,7 @@
 
 {%- for compiler in compiler_setup.keys() -%}
 {%-   for build in 'fast-debug', 'full-debug' %}
-{%-     set label = compiler | lower + '_' + build | lower|replace('-','foo') %}
+{%-     set label = compiler | lower + '_' + build | lower %}
 {%-     set family = label | upper %}
     [[{{family}}]]
         [[[environment]]]
@@ -412,7 +415,7 @@
 {%-     endif %}
 
 {%-     for configuration in science_configurations %}
-{%-       set configuration_label = configuration|lower|replace('-','foo') + '_' + label %}
+{%-       set configuration_label = configuration|lower + '_' + label %}
 {%-       if 'run_' + configuration_label in scheduledTasks %}
     [[run_{{configuration_label}}]]
         inherit = {{family}}, TARGET
@@ -470,8 +473,8 @@
         script = scp -pr {{TARGET_HOST}}:public_html/dynamo-{{TARGET_OPT}}/model_output ~/public_html/dynamo-{{TARGET_OPT}}
 {%- endif %}
 
-{%-       if 'publish_' + label + '_' +  configuration|lower|replace('-','foo') in scheduledTasks %}
-    [[publish_{{label}}_{{configuration|lower|replace('-','foo')}}]]
+{%-       if 'publish_' + label + '_' +  configuration|lower in scheduledTasks %}
+    [[publish_{{label}}_{{configuration|lower}}]]
         inherit = PUBLISH, {{family}}, LOCAL
         pre-script = """
 {{ensureDestination()}}
