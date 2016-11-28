@@ -35,10 +35,10 @@ OBJ_SUBDIRS = $(patsubst %,$(OBJ_DIR)/%,$(filter-out data,$(shell find . -type d
 
 DRIVER_OBJ=$(OBJ_DIR)/driver.o
 
-TEST_SOURCES = $(shell find -name "*.pf")
+TEST_SOURCES = $(shell find . -name "*.pf")
 TEST_OBJECTS = $(patsubst %.pf,$(OBJ_DIR)/%.o,$(TEST_SOURCES))
 
-SUPPORT_SOURCE  = $(shell find -name "*.[Ff]90")
+SUPPORT_SOURCE  = $(shell find . -name "*.[Ff]90")
 SUPPORT_OBJECTS = $(OBJ_DIR)/support/feign_config_mod.o \
                   $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(basename $(SUPPORT_SOURCE))))
 SUPPORT_MODINC  = $(patsubst %,-I%,$(dir $(SUPPORT_OBJECTS)))
