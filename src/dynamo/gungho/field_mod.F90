@@ -45,6 +45,9 @@ module field_mod
     type(ESMF_Array) :: esmf_array
     !> Flag that holds whether each depth of halo is clean or dirty (dirty=1)
     integer(kind=i_def), allocatable :: halo_dirty(:)
+    !> Flag that determines whether the copy constructor should copy the data.
+    !! false to start with, true thereafter.
+    logical(kind=l_def) :: extant = .false.
 
   contains
 
@@ -197,51 +200,10 @@ contains
     type(function_space_type), target, intent(in) :: vector_space
 
     type(field_type), target :: self
-
-    integer(i_def), allocatable :: global_dof_id(:)
-    integer(i_def) :: rc
-    integer(i_def) :: halo_start, halo_finish
-
-    type (mesh_type), pointer   :: mesh => null()
-
+    ! only associate the vspace pointer, copy constructor does the rest.
     self%vspace => vector_space
-
-    allocate(global_dof_id(self%vspace%get_last_dof_halo()))
-    call self%vspace%get_global_dof_id(global_dof_id)
-
-    halo_start  = self%vspace%get_last_dof_owned()+1
-    halo_finish = self%vspace%get_last_dof_halo()
-    !If this is a serial run (no halos), halo_start is out of bounds - so fix it
-    if(halo_start > self%vspace%get_last_dof_halo())then
-      halo_start  = self%vspace%get_last_dof_halo()
-      halo_finish = self%vspace%get_last_dof_halo() - 1
-    end if
-    ! Create an ESMF array - this allows us to perform halo exchanges
-    ! This call allocates the memory for the field data - we can extract a
-    ! pointer to that allocated memory next
-    self%esmf_array = &
-      ESMF_ArrayCreate( distgrid=self%vspace%get_distgrid(), &
-                        typekind=ESMF_TYPEKIND_R8, &
-                        haloSeqIndexList= &
-                                      global_dof_id( halo_start:halo_finish ), &
-                        rc=rc )
-
-    ! Extract and store the pointer to the fortran array
-    if (rc == ESMF_SUCCESS) &
-      call ESMF_ArrayGet(array=self%esmf_array, farrayPtr=self%data, rc=rc)
-
-    if (rc /= ESMF_SUCCESS) call log_event( &
-       'ESMF failed to allocate space for field data.', &
-       LOG_LEVEL_ERROR )
-
-    deallocate(global_dof_id)
-
-    ! Create a flag for holding whether a halo depth is dirty or not
-    ! and initialise it as all dirty
-    mesh=>vector_space%get_mesh()
-    allocate(self%halo_dirty(mesh%get_halo_depth()))
-    self%halo_dirty(:)=1
-
+    self%extant = .false.
+    
   end function field_constructor
 
   !> Destroy a scalar <code>field_type</code> instance.
@@ -371,11 +333,15 @@ contains
 
     ! Create a flag for holding whether a halo depth is dirty or not
     ! and initialise it with a copy of the source data
-    mesh=>source%vspace%get_mesh()
+    mesh=>dest%vspace%get_mesh()
     allocate(dest%halo_dirty(mesh%get_halo_depth()))
-    dest%halo_dirty(:)=source%halo_dirty(:)
+    dest%halo_dirty(:) = 1
 
-    dest%data(:) = source%data(:)
+    if(source%extant) then
+       dest%data(:) = source%data(:)
+       dest%halo_dirty(:)=source%halo_dirty(:)
+    end if
+    dest%extant = .true. 
 
   end subroutine field_type_assign
 
