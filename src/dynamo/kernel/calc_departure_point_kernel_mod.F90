@@ -120,8 +120,6 @@ subroutine calc_departure_point_code( nlayers,                       &
 
   do k=0, nlayers-1
 
-    xArrival = 0.0_r_def
-
     do df=1,nCellEdges-1
       u_n_local(df)   = u_n(stencil_map_w2(df1,stencil_order_out(df))+k)
       u_np1_local(df) = u_np1(stencil_map_w2(df1,stencil_order_out(df))+k)
@@ -129,7 +127,23 @@ subroutine calc_departure_point_code( nlayers,                       &
     u_n_local(nCellEdges)   = u_n(stencil_map_w2(df2,stencil_order_out(nCellEdges-1))+k)
     u_np1_local(nCellEdges) = u_np1(stencil_map_w2(df2,stencil_order_out(nCellEdges-1))+k)
 
+    ! xArrival = 0.0 represents the arrival point at a flux edge in a finite
+    ! element cell in the local coordinates
+    xArrival = 0.0_r_def
+
     dep_pts(stencil_map_w2(df1,1)+k) = calc_dep_point(  xArrival,             &
+                                                        nCellEdges,           &
+                                                        u_n_local,            &
+                                                        u_np1_local,          &
+                                                        dt,                   &
+                                                        dep_pt_method,        &
+                                                        n_dep_pt_iterations )
+
+    ! xArrival = 1.0 represents the opposite flux edge in a finite element cell
+    ! in the local coordinates
+    xArrival = 1.0_r_def
+
+    dep_pts(stencil_map_w2(df2,1)+k) = calc_dep_point(  xArrival,             &
                                                         nCellEdges,           &
                                                         u_n_local,            &
                                                         u_np1_local,          &

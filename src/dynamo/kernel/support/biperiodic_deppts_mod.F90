@@ -27,7 +27,7 @@ contains
 !!          x_departure < x_arrival. The distance is negative if the wind is
 !!          negative.
 !!
-!!  @param[in]   x_arrival    Arrival position
+!!  @param[in]   x_arrival    Arrival point in departure point calculation
 !!  @param[in]   nCellEdges   Number of velocity values
 !!  @param[in]   u_n          Velocity at cell edges at time n
 !!  @param[in]   u_np1        Velocity at cell edges at time n+1
