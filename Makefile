@@ -66,7 +66,7 @@ test-suite:
 	fi
 	@for target in $(DYNAMO_TEST_SUITE_TARGETS) ; do \
 	    echo Launching test suite against $$target ; \
-	    rose stem --name=$(shell basename `pwd`)-$$target-d --opt-conf-key=$$target ; \
+	    rose stem --name=$(shell basename `pwd`)-$$target-dev --opt-conf-key=$$target ; \
 	done
 
 .PHONY:nightly-suite
@@ -77,7 +77,7 @@ nightly-suite:
 	fi
 	@for target in $(DYNAMO_TEST_SUITE_TARGETS) ; do \
 	    echo Launching nightly test suite against $$target ; \
-	    rose stem --name=$(shell basename `pwd`)-$$target-n --group=nightly --opt-conf-key=$$target ; \
+	    rose stem --name=$(shell basename `pwd`)-$$target-nightly --group=nightly --opt-conf-key=$$target ; \
 	done
 
 .PHONY:csar-suite
