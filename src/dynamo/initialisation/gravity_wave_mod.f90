@@ -27,14 +27,14 @@ contains
 
   !> Loads run-time configuration and ensures everything is ship-shape.
   !>
-  subroutine load_configuration( file_unit )
+  subroutine load_configuration( filename )
 
     use configuration_mod, only : read_configuration, &
                                   ensure_configuration
 
     implicit none
 
-    integer, intent(in) :: file_unit
+    character(*), intent(in) :: filename
 
     character(*), parameter :: &
                             required_configuration(11) = ['finite_element      ', &
@@ -55,7 +55,7 @@ contains
 
     allocate( success_map(size(required_configuration)) )
 
-    call read_configuration( file_unit )
+    call read_configuration( filename )
 
     okay = ensure_configuration( required_configuration, success_map )
     if (.not. okay) then

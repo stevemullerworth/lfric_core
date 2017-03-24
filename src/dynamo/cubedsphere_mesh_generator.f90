@@ -40,7 +40,7 @@ program cubedsphere_mesh_generator
   class(ugrid_file_type), allocatable :: ugrid_file
   integer                             :: fsize
 
-  CALL ESMF_Initialize(vm=vm, defaultlogfilename="biperiodic.log", &
+  call ESMF_Initialize(vm=vm, defaultlogfilename="biperiodic.log", &
                        logkindflag=ESMF_LOGKIND_SINGLE, rc=rc)
   if (rc /= ESMF_SUCCESS) call log_event( 'Failed to initialise ESMF.', &
                                           LOG_LEVEL_ERROR )
@@ -48,7 +48,7 @@ program cubedsphere_mesh_generator
 
   call get_initial_filename( filename )
   namelist_unit = open_file( filename )
-  call read_cubedsphere_mesh_generator_namelist( namelist_unit )
+  call read_cubedsphere_mesh_generator_namelist( namelist_unit, vm, 0 )
   call close_file( namelist_unit )
   deallocate( filename )
 

@@ -26,7 +26,6 @@ program boundary_test
   use finite_element_config_mod,      only : element_order
   use init_gungho_mod,                only : init_gungho
   use init_boundary_test_mod,         only : init_boundary_test
-  use io_utility_mod,                 only : open_file, close_file
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
                                              log_scratch_space, &
@@ -46,7 +45,6 @@ program boundary_test
   implicit none
 
   character(:), allocatable :: filename
-  integer                   :: namelist_unit
 
   type(ESMF_VM)      :: vm
   integer            :: rc
@@ -81,10 +79,8 @@ program boundary_test
   call log_event( 'Boundary test running...', LOG_LEVEL_INFO )
 
   call get_initial_filename( filename )
-  namelist_unit = open_file( filename )
-  call load_configuration( namelist_unit )
+  call load_configuration( filename )
   call set_derived_config()
-  call close_file( namelist_unit )
   deallocate( filename )
 
   restart = restart_type( restart_filename, local_rank, total_ranks )

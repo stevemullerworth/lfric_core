@@ -11,12 +11,16 @@
 module feign_config_mod
 
   use constants_mod, only : {{kinds | sort | join( ', ' )}}
+  use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR
+  use ESMF,          only : ESMF_VM, ESMF_VMGetCurrent, ESMF_VMGet, ESMF_SUCCESS
 
   implicit none
 
   private
   public :: {{ namelists.keys() | sort | decorate( 'feign_', '_config' ) | join( ', &\n' + ' '*12 ) }}
 
+  integer(i_native) :: local_rank = -1
+  type(ESMF_VM)     :: vm
   integer(i_native), parameter :: temporary_unit = 3
 
 contains
@@ -50,6 +54,22 @@ contains
 
     integer(i_native) :: condition
 
+    if (local_rank == -1) then
+      call ESMF_VMGetCurrent( vm=vm, rc=condition )
+      if (condition /= ESMF_SUCCESS) then
+        write(log_scratch_space, "(A)") &
+            "Failed to get VM when trying to feign {{procedureName}}" 
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+
+      call ESMF_VMGet( vm, localPet=local_rank, rc=condition )
+      if (condition /= ESMF_SUCCESS) then
+        write(log_scratch_space, "(A)") &
+            "Failed to query VM when trying to feign {{procedureName}}"
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+    end if
+
     open( temporary_unit, status='scratch', action='readwrite', &
           iostat=condition )
     if (condition /= 0) then
@@ -78,7 +98,7 @@ contains
     write( temporary_unit, '("/")' )
 
     rewind(temporary_unit)
-    call read_{{name}}_namelist( temporary_unit )
+    call read_{{name}}_namelist( temporary_unit, vm, local_rank )
 
     close(temporary_unit, iostat=condition )
     if (condition /= 0) stop 'feign_{{name}}_config: Unable to close temporary file'

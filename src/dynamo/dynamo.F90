@@ -33,7 +33,6 @@ program dynamo
   use formulation_config_mod,         only : transport_only, use_moisture
   use init_gungho_mod,                only : init_gungho
   use init_dynamo_mod,                only : init_dynamo
-  use io_utility_mod,                 only : open_file, close_file
   use iter_timestep_alg_mod,          only : iter_alg_init, &
                                              iter_alg_step
   use runge_kutta_init_mod,           only : runge_kutta_init
@@ -75,7 +74,6 @@ program dynamo
   implicit none
 
   character(:), allocatable :: filename
-  integer                   :: namelist_unit
 
   type(ESMF_VM)      :: vm
   integer            :: rc
@@ -128,10 +126,8 @@ program dynamo
 
   allocate( filename, source='dynamo_configuration.nml' )
   call get_initial_filename( filename )
-  namelist_unit = open_file( filename )
-  call load_configuration( namelist_unit )
+  call load_configuration( filename )
   call set_derived_config()
-  call close_file( namelist_unit )
   deallocate( filename )
 
   restart = restart_type( restart_filename, local_rank, total_ranks )

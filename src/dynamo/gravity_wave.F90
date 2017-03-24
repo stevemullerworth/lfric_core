@@ -25,7 +25,6 @@ program gravity_wave
   use operator_mod,                   only : operator_type
   use gravity_wave_alg_mod,           only : gravity_wave_alg_init, &
                                              gravity_wave_alg_step
-  use io_utility_mod,                 only : open_file, close_file
   use log_mod,                        only : log_event,         &
                                              log_set_level,     &
                                              log_scratch_space, &
@@ -46,8 +45,7 @@ program gravity_wave
   use checksum_alg_mod,               only : checksum_alg
   implicit none
 
-  character(:), allocatable :: namelist_filename
-  integer                   :: namelist_unit
+  character(:), allocatable :: filename
 
   type(ESMF_VM)      :: vm
   integer            :: rc
@@ -82,12 +80,10 @@ program gravity_wave
 
   call log_event( 'Gravity wave simulation running...', LOG_LEVEL_INFO )
 
-  call get_initial_filename( namelist_filename )
-  namelist_unit = open_file( namelist_filename )
-  call load_configuration( namelist_unit )
+  call get_initial_filename( filename )
+  call load_configuration( filename )
   call set_derived_config()
-  call close_file( namelist_unit )
-  deallocate( namelist_filename )
+  deallocate( filename )
 
   restart = restart_type( restart_filename, local_rank, total_ranks )
 

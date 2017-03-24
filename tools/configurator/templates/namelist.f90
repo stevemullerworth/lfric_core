@@ -12,6 +12,7 @@ module {{listname}}_config_mod
 
   use constants_mod, only : {{kindlist | join( ', ' )}}
   use log_mod,       only : log_event, log_scratch_space, LOG_LEVEL_ERROR
+  use ESMF,          only : ESMF_VM, ESMF_VMBroadcast, ESMF_SUCCESS
 
   implicit none
 
@@ -115,65 +116,148 @@ contains
     key_from_{{enumeration}} = {{enumeration}}_key( key_index )
 
   end function key_from_{{enumeration}}
-{%- endfor %}
+    {%- endfor %}
 
   !> Populates this module from a namelist file.
   !>
   !> An error is reported if the namelist could not be read.
   !>
   !> \param [in] file_unit Unit number of the file to read from.
+  !> \param [in] vm ESMF VM object of current run.
+  !> \param [in] local_rank Rank of current ESMF process.
   !>
-  subroutine read_{{listname}}_namelist( file_unit )
+  subroutine read_{{listname}}_namelist( file_unit, vm, local_rank )
     implicit none
     integer(i_native), intent(in) :: file_unit
-    call read_namelist( file_unit
-{%- if enumerations -%}
-, {{enumerations.keys() | sort | join( ', ' )}}
-{%- endif -%}
-                      {{' '}})
+    type(ESMF_VM),     intent(in) :: vm
+    integer(i_native), intent(in) :: local_rank
+    call read_namelist( file_unit, vm, local_rank
+    {%- if enumerations -%}
+    , {{enumerations.keys() | sort | join( ', ' )}}
+    {%- endif -%}
+    {{' '}})
   end subroutine read_{{listname}}_namelist
 
   ! Reads the namelist file.
   !
-  subroutine read_namelist( file_unit
-{%- if enumerations -%}
-, {{ enumerations.keys() | sort | decorate( 'dummy_' ) | join( ', ' ) }}
-{%- endif -%}
-                          {{' '}})
+  subroutine read_namelist( file_unit, vm, local_rank
+    {%- if enumerations -%}
+    , {{ enumerations.keys() | sort | decorate( 'dummy_' ) | join( ', ' ) }}
+    {%- endif -%}
+    {{' '}})
 
-{%- if constants %}
-
-    use constants_mod, only : {{constants | join( ', ' )}}
-{%- endif %}
+    use constants_mod, only : RMDI, IMDI{%- if constants %}, {{constants | join( ', ' )}}{%- endif %}
 
     implicit none
 
-    integer(i_native), intent(in)  :: file_unit
-{%- if enumerations %}
-{%-   for enumeration, pairs in enumerations.iteritems() %}
+    integer(i_native), intent(in) :: file_unit
+    type(ESMF_VM),     intent(in) :: vm
+    integer(i_native), intent(in) :: local_rank
+    {%- if enumerations %}
+    {%-   for enumeration, pairs in enumerations.iteritems() %}
     integer(i_native), intent(out) :: dummy_{{enumeration}}
-{%-   endfor %}
-{{-'\n'}}
-{%- for enumeration in enumerations.keys() | sort %}
+    {%-   endfor %}
+    {{-'\n'}}
+    {%-   for enumeration in enumerations.keys() | sort %}
     character(str_short) :: {{enumeration}}
-{%- endfor %}
-{%- endif %}
+    {%-   endfor %}
+    {%- endif %}
 
     namelist /{{listname}}/ {{ variables.keys() | sort | join( ', &\n' + ' '*(16+listname|length) ) }}
 
     integer(i_native) :: condition
 
-    read( file_unit, nml={{listname}}, iostat=condition, iomsg=log_scratch_space )
-    if (condition /= 0) then
+    {%- for kind in kindlist | sort %}
+      {%- if kindcounts[kind] > 0 %}
+        {%- if kind[0] == "i" %}
+    integer({{kind}}) :: 
+        {%- elif kind[0] == "r" %}
+    real({{kind}}) :: 
+        {%- elif kind[0] == "l" %}
+    integer(i_native) :: 
+        {%- elif kind[0] == "s" %}
+    character({{kind}}) :: 
+        {%- endif 
+         %} bcast_{{kind}}({{kindcounts[kind]}})
+      {%- endif %}
+    {%- endfor %}
+
+    {%-for name, ftype in parameters | dictsort %}
+    {%-  if ftype.kind[0] == "i" and name not in enumerations %}
+    {{name}} = IMDI
+    {%-  elif ftype.kind[0] == "r" %}
+    {{name}} = RMDI
+    {%-  elif ftype.kind[0] == "l" %}
+    {{name}} = .FALSE.
+    {%-  elif ftype.kind[0] == "s" or name in enumerations %}
+    {{name}} = ""
+    {%-  endif %}
+    {%- endfor %}
+
+    if (local_rank == 0) then
+
+      read( file_unit, nml={{listname}}, iostat=condition, iomsg=log_scratch_space )
+      if (condition /= 0) then
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+      {{-'\n'}}      
+      {%- for name in enumerations.keys() | sort %}
+      dummy_{{name}} = {{name}}_from_key( {{name}} )
+      {%- endfor %}
+      {%- for kind in kindlist | sort %}
+      {%-   set count = 1 %}
+      {%-   for name, ftype in parameters | dictsort %}
+      {%-     if ftype.kind == kind %}
+      bcast_{{kind}}({{count}})
+      {%-       if name in enumerations 
+                 %} = dummy_{{name}}
+      {%-       elif name in logicals
+                 %} = merge(0, 1, {{name}})
+      {%-       else
+                 %} = {{name}}
+      {%-       endif %}
+      {%-     set count = count + 1 %}
+      {%-     endif %}
+      {%-   endfor %}
+      {%- endfor %}
+
+    end if
+    {{-'\n'}}
+    {%- for kind in kindlist | sort %}
+
+    {%-   if kindcounts[kind] > 0 %}
+    call ESMF_VMBroadcast( vm, bcast_{{kind}}, {{kindcounts[kind]}} 
+      {%- if kind[0] == "s" %}*{{kind}}{%- endif %}, 0, rc=condition )
+    if (condition /= ESMF_SUCCESS) then
+      write(log_scratch_space, "(A)") &
+          "Failed to broadcast {{kindcounts[kind]}} {{kind}} varaible/s"
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
+    {%-   endif %}
+    {%- endfor %}
+    
+    if (local_rank /= 0) then
+      {{-'\n'}}      
+      {%- for kind in kindlist | sort %}
+      {%-   set count = 1 %}
+      {%-   for name, ftype in parameters | dictsort %}
+      {%-     if ftype.kind == kind %}
+      {%-       if name in enumerations %}
+      dummy_{{name}} = 
+      {%-       elif name in logicals %}
+      {{name}} = (
+      {%-       else %}
+      {{name}} =
+      {%-       endif 
+                     %} bcast_{{kind}}({{count}}) {%
+                if name in logicals %}== 0 ) {%
+                endif %}
+      {%-     set count = count + 1 %}
+      {%-     endif %}
+      {%-   endfor %}
+      {%- endfor %}
 
-{%- if enumerations %}
-{{-'\n'}}
-{%-   for enumeration in enumerations.keys() | sort %}
-    dummy_{{enumeration}} = {{enumeration}}_from_key( {{enumeration}} )
-{%-   endfor %}
-{%- endif %}
+    end if
 
     namelist_loaded = .true.
 {% for name, code in initialisation.iteritems() %}

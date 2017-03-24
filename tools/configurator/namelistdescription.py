@@ -38,7 +38,6 @@ class _Enumeration(dict):
 class NamelistDescription():
     _enumerationType = 'integer'
     _enumerationKind = 'native'
-
     class TypeDetail:
         def __init__( self, xtype, kindMap ):
             self.xtype = xtype
@@ -70,6 +69,7 @@ class NamelistDescription():
         self._name         = name
         self._parameters   = collections.OrderedDict()
         self._enumerations = {}
+        self._logicals     = {}
         self._computed     = {}
         self._constants    = set()
 
@@ -94,6 +94,8 @@ class NamelistDescription():
             self._enumerations[name] = args
             xtype = 'integer'
             kind  = 'native'
+        elif xtype == 'logical':
+            self._logicals[name] = args
         elif args:
             self._computed[name] = args
 
@@ -109,6 +111,10 @@ class NamelistDescription():
         return self._enumerations
 
     ###########################################################################
+    def getLogicals( self ):
+        return self._logicals
+
+    ###########################################################################
     def getComputations( self ):
         return self._computed
 
@@ -121,6 +127,8 @@ class NamelistDescription():
         kindset = set(['i_native'])
         if self._enumerations:
             kindset.add( 'str_short' )
+        if self._logicals:
+            kindset.add( 'l_def' )
 
         evalue = 100
         enumerations = {}
@@ -131,14 +139,18 @@ class NamelistDescription():
                 evalue += 1
 
         variables = {}
+        kindcounts = collections.defaultdict(int)
         for name, fType in self._parameters.iteritems():
             kindset.add( fType.kind )
+            kindcounts [ fType.kind ] += 1
             if name not in self._computed.keys():
                 variables[name] = fType
 
         inserts = { 'listname'       : self._name,        \
                     'kindlist'       : sorted( kindset ), \
+                    'kindcounts'     : kindcounts,        \
                     'enumerations'   : enumerations,      \
+                    'logicals'       : self._logicals,    \
                     'parameters'     : self._parameters,  \
                     'constants'      : self._constants,   \
                     'variables'      : variables,         \
