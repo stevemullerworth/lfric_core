@@ -336,7 +336,7 @@ contains
                                     element_order, &
                                     this%function_space )
 
-    stencil_dofmap => test_fs%get_stencil_dofmap(STENCIL_POINT,1)
+    stencil_dofmap => test_fs%get_stencil_dofmap(STENCIL_POINT,0)
     stencil_map => stencil_dofmap%get_dofmap(1)
     map => test_fs%get_cell_dofmap(1)
     @assertEqual( map, stencil_map(:,1) )
@@ -399,7 +399,7 @@ contains
                                     element_order, &
                                     this%function_space )
 
-    stencil_dofmap => test_fs%get_stencil_dofmap( STENCIL_1DY, 5 )
+    stencil_dofmap => test_fs%get_stencil_dofmap( STENCIL_1DY, 3 )
     stencil_map => stencil_dofmap%get_dofmap(1)
 
     mesh =>mesh_collection%get_mesh(this%mesh_id)
@@ -442,7 +442,7 @@ contains
                                     element_order, &
                                     this%function_space )
 
-    stencil_dofmap => test_fs%get_stencil_dofmap(STENCIL_CROSS,5)
+    stencil_dofmap => test_fs%get_stencil_dofmap(STENCIL_CROSS,3)
     stencil_map => stencil_dofmap%get_dofmap(1)
 
     mesh =>mesh_collection%get_mesh(this%mesh_id)

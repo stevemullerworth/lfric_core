@@ -569,7 +569,7 @@ contains
     !-------------------------------------------------------------------
     ! Test halo information
     test_integer=( mesh_1%get_halo_depth() )
-    @assertEqual( 1, test_integer )
+    @assertEqual( 3, test_integer )
 
     test_integer=( mesh_1%get_num_cells_halo( 1 ) )
     @assertEqual( 0, test_integer )

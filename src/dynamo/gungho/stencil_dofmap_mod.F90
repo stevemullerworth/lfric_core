@@ -65,7 +65,7 @@ contains
 !> @param[in] st_extent Number of stencil cells each side of the centre cell in relevant directions
 !> @param[in] master_dofmap The cell dofmap to create the stencil from
 !> @return The dofmap object
-function stencil_dofmap_constructor( st_shape, st_extent, cell_extent, ndf, mesh, master_dofmap) result(self)
+function stencil_dofmap_constructor( st_shape, st_extent, ndf, mesh, master_dofmap) result(self)
 
     use log_mod,  only: log_event,         &
                         log_scratch_space, &
@@ -74,7 +74,6 @@ function stencil_dofmap_constructor( st_shape, st_extent, cell_extent, ndf, mesh
     use reference_element_mod, only: W, E, N, S
 
     integer(i_def),           intent(in) :: st_shape, st_extent, ndf
-    integer(i_def), intent(in), optional :: cell_extent
     type(mesh_type), pointer, intent(in) :: mesh
     type(master_dofmap_type), intent(in) :: master_dofmap
     type(stencil_dofmap_type), target    :: self
@@ -90,6 +89,7 @@ function stencil_dofmap_constructor( st_shape, st_extent, cell_extent, ndf, mesh
     integer(i_def) :: west, north, east, south
     integer(i_def) :: direction
     integer(i_def) :: opposite(4)
+    integer(i_def) :: last_halo_index
 
     ! Set local directions to be those of the reference element
     opposite(W) = E
@@ -105,14 +105,19 @@ function stencil_dofmap_constructor( st_shape, st_extent, cell_extent, ndf, mesh
     ! call base class set_id()
     call self%set_id(st_shape*100 + st_extent)
 
-    if (present(cell_extent)) then
-      if (cell_extent == 0) then
-        ncells = mesh%get_last_edge_cell()
-      else
-        ncells = mesh%get_last_halo_cell(cell_extent)
-      end if
+    ! How far can stencil be computed before stencil goes off edge of halo region
+    last_halo_index = mesh%get_halo_depth() - st_extent
+    if (last_halo_index < 0) then
+      write( log_scratch_space, '( A, I4, A, I4, A, I4 )' ) &
+         'Attempting to create stencil: ', st_shape,' of extent ',st_extent, &
+         ' when halo is depth is too small:',mesh%get_halo_depth()
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    else if (last_halo_index == 0) then
+      ! Stencil extent same as halo depth, so compute stencil for all owned cells
+      ncells = mesh%get_last_edge_cell()
     else
-      ncells = mesh%get_ncells_2d()
+      ! Stencil extent smaller than halo depth, so compute stencil into halo
+      ncells = mesh%get_last_halo_cell(last_halo_index)
     end if
 
     ! Allocate the dofmap array

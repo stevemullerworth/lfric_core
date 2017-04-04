@@ -1564,7 +1564,7 @@ function partition_constructor_unit_test_data() result (self)
 
   self%local_rank        = 0
   self%total_ranks       = 1
-  self%halo_depth        = 1
+  self%halo_depth        = 3
   self%inner_depth       = 1
   self%global_num_cells  = 9
 
@@ -1582,7 +1582,11 @@ function partition_constructor_unit_test_data() result (self)
   self%num_edge          = 0
   self%last_edge_cell    = 9
   self%num_halo(1)       = 0
+  self%num_halo(2)       = 0
+  self%num_halo(3)       = 0
   self%last_halo_cell(1) = 9
+  self%last_halo_cell(2) = 9
+  self%last_halo_cell(3) = 9
   self%num_ghost         = 0
 
 end function partition_constructor_unit_test_data

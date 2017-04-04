@@ -381,8 +381,7 @@ subroutine init_function_space( self )
 
 
   integer(i_def) :: st_shape      ! Stencil Shape
-  integer(i_def) :: st_size       ! Stencil Extent
-  integer(i_def) :: cell_extent   ! Cell Extent
+  integer(i_def) :: st_extent     ! Stencil Extent
 
   integer(i_def) :: rc
   integer(i_def) :: idepth
@@ -395,9 +394,8 @@ subroutine init_function_space( self )
   ncells_2d            = self%mesh % get_ncells_2d()
   ncells_2d_with_ghost = self%mesh % get_ncells_2d_with_ghost()
 
-  st_size  = 1
+  st_extent  = 0
   st_shape = STENCIL_POINT
-  cell_extent = 0
 
 
   select case (self%fs)
@@ -461,8 +459,7 @@ subroutine init_function_space( self )
   ! Create the stencil_dofmap object and add to linked list
 
   call self%dofmap_list%insert_item( stencil_dofmap_type(st_shape,           &
-                                                         st_size,            &
-                                                         cell_extent,        &
+                                                         st_extent,          &
                                                          self%ndof_cell,     &
                                                          self%mesh,          &
                                                          self%master_dofmap) )
@@ -1035,17 +1032,15 @@ end function get_last_dof_halo
 !> Get the instance of a stencil dofmap with for a given shape and size
 !> @param[in] stencil_shape The shape identifier for the stencil dofmap to
 !create
-!> @param[in] stencil_size The number of cells in the stencil
-!> @param[in] cell_extent Determines for which cells the stencil is calculated
+!> @param[in] stencil_extent The extent of the stencil excluding the centre cell
 !> @return map the stencil_dofmap object to return
-function get_stencil_dofmap(self, stencil_shape, stencil_size, cell_extent) result(map)
+function get_stencil_dofmap(self, stencil_shape, stencil_extent) result(map)
 
   implicit none
 
   class(function_space_type), intent(inout) :: self
   integer(i_def),             intent(in) :: stencil_shape
-  integer(i_def),             intent(in) :: stencil_size
-  integer(i_def),optional,    intent(in) :: cell_extent
+  integer(i_def),             intent(in) :: stencil_extent
 
   type(stencil_dofmap_type), pointer  :: map ! pointer to return instance
   type(linked_list_item_type),pointer :: loop ! temp pointer for looping
@@ -1056,7 +1051,7 @@ function get_stencil_dofmap(self, stencil_shape, stencil_size, cell_extent) resu
   map => null()
   
   ! Calculate id of the stencil_dofmap we want
-  id = stencil_shape*100 + stencil_size
+  id = stencil_shape*100 + stencil_extent
 
 
   ! point at the head of the stencil_dofmap linked list
@@ -1069,8 +1064,7 @@ function get_stencil_dofmap(self, stencil_shape, stencil_size, cell_extent) resu
       ! create stencil dofmap and add it 
 
       call self%dofmap_list%insert_item(stencil_dofmap_type(stencil_shape,    &
-                                                            stencil_size,     &
-                                                            cell_extent,      &
+                                                            stencil_extent,   &
                                                             self%ndof_cell,   &
                                                             self%mesh,        &
                                                             self%master_dofmap))

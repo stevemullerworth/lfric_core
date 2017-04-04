@@ -3844,11 +3844,11 @@ end subroutine invoke_sample_poly_adv
 
     ! Obtain the stencil for core cells only
     cross_stencil_w2 => w2_field_proxy%vspace%get_stencil_dofmap(             &
-                                        STENCIL_CROSS, mesh%get_halo_depth(), 0)
+                                        STENCIL_CROSS, mesh%get_halo_depth())
     cross_stencil_w2_map => cross_stencil_w2%get_whole_dofmap()
 
     cross_stencil_w3 => cell_orientation_proxy%vspace%get_stencil_dofmap(     &
-                                        STENCIL_CROSS, mesh%get_halo_depth(), 0)
+                                        STENCIL_CROSS, mesh%get_halo_depth())
     cross_stencil_w3_map => cross_stencil_w3%get_whole_dofmap()
     cross_stencil_w3_size = cross_stencil_w3%get_size()
 
