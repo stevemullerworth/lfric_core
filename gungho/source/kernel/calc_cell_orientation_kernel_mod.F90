@@ -152,7 +152,7 @@ subroutine calc_cell_orientation_code(  nlayers,                       &
   do k=0, nlayers-1
 
     ! Kernel loops over core cells only, all core cells are assumed to have orientation 1
-    orientation(stencil_map_w3_cross(1,1)) = 1_r_def
+    orientation(stencil_map_w3_cross(1,1)+k) = 1_r_def
 
     do stencil=1,halo_depth
       do branch=1,cross_stencil_branches ! loop over stencil cross branches
