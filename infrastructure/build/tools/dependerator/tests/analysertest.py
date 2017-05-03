@@ -359,6 +359,14 @@ end module constants_mod
                    '''.strip(), file=otherFile )
         uut.analyse( otherFilename )
 
+        dependFilename = os.path.join( self._scratchDirectory, 'dependson.f90' )
+        with open(dependFilename, 'w') as dependFile:
+            print( '''
+subroutine dependson
+
+end dependson
+                   '''.strip(), file=dependFile )
+
         programs = list( self._dependencies.getPrograms() )
         self.assertEqual( [], programs )
 
@@ -370,6 +378,75 @@ end module constants_mod
                                                        'function_thing_mod' ))
         self.assertEqual( [(u'function_thing_mod', testFilename, \
                             u'constants_mod', otherFilename)], dependencies )
+
+    ##########################################################################
+    def testDependsOn( self ):
+        testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
+        with open(testFilename, 'w') as fortranFile:
+            print( '''
+module function_thing_mod
+
+  use constants_mod, only : i_def
+
+  implicit none
+
+! Add in an interface block - this will test to make sure 
+! we don't pick up a spurious subroutine call 
+  interface
+     subroutine wooble ()
+  end interface
+
+  private
+
+! depends on: wooble
+
+contains
+
+end module function_thing_mod
+                   '''.strip(), file=fortranFile )
+
+        otherFilename = os.path.join( self._scratchDirectory, 'other.f90' )
+        with open(otherFilename, 'w') as otherFile:
+            print( '''
+module constants_mod
+contains
+subroutine wooble
+
+end wooble
+end module constants_mod
+                   '''.strip(), file=otherFile )
+
+        dependFilename = os.path.join( self._scratchDirectory, 'wooble.f90' )
+        with open(dependFilename, 'w') as dependFile:
+            print( '''
+subroutine wooble
+
+end wooble
+                   '''.strip(), file=dependFile )
+
+        uut = dependerator.analyser.FortranAnalyser( self._logger, \
+                                                     [],           \
+                                                     self._dependencies )
+        uut.analyse( testFilename )
+        uut.analyse( otherFilename )
+        uut.analyse( dependFilename )
+
+        programs = list( self._dependencies.getPrograms() )
+        self.assertEqual( [], programs )
+
+        dependencies = list(self._dependencies.getCompileDependencies())
+
+        self.assertEqual( [(u'function_thing_mod', testFilename, \
+                            u'constants_mod', otherFilename), \
+                           (u'function_thing_mod', testFilename, \
+                            u'wooble', dependFilename)], dependencies )
+
+        dependencies = list(self._dependencies.getLinkDependencies( \
+                                                       'function_thing_mod' ))
+        self.assertEqual( [(u'function_thing_mod', testFilename, \
+                            u'constants_mod', otherFilename), \
+                           (u'function_thing_mod', testFilename, \
+                            u'wooble', dependFilename)], dependencies  )
 
 if __name__ == '__main__':
     unittest.main()

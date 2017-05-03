@@ -122,6 +122,12 @@ class FortranAnalyser(Analyser):
                                       flags=re.IGNORECASE )
     self._suitePattern  = re.compile( r'^\s*ADD_TEST_SUITE\(\s*(\S+)\)' )
 
+    self._subroutinePattern = re.compile(r'^\s*SUBROUTINE\s+([^\(\s]+)', \
+                                             flags=re.IGNORECASE)
+    self._dependsPattern = re.compile( r'^\s*!\s*DEPENDS ON:\s+([^,\s]+)',  \
+                                         flags=re.IGNORECASE)
+    self._interfacePattern = re.compile( r'^\s*INTERFACE\s*', flags=re.IGNORECASE)
+    self._containsPattern = re.compile(r'^\s*CONTAINS\s*', flags=re.IGNORECASE)
   ###########################################################################
   # Scan a Fortran source file and harvest dependency information.
   #
@@ -180,6 +186,7 @@ class FortranAnalyser(Analyser):
     programUnit = None
     modules = []
     dependencies = []
+    lookForSubroutines=True
     pFUnitDriver = False
     for line in processedSource.splitlines():
       match = self._programPattern.match( line )
@@ -196,6 +203,15 @@ class FortranAnalyser(Analyser):
         modules.append( programUnit )
         self._database.addModule( programUnit, sourceFilename )
         continue
+
+      if lookForSubroutines:
+          match = self._subroutinePattern.match( line )
+          if match is not None:
+              programUnit = match.group( 1 ).lower()
+              self._logger.logEvent( '    Contains subroutine ' + programUnit )
+              modules.append( programUnit )
+              self._database.addModule( programUnit, sourceFilename )
+              continue
 
       match = self._submodulePattern.match( line )
       if match is not None:
@@ -242,3 +258,25 @@ class FortranAnalyser(Analyser):
               self._database.addModuleCompileDependency( programUnit, testModule )
               self._database.addModuleLinkDependency( programUnit, testModule )
         continue
+
+      match = self._dependsPattern.match(line)
+      if match is not None:
+          name = match.group( 1 ).lower()
+          if name is not None:
+              self._logger.logEvent( '    %s depends on call to %s ' % (programUnit, name) )
+          addDependency( programUnit, name )
+          continue
+
+      # Are we entering an interface block (in which case we may subsequently want to 
+      # ignore matches of subroutine above)
+      match = self._interfacePattern.match(line)
+      if match is not None:
+          lookForSubroutines=False
+          continue
+
+      # Are we entering module contains, (in which case we may subsequently want to 
+      # ignore matches of subroutine above)
+      match = self._containsPattern.match(line)
+      if match is not None:
+          lookForSubroutines=False
+          continue
