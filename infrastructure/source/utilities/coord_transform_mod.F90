@@ -1,6 +1,7 @@
 !-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2012.
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file COPYRIGHT_orig.txt which you
+! should have received as part of this distribution.
 ! However, it has been created by John Thuburn.
 !-------------------------------------------------------------------------------
 !>  @brief   Routines for coordinate transformations.

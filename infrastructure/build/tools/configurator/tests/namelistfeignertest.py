@@ -1,10 +1,9 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 ##############################################################################
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014. However, it has been created with the help of the
-# GungHo Consortium, whose members are identified at
-# https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+# For further details please refer to the file LICENCE.original which you
+# should have received as part of this distribution.
 ##############################################################################
 
 import unittest
@@ -21,12 +20,11 @@ class FeignerTest( unittest.TestCase ):
     ###########################################################################
     def testEmpty( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! Handles the feigning of namelists.
 !
 module feign_config_mod
@@ -55,12 +53,11 @@ end module feign_config_mod
     ###########################################################################
     def testSimple( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! Handles the feigning of namelists.
 !
 module feign_config_mod
@@ -135,12 +132,11 @@ end module feign_config_mod
     ###########################################################################
     def testEnumeration( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! Handles the feigning of namelists.
 !
 module feign_config_mod
@@ -204,12 +200,11 @@ end module feign_config_mod
     ###########################################################################
     def testComputed( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! Handles the feigning of namelists.
 !
 module feign_config_mod
@@ -276,12 +271,11 @@ end module feign_config_mod
     ###########################################################################
     def testEverything( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 ! Handles the feigning of namelists.
 !
 module feign_config_mod

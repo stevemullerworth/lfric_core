@@ -1,10 +1,9 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 ##############################################################################
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014. However, it has been created with the help of the
-# GungHo Consortium, whose members are identified at
-# https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+# For further details please refer to the file LICENCE.original which you
+# should have received as part of this distribution.
 ##############################################################################
 
 import unittest
@@ -33,12 +32,11 @@ class NamelistDescriptionTest( unittest.TestCase ):
     ###########################################################################
     def testModuleWriteOneOfEach( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the test namelist.
 !>
 module test_config_mod
@@ -227,12 +225,11 @@ end module test_config_mod
     ###########################################################################
     def testModuleWriteGrowing( self ):
         firstExpectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the test namelist.
 !>
 module test_config_mod
@@ -316,12 +313,11 @@ end module test_config_mod
         '''.strip()
 
         secondExpectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the test namelist.
 !>
 module test_config_mod
@@ -423,12 +419,11 @@ end module test_config_mod
 
     def testEnumerationOnly( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the enum namelist.
 !>
 module enum_config_mod
@@ -595,12 +590,11 @@ end module enum_config_mod
     ###########################################################################
     def testModuleWriteComputed( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the teapot namelist.
 !>
 module teapot_config_mod
@@ -699,12 +693,11 @@ end module teapot_config_mod
     ###########################################################################
     def testModuleWriteConstant( self ):
         expectedSource = '''
-!------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
 !> Manages the cheese namelist.
 !>
 module cheese_config_mod
