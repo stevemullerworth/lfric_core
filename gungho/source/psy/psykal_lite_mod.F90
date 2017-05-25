@@ -2545,7 +2545,7 @@ end subroutine invoke_write_fields
 
 !-------------------------------------------------------------------------------  
 !> invoke_subgrid_coeffs: Invoke the calculation of subgrid rho coefficients
-subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_approximation_stencil_extent)
+subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_approximation_stencil_extent,halo_depth_to_compute)
 
     use flux_direction_mod,        only: x_direction, y_direction
     use stencil_dofmap_mod,        only: stencil_dofmap_type, &
@@ -2554,6 +2554,8 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_app
     use subgrid_coeffs_kernel_mod, only: subgrid_coeffs_code
     use subgrid_config_mod,        only: rho_approximation
     use mesh_mod,                  only: mesh_type
+    use log_mod,                   only: log_event, LOG_LEVEL_ERROR
+
     implicit none
 
     type( field_type ), intent( inout ) :: a0
@@ -2563,6 +2565,7 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_app
     type( field_type ), intent( in )    :: cell_orientation
     integer, intent(in)                 :: direction
     integer, intent(in)                 :: rho_approximation_stencil_extent
+    integer, intent(in)                 :: halo_depth_to_compute
 
     type( field_proxy_type )            :: rho_proxy
     type( field_proxy_type )            :: a0_proxy
@@ -2580,6 +2583,7 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_app
     type(mesh_type), pointer :: mesh => null()
     integer                  :: d
     logical                  :: swap
+    integer                  :: ncells_to_iterate
 
     a0_proxy   = a0%get_proxy()
     a1_proxy   = a1%get_proxy()
@@ -2611,7 +2615,19 @@ subroutine invoke_subgrid_coeffs(a0,a1,a2,rho,cell_orientation,direction,rho_app
     if ( swap ) call rho_proxy%halo_exchange(depth=rho_approximation_stencil_extent)
 
     mesh => a0%get_mesh()
-    do cell = 1, mesh%get_last_edge_cell()
+    if (halo_depth_to_compute==0) then
+      ncells_to_iterate = mesh%get_last_edge_cell()
+    elseif (halo_depth_to_compute > 0) then
+      ncells_to_iterate = mesh%get_last_halo_cell(halo_depth_to_compute)
+    else
+      call log_event( "Error: negative halo_depth_to_compute value in subgrid coeffs call", LOG_LEVEL_ERROR )
+    endif
+
+    !NOTE: The default looping limits for this type of field would be 
+    ! mesh%get_last_halo_cell(1) but this kernel requires a modified loop limit
+    ! inorder to function correctly. See ticket #1058.
+    ! The kernel loops over all core and some halo cells.
+    do cell = 1, ncells_to_iterate
 
       stencil_map => map%get_dofmap(cell)
 
@@ -2722,7 +2738,11 @@ subroutine invoke_conservative_fluxes(    rho,          &
   if ( swap ) call rho_proxy%halo_exchange(depth=stencil_extent)
 
   mesh => rho%get_mesh()
-  do cell = 1, mesh%get_last_halo_cell(1)
+  !NOTE: The default looping limits for this type of field would be 
+  ! mesh%get_last_halo_cell(1) but this kernel requires a modified loop limit
+  ! inorder to function correctly. See ticket #1058.
+  ! The kernel loops over all core cells only.
+  do cell = 1, mesh%get_last_edge_cell() 
       map_rho => rho_proxy%vspace%get_cell_dofmap( cell )
       map_w2 => dep_pts_proxy%vspace%get_cell_dofmap( cell )
 
@@ -2827,7 +2847,11 @@ subroutine invoke_calc_departure_wind(u_departure_wind, u_piola, chi )
   if (chi_p(3)%is_dirty(depth=1))  call chi_p(3)%halo_exchange(depth=1)
 
   mesh => u_piola%get_mesh()
-  do cell = 1,mesh%get_last_halo_cell(1)
+  !NOTE: The default looping limits for this type of field would be 
+  ! mesh%get_last_halo_cell(1) but this kernel requires a modified loop limit
+  ! inorder to function correctly. See ticket #1058.
+  ! The kernel loops over all core and all halo cells.
+  do cell = 1,mesh%get_ncells_2d()
      map     => u_piola_p%vspace%get_cell_dofmap( cell )
      map_chi => chi_p(1)%vspace%get_cell_dofmap( cell )
      call calc_departure_wind_code( nlayers,                                  &
@@ -2928,7 +2952,11 @@ subroutine invoke_calc_deppts(  u_n,                  &
   if ( swap ) call u_np1_proxy%halo_exchange(depth=dep_pt_stencil_extent)
 
   mesh => u_n%get_mesh()
-  do cell=1,mesh%get_last_halo_cell(1)
+  !NOTE: The default looping limits for this type of field would be 
+  ! mesh%get_last_halo_cell(1) but this kernel requires a modified loop limit
+  ! inorder to function correctly. See ticket #1058.
+  ! The kernel loops over all core cells only.
+  do cell=1,mesh%get_last_edge_cell()
 
     stencil_map_w2 => map%get_dofmap(cell)
     stencil_map_w3 => map_w3%get_dofmap(cell)

@@ -82,7 +82,8 @@ contains
                  set_field_scalar(0.0_r_def, a1),        &
                  set_field_scalar(0.0_r_def, a2) )
 
-    call invoke_subgrid_coeffs(a0,a1,a2,rho_in,cell_orientation,direction,rho_approximation_stencil_extent)
+    call invoke_subgrid_coeffs(a0,a1,a2,rho_in,cell_orientation,direction,    &
+                          rho_approximation_stencil_extent,dep_pt_stencil_extent)
 
     call invoke_conservative_fluxes(  rho_in, dep_pts, u, mass_flux,  &
                                       a0, a1, a2, direction, dep_pt_stencil_extent )
