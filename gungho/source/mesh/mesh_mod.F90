@@ -37,6 +37,8 @@ module mesh_mod
   use global_mesh_map_collection_mod , only: global_mesh_map_collection_type
   use global_mesh_map_mod , only: global_mesh_map_type
 
+  use mesh_colouring_mod, only : set_colours
+
   use mesh_constructor_helper_functions_mod,          &
                             only : domain_size_type,  &
                                    mesh_extruder,     &
@@ -106,7 +108,6 @@ module mesh_mod
     integer(i_def) :: nverts_per_cell      !< Number of verts on 3d-cell
     integer(i_def) :: nedges_per_cell      !< Number of edges on 3d-cell
     integer(i_def) :: nfaces_per_cell      !< Number of faces on 3d-cell
-
 
     !==========================================================================
     ! Local/Global id Maps
@@ -229,15 +230,14 @@ module mesh_mod
     procedure, public :: get_total_ranks
     procedure, public :: get_local_rank
 
-    ! Colouring now accessed through function_space_type
-    procedure, public :: set_colours
+    ! Get information about colouring of mesh
     procedure, public :: get_ncolours
     procedure, public :: get_colours
     procedure, public :: is_coloured
 
     procedure, public :: clear
 
-    ! Destructor frees colouring storage
+    ! Destructor
     final :: mesh_destructor
 
   end type mesh_type
@@ -327,6 +327,8 @@ contains
     logical (l_def) :: edge_gid_present
     logical (l_def) :: vert_gid_present
 
+    integer(kind=i_def),allocatable :: gid_from_lid(:)
+
     ! Arrays where the connected entity ids are global ids
     integer(i_def), allocatable :: &
       vert_on_cell_2d_gid (:,:)    &! Vertices connected to local 2d cell.
@@ -347,6 +349,9 @@ contains
 
     ! Id of the Global mesh use to create mesh
     integer(i_def) :: global_mesh_id
+
+    ! Number of panels in the global mesh - used to optimise colouring algorithm
+    integer(i_def) :: npanels
 
     ! Surface Coordinates in [long, lat, radius] (Units: Radians/metres)
     real(r_def), allocatable :: vertex_coords_2d(:,:)
@@ -369,6 +374,8 @@ contains
     self%domain_top           = domain_top
     self%ncolours             = -1     ! Initialise ncolours to error status
     self%ncells_global_mesh   = global_mesh%get_ncells()
+    
+    npanels              = partition%get_num_panels_global_mesh()
 
     allocate( self%eta ( 0:self%nlayers ) )
     allocate( self%dz  ( self%nlayers   ) )
@@ -391,7 +398,6 @@ contains
     self%nverts_per_cell = 2*nedges_per_2d_cell
     self%nedges_per_cell = 2*nedges_per_2d_cell + nverts_per_2d_cell
     self%nfaces_per_cell = nedges_per_2d_cell + 2
-
 
     ! Get partition statistics
     max_num_vertices_2d  = self%ncells_2d_with_ghost*nverts_per_2d_cell
@@ -574,6 +580,7 @@ contains
     self%nfaces = self%ncells_2d_with_ghost * (self%nlayers+1) &
                   + self%nedges_2d * self%nlayers
 
+
     allocate ( self%vertex_coords( 3, self%nverts ) )
 
     call mesh_extruder( self%cell_next,            &
@@ -672,6 +679,30 @@ contains
                                         nfaces, &
                                         self%ncells_2d_with_ghost )
 
+    ! Some of the mesh colouring algorithms implement colouring depending on the
+    ! global cell location (and number of panels), so obtain global IDs for all
+    ! the local cells.
+    ! Colour algorithm may access cells beyond the local partition when searching
+    ! for neighbours, so make the array big enough.
+    allocate(gid_from_lid(self%ncells_global_mesh))
+
+    ! Set default global ID as 0: to apply to cells outside local partition
+    gid_from_lid(:)=0
+
+    ! Global ID is set only for cells in local partition
+    do i = 1,self%get_ncells_2d()
+      gid_from_lid(i) = self%get_gid_from_lid(i)
+    end do
+
+    call set_colours( self%get_ncells_2d(),    &
+                      self%cell_next,          &
+                      self%ncolours,           &
+                      self%ncells_per_colour,  &
+                      self%cells_in_colour,    &
+                      npanels,                 &
+                      self%ncells_global_mesh, &
+                      gid_from_lid(:) )
+  
   end function mesh_constructor
 
 
@@ -1602,40 +1633,6 @@ contains
   end function is_coloured 
 
   !============================================================================
-  !> @brief  Invoke calculation of colouring for this mesh.
-  !>
-  !> @param[in] self  The mesh_type instance.
-  !============================================================================
-  subroutine set_colours(self, npanels)
-    use mesh_colouring_mod, only : colour_mod_set_colours => set_colours
-    implicit none
-    class(mesh_type), intent(inout)    :: self
-    integer(kind=i_def),intent(inout)  :: npanels
-
-    integer(kind=i_def),allocatable :: gid_from_lid(:)
-    integer(kind=i_def)             :: cell
-
-    allocate(gid_from_lid(self%ncells_global_mesh))
-
-    ! Set default global ID as 0
-    gid_from_lid(:)=0
-    ! Global ID is set only for cells in local partition
-    do cell = 1,self%get_ncells_2d()
-      gid_from_lid(cell) = self%get_gid_from_lid(cell)
-    end do
-
-    call colour_mod_set_colours(self%get_ncells_2d(),    &
-                                self%cell_next,          &
-                                self%ncolours,           &
-                                self%ncells_per_colour,  &
-                                self%cells_in_colour,    &
-                                npanels,                 &
-                                self%ncells_global_mesh, &
-                                gid_from_lid)
-  end subroutine set_colours
-
-
-  !============================================================================
   !> @brief  Add a mesh map to this objects mesh map collection. The 
   !>         map will be from this mesh to the specified
   !>         target mesh.
@@ -1835,7 +1832,7 @@ contains
   !-----------------------------------------------------------------------------
   !  Function to clear up objects - called by destructor
   !-----------------------------------------------------------------------------
-  !> @details Explcitly deallocates any allocatable arrays in the mesh object
+  !> @details Explicitly deallocates any allocatable arrays in the mesh object
   !>          to avoid memory leaks
   subroutine clear(self)
 

@@ -88,6 +88,5 @@ class mesh_mod::mesh_type {
   +is_coloured() : logical
   +is_edge_owned( <<in>>edge_index: integer, <<in>>cell_lid: integer ) : logical
   +is_vertex_owned( <<in>>vertex_index: integer, <<in>>cell_lid: integer ) : logical
-  +set_colours( <<in>>npanels: integer )
   -set_vertical_coordinate( <<in>>vgrid_option: integer )
 }

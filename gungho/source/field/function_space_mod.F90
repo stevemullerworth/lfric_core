@@ -308,10 +308,6 @@ contains
   !> @return  Number of colours used to colour this mesh. 
   procedure, public  :: get_ncolours
 
-  !> @brief  Invoke calculation of colouring for the member mesh.
-  !> @param[inout] npanels  Number of panels in the global mesh
-  procedure, public  :: set_colours
-
   procedure, public  :: clear
 
   !> Routine to destroy function_space_type
@@ -1122,20 +1118,6 @@ function get_stencil_dofmap(self, stencil_shape, stencil_extent) result(map)
     loop => loop%next
   end do
 end function get_stencil_dofmap
-
-
-!============================================================================
-!> @brief  Invoke calculation of colouring for the member mesh.
-!============================================================================
-subroutine set_colours(self, npanels)
-  use mesh_colouring_mod, only : colour_mod_set_colours => set_colours
-  implicit none
-  class(function_space_type), intent(inout) :: self
-  integer(i_def),intent(inout)              :: npanels
-
-  call self%mesh%set_colours(npanels)
-
-end subroutine set_colours
 
 !----------------------------------------------------------------------------
 !> @brief   Returns count of colours used in colouring member mesh.

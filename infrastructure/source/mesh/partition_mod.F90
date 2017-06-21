@@ -74,6 +74,8 @@ type, public :: partition_type
   integer(i_def)              :: num_ghost
 !> The total number of cells in the global domain
   integer(i_def)              :: global_num_cells
+!> Number of panels in the 3D mesh
+  integer(i_def)              :: npanels
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
@@ -142,6 +144,9 @@ contains
   !>         partition
   procedure, public :: get_num_cells_ghost
 
+  !> @brief Gets the number of panels in the global mesh
+  procedure, public :: get_num_panels_global_mesh
+
   !> @brief Returns the local rank number
   !> @return local_rank The number of the local rank
   procedure, public :: get_local_rank
@@ -192,6 +197,7 @@ interface
 ! Interface for partitioner function pointer to be supplied to the constructor
 !-------------------------------------------------------------------------------
   subroutine partitioner_interface( global_mesh, &
+                                    num_panels, &
                                     xproc, &
                                     yproc, &
                                     local_rank, &
@@ -206,6 +212,8 @@ interface
     import :: i_def
 
     type(global_mesh_type),     intent(in), pointer :: global_mesh
+
+    integer(i_def),             intent(out)   :: num_panels
     integer(i_def),             intent(in)    :: xproc, yproc, &
                                                  local_rank, total_ranks
     integer(i_def), allocatable,intent(inout) :: global_cell_id( : )
@@ -267,6 +275,7 @@ integer(i_def) :: total_inners
 integer(i_def) :: last
 integer(i_def), pointer :: cell_owner_ptr( : )
 integer(i_def) :: halo_start, halo_finish
+integer(i_def) :: npanels
 
 self%local_rank = local_rank
 self%total_ranks = total_ranks
@@ -281,6 +290,7 @@ self%global_num_cells = global_mesh%get_ncells()
 ! Call the partitioner that has been passed into the routine
 ! as a procedure pointer
 call partitioner( global_mesh, &
+                  self%npanels, &
                   xproc, yproc, &
                   local_rank, &
                   total_ranks, &
@@ -425,6 +435,7 @@ subroutine partition_type_assign(dest, source)
   dest%last_edge_cell=source%last_edge_cell
   dest%last_halo_cell=source%last_halo_cell
 
+  dest%npanels=source%npanels
   allocate( dest%cell_owner(size(source%cell_owner)) )
   dest%cell_owner=source%cell_owner
 
@@ -454,8 +465,10 @@ end subroutine partition_type_assign
 !>                  halo around the outermost actual halo and are not in the
 !>                  partitioned domain, but are required to fully describe the 
 !>                  cells in the partitioned domain
+!> @param num_panels [out] Number of panels in the 3D mesh.
 !-------------------------------------------------------------------------------
   subroutine partitioner_biperiodic( global_mesh, &
+                                     num_panels, &
                                      xproc, &
                                      yproc, &
                                      local_rank, &
@@ -470,6 +483,7 @@ end subroutine partition_type_assign
 
   type(global_mesh_type), pointer, intent(in) :: global_mesh
 
+  integer(i_def),              intent(out)   :: num_panels
   integer(i_def),              intent(in)    :: xproc
   integer(i_def),              intent(in)    :: yproc
   integer(i_def),              intent(in)    :: local_rank
@@ -481,8 +495,11 @@ end subroutine partition_type_assign
   integer(i_def),              intent(out)   :: num_halo( : )
   integer(i_def),              intent(out)   :: num_ghost
 
+  ! A biperiodic mesh has 1 panel
+  num_panels = 1
+
   call partitioner_rectangular_panels( global_mesh, &
-                                       1, &
+                                       num_panels, &
                                        xproc, &
                                        yproc, &
                                        local_rank, &
@@ -520,8 +537,10 @@ end subroutine partition_type_assign
 !>                  halo around the outermost actaul halo and are not in the
 !>                  partitioned domain, but are required to fully describe the 
 !>                  cells in the partitioned domain
+!> @param num_panels [out] Number of panels in the 3D mesh.
 !-------------------------------------------------------------------------------
   subroutine partitioner_cubedsphere( global_mesh, &
+                                      num_panels, &
                                       xproc, &
                                       yproc, &
                                       local_rank, &
@@ -536,6 +555,7 @@ end subroutine partition_type_assign
 
   type(global_mesh_type), pointer, intent(in) :: global_mesh
 
+  integer(i_def),              intent(out)   :: num_panels
   integer(i_def),              intent(in)    :: xproc
   integer(i_def),              intent(in)    :: yproc
   integer(i_def),              intent(in)    :: local_rank
@@ -547,13 +567,16 @@ end subroutine partition_type_assign
   integer(i_def),              intent(out)   :: num_halo( : )
   integer(i_def),              intent(out)   :: num_ghost
 
+  ! A cubed sphere has 6 panels
+  num_panels = 6
+
   !check that we have a number of ranks that is compatible with this partitioner
-  if( modulo(total_ranks,6) /= 0 ) call log_event( &
+  if( modulo(total_ranks,num_panels) /= 0 ) call log_event( &
   'The cubed-sphere partitioner requires a multiple of six processors.', &
   LOG_LEVEL_ERROR )
 
   call partitioner_rectangular_panels( global_mesh, &
-                                       6, &
+                                       num_panels, &
                                        xproc, &
                                        yproc, &
                                        local_rank, &
@@ -593,6 +616,7 @@ end subroutine partition_type_assign
 !>                  cells in the partitioned domain
 !-------------------------------------------------------------------------------
   subroutine partitioner_cubedsphere_serial( global_mesh, &
+                                             num_panels, &
                                              xproc, &
                                              yproc, &
                                              local_rank, &
@@ -614,6 +638,7 @@ end subroutine partition_type_assign
 
   type(global_mesh_type), pointer, intent(in) :: global_mesh
 
+  integer(i_def),              intent(out)   :: num_panels
   integer(i_def),              intent(in)    :: xproc
   integer(i_def),              intent(in)    :: yproc
   integer(i_def),              intent(in)    :: local_rank
@@ -626,6 +651,9 @@ end subroutine partition_type_assign
   integer(i_def),              intent(out)   :: num_ghost
 
   integer(i_def) :: i
+
+  ! A cubed sphere has 6 panels
+  num_panels = 6
 
   if( total_ranks /= 1 .or. local_rank /= 0 )then
    call log_event( 'Can only use the serial partitioner with a single process',&
@@ -676,6 +704,7 @@ end subroutine partition_type_assign
   implicit none
 
   type(global_mesh_type), pointer, intent(in):: global_mesh             ! A global mesh object 
+
   integer(i_def),              intent(in)    :: num_panels              ! Number of panels that make up the mesh
   integer(i_def),              intent(in)    :: xproc                   ! Number of processors along x-direction
   integer(i_def),              intent(in)    :: yproc                   ! Number of processors along y-direction
@@ -1295,6 +1324,19 @@ function get_num_cells_ghost( self ) result ( ghost_cells )
 
 end function get_num_cells_ghost
 
+!-------------------------------------------------------------------------------
+! Gets the number of panels in the global 2D mesh
+!-------------------------------------------------------------------------------
+function get_num_panels_global_mesh ( self ) result ( number_of_panels )
+
+  implicit none
+
+  class(partition_type), intent(in) :: self
+  integer(i_def) :: number_of_panels
+
+  number_of_panels = self%npanels
+
+end function get_num_panels_global_mesh
 
 !-------------------------------------------------------------------------------
 ! Gets the local rank number

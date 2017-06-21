@@ -80,7 +80,6 @@ contains
 
     type (global_mesh_type), pointer :: global_mesh_ptr => null()
     type (partition_type)            :: partition
-    type (mesh_type),        pointer :: prime_mesh_ptr  => null()
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null ()
 
@@ -267,10 +266,6 @@ contains
                                                   number_of_layers, &
                                                   domain_top,       &
                                                   method )
-
-    prime_mesh_ptr => mesh_collection%get_mesh( prime_mesh_id )
-
-    call prime_mesh_ptr%set_colours(npanels)
 
     return
   end subroutine set_up

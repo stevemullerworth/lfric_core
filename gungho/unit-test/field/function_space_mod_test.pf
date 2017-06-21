@@ -23,7 +23,7 @@ module function_space_mod_test
   private
   public :: test_function_space_constructor, getParameters,   &
             test_space, test_stencil_point, test_stencil_1dx, &
-            test_stencil_1dy, test_stencil_cross, test_mesh, test_colouring, &
+            test_stencil_1dy, test_stencil_cross, test_mesh, &
             test_get_whole_dofmap, test_get_last_dof
 
   @testParameter
@@ -50,7 +50,6 @@ module function_space_mod_test
     procedure test_stencil_1dy
     procedure test_stencil_cross
     procedure test_mesh
-    procedure test_colouring
     procedure test_get_last_dof
   end type test_function_space_type
 
@@ -490,58 +489,6 @@ contains
     @assertEqual ( 32, mesh_out%get_edge_on_cell( 6, 9 ) )
 
   end subroutine test_mesh
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @test
-  subroutine test_colouring( this )
-
-    implicit none
-
-    class(test_function_space_type), intent(inout) :: this
-
-    type(function_space_type), pointer :: test_fs => null()
-
-    integer(i_def) :: num_colours
-    integer(i_def) :: total_colours
-    integer(i_def) :: nc_colour
-    integer(i_def) :: cic_colour
-    integer(i_def) :: npanels
-
-    integer(i_def), pointer :: num_cell_per_colour(:)
-    integer(i_def), pointer :: cells_in_colour(:,:)
-
-    integer :: colour_idx
-
-    test_fs => function_space_type( this%mesh_id,  &
-                                    element_order, &
-                                    this%function_space )
-
-    ! Must set colours before use...
-    ! Set npanels so generic colour algorithm is used
-    npanels=999
-
-    call test_fs%set_colours(npanels)
-
-    call test_fs%get_colours(num_colours, num_cell_per_colour, cells_in_colour)
-
-    ! Is there storage for colour map...
-    @assertTrue(associated(cells_in_colour), "Colours not set for function space.")
-
-    ! Is total number of colours used meaningful...
-    @assertTrue(num_colours > 0, "Non-positive used colour count.")
-
-    ! Did we use all claimed colours...
-    total_colours = size(cells_in_colour, 1)
-    @assertEqual(total_colours, num_colours, "Reported used colours unequal to actual used total.")
-
-    ! Does the total in each colour match the cells in the colour map...
-    do colour_idx=1, num_colours
-      nc_colour = num_cell_per_colour(colour_idx)
-      cic_colour = count(cells_in_colour(colour_idx,:) /= 0)
-      @assertEqual(nc_colour, cic_colour, "Mismatch between num-per-colour total and cell count.")
-    end do
-
-  end subroutine test_colouring
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test

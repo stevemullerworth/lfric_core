@@ -151,11 +151,7 @@ subroutine test_compute_colours_cubedsphere(this)
                                           extrusion_method_uniform )
   mesh => mesh_collection%get_mesh( mesh_id )
 
-  ! Mesh is not yet coloured...
-  @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")
-  call mesh%set_colours(npanels)
-  ! Mesh is now coloured...
-  @assertTrue(mesh%is_coloured(), "Mesh uncoloured after set_colours(npanels)")
+  @assertTrue(mesh%is_coloured(), "Mesh uncoloured")
 
   num_cells = partition%get_num_cells_in_layer()
 
@@ -163,7 +159,6 @@ subroutine test_compute_colours_cubedsphere(this)
 
   ! Is there storage for colour maps...
   @assertTrue(associated(cells_in_colour), "Colours not set for function space.")
-
   ! Is total number of colours used meaningful...
   @assertTrue(num_colours == 4, "Failed to colour cubed-sphere with 4 colours")
 
@@ -243,11 +238,7 @@ subroutine test_compute_colours_biperiodic(this)
                                           extrusion_method_uniform )
   mesh => mesh_collection%get_mesh( mesh_id )
 
-  ! Mesh is not yet coloured...
-  @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")
-  call mesh%set_colours(npanels)
-  ! Mesh is now coloured...
-  @assertTrue(mesh%is_coloured(), "Mesh uncoloured after set_colours(npanels)")
+  @assertTrue(mesh%is_coloured(), "Mesh uncoloured")
 
   num_cells = partition%get_num_cells_in_layer()
 
@@ -336,11 +327,7 @@ subroutine test_compute_colours_generic(this)
                                           extrusion_method_uniform )
   mesh => mesh_collection%get_mesh( mesh_id )
 
-  ! Mesh is not yet coloured...
-  @assertFalse(mesh%is_coloured(), "Mesh is unexpectedly coloured")
-  call mesh%set_colours(npanels)
-  ! Mesh is now coloured...
-  @assertTrue(mesh%is_coloured(), "Mesh uncoloured after set_colours(npanels)")
+  @assertTrue(mesh%is_coloured(), "Mesh uncoloured")
 
   num_cells = partition%get_num_cells_in_layer()
 
