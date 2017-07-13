@@ -8,7 +8,7 @@
                                  'straka_x', 'straka_y', 'straka_200m',
                                  'biperiodic-cosmic',
                                  'baroclinic'%}
-{%- set miniapp_configurations = ['gravity_wave', 'umphysics_testbuild'] %}
+{%- set miniapp_configurations = ['gravity_wave', 'umphysics_testbuild', 'miniapp_skeleton'] %}
 {%- set groups = {'developer': ['science(semi-implicit, env={"nrun":3})',
                                 'science(runge-kutta, env={"nrun":30})',
                                 'science(transport-rk)',
@@ -18,7 +18,8 @@
                                 'science(straka_y, plotstr="straka_plot_y.py $NODAL_DATA_DIR theta T000090 $PLOT_DIR")',
                                 'science(robert_short, env={"crun":3, "nrun":5})',	
                                 'science(baroclinic, plotstr="slices.py diagDynamo $NODAL_DATA_DIR theta:rho:1u:2u:3u T000010 180 50 0 $PLOT_DIR")',
-                                'check_compilers(fast-debug)',
+                                'miniapp(miniapp_skeleton)',
+                                'check_compilers(fast-debug)',                     
                                 'canned_test',
                                 'godlines',
                                 'cleanlines'],	

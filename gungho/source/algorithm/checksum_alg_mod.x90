@@ -23,8 +23,10 @@ contains
                                LOG_LEVEL_ERROR
     implicit none
 
-    type(field_type), intent(in) :: field1, field2, field3
-    character(len=*), intent(in) :: model_name, name1, name2, name3
+    type(field_type), intent(in)           :: field1
+    character(len=*), intent(in)           :: model_name, name1
+    type(field_type), intent(in), optional :: field2, field3
+    character(len=*), intent(in), optional :: name2, name3
 
     type(ESMF_VM)                   :: vm
     integer(i_def)                  :: rc, petCount, localPET
@@ -32,9 +34,9 @@ contains
     real(r_def)                     :: chksum1, chksum2, chksum3
     character(len=str_max_filename) :: fname
 
-    call invoke_X_innerproduct_X(chksum1, field1) 
-    call invoke_X_innerproduct_X(chksum2, field2) 
-    call invoke_X_innerproduct_X(chksum3, field3) 
+    call invoke_X_innerproduct_X(chksum1, field1)
+    if ( present(field2) ) call invoke_X_innerproduct_X(chksum2, field2) 
+    if ( present(field3) ) call invoke_X_innerproduct_X(chksum3, field3) 
 
     call ESMF_VMGetCurrent(vm=vm, rc=rc)
     call ESMF_VMGET(vm, localPet=localPET, petCount=petCount, rc=rc)
@@ -47,8 +49,8 @@ contains
         call log_event( "Unable to open checksum file", LOG_LEVEL_ERROR )
       end if
       write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name1),' = ',chksum1
-      write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name2),' = ',chksum2
-      write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name3),' = ',chksum3
+      if ( present(name2) ) write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name2),' = ',chksum2
+      if ( present(name3) ) write(9, '(A,A,A,Z16)' ) 'Inner product checksum ',trim(name3),' = ',chksum3
       close( 9 )
     end if
   end subroutine checksum_alg
