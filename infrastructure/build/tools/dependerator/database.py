@@ -191,6 +191,7 @@ class FortranDependencies(object):
                                     [('type', 'TEXT', 'PRIMARY KEY')] )
         self._database.query( 'INSERT OR IGNORE INTO fortran_unit_type VALUES("program")' )
         self._database.query( 'INSERT OR IGNORE INTO fortran_unit_type VALUES("module")' )
+        self._database.query( 'INSERT OR IGNORE INTO fortran_unit_type VALUES("procedure")' )
 
         self._database.ensureTable( 'fortran_dependency_type', \
                                     [('type', 'TEXT', 'PRIMARY KEY')] )
@@ -257,6 +258,34 @@ class FortranDependencies(object):
         newException.module = name
         newException.filename = filename
         raise newException
+
+    ##########################################################################
+    # Add a program-unit procedure to the database.
+    #
+    # Arguments:
+    #   name     - The name of procedure's program unit.
+    #   filename - The source file in which the procedure was found.
+    #
+    def add_procedure( self, name, filename ):
+      try:
+        query = "INSERT INTO fortran_program_unit VALUES ( '{name}', '{filename}', 'procedure' )"
+        self._database.query( query.format( name=name, filename=filename ) )
+      except DatabaseException as ex:
+        message = 'Unable to add procedure "{name}" from "{filename}": {ex}'
+        newException = DatabaseException( message.format( name=name,
+                                                          filename=filename,
+                                                          ex=ex ) )
+        newException.module = name
+        newException.filename = filename
+        raise newException
+
+    ##########################################################################
+    # Returns a list of all program units in the database.
+    #
+    def get_program_units( self ):
+      query = 'SELECT * FROM fortran_program_unit'
+      rows = self._database.query( query )
+      return [(row['unit'], row['file']) for row in rows]
 
     ###########################################################################
     # Add a compile dependency to the database.

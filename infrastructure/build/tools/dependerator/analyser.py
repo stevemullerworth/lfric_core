@@ -107,6 +107,8 @@ class FortranAnalyser(Analyser):
         raise Exception( 'No Fortran preprocessor provided in $FPP' )
     self._fpp = self._fpp.split()
 
+    # Patterns to recognise scoping units
+    #
     self._programPattern = re.compile( r'^\s*PROGRAM\s+(\S+)',
                                        flags=re.IGNORECASE )
     self._modulePattern \
@@ -115,18 +117,28 @@ class FortranAnalyser(Analyser):
     self._submodulePattern \
             = re.compile( r'^\s*SUBMODULE\s+\((?:([^:]+):)?([^)]+)\)\s+(\S+)',
                           flags=re.IGNORECASE )
+    self._subroutinePattern \
+                     = re.compile( r'^\s*(MODULE\s+)?SUBROUTINE\s+([^\(\s]+)',
+                                   flags=re.IGNORECASE )
+    self._functionPattern \
+= re.compile( r'^\s*(?:TYPE\s*\(\s*\S+?\s*\)\s*|\S+\s*)?(MODULE\s+)?FUNCTION\s+([^\(\s]+)',
+              flags=re.IGNORECASE )
+    self._endPattern = re.compile( r'^\s*END(?:\s+(\S+)(?:\s+(\S+))?)?',
+                                   flags=re.IGNORECASE )
+
+    # Patterns to recognise dependencies
+    #
     self._usePattern = re.compile( r'^\s*USE\s+([^,\s]+)',
                                    flags=re.IGNORECASE )
+    self._externalPattern \
+                 = re.compile( r'^\s*EXTERNAL\s+([^,\s]+(:?\s*,\s*[^,\s]+)*)',
+                               flags=re.IGNORECASE )
     self._pFUnitPattern = re.compile( r'^\s*#\s+\d+\s+".*testSuites.inc"',
                                       flags=re.IGNORECASE )
     self._suitePattern  = re.compile( r'^\s*ADD_TEST_SUITE\(\s*(\S+)\)' )
+    self._dependsPattern = re.compile( r'!\s*DEPENDS ON:\s*([^.\s]+)(.o)?',
+                                       flags=re.IGNORECASE)
 
-    self._subroutinePattern = re.compile(r'^\s*SUBROUTINE\s+([^\(\s]+)', \
-                                             flags=re.IGNORECASE)
-    self._dependsPattern = re.compile( r'^\s*!\s*DEPENDS ON:\s+([^,\s]+)',  \
-                                         flags=re.IGNORECASE)
-    self._interfacePattern = re.compile( r'^\s*INTERFACE\s*', flags=re.IGNORECASE)
-    self._containsPattern = re.compile(r'^\s*CONTAINS\s*', flags=re.IGNORECASE)
   ###########################################################################
   # Scan a Fortran source file and harvest dependency information.
   #
@@ -136,6 +148,8 @@ class FortranAnalyser(Analyser):
   #                            empty macros.
   #
   def analyse( self, sourceFilename, preprocessMacros=None ):
+    # Perform any necessary preprocessing
+    #
     if sourceFilename.endswith( '.F90' ):
       self._logger.logEvent( '  Preprocessing ' + sourceFilename )
       preprocessCommand = self._fpp
@@ -149,98 +163,213 @@ class FortranAnalyser(Analyser):
       preprocessor = subprocess.Popen( preprocessCommand, \
                                        stdout=subprocess.PIPE, \
                                        stderr=subprocess.PIPE )
-      processedSource, errors = preprocessor.communicate()
+      processed_source, errors = preprocessor.communicate()
       if preprocessor.returncode:
         raise subprocess.CalledProcessError( preprocessor.returncode,
                                              " ".join( preprocessCommand ) )
     elif sourceFilename.endswith( '.f90' ):
       with open( sourceFilename, 'r' ) as sourceFile:
-        processedSource = sourceFile.read()
+        processed_source = sourceFile.read()
     else:
       message = 'File doesn''t look like a Fortran file: {}'
       raise Exception( message.format( sourceFilename ) )
 
+    # A local function to hide the mesiness of adding a dependency to the
+    # database.
+    #
+    def add_dependency( program_unit, prerequisite_unit, reverseLink=False ):
+      prerequisite_unit = prerequisite_unit.lower()
+      if prerequisite_unit in self._ignoreModules:
+        self._logger.logEvent( '      - Ignored 3rd party prerequisite' )
+      elif prerequisite_unit in modules:
+        self._logger.logEvent( '      - Ignored self' )
+      elif prerequisite_unit in dependencies:
+        self._logger.logEvent( '      - Ignore duplicate prerequisite' )
+      else:
+        dependencies.append( prerequisite_unit )
+        self._database.addModuleCompileDependency( program_unit, \
+                                                   prerequisite_unit )
+        if reverseLink:
+          self._database.addModuleLinkDependency( prerequisite_unit, \
+                                                  program_unit )
+        else:
+          self._database.addModuleLinkDependency( program_unit, \
+                                                  prerequisite_unit )
+
+    # Read lines from the file, concatenate at continuation markers and
+    # split comments off.
+    #
+    # TODO: This is complex. That complexity comes from the need
+    #       to preserve comments. This is needed to support "depends on"
+    #       comments. Ergo, once "depends on" is gone we can ignore comments
+    #       and this becomes a lot simpler.
+    #
+    def lines_of_code( source ):
+      line_number = 0
+      code    = ''
+      comment = ''
+      continuing = False
+      for line in source.splitlines(): # Loop over every line in the source
+        line_number += 1
+        state = 'indent' # Each line starts in the "indent" state
+        index = -1
+        code_start = 0
+        code_end = len(line)
+        comment_start = len(line)
+        continuation = False
+        for character in line: # Scan every character in a line
+          index += 1
+          if state == 'indent': ##############################################
+            if character == '&': # Start of continuation line
+              if not continuing:
+                message = 'Found continuation marker at start of line when there was none ending previous line'
+                raise Exception( message )
+            elif character == '!': # Line contains only a comment
+              comment_start = index
+              state = 'comment'
+            elif character != ' ': # Start of code located
+              code_start = index
+              state = 'code'
+          elif state == 'code': ##############################################
+            if character == '"': # String opened with double quote
+              state == 'double'
+            elif character == "'": # String opened with single quote
+              state == 'single'
+            elif character == '&': # Line continues on next line
+              code_end = index
+              continuing = True
+              continuation = True
+              state = 'continue'
+            elif character == '!': # The remainder of the line is a comment
+              comment_start = index
+              state = 'comment'
+          elif state == 'double': ############################################
+            if character == '"': # Quoted string has ended
+              state = 'code'
+          elif state == 'single': ############################################
+            if character == "'": # Quoted string has ended
+              state = 'code'
+          elif state == 'continue': ##########################################
+            if character == '!': # There is a comment after the continuation
+              state = 'comment'
+          elif state == 'comment': ###########################################
+            if index-1 < code_end: # If we have not already ended the code
+              code_end = index-1   # Mark it as ended.
+            break
+
+        code    += ' ' + line[code_start:code_end]
+        comment += ' ' + line[comment_start:]
+
+        if line[code_start:code_end].strip() and not continuation:
+          yield (code, comment, line_number )
+          code       = ''
+          comment    = ''
+          continuing = False
+
+    # Scan file for dependencies.
+    #
     self._logger.logEvent( '  Scanning ' + sourceFilename )
     self._database.removeFile( sourceFilename )
 
-    def addDependency( programUnit, prerequisiteUnit, reverseLink=False ):
-      prerequisiteUnit = prerequisiteUnit.lower()
-      if prerequisiteUnit in self._ignoreModules:
-        self._logger.logEvent( '      - Ignored 3rd party prerequisite' )
-      elif prerequisiteUnit in modules:
-        self._logger.logEvent( '      - Ignored self' )
-      elif prerequisiteUnit in dependencies:
-        self._logger.logEvent( '      - Ignore duplicate prerequisite' )
-      else:
-        dependencies.append( prerequisiteUnit )
-        self._database.addModuleCompileDependency( programUnit, \
-                                                   prerequisiteUnit )
-        if reverseLink:
-          self._database.addModuleLinkDependency( prerequisiteUnit, \
-                                                  programUnit )
-        else:
-          self._database.addModuleLinkDependency( programUnit, \
-                                                  prerequisiteUnit )
-
-    programUnit = None
+    program_unit = None
     modules = []
     dependencies = []
-    lookForSubroutines=True
+    scope_stack = []
     pFUnitDriver = False
-    for line in processedSource.splitlines():
-      match = self._programPattern.match( line )
-      if match is not None:
-        programUnit = match.group(1).lower()
-        self._logger.logEvent( '    Contains program: ' + programUnit )
-        self._database.addProgram( programUnit, sourceFilename )
+    for code, comment, line_number in lines_of_code( processed_source ):
+      match = self._programPattern.match( code )
+      if match:
+        program_unit = match.group(1).lower()
+        self._logger.logEvent( '    Contains program: ' + program_unit )
+        self._database.addProgram( program_unit, sourceFilename )
+        scope_stack.append( ('program', program_unit) )
         continue
 
-      match = self._modulePattern.match( line )
-      if match is not None:
-        programUnit = match.group( 1 ).lower()
-        self._logger.logEvent( '    Contains module ' + programUnit )
-        modules.append( programUnit )
-        self._database.addModule( programUnit, sourceFilename )
+      match = self._modulePattern.match( code )
+      if match:
+        program_unit = match.group( 1 ).lower()
+        self._logger.logEvent( '    Contains module ' + program_unit )
+        modules.append( program_unit )
+        self._database.addModule( program_unit, sourceFilename )
+        scope_stack.append( ('module', program_unit) )
         continue
 
-      if lookForSubroutines:
-          match = self._subroutinePattern.match( line )
-          if match is not None:
-              programUnit = match.group( 1 ).lower()
-              self._logger.logEvent( '    Contains subroutine ' + programUnit )
-              modules.append( programUnit )
-              self._database.addModule( programUnit, sourceFilename )
-              continue
-
-      match = self._submodulePattern.match( line )
-      if match is not None:
+      match = self._submodulePattern.match( code )
+      if match:
         ancestorUnit = match.group(1)
         if ancestorUnit:
           ancestorUnit = ancestorUnit.lower()
         parentUnit  = match.group(2).lower()
-        programUnit = match.group(3).lower()
+        program_unit = match.group(3).lower()
 
         message = '{}Contains submodule {} of {}'.format( ' ' * 4,     \
-                                                          programUnit, \
+                                                          program_unit, \
                                                           parentUnit )
         if ancestorUnit:
           message = message + '({})'.format( ancestorUnit )
         self._logger.logEvent( message )
 
-        self._database.addModule( programUnit, sourceFilename )
+        self._database.addModule( program_unit, sourceFilename )
         # I don't think it's necessary to append this to "modules".
         # It's really just a dependency.
-        addDependency( programUnit, parentUnit, True )
+        add_dependency( program_unit, parentUnit, True )
+        scope_stack.append( ('submodule', program_unit) )
         continue
 
-      match = self._usePattern.match( line )
+      match = self._subroutinePattern.match( code )
+      if match and len(scope_stack) == 0: 
+        # Only if this subroutine is a program unit.
+        is_module    = match.group( 1 )
+        program_unit = match.group( 2 ).lower()
+        self._logger.logEvent( '    Contains subroutine ' + program_unit )
+        modules.append( program_unit )
+        self._database.add_procedure( program_unit, sourceFilename )
+        scope_stack.append( ('subroutine', program_unit) )
+        continue
+
+      match = self._functionPattern.match( code )
+      if match and len(scope_stack) == 0:
+        # Only if this function is a program unit.
+        is_module    = match.group( 1 )
+        program_unit = match.group( 2 ).lower()
+        self._logger.logEvent( '    Contains function ' + program_unit )
+        modules.append( program_unit )
+        self._database.add_procedure( program_unit, sourceFilename )
+        scope_stack.append( ('function', program_unit) )
+        continue
+
+      match = self._endPattern.match( code )
+      if match:
+        end_scope = match.group(1)
+        end_unit  = match.group(2)
+
+        try:
+          begin_scope, begin_unit = scope_stack[-1]
+
+          if end_scope == begin_scope and end_unit == begin_unit:
+            scope_stack.pop()
+        except IndexError:
+          message = 'Mismatched begin/end. Found "{end}" but stack empty'
+          raise Exception( message.format( end=end_scope) )
+
+      match = self._usePattern.match( code )
       if match is not None:
         moduleName = match.group( 1 ).lower()
         self._logger.logEvent( '    Depends on module ' + moduleName )
-        addDependency( programUnit, moduleName )
+        add_dependency( program_unit, moduleName )
         continue
 
-      match = self._pFUnitPattern.match( line )
+      match = self._externalPattern.match( code )
+      if match is not None:
+        moduleNames = [moduleName.strip()
+                       for moduleName in match.group(1).split(',')]
+        for moduleName in moduleNames:
+          if moduleName is not None:
+            self._logger.logEvent( '    Depends on external ' + moduleName )
+            add_dependency( program_unit, moduleName )
+        continue
+
+      match = self._pFUnitPattern.match( code )
       if not pFUnitDriver and match is not None:
         self._logger.logEvent( '    Is driver' )
         pFUnitDriver = True
@@ -254,28 +383,14 @@ class FortranAnalyser(Analyser):
               testGeneratorFunction = match.group( 1 )
               testModule = testGeneratorFunction.replace( '_suite', '' )
               self._logger.logEvent( '      Depends on module ' + testModule )
-              self._database.addModuleCompileDependency( programUnit, testModule )
-              self._database.addModuleLinkDependency( programUnit, testModule )
+              self._database.addModuleCompileDependency( program_unit, testModule )
+              self._database.addModuleLinkDependency( program_unit, testModule )
         continue
 
-      match = self._dependsPattern.match(line)
-      if match is not None:
-          name = match.group( 1 ).lower()
-          if name is not None:
-              self._logger.logEvent( '    %s depends on call to %s ' % (programUnit, name) )
-          addDependency( programUnit, name )
-          continue
-
-      # Are we entering an interface block (in which case we may subsequently want to 
-      # ignore matches of subroutine above)
-      match = self._interfacePattern.match(line)
-      if match is not None:
-          lookForSubroutines=False
-          continue
-
-      # Are we entering module contains, (in which case we may subsequently want to 
-      # ignore matches of subroutine above)
-      match = self._containsPattern.match(line)
-      if match is not None:
-          lookForSubroutines=False
-          continue
+      for match in self._dependsPattern.finditer( comment ):
+        name = match.group( 1 ).lower()
+        extension = match.group( 2 )
+        if name is not None:
+            self._logger.logEvent( '    %s depends on call to %s ' % (program_unit, name) )
+        add_dependency( program_unit, name )
+        continue

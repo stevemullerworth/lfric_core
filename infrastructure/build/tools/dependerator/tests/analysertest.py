@@ -63,6 +63,8 @@ end namelist foo
 class FortranAnalyserTest(unittest.TestCase):
     ##########################################################################
     def setUp( self ):
+        self.maxDiff = None
+
         self._scratchDirectory = tempfile.mkdtemp()
         self._logger       = utilities.logging.NoLogger()
         dbFilename = os.path.join( self._scratchDirectory, 'test.db' )
@@ -76,6 +78,84 @@ class FortranAnalyserTest(unittest.TestCase):
         del self._database
         del self._logger
         shutil.rmtree( self._scratchDirectory )
+
+    ##########################################################################
+    # Ensure continuation lines are handled correctly.
+    #
+    def testContinuationLines( self ):
+      self._dependencies.addProgram( u'stock', u'oxo.f90' )
+      self._dependencies.addModuleCompileDependency( u'stock', u'widgit' )
+      self._dependencies.addModuleLinkDependency( u'stock', u'widgit' )
+      self._dependencies.addModuleCompileDependency( u'stock', u'thingy' )
+      self._dependencies.addModuleLinkDependency( u'stock', u'thingy' )
+      self._dependencies.addModule( u'beef', u'cow.f90' )
+      self._dependencies.addModule( u'pork', u'pig.f90' )
+      testFilename = unicode( os.path.join( self._scratchDirectory,
+                                            'cont.f90' ) )
+      with open( testFilename, 'w' ) as fortranFile:
+        print( '''
+subroutine thingy(cheese, meat, &
+                  teapot, fishslice, &
+                 )
+
+end subroutine thingy
+
+subroutine widgit( grunk, &
+! This comment should be ignored
+                   grank )
+  use beef
+  implicit none
+end subroutine widgit
+
+subroutine old_school( bibble, &
+                       & bobble )
+  use pork
+  implicit none
+end subroutine old_school
+               '''.strip(), file=fortranFile )
+      uut = dependerator.analyser.FortranAnalyser( self._logger,
+                                                   [],
+                                                   self._dependencies )
+      uut.analyse( testFilename )
+
+      dependencies = list(self._dependencies.getCompileDependencies())
+      self.assertEqual( [(u'old_school', testFilename, u'pork', u'pig.f90'),
+                         (u'stock', u'oxo.f90', u'thingy', testFilename),
+                         (u'stock', u'oxo.f90', u'widgit', testFilename),
+                         (u'widgit', testFilename, u'beef', u'cow.f90')],
+                        sorted(dependencies) )
+
+      dependencies = list(self._dependencies.getLinkDependencies( 'widgit' ))
+      self.assertEqual( [('widgit', testFilename, u'beef', u'cow.f90')],
+                        dependencies )
+
+    ##########################################################################
+    # Procedure as program unit.
+    #
+    def testProcedure( self ):
+      testFilename = unicode( os.path.join( self._scratchDirectory,
+                              'test.f90' ) )
+      with open( testFilename, 'w' ) as fortranFile:
+          print( '''
+subroutine empty_sub()
+end subroutine empty_sub
+
+subroutine one_sub( argument )
+end subroutine one_sub
+
+real function cosd(degree)
+end function cosd
+                  '''.strip(), file=fortranFile )
+
+      uut = dependerator.analyser.FortranAnalyser( self._logger,
+                                                   [],
+                                                   self._dependencies )
+      uut.analyse( testFilename )
+
+      self.assertEqual( [(u'cosd',      testFilename),
+                         (u'empty_sub', testFilename),
+                         (u'one_sub',   testFilename)],
+                        sorted(self._dependencies.get_program_units()) )
 
     ##########################################################################
     # Includes disparate case to ensure case insensitivity.
@@ -110,14 +190,14 @@ end program fOo
                             u'constants_mod', u'constants_mod.f90'),
                            (u'foo', unicode(testFilename),
                             u'trumpton_mod', u'trumpton_mod.f90')],
-                          dependencies )
+                          sorted(dependencies) )
 
         dependencies = list(self._dependencies.getLinkDependencies( 'foo' ))
         self.assertEqual( [(u'foo', unicode(testFilename),
                             u'constants_mod', u'constants_mod.f90'),
                            (u'foo', unicode(testFilename),
                             u'trumpton_mod', u'trumpton_mod.f90')],
-                          dependencies )
+                          sorted(dependencies) )
 
     ##########################################################################
     # Includes disparate case to ensure case insensitivity.
@@ -132,6 +212,7 @@ end program fOo
             print( '''
 module foO
 
+  ! Ignore this
   use consTants_mod, only : i_def
   use trumPton_mod, only : hew, pew, barney, mcgrey, cuthbirt, dibble, grub
 
@@ -166,15 +247,17 @@ end module coNstants_mod
         self.assertEqual( [(u'foo', testFilename,
                             u'constants_mod', otherFilename),
                            (u'foo', testFilename,
-                            u'trumpton_mod', testFilename)], dependencies )
+                            u'trumpton_mod', testFilename)],
+                          sorted(dependencies) )
 
         dependencies = list(self._dependencies.getLinkDependencies( 'foo' ))
         self.assertEqual( [(u'foo', testFilename,
                             u'constants_mod', otherFilename),
                            (u'foo', testFilename,
-                            u'trumpton_mod', testFilename)], dependencies )
+                            u'trumpton_mod', testFilename)],
+                          sorted(dependencies) )
 
-    ##########################################################################
+   ##########################################################################
     # This test also includes disparate case to ensure case insensitivity is
     # enforced.
     #
@@ -330,16 +413,19 @@ end submodule grandChild
                            (u'child2', child2Filename,
                             u'parent', parentFilename),
                            (u'grandchild', child3Filename,
-                            u'child1', child1Filename)], dependencies )
+                            u'child1', child1Filename)],
+                          sorted(dependencies) )
 
         dependencies = list(self._dependencies.getLinkDependencies( 'parent' ))
         self.assertEqual( [(u'parent', parentFilename,
                             u'child1', child1Filename),
                            (u'parent', parentFilename,
-                            u'child2', child2Filename)], dependencies )
+                            u'child2', child2Filename)],
+                          sorted(dependencies) )
         dependencies = list(self._dependencies.getLinkDependencies( 'child1' ))
         self.assertEqual( [(u'child1', child1Filename,
-                            u'grandchild', child3Filename)], dependencies)
+                            u'grandchild', child3Filename)],
+                          sorted(dependencies) )
 
     ##########################################################################
     # Ensure the analyser isn't tripped up by naked global level procedures as
@@ -389,19 +475,23 @@ end dependson
 
         dependencies = list(self._dependencies.getCompileDependencies())
         self.assertEqual( [(u'function_thing_mod', testFilename,
-                            u'constants_mod', otherFilename)], dependencies )
+                            u'constants_mod', otherFilename)],
+                          sorted(dependencies ) )
 
         dependencies = list(self._dependencies \
                                 .getLinkDependencies( 'function_thing_mod' ))
         self.assertEqual( [(u'function_thing_mod', testFilename,
-                            u'constants_mod', otherFilename)], dependencies )
+                            u'constants_mod', otherFilename)],
+                          sorted(dependencies ) )
 
     ##########################################################################
     # The analyser has to be able to track dependencies using the deprecated
     # "depends on:" comments of the UM.
     #
     def testDependsOn( self ):
-        testFilename = os.path.join( self._scratchDirectory, 'test.f90' )
+        self._dependencies.add_procedure( u'flibble', u'flibble.f90' )
+        testFilename = unicode( os.path.join( self._scratchDirectory,
+                                              'test.f90' ) )
         with open( testFilename, 'w' ) as fortranFile:
             print( '''
 module function_thing_mod
@@ -410,13 +500,18 @@ module function_thing_mod
 
   implicit none
 
-! Add in an interface block - this will test to make sure 
+! Add in an interface block - this will test to make sure
 ! we don't pick up a spurious subroutine call 
   interface
      subroutine wooble ()
+     end subroutine
   end interface
 
   private
+
+! Comments before the "depends on" shouldn't upset it.
+
+! depends on: flibble.o
 
 ! depends on: wooble
 
@@ -425,23 +520,25 @@ contains
 end module function_thing_mod
                    '''.strip(), file=fortranFile )
 
-        otherFilename = os.path.join( self._scratchDirectory, 'other.f90' )
+        otherFilename = unicode( os.path.join( self._scratchDirectory,
+                                 'other.f90' ) )
         with open( otherFilename, 'w' ) as otherFile:
             print( '''
 module constants_mod
 contains
 subroutine wooble
 
-end wooble
+end subroutine wooble
 end module constants_mod
                    '''.strip(), file=otherFile )
 
-        dependFilename = os.path.join( self._scratchDirectory, 'wooble.f90' )
+        dependFilename = unicode( os.path.join( self._scratchDirectory,
+                                  'wooble.f90' ) )
         with open( dependFilename, 'w' ) as dependFile:
             print( '''
 subroutine wooble
 
-end wooble
+end subroutine wooble
                    '''.strip(), file=dependFile )
 
         uut = dependerator.analyser.FortranAnalyser( self._logger,
@@ -455,18 +552,128 @@ end wooble
         self.assertEqual( [], programs )
 
         dependencies = list(self._dependencies.getCompileDependencies())
-
         self.assertEqual( [(u'function_thing_mod', testFilename,
                             u'constants_mod', otherFilename),
                            (u'function_thing_mod', testFilename,
-                            u'wooble', dependFilename)], dependencies )
+                            u'flibble', u'flibble.f90'),
+                           (u'function_thing_mod', testFilename,
+                            u'wooble', dependFilename)],
+                          sorted(dependencies) )
 
         dependencies = list(self._dependencies \
                                 .getLinkDependencies( 'function_thing_mod' ))
         self.assertEqual( [(u'function_thing_mod', testFilename,
                             u'constants_mod', otherFilename),
                            (u'function_thing_mod', testFilename,
-                            u'wooble', dependFilename)], dependencies  )
+                            u'flibble', u'flibble.f90'),
+                           (u'function_thing_mod', testFilename,
+                            u'wooble', dependFilename)],
+                          sorted(dependencies)  )
+
+    ##########################################################################
+    # The analyser must ignore abstract interface definitions. These are not
+    # program units.
+    #
+    def testAbstractInterface( self ):
+      firstFilename = os.path.join( self._scratchDirectory, 'test.f90' )
+      with open( firstFilename, 'w' ) as fortranFile:
+        print( '''
+module first_mod
+
+implicit none
+
+private
+
+abstract interface
+    subroutine thing_face()
+      implicit none
+    end subroutine thing_face
+end interface
+
+contains
+
+end module first_mod
+               '''.strip(), file=fortranFile )
+
+      secondFilename = os.path.join( self._scratchDirectory, 'test2.f90' )
+      with open( secondFilename, 'w' ) as fortranFile:
+        print( '''
+module second_mod
+
+implicit none
+
+private
+
+abstract interface
+    subroutine thing_face()
+      implicit none
+    end subroutine thing_face
+end interface
+
+contains
+
+end module second_mod
+               '''.strip(), file=fortranFile )
+
+      uut = dependerator.analyser.FortranAnalyser( self._logger,
+                                                  [],
+                                                  self._dependencies )
+      uut.analyse( firstFilename )
+      uut.analyse( secondFilename )
+
+    ##########################################################################
+    # Ensure "external" works as a dependency marker.
+    #
+    def testExternal( self ):
+      self._dependencies.addModule( 'wibble', 'wibble.f90' )
+      self._dependencies.addModule( 'bibble', 'bibble.f90' )
+      self._dependencies.addModule( 'ibble', 'ibble.f90' )
+      self._dependencies.addModule( 'gribble', 'gribble.f90' )
+      testFilename = unicode( os.path.join( self._scratchDirectory,
+                                            'test.f90' ) )
+      with open( testFilename, 'w' ) as fortranFile:
+        print( '''
+program boo
+
+  implicit none
+
+  external ibble
+  external wibble, bibble, gribble
+
+  call wibble()
+  call bibble()
+
+end program boo
+               '''.strip(), file=fortranFile )
+
+      uut = dependerator.analyser.FortranAnalyser( self._logger,
+                                                   [],
+                                                   self._dependencies )
+      uut.analyse( testFilename )
+
+      programs = list( self._dependencies.getPrograms() )
+      self.assertEqual( [u'boo'], programs )
+
+      dependencies = list(self._dependencies.getCompileDependencies())
+      self.assertEqual( [(u'boo', testFilename,
+                          u'bibble', u'bibble.f90'),
+                         (u'boo', testFilename,
+                          u'gribble', u'gribble.f90'),
+                         (u'boo', testFilename,
+                          u'ibble', u'ibble.f90'),
+                         (u'boo', testFilename,
+                          u'wibble', u'wibble.f90')], sorted(dependencies) )
+
+      dependencies = list(self._dependencies \
+                              .getLinkDependencies( 'boo' ))
+      self.assertEqual( [(u'boo', testFilename,
+                          u'bibble', u'bibble.f90'),
+                         (u'boo', testFilename,
+                          u'gribble', u'gribble.f90'),
+                         (u'boo', testFilename,
+                          u'ibble', u'ibble.f90'),
+                         (u'boo', testFilename,
+                          u'wibble', u'wibble.f90')], sorted(dependencies) )
 
 if __name__ == '__main__':
     unittest.main()

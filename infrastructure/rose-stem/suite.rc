@@ -1,8 +1,10 @@
 #!jinja2
 {%- set groups = {'developer': ['check_compilers(fast-debug)',
-                                'documentation'],
+                                'documentation',
+                                'build_system'],
                   'nightly': ['check_compilers(full-debug, True)',
                               'documentation(True)',
+                              'build_system',
                               'publish_commit']} %}
 
 {%- set compiler_setup = {} -%}
@@ -53,6 +55,13 @@
 
 {%-     endif %}
 {%-   endif %}
+{%- endmacro %}
+{#- #########################################################################}
+{%- macro build_system() %}
+{%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
+            purge_local          => purge_target
+            purge_target         => export_for_{{label}}
+            export_for_{{label}} => unit_test_build_tools
 {%- endmacro %}
 {#- #########################################################################}
 {%- macro publish_commit() %}
@@ -217,7 +226,7 @@
     # Run locally as they need workstation tools such as Doxygen.
 {%- if 'api_documentation' in scheduledTasks %}
     [[api_documentation]]
-        inherit = None, LOCAL, TECHNICAL
+        inherit = TECHNICAL, LOCAL
         pre-script = """
                      {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
                      """
@@ -235,7 +244,7 @@
     [[publish_api_log]]
         inherit = PUBLISH, TECHNICAL, LOCAL
         pre-script = """
-{{                   ensureDestination()}}
+                     {{ensureDestination()}}
                      mkdir -p $DESTINATION_DIRECTORY/api
                      cd $DESTINATION_DIRECTORY/api
                      RELATIVE_DESTINATION_DIRECTORY=`echo $DESTINATION_DIRECTORY | sed "s|$HOME/||"`
@@ -249,9 +258,9 @@
 
 {%- if 'publish_api_documentation' in scheduledTasks %}
     [[publish_api_documentation]]
-        inherit = PUBLISH, LOCAL, TECHNICAL
+        inherit = PUBLISH, TECHNICAL, LOCAL
         pre-script = """
-{{ensureDestination()}}
+                     {{ensureDestination()}}
                      """
         script = rose task-run --app-key=publish --command-key=directory
         [[[environment]]]
@@ -261,7 +270,7 @@
 
 {%- if 'uml_documentation' in scheduledTasks %}
     [[uml_documentation]]
-      inherit = None, LOCAL, TECHNICAL
+      inherit = TECHNICAL, LOCAL
         pre-script = """
                      {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
                      """
@@ -270,14 +279,25 @@
 
 {%- if 'publish_uml_documentation' in scheduledTasks %}
     [[publish_uml_documentation]]
-      inherit = PUBLISH, LOCAL, TECHNICAL
-        pre-script = """
-{{                   ensureDestination()}}
-                     """
-        script = rose task-run --app-key=publish --command-key=directory
-        [[[environment]]]
-            DIRECTORY = $SOURCE_DIRECTORY/documentation/infrastructure-uml/
-            DESTINATION = {{publish_destination}}/documentation/uml
+      inherit = PUBLISH, TECHNICAL, LOCAL
+      pre-script = """
+                   {{ensureDestination()}}
+                   """
+      script = rose task-run --app-key=publish --command-key=directory
+      [[[environment]]]
+        DIRECTORY = $SOURCE_DIRECTORY/documentation/infrastructure-uml/
+        DESTINATION = {{publish_destination}}/documentation/uml
+{%- endif %}
+
+{%- if 'unit_test_build_tools' in scheduledTasks %}
+    [[unit_test_build_tools]]
+      inherit = TECHNICAL, TARGET
+      pre-script = """
+                   {{'\n'|commandList(TARGET_BASE_SETUP,
+                                    compiler_setup[TARGET_TECHNICAL_COMPILER],
+                                      TARGET_REVEAL_SETUP)}}
+                   """
+      script = make -C $SOURCE_DIRECTORY/infrastructure/build/tools
 {%- endif %}
 
 ##############################################################################
