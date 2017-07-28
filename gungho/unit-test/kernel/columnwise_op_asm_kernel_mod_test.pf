@@ -138,8 +138,8 @@ contains
 
     call columnwise_op_asm_kernel_code(cell,                      &
                                        nlayers,                   &
-                                       mm_p%ncell_3d,             &
                                        columnwise_mm_p%ncell_2d,  &
+                                       mm_p%ncell_3d,             &
                                        local_stencil,             &
                                        columnwise_mm_p%columnwise_matrix,    &
                                        columnwise_mm_p%nrow,      &
@@ -150,8 +150,8 @@ contains
                                        columnwise_mm_p%gamma_m,   &
                                        columnwise_mm_p%gamma_p,   &
                                        ndf,                       &
-                                       ndf,                       &
                                        columnwise_mm_p%column_banded_dofmap_to, &
+                                       ndf,                       &
                                        columnwise_mm_p%column_banded_dofmap_from)
     do i=1, columnwise_mm_p%nrow
       if (i == 1) then

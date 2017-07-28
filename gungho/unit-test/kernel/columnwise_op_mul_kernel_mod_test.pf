@@ -157,9 +157,7 @@ contains
 
     call columnwise_op_mul_kernel_code(cell,                                  &
                                        columnwise_op_DT_p%ncell_2d,           &
-                                       columnwise_op_DT_p%columnwise_matrix,   &
-                                       columnwise_op_D_p%columnwise_matrix,   &
-                                       columnwise_op_DT_D_p%columnwise_matrix, &
+                                       columnwise_op_DT_p%columnwise_matrix,  &
                                        columnwise_op_DT_p%nrow,               &
                                        columnwise_op_DT_p%ncol,               &
                                        columnwise_op_DT_p%bandwidth,          &
@@ -167,6 +165,7 @@ contains
                                        columnwise_op_DT_p%beta,               &
                                        columnwise_op_DT_p%gamma_m,            &
                                        columnwise_op_DT_p%gamma_p,            &
+                                       columnwise_op_D_p%columnwise_matrix,   &
                                        columnwise_op_D_p%nrow,                &
                                        columnwise_op_D_p%ncol,                &
                                        columnwise_op_D_p%bandwidth,           &
@@ -174,6 +173,7 @@ contains
                                        columnwise_op_D_p%beta,                &
                                        columnwise_op_D_p%gamma_m,             &
                                        columnwise_op_D_p%gamma_p,             &
+                                       columnwise_op_DT_D_p%columnwise_matrix,&
                                        columnwise_op_DT_D_p%nrow,             &
                                        columnwise_op_DT_D_p%ncol,             &
                                        columnwise_op_DT_D_p%bandwidth,        &

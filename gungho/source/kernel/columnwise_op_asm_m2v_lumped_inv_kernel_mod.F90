@@ -39,9 +39,6 @@ type, public, extends(kernel_type) :: columnwise_op_asm_m2v_lumped_inv_kernel_ty
        ! NOT CURRENTLY SUPPORTED BY PSY
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1) &
        /)
-  type(func_type) :: meta_funcs(1) =  (/                                    &
-       func_type(ANY_SPACE_1, GH_COLUMN_BANDED_DOFMAP)                      &
-       /)
   integer :: iterates_over = CELLS
 contains
   procedure, nopass :: columnwise_op_asm_m2v_lumped_inv_kernel_code
@@ -75,38 +72,32 @@ end function columnwise_constructor
 !>
 !> @param [in]  cell Horizontal cell index
 !> @param [in]  nlayers Number of vertical layers
-!> @param [in]  ncell_3d Total number of cells
 !> @param [in]  ncell_2d Number of cells in 2d grid
+!> @param [in]  ncell_3d Total number of cells
 !> @param [in]  local_stencil Locally assembled matrix
 !> @param [out] columnwise_matrix Banded matrix to assemble into
-!> @param [in]  nrow Number of rows in the banded matrix
-!> @param [in]  ncol Number of columns in the banded matrix
+!> @param [in]  nrow Number of rows (and columns) in the banded matrix
 !> @param [in]  bandwidth Bandwidth of the banded matrix
 !> @param [in]  alpha Banded matrix parameter \f$\alpha=1\f$
 !> @param [in]  beta Banded matrix parameter \f$\beta=1\f$
 !> @param [in]  gamma_m Banded matrix parameter \f$\gamma_-=0\f$
 !> @param [in]  gamma_p Banded matrix parameter \f$\gamma_+=0\f$
-!> @param [in]  ndf_to Number of degrees of freedom per cell for the to-space
-!> @param [in]  ndf_from Number of degrees of freedom per cell for the from-sp
-!> @param [in]  column_banded_dofmap_to List of offsets for to-space
-!> @param [in]  column_banded_dofmap_from List of offsets for from-space
+!> @param [in]  ndf Number of degrees of freedom per cell for the function space
+!> @param [in]  column_banded_dofmap List of offsets for function space
 subroutine columnwise_op_asm_m2v_lumped_inv_kernel_code(cell,                    &
                                                         nlayers,                 &
-                                                        ncell_3d,                &
                                                         ncell_2d,                &
+                                                        ncell_3d,                &
                                                         local_stencil,           &
                                                         columnwise_matrix,       &
                                                         nrow,                    &
-                                                        ncol,                    &
                                                         bandwidth,               &
                                                         alpha,                   &
                                                         beta,                    &
                                                         gamma_m,                 &
                                                         gamma_p,                 &
-                                                        ndf_to,                  &
-                                                        ndf_from,                &
-                                                        column_banded_dofmap_to, &
-                                                        column_banded_dofmap_from)
+                                                        ndf,                     &
+                                                        column_banded_dofmap)
 
   implicit none
   
@@ -116,17 +107,14 @@ subroutine columnwise_op_asm_m2v_lumped_inv_kernel_code(cell,                   
   integer(kind=i_def),                                      intent(in)  :: ncell_3d
   integer(kind=i_def),                                      intent(in)  :: ncell_2d
   integer(kind=i_def),                                      intent(in)  :: nrow
-  integer(kind=i_def),                                      intent(in)  :: ncol
   integer(kind=i_def),                                      intent(in)  :: bandwidth
-  integer(kind=i_def),                                      intent(in)  :: ndf_to
-  integer(kind=i_def),                                      intent(in)  :: ndf_from
+  integer(kind=i_def),                                      intent(in)  :: ndf
   integer(kind=i_def),                                      intent(in)  :: alpha
   integer(kind=i_def),                                      intent(in)  :: beta
   integer(kind=i_def),                                      intent(in)  :: gamma_m
   integer(kind=i_def),                                      intent(in)  :: gamma_p
-  integer(kind=i_def), dimension(ndf_to,nlayers),           intent(in)  :: column_banded_dofmap_to
-  integer(kind=i_def), dimension(ndf_from,nlayers),         intent(in)  :: column_banded_dofmap_from
-  real   (kind=r_def), dimension(ndf_to,ndf_from,ncell_3d), intent(in)  :: local_stencil
+  integer(kind=i_def), dimension(ndf,nlayers),              intent(in)  :: column_banded_dofmap
+  real   (kind=r_def), dimension(ndf,ndf,ncell_3d),         intent(in)  :: local_stencil
   real   (kind=r_def), dimension(bandwidth,nrow,ncell_2d),  intent(out) :: columnwise_matrix
 
   ! Internal parameters
@@ -135,22 +123,24 @@ subroutine columnwise_op_asm_m2v_lumped_inv_kernel_code(cell,                   
   integer(kind=i_def) :: ik     ! ncell3d counter
   integer(kind=i_def) :: k      ! nlayers  counter
 
-  k = alpha + beta + gamma_m + gamma_p + ncol
+  k = alpha + beta + gamma_m + gamma_p
 
   ! Initialise matrix to zero
   columnwise_matrix( :, :, cell ) = 0.0_r_def
   ! Loop over all vertical layers add add up diagonal entries
   do k = 1, nlayers
     ik = (cell-1)*nlayers + k ! cell index in 3d
-    do df1 = 1, ndf_to
-      i = column_banded_dofmap_to( df1, k )
+    do df1 = 1, ndf
+      i = column_banded_dofmap( df1, k )
       columnwise_matrix( 1, i, cell ) = columnwise_matrix( 1, i, cell ) &
                                       + local_stencil( df1 ,df1, ik )
     end do
   end do
 
   ! Calculate inverse of diagonal entries
-  columnwise_matrix(:,:,cell) = 1.0_r_def/columnwise_matrix(:,:,cell)
+  where (columnwise_matrix(:,:,cell) /= 0.0_r_def) 
+     columnwise_matrix(:,:,cell) = 1.0_r_def/columnwise_matrix(:,:,cell)
+  end where
 
 end subroutine columnwise_op_asm_m2v_lumped_inv_kernel_code
 

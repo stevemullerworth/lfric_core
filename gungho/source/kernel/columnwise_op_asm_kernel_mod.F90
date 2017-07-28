@@ -30,12 +30,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_kernel_type
   private
   type(arg_type) :: meta_args(2) = (/                                       &
        arg_type(GH_OPERATOR,            GH_READ,  ANY_SPACE_1, ANY_SPACE_2), &
-       ! NOT CURRENTLY SUPPORTED BY PSY
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
-  type(func_type) :: meta_funcs(2) =  (/                                    &
-       func_type(ANY_SPACE_1, GH_COLUMN_BANDED_DOFMAP), &
-       func_type(ANY_SPACE_2, GH_COLUMN_BANDED_DOFMAP)  &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -70,8 +65,8 @@ contains
   !>
   !> @param [in] cell the horizontal cell index
   !> @param [in] nlayers number of vertical layers
-  !> @param [in] ncell_3d total number of cells
   !> @param [in] ncell_2d number of cells in 2d grid
+  !> @param [in] ncell_3d total number of cells
   !> @param [in] local_stencil locally assembled matrix
   !> @param [out] columnwise_matrix banded matrix to assemble into
   !> @param [in] nrow number of rows in the banded matrix
@@ -82,25 +77,25 @@ contains
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
   !> @param [in] ndf_to number of degrees of freedom per cell for the to-space
-  !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
   !> @param [in] column_banded_dofmap_to list of offsets for to-space
+  !> @param [in] ndf_from number of degrees of freedom per cell for the from-sp
   !> @param [in] column_banded_dofmap_from list of offsets for from-space
-  subroutine columnwise_op_asm_kernel_code(cell,              &
-                                           nlayers,           &
-                                           ncell_3d,          &
-                                           ncell_2d,          &
-                                           local_stencil,     &
-                                           columnwise_matrix, &
-                                           nrow,              &
-                                           ncol,              &
-                                           bandwidth,         &
-                                           alpha,             &
-                                           beta,              &
-                                           gamma_m,           &
-                                           gamma_p,           &
-                                           ndf_to,            &
-                                           ndf_from,          &
-                                           column_banded_dofmap_to, &
+  subroutine columnwise_op_asm_kernel_code(cell,                     &
+                                           nlayers,                  &
+                                           ncell_2d,                 &
+                                           ncell_3d,                 &
+                                           local_stencil,            &
+                                           columnwise_matrix,        &
+                                           nrow,                     &
+                                           ncol,                     &
+                                           bandwidth,                &
+                                           alpha,                    &
+                                           beta,                     &
+                                           gamma_m,                  &
+                                           gamma_p,                  &
+                                           ndf_to,                   &
+                                           column_banded_dofmap_to,  &
+                                           ndf_from,                 &
                                            column_banded_dofmap_from)
 
     implicit none

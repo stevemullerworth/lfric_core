@@ -22,8 +22,8 @@ module columnwise_op_appinv_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,                    &
                                     GH_FIELD, GH_COLUMNWISE_OPERATOR,       &
-                                    GH_READ, GH_INC,                        &
-                                    ANY_SPACE_1, ANY_SPACE_2,               &
+                                    GH_READ, GH_WRITE,                      &
+                                    ANY_SPACE_1,                            &
                                     GH_COLUMN_INDIRECTION_DOFMAP,           &
                                     CELLS 
 
@@ -38,13 +38,9 @@ implicit none
 type, public, extends(kernel_type) :: columnwise_op_appinv_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                      &
-       arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &  
-       arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
-  type(func_type) :: meta_funcs(2) = (/                                    &
-       func_type(ANY_SPACE_1, GH_COLUMN_INDIRECTION_DOFMAP),               &
-       func_type(ANY_SPACE_2, GH_COLUMN_INDIRECTION_DOFMAP)                &
+       arg_type(GH_FIELD,    GH_WRITE, ANY_SPACE_1),                       &
+       arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                       &
+       arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_1) &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -79,52 +75,41 @@ contains
   !> @param [inout] lhs Resulting field lhs += A^{-1}.x
   !> @param [in] x input field
   !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
-  !> @param [in] map1 dofmap for the to-space
-  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
-  !> @param [in] map2 dofmap for the from-space
-  !> @param [in] nrow number of rows in the banded matrix
-  !> @param [in] ncol number of columns in the banded matrix
+  !> @param [in] nrow number of rows (and columns) in the banded matrix
   !> @param [in] bandwidth bandwidth of the banded matrix
   !> @param [in] alpha banded matrix parameter \f$\alpha\f$
   !> @param [in] beta banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
-  !> @param [in] indirection_dofmap_to indirection map for to-space
-  !> @param [in] indirection_dofmap_from indirection map for from-space
-  subroutine columnwise_op_appinv_kernel_code(cell,              &
-                                              ncell_2d,          &
-                                              lhs, x,            & 
-                                              columnwise_matrix, &
-                                              ndf1, undf1, map1, &
-                                              ndf2, undf2, map2, &
-                                              nrow,              &
-                                              ncol,              &
-                                              bandwidth,         &
-                                              alpha,             &
-                                              beta,              &
-                                              gamma_m,           &
-                                              gamma_p,           &
-                                              indirection_dofmap_to, &
-                                              indirection_dofmap_from)
+  !> @param [in] ndf number of degrees of freedom per cell for function space
+  !> @param [in] undf unique number of degrees of freedom  for function space
+  !> @param [in] map dofmap for the function space
+  !> @param [in] indirection_dofmap_ indirection map for function space
+  subroutine columnwise_op_appinv_kernel_code(cell,                    &
+                                              ncell_2d,                &
+                                              lhs, x,                  & 
+                                              columnwise_matrix,       &
+                                              nrow,                    &
+                                              bandwidth,               &
+                                              alpha,                   &
+                                              beta,                    &
+                                              gamma_m,                 &
+                                              gamma_p,                 &
+                                              ndf, undf, map,          &
+                                              indirection_dofmap)
     implicit none
     
     ! Arguments
     integer(kind=i_def), intent(in) :: cell, ncell_2d
-    integer(kind=i_def), intent(in) :: nrow, ncol, bandwidth
-    integer(kind=i_def), intent(in) :: undf1, ndf1
-    integer(kind=i_def), intent(in) :: undf2, ndf2
-    real(kind=r_def), dimension(undf1), intent(inout) :: lhs
-    real(kind=r_def), dimension(undf2), intent(in) :: x
+    integer(kind=i_def), intent(in) :: nrow, bandwidth
+    integer(kind=i_def), intent(in) :: undf, ndf
+    real(kind=r_def), dimension(undf), intent(inout) :: lhs
+    real(kind=r_def), dimension(undf), intent(in) :: x
     real(kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(in) :: columnwise_matrix
-    integer(kind=i_def), dimension(ndf1), intent(in) :: map1
-    integer(kind=i_def), dimension(ndf2), intent(in) :: map2
+    integer(kind=i_def), dimension(ndf), intent(in) :: map
 
     integer(kind=i_def), intent(in) :: alpha, beta, gamma_m, gamma_p
-    integer(kind=i_def), dimension(nrow), intent(in) :: indirection_dofmap_to
-    integer(kind=i_def), dimension(ncol), intent(in) :: indirection_dofmap_from
+    integer(kind=i_def), dimension(nrow), intent(in) :: indirection_dofmap
 
     ! Internal parameters
     integer(kind=i_def) :: i, mu_i ! Row and column index
@@ -139,7 +124,7 @@ contains
 
     ! Step 1: Forward sweep, loop over all rows
     do i=1, nrow
-       mu_i = map2(1) + indirection_dofmap_from(i) - 1
+       mu_i = map(1) + indirection_dofmap(i) - 1
        if (i == 1) then 
           ! First row
           inv_denom = 1.0_r_def/columnwise_matrix(2,i,cell)
@@ -160,7 +145,7 @@ contains
     ! Step 2: Backward sweep (substitution), loop over all rows backwards
     do i=nrow,1,-1
        ! Overwrite d' with solution and then copy to correct position in vector
-       mu_i = map1(1) + indirection_dofmap_to(i) - 1
+       mu_i = map(1) + indirection_dofmap(i) - 1
        if (i<nrow) then 
           d_prime(i) = d_prime(i) - c_prime(i) * d_prime(i+1)
        end if

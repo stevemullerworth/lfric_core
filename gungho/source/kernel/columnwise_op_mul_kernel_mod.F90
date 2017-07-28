@@ -64,8 +64,6 @@ contains
   !> @param [in] cell the horizontal cell index
   !> @param [in] ncell_2d total number of cells in 2d grid
   !> @param [in] columnwise_matrix_A banded matrix op_A
-  !> @param [in] columnwise_matrix_B banded matrix op_B
-  !> @param [inout] columnwise_matrix_C banded matrix op_C
   !> @param [in] nrow_A number of rows in the banded matrix A
   !> @param [in] ncol_A number of columns in the banded matrix A
   !> @param [in] bandwidth_A bandwidth of the banded matrix
@@ -73,6 +71,7 @@ contains
   !> @param [in] beta_A banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m_A banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p_A banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] columnwise_matrix_B banded matrix op_B
   !> @param [in] nrow_B number of rows in the banded matrix B
   !> @param [in] ncol_B number of columns in the banded matrix B
   !> @param [in] bandwidth_B bandwidth of the banded matrix
@@ -80,6 +79,7 @@ contains
   !> @param [in] beta_B banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m_B banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p_B banded matrix parameter \f$\gamma_+\f$
+  !> @param [inout] columnwise_matrix_C banded matrix op_C
   !> @param [in] nrow_C number of rows in the banded matrix C
   !> @param [in] ncol_C number of columns in the banded matrix C
   !> @param [in] bandwidth_C bandwidth of the banded matrix
@@ -90,20 +90,20 @@ contains
   subroutine columnwise_op_mul_kernel_code(cell,                      &
                                            ncell_2d,                  &
                                            columnwise_matrix_A,       &
-                                           columnwise_matrix_B,       &
-                                           columnwise_matrix_C,       &
                                            nrow_A, ncol_A,            &
                                            bandwidth_A,               &
                                            alpha_A,                   &
                                            beta_A,                    &
                                            gamma_m_A,                 &
                                            gamma_p_A,                 &
+                                           columnwise_matrix_B,       &
                                            nrow_B, ncol_B,            &
                                            bandwidth_B,               &
                                            alpha_B,                   &
                                            beta_B,                    &
                                            gamma_m_B,                 &
                                            gamma_p_B,                 &
+                                           columnwise_matrix_C,       &
                                            nrow_C, ncol_C,            &
                                            bandwidth_C,               &
                                            alpha_C,                   &

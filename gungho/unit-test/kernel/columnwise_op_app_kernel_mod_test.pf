@@ -169,8 +169,6 @@ contains
                                        lhs_p%data,                &
                                        rhs_p%data,                &
                                        columnwise_mm_p%columnwise_matrix,  &
-                                       ndf, undf, map,            &
-                                       ndf, undf, map,            &
                                        columnwise_mm_p%nrow,      &
                                        columnwise_mm_p%ncol,      &
                                        columnwise_mm_p%bandwidth, &
@@ -178,7 +176,9 @@ contains
                                        columnwise_mm_p%beta,      &
                                        columnwise_mm_p%gamma_m,   &
                                        columnwise_mm_p%gamma_p,   &
+                                       ndf, undf, map,            &
                                        columnwise_mm_p%indirection_dofmap_to, &
+                                       ndf, undf, map,            &
                                        columnwise_mm_p%indirection_dofmap_from)
 
     lhs_direct(1:columnwise_mm_p%nrow) &

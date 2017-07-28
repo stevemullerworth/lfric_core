@@ -1,0 +1,85 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown, 
+! Met Office and NERC 2014. 
+! However, it has been created with the help of the GungHo Consortium, 
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+!> @brief Assign random values to a field
+!> @details Sets all field values to uniformly distributed random numbers
+!> in the range [0,1].
+
+module assign_field_random_kernel_mod
+use argument_mod,            only : arg_type,             &
+                                    GH_FIELD, GH_WRITE,   &
+                                    ANY_SPACE_1,          &
+                                    CELLS 
+use constants_mod,           only : r_def, i_def
+use kernel_mod,              only : kernel_type
+
+implicit none
+
+!-------------------------------------------------------------------------------
+! Public types
+!-------------------------------------------------------------------------------
+
+type, public, extends(kernel_type) :: assign_field_random_kernel_type
+  private
+  type(arg_type) :: meta_args(1) = (/                 &
+       arg_type(GH_FIELD,    GH_WRITE,  ANY_SPACE_1)  &
+       /)
+  integer :: iterates_over = CELLS
+contains
+  procedure, nopass ::assign_field_random_code
+end type
+
+!-------------------------------------------------------------------------------
+! Constructors
+!-------------------------------------------------------------------------------
+
+! overload the default structure constructor for function space
+interface assign_field_random_kernel_type
+   module procedure assign_field_random_kernel_constructor
+end interface
+
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public assign_field_random_code
+contains
+
+  type(assign_field_random_kernel_type) function assign_field_random_kernel_constructor() result(self)
+  return
+end function assign_field_random_kernel_constructor
+
+!> @brief Sets all field entries to random values
+!> @param[in] nlayers Number of layers
+!> @param[out] x Output data
+!> @param[in] ndf Number of degrees of freedom per cell for the output field
+!> @param[in] undf Unique number of degrees of freedom  for the output field
+!> @param[in] map Dofmap for the cell at the base of the column for the output field
+subroutine assign_field_random_code(nlayers,     &
+                                    x,           & 
+                                    ndf, undf, map)
+  implicit none
+  !Arguments
+  integer(kind=i_def),                   intent(in)    :: nlayers
+  integer(kind=i_def),                   intent(in)    :: undf, ndf
+  integer(kind=i_def), dimension(ndf),   intent(in)    :: map
+  real   (kind=r_def), dimension(undf),  intent(out)   :: x
+
+  !Internal variables
+  integer                           :: df, k
+  real(kind=r_def), dimension(ndf) :: random_values
+ 
+  do k = 0, nlayers-1
+    call random_number(random_values(:))
+    do df = 1, ndf
+      x(map(df)+k) = random_values(df)
+    end do
+  end do
+ 
+end subroutine assign_field_random_code
+
+end module assign_field_random_kernel_mod

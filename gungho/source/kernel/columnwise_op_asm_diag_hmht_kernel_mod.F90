@@ -16,7 +16,7 @@ module columnwise_op_asm_diag_hmht_kernel_mod
 
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,       &
-                                    GH_OPERATOR, GH_FIELD,     &
+                                    GH_OPERATOR,               &
                                     GH_COLUMNWISE_OPERATOR,    &
                                     GH_READ, GH_WRITE,         &
                                     ANY_SPACE_1, ANY_SPACE_2,  &
@@ -35,7 +35,7 @@ type, public, extends(kernel_type) :: columnwise_op_asm_diag_hmht_kernel_type
   private
   type(arg_type) :: meta_args(3) = (/                                       &
        arg_type(GH_OPERATOR,         GH_READ,  ANY_SPACE_1, ANY_SPACE_2),   &
-       arg_type(GH_FIELD,            GH_READ,  ANY_SPACE_2),                &
+       arg_type(GH_OPERATOR,         GH_READ,  ANY_SPACE_2, ANY_SPACE_2),   &
        arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, ANY_SPACE_1) &
        /)
   integer :: iterates_over = CELLS
@@ -73,64 +73,57 @@ end function columnwise_constructor
 !> @param [in]  nlayers Number of vertical layers
 !> @param [in]  ncell_2d Number of cells in 2d grid
 !> @param [in]  ncell_3d Total number of cells
-!> @param [in]  local_stencil Locally assembled matrix
-!> @param [in]  field_data Values of the field representing the
-!>              diagonally lumped W2h velocity mass matrix
+!> @param [in]  local_stencil_Dh Locally assembled matrix for \f$D_h\f$
+!> @param [in]  ncell_3d_tmp Total number of cells (unused duplicate)
+!> @param [in]  local_stencil_M2h Locally assembled matrix for \f$M_{2h}\f$
 !> @param [out] columnwise_matrix Banded matrix to assemble into
-!> @param [in]  nrow Number of rows in the banded matrix
-!> @param [in]  ncol Number of columns in the banded matrix
+!> @param [in]  nrow Number of rows (and columns) in the banded matrix
 !> @param [in]  bandwidth Bandwidth of the banded matrix
 !> @param [in]  alpha banded Matrix parameter \f$\alpha\f$
 !> @param [in]  beta banded Matrix parameter \f$\beta\f$
 !> @param [in]  gamma_m Banded matrix parameter \f$\gamma_-\f$
 !> @param [in]  gamma_p Banded matrix parameter \f$\gamma_+\f$
 !> @param [in]  ndf_w3 Number of dofs per cell for the W_3 space
-!> @param [in]  ndf_w2h Number of dofs per cell for the W_{2h} space
-!> @param [in]  undf_w2h Number of unique dofs per column for the W_{2h} space
-!> @param [in]  dofmap Indirection map for W2h space
 !> @param [in]  column_banded_dofmap List of offsets for W3-space
-subroutine columnwise_op_asm_diag_hmht_kernel_code(cell,              &
-                                                   nlayers,           &
-                                                   ncell_2d,          &
-                                                   ncell_3d,          &
-                                                   local_stencil,     &
-                                                   field_data,        &
-                                                   columnwise_matrix, &
-                                                   nrow,              &
-                                                   ncol,              &
-                                                   bandwidth,         &
-                                                   alpha,             &
-                                                   beta,              &
-                                                   gamma_m,           &
-                                                   gamma_p,           &
-                                                   ndf_w3,            &
-                                                   ndf_w2h,           &
-                                                   undf_w2h,          &
-                                                   dofmap,            &
-                                                   column_banded_dofmap)
+!> @param [in]  ndf_w2h Number of dofs per cell for the W_{2h} space
+subroutine columnwise_op_asm_diag_hmht_kernel_code(cell,                 &
+                                                   nlayers,              &
+                                                   ncell_2d,             &
+                                                   ncell_3d,             &
+                                                   local_stencil_Dh,     &
+                                                   ncell_3d_tmp,         &
+                                                   local_stencil_M2h,    &
+                                                   columnwise_matrix,    &
+                                                   nrow,                 &
+                                                   bandwidth,            &
+                                                   alpha,                &
+                                                   beta,                 &
+                                                   gamma_m,              &
+                                                   gamma_p,              &
+                                                   ndf_w3,               &
+                                                   column_banded_dofmap, &
+                                                   ndf_w2h               )
 
   implicit none
-
+    
   ! Arguments
-  integer(kind=i_def), intent(in)  :: cell
-  integer(kind=i_def), intent(in)  :: nlayers
-  integer(kind=i_def), intent(in)  :: ncell_3d
-  integer(kind=i_def), intent(in)  :: ncell_2d
-  integer(kind=i_def), intent(in)  :: alpha
-  integer(kind=i_def), intent(in)  :: beta
-  integer(kind=i_def), intent(in)  :: gamma_m
-  integer(kind=i_def), intent(in)  :: gamma_p
-  integer(kind=i_def), intent(in)  :: undf_w2h
-  integer(kind=i_def), intent(in)  :: nrow
-  integer(kind=i_def), intent(in)  :: ncol
-  integer(kind=i_def), intent(in)  :: bandwidth
-  integer(kind=i_def), intent(in)  :: ndf_w3
-  integer(kind=i_def), intent(in)  :: ndf_w2h
-  integer(kind=i_def), intent(in)  :: dofmap(ndf_w2h)
-  integer(kind=i_def), intent(in)  :: column_banded_dofmap(ndf_w3,nlayers)
-  real   (kind=r_def), intent(in)  :: local_stencil(ndf_w3,ndf_w2h,ncell_3d)
-  real   (kind=r_def), intent(in)  :: field_data(undf_w2h)
-  real   (kind=r_def), intent(out) :: columnwise_matrix(bandwidth,nrow,ncell_2d)
+  integer(kind=i_def),                                     intent(in)  :: cell
+  integer(kind=i_def),                                     intent(in)  :: nlayers
+  integer(kind=i_def),                                     intent(in)  :: ncell_3d
+  integer(kind=i_def),                                     intent(in)  :: ncell_3d_tmp
+  integer(kind=i_def),                                     intent(in)  :: ncell_2d
+  integer(kind=i_def),                                     intent(in)  :: alpha
+  integer(kind=i_def),                                     intent(in)  :: beta
+  integer(kind=i_def),                                     intent(in)  :: gamma_m
+  integer(kind=i_def),                                     intent(in)  :: gamma_p
+  integer(kind=i_def),                                     intent(in)  :: nrow
+  integer(kind=i_def),                                     intent(in)  :: bandwidth
+  integer(kind=i_def),                                     intent(in)  :: ndf_w3
+  integer(kind=i_def),                                     intent(in)  :: ndf_w2h
+  integer(kind=i_def), dimension(ndf_w3,nlayers),          intent(in)  :: column_banded_dofmap
+  real   (kind=r_def), dimension(ndf_w3,ndf_w2h,ncell_3d), intent(in)  :: local_stencil_Dh
+  real   (kind=r_def), dimension(ndf_w2h,ndf_w2h,ncell_3d),intent(in)  :: local_stencil_M2h
+  real   (kind=r_def), dimension(bandwidth,nrow,ncell_2d), intent(out) :: columnwise_matrix
 
 
   ! Internal parameters
@@ -141,7 +134,7 @@ subroutine columnwise_op_asm_diag_hmht_kernel_code(cell,              &
   integer(kind=i_def) :: k              ! nlayers  counter
   real   (kind=r_def) :: tmp            ! Local contribution
 
-  k = gamma_m + ncol
+  k = gamma_m
 
   ! Initialise matrix to zero
   columnwise_matrix( :, :, cell ) = 0.0_r_def
@@ -155,9 +148,9 @@ subroutine columnwise_op_asm_diag_hmht_kernel_code(cell,              &
         tmp = 0.0_r_def
         do df3 = 1, ndf_w2h
           tmp = tmp                           &
-              + local_stencil( df1 ,df3, ik ) &
-              * local_stencil( df2 ,df3, ik ) &
-              / field_data(dofmap(df3) + k-1)
+              + local_stencil_Dh ( df1 ,df3, ik ) &
+              * local_stencil_Dh ( df2 ,df3, ik ) &
+              / local_stencil_M2h( df3 ,df3, ik )
         end do
         j = column_banded_dofmap( df2, k )
         columnwise_matrix( j-j_minus+1, i, cell )      &

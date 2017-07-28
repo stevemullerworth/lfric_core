@@ -142,21 +142,18 @@ contains
 
     call columnwise_op_asm_m2v_lumped_inv_kernel_code(cell,                              &
                                                       nlayers,                           &
-                                                      mm_p%ncell_3d,                     &
                                                       columnwise_mm_p%ncell_2d,          &
+                                                      mm_p%ncell_3d,                     &
                                                       local_stencil,                     &
                                                       columnwise_mm_p%columnwise_matrix, &
                                                       columnwise_mm_p%nrow,              &
-                                                      columnwise_mm_p%ncol,              &
                                                       columnwise_mm_p%bandwidth,         &
                                                       columnwise_mm_p%alpha,             &
                                                       columnwise_mm_p%beta,              &
                                                       columnwise_mm_p%gamma_m,           &
                                                       columnwise_mm_p%gamma_p,           &
                                                       ndf,                               &
-                                                      ndf,                               &
-                                                      columnwise_mm_p%column_banded_dofmap_to, &
-                                                      columnwise_mm_p%column_banded_dofmap_from)
+                                                      columnwise_mm_p%column_banded_dofmap_to)
     do i = 1, columnwise_mm_p%nrow
       if ( (i == 1) .or. (i == columnwise_mm_p%nrow) ) then
         ! First and final row should be ( 3 )

@@ -274,7 +274,27 @@ document-latex-gungho:
 # Test GungHo
 #
 .PHONY: test-gungho
-test-gungho: unit-test-gungho
+test-gungho: unit-test-gungho integration-test-gungho
+
+.PHONY: integration-test-infrastructure
+integration-test-gungho: export PROJECT      = gungho
+integration-test-gungho: export SOURCE_DIR   = gungho/integration-test
+integration-test-gungho: export WORKING_DIR := $(WORKING_DIR)/gungho
+integration-test-gungho: export BIN_DIR      = $(ROOT)/tests
+integration-test-gungho: export PROGRAMS    := $(basename $(notdir $(shell find $(SOURCE_DIR) -maxdepth 1 -name '*.[Ff]90' -print)))
+integration-test-gungho: generate-configuration-gungho \
+                         generate-psykal-gungho        \
+                         generate-integration-test-gungho
+	$(MAKE) run-integration-test-gungho
+
+.PHONY: generate-integration-test-gungho
+generate-integration-test-gungho: extract-integration-test-gungho \
+                                  extract-gungho extract-infrastructure
+	$(Q)echo >/dev/null
+
+.PHONY: extract-integration-test-gungho
+extract-integration-test-gungho:
+	$(MAKE) -f $(LFRIC_BUILD)/extract.mk
 
 .PHONY: unit-tests-gungho
 unit-test-gungho: export PROJECT      = gungho

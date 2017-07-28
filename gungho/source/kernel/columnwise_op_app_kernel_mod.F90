@@ -31,12 +31,7 @@ type, public, extends(kernel_type) :: columnwise_op_app_kernel_type
   type(arg_type) :: meta_args(3) = (/                                      &
        arg_type(GH_FIELD,    GH_INC,  ANY_SPACE_1),                        &  
        arg_type(GH_FIELD,    GH_READ, ANY_SPACE_2),                        &
-       ! NOT CURRENTLY SUPPORTED BY PSY
        arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2) &
-       /)
-  type(func_type) :: meta_funcs(2) = (/                                    &
-       func_type(ANY_SPACE_1, GH_COLUMN_INDIRECTION_DOFMAP),               &
-       func_type(ANY_SPACE_2, GH_COLUMN_INDIRECTION_DOFMAP)                &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -71,12 +66,6 @@ contains
   !> @param [inout] lhs Resulting field lhs += A.x
   !> @param [in] x input field
   !> @param [in] columnwise_matrix banded matrix to assemble into
-  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
-  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
-  !> @param [in] map1 dofmap for the to-space
-  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
-  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
-  !> @param [in] map2 dofmap for the from-space
   !> @param [in] nrow number of rows in the banded matrix
   !> @param [in] ncol number of columns in the banded matrix
   !> @param [in] bandwidth bandwidth of the banded matrix
@@ -84,22 +73,28 @@ contains
   !> @param [in] beta banded matrix parameter \f$\beta\f$
   !> @param [in] gamma_m banded matrix parameter \f$\gamma_-\f$
   !> @param [in] gamma_p banded matrix parameter \f$\gamma_+\f$
+  !> @param [in] ndf1 number of degrees of freedom per cell for the to-space
+  !> @param [in] undf1 unique number of degrees of freedom  for the to-space
+  !> @param [in] map1 dofmap for the to-space
   !> @param [in] indirection_dofmap_to indirection map for to-space
+  !> @param [in] ndf2 number of degrees of freedom per cell for the from-space
+  !> @param [in] undf2 unique number of degrees of freedom for the from-space 
+  !> @param [in] map2 dofmap for the from-space
   !> @param [in] indirection_dofmap_from indirection map for from-space
-  subroutine columnwise_op_app_kernel_code(cell,              &
-                                           ncell_2d,          &
-                                           lhs, x,            & 
-                                           columnwise_matrix, &
-                                           ndf1, undf1, map1, &
-                                           ndf2, undf2, map2, &
-                                           nrow,              &
-                                           ncol,              &
-                                           bandwidth,         &
-                                           alpha,             &
-                                           beta,              &
-                                           gamma_m,           &
-                                           gamma_p,           &
+  subroutine columnwise_op_app_kernel_code(cell,                  &
+                                           ncell_2d,              &
+                                           lhs, x,                & 
+                                           columnwise_matrix,     &
+                                           nrow,                  &
+                                           ncol,                  &
+                                           bandwidth,             &
+                                           alpha,                 &
+                                           beta,                  &
+                                           gamma_m,               &
+                                           gamma_p,               &
+                                           ndf1, undf1, map1,     &
                                            indirection_dofmap_to, &
+                                           ndf2, undf2, map2,     &
                                            indirection_dofmap_from)
     implicit none
     
