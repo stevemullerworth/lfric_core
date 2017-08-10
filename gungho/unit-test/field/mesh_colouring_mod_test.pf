@@ -127,7 +127,7 @@ subroutine test_compute_colours_cubedsphere(this)
   integer(i_def)           :: err
 
   npanels = 6
-  filename = "data/ugrid_quads_2d_cubedsphere_6x4x4.nc"
+  filename = "data/mesh_C4.nc"
 
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &
@@ -213,7 +213,7 @@ subroutine test_compute_colours_biperiodic(this)
   integer(i_def)           :: err
 
   npanels = 1
-  filename = "data/ugrid_quads_2d_biperiodic_8x8.nc"
+  filename = "data/mesh_BiP8x8-6000x2000.nc"
 
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &
@@ -304,7 +304,7 @@ subroutine test_compute_colours_generic(this)
   ! Force colour generator to use generic colour routine by not saying
   ! it's a cubed sphere
   npanels = IMDI
-  filename = "data/ugrid_quads_2d_cubedsphere_6x4x4.nc"
+  filename = "data/mesh_C4.nc"
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &
                                                                 npanels )

@@ -10,7 +10,7 @@ Implements a Jinja2 filter to run a macro specified by a string.
 '''
 from jinja2 import contextfilter
 
-def dictToAssign(inDict):
+def dictToAssign(inDict, indent):
     '''
     Takes a dictionary and returns a string of assigments k=v 
     @param [in]    inDict    Dictionary
@@ -19,5 +19,5 @@ def dictToAssign(inDict):
     envVariables=[]
     for key, value in inDict.items():
         envVariables.append('%s = %s' % (key, value) )
-            
-    return '\n'.join(envVariables)
+    joining_str = '\n' + indent
+    return joining_str.join(envVariables)

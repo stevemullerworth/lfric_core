@@ -259,8 +259,9 @@ contains
     end do
 
     if(iter >= maximum_iterations) then
-      write(log_scratch_space, '(A, I3, A, E15.8)') &
-           "solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      write(log_scratch_space, '(A, I3, A, E15.8)')     &
+           "solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
@@ -371,8 +372,9 @@ contains
     end do
 
     if(iter >= maximum_iterations) then
-      write( log_scratch_space, '(A, I3, A, E15.8)' ) &
-           "cg solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      write( log_scratch_space, '(A, I3, A, E15.8)' )      &
+           "cg solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
@@ -597,8 +599,9 @@ contains
     end do
 
     if( iter >= maximum_iterations .and. err >  tolerance ) then
-      write( log_scratch_space, '(A, I3, A, E15.8)') &
-           "GMRES solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      write( log_scratch_space, '(A, I3, A, E15.8)')          &
+           "GMRES solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
@@ -706,8 +709,9 @@ contains
     end do
 
     if( iter >= maximum_iterations .and. err >  tolerance ) then
-      write( log_scratch_space, '(A, I3, A, E15.8)' ) &
-           "GCR solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      write( log_scratch_space, '(A, I3, A, E15.8)' )       &
+           "GCR solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 

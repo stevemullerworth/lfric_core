@@ -51,9 +51,9 @@ module mesh_map_mod_test
   end type mesh_map_test_type
 
   character(str_def), parameter :: mesh_name = 'Mesh2'
-  character(str_max_filename), parameter :: filenames(2) =    &
-                             [ 'data/CubedSphere96Cell.nc  ', & ! 4x4 panel
-                               'data/CubedSphere384Cell.nc ']   ! 8x8 panel
+  character(str_max_filename), parameter :: filenames(2) = &
+                                    [ 'data/mesh_C4.nc ',  &! 4x4 panel
+                                      'data/mesh_C8.nc ']   ! 8x8 panel
 
   integer(i_def), parameter :: npanels     = 6_i_def
   integer(i_def), parameter :: local_rank  = 0_i_def

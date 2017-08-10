@@ -1,5 +1,5 @@
 &base_mesh
-  filename        = 'cubedsphere.12x12.nc'
+  filename        = 'mesh_C12.nc'
   prime_mesh_name = 'Mesh2'
   geometry        = 'spherical'
   partitioner     = 'cubedsphere'

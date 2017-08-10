@@ -4,5 +4,5 @@
   cells_in_y  = 40
   cell_width  = 5.0
   cell_height = 5.0
-  mesh_filename = 'biperiodic.40x40.5x5.nc'
+  mesh_filename = 'mesh_BiP40x40-5x5.nc'
 /

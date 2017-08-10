@@ -68,9 +68,10 @@ def getResolutionMacro(context, call):
             if type(entry) in [type(()),type([])]:
                 if entry[0] not in resDict.keys():
                     resDict[entry[0]]=set()
-                if type(entry[1]) in [type(1),type(1.0)]:
-                    resDict[entry[0]].add(entry[1])
-                if type(entry[1]) in [type(()),type([])]:
-                    resDict[entry[0]].update(entry[1])
+                if len(entry) > 1:
+                    if type(entry[1]) in [type(1),type(1.0)]:
+                        resDict[entry[0]].add(entry[1])
+                    if type(entry[1]) in [type(()),type([])]:
+                        resDict[entry[0]].update(entry[1])
 
     return configuration, resList, resDict

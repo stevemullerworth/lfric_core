@@ -316,9 +316,9 @@ contains
 
     if ((iter >= max_gmres_iter .and. err >  si_tolerance) &
         .or. ieee_is_nan(err)) then
-      write( log_scratch_space, '(A, I3, A, E15.8)') &
-           "GMRES solver_algorithm: NOT converged in", max_gmres_iter, &
-           " iters, Res=", err
+      write( log_scratch_space, '(A, I3, A, E15.8)')    &
+           "GMRES solver_algorithm: NOT converged in ", &
+           max_gmres_iter, " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
     ! Add increments to field

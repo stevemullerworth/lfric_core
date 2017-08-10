@@ -84,9 +84,13 @@ test-suite:
 	fi
 	$(Q)umask 022; for target in $(TEST_SUITE_TARGETS) ; do \
 	    echo Launching test suite against $$target ; \
-	    rose stem --name=$(shell basename `pwd`)-infrastructure-$$target-$(SUITE_GROUP) --config=infrastructure/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP); \
-	    rose stem --name=$(shell basename `pwd`)-gungho-$$target-$(SUITE_GROUP) --config=gungho/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP); \
-	    rose stem --name=$(shell basename `pwd`)-mesh_tools-$$target-$(SUITE_GROUP) --config=mesh_tools/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP); \
+	    if [[ "$(SUITE_GROUP)" == csar* ]] ; then \
+	        rose stem --name=$(shell basename `pwd`)-gungho-$$target-$(SUITE_GROUP) --config=gungho/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP) ;\
+	    else \
+	        rose stem --name=$(shell basename `pwd`)-infrastructure-$$target-$(SUITE_GROUP) --config=infrastructure/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP);\
+		rose stem --name=$(shell basename `pwd`)-gungho-$$target-$(SUITE_GROUP) --config=gungho/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP);\
+		rose stem --name=$(shell basename `pwd`)-mesh_tools-$$target-$(SUITE_GROUP) --config=mesh_tools/rose-stem --opt-conf-key=$$target --group=$(SUITE_GROUP);\
+	    fi ;\
 	done
 
 .PHONY: test-umphysics

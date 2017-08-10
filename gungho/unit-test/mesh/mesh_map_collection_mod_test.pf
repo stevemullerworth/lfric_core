@@ -51,8 +51,9 @@ module mesh_map_collection_mod_test
   end type mesh_map_collection_test_type
 
   character(str_def), parameter :: mesh_name = 'Mesh2'
-  character(str_max_filename), parameter :: coarse_ugrid = 'data/CubedSphere96Cell.nc'  ! 4x4 panel
-  character(str_max_filename), parameter :: fine_ugrid   = 'data/CubedSphere384Cell.nc' ! 8x8 panel
+  character(str_max_filename), parameter ::                      &
+                               coarse_ugrid = 'data/mesh_C4.nc', &! 4x4 panel
+                               fine_ugrid   = 'data/mesh_C8.nc'   ! 8x8 panel
 
   integer(i_def), parameter :: local_rank  = 0_i_def
   integer(i_def), parameter :: total_ranks = 1_i_def

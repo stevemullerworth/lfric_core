@@ -45,17 +45,17 @@ module global_mesh_collection_mod_test
   end type global_mesh_collection_test_type
 
   character(str_def), parameter :: mesh_name = 'Mesh2'
-  character(str_max_filename), parameter ::                                    &
-      CubedSphereFile = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc'
   character(str_max_filename), parameter :: &
-      BiPeriodicFile  = 'data/ugrid_quads_2d_biperiodic_8x8.nc'
+      CubedSphereFile = 'data/mesh_C4.nc'
+  character(str_max_filename), parameter :: &
+      BiPeriodicFile  = 'data/mesh_BiP8x8-6000x2000.nc'
 
-  character(str_max_filename), parameter ::                                    &
-      MultiGridFiles(4) =                                                      &
-                  [ 'data/CubedSphere96Cell.nc  '     &! 4x4   panel
-                  , 'data/CubedSphere384Cell.nc '     &! 8x8   panel
-                  , 'data/CubedSphere1536Cell.nc'     &! 16x16 panel
-                  , 'data/CubedSphere6144Cell.nc'     ]! 32x32 panel
+  character(str_max_filename), parameter :: &
+      MultiGridFiles(4) =                   &
+                  [ 'data/mesh_C4.nc ',     &! 4x4   panel
+                    'data/mesh_C8.nc ',     &! 8x8   panel
+                    'data/mesh_C16.nc',     &! 16x16 panel
+                    'data/mesh_C32.nc' ]     ! 32x32 panel
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

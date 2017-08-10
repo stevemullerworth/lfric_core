@@ -70,10 +70,10 @@ module mesh_mod_test
   real(r_def), parameter :: cp      = 1000.0_r_def
   real(r_def), parameter :: scaling = 125.0_r_def
 
-  character(str_max_filename), parameter ::          &
-      MultiGridFiles(2) =                            &
-                  [ 'data/CubedSphere96Cell.nc  ',   &! 4x4   panel
-                    'data/CubedSphere384Cell.nc '  ]  ! 8x8   panel
+  character(str_max_filename), parameter :: &
+      MultiGridFiles(2) =                   &
+                  [ 'data/mesh_C4.nc',      &! 4x4 panel
+                    'data/mesh_C8.nc' ]      ! 8x8 panel
 
 
   integer(i_def), parameter :: CoarseToFineMap(4,96) = reshape( &

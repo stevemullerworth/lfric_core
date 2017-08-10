@@ -359,7 +359,7 @@ contains
     init_err=err
     if (err < si_pressure_tolerance) then
       write( log_scratch_space, '(A,I3,A,E12.4,A,E15.8)') &
-           "helmholtz solver_algorithm:converged in ", 0,  &
+           "helmholtz solver_algorithm:converged in ", 0, &
            " iters, init=", init_err," final=", err
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       return
@@ -414,8 +414,9 @@ contains
     end do
 
     if(iter >= maximum_iterations) then
-      write(log_scratch_space, '(A, I3, A, E15.8)') &
-           "Helmholtz solver_algorithm: NOT converged in", iter, " iters, Res=", err
+      write(log_scratch_space, '(A, I3, A, E15.8)')               &
+           "Helmholtz solver_algorithm: NOT converged in ", iter, &
+           " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
   end subroutine bicgstab

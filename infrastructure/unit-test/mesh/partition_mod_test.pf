@@ -134,7 +134,7 @@ contains
   total_ranks = this%total_ranks
   max_stencil_depth = 1
 
-  filename = 'data/ugrid_quads_2d_biperiodic_8x8.nc' 
+  filename = 'data/mesh_BiP8x8-6000x2000.nc' 
   npanels  = 1
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &
@@ -270,7 +270,7 @@ end subroutine test_partition_BiPeriodic
   max_stencil_depth = 1
 
 
-  filename = 'data/ugrid_quads_2d_cubedsphere_6x4x4.nc' 
+  filename = 'data/mesh_C4.nc' 
   npanels  = 6
   global_mesh_id =  global_mesh_collection%add_new_global_mesh( filename,  &
                                                                 mesh_name, &

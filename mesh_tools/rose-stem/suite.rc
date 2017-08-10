@@ -63,9 +63,11 @@
 {#- #########################################################################}
 {%- macro schedule() %}
 {%-   for group in groupsToRun %}
-{%-     for mission in groups[group] %}
-{{        mission | executeMacro() }}
-{%-     endfor %}
+{%-     if group in groups.keys() %}
+{%-       for mission in groups[group] %}
+{{          mission | executeMacro() }}
+{%-       endfor %}
+{%-     endif %}
 {%-   endfor %}
 {%- endmacro %}
 
