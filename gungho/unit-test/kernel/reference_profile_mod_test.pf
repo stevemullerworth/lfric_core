@@ -43,7 +43,8 @@ contains
     use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
     use gungho_feign_config_mod,   only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config, &
-                                          feign_planet_config
+                                          feign_planet_config,              &
+                                          feign_finite_element_config
 
     implicit none
 
@@ -59,6 +60,12 @@ contains
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
                               scaling_factor=scaling )
+
+    call feign_finite_element_config(                                      &
+         cellshape = finite_element_cellshape_quadrilateral,               &
+         element_order = 0, coordinate_order = 0,                          & 
+         rehabilitate = .true., wtheta_on = .true.,                        &
+         supg = .false., lumped_m1=.false. )
 
   end subroutine setUp
 
@@ -81,7 +88,9 @@ contains
 
     x = (/ 0.0_r_def, 0.0_r_def, 1000.0_r_def /)
 
-    call reference_profile(exner,rho,theta,x, idealised_test_gravity_wave)
+    ! Test the reference profile (exner, rho, theta) computation for 
+    ! the gravity wave test at the point x
+    call reference_profile(exner, rho, theta, x, idealised_test_gravity_wave)
 
     theta_exact = 300.0_r_def * exp ( bvf_square/gravity*x(3))
     exner_exact = 1.0_r_def - gravity**2/(Cp*300.0_r_def*bvf_square)   &
