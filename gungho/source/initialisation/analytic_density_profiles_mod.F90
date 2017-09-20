@@ -156,12 +156,12 @@ function analytic_density(chi, choice, time) result(density)
 
   case( idealised_test_cosine_hill )
     if ( l1 < r1 ) then
-      h1 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l1/r1)*PI))
+      h1 = tracer_background + (tracer_max/2.0_r_def)*(1.0_r_def+cos((l1/r1)*PI))
     else
       h1 = tracer_background
     end if
     if (l2 < r2) then
-      h2 = (tracer_max/2.0_r_def)*(1.0_r_def+cos((l2/r2)*PI))
+      h2 = tracer_background + (tracer_max/2.0_r_def)*(1.0_r_def+cos((l2/r2)*PI))
     else
       h2 = tracer_background
     end if
