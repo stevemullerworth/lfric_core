@@ -37,16 +37,22 @@ widget-tigger, assuming their workstation was called Tigger.
 Targets
 -------
 
-Everything is built via a top level ``make`` file. This offers a number of
-options, referred to as targets, as described in the following sections.
+The project is split into a number of sub-projects. Each of these has a
+Makefile offering targets "build" and "test-suite". Targets "unit-tests",
+"integration-tests" and "documentation" are offered where appropriate. Other
+targets specific to a particular sub-project may also be provided.
+
+There is also a top level Makefile. This provides targets which operate on a
+selection of sub-projects. By default this is Infrastructure, Mesh tools and
+Gung Ho but it may be changed with the ``OPERATE_ON`` variable.
 
 Building
 ~~~~~~~~
 
-To perform a full build simplt change to the top level of the working copy and
-issue a ``make``::
+To perform a full build of Gung Ho simply change to the sub-project directory
+in the working copy and issue a ``make``::
 
-  cd r1234_MyWorkingCopy
+  cd r1234_MyWorkingCopy/gungho
   make
 
 Three build profiles are offered: ``full-debug``, ``fast-debug`` and
@@ -75,8 +81,8 @@ Relocate Build Artifacts
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default all build related files end up in the directory ``working`` within
-the working copy. This is convenient for interactive development as it allows
-the generated source to be examined. Unfortunately there are a number of
+the sub-project directory. This is convenient for interactive development as it
+allows the generated source to be examined. Unfortunately there are a number of
 situations where this is less than ideal.
 
 The database engine used to store dependency information interacts badly with
@@ -144,7 +150,7 @@ manually invoked.
 
 When ``make test-suite`` is used a number of instances of Rose Stem will be
 launched. The environment variable ``TEST_SUITE_TARGETS`` holds a space
-separated list of the platform identifiers. These identify the targets to be
+separated list of platform identifiers. These identify the targets to be
 used for test suite runs.
 
 Configurations are held in ``rose-stem/opt``. Each filename has the form
@@ -155,6 +161,9 @@ For those using a Met Office module collection the core module will set this up
 for you. e.g. On the desktop do::
 
   module load common-environment/lfric
+
+The top level Makefile will launch the test suite for sll dub-projects listed
+in ``OPERATE_ON``. This defaults to Infrastructure, Mesh tools and Gung Ho.
 
 For further information an testing see `Dynamo/Testing`:trac:.
 
@@ -327,25 +336,29 @@ We attempt to develop LFric with single source physics taken from the UM
 repository.  In order to build in the UM code, fcm make is used to extract
 and preprocess the code; this is then rsync'd with the working build directory
 such that the LFRic build system can proceed with analysing and building this 
-code.  Since this process results in the build system analysing a considerable
-amount of additional code, the variable  ``UM_PHYSICS`` is passed to the make
-invocation to indicate this process is wanted, e.g.
+code.
 
-  ``make UM_PHYSICS=1 build-gungho``
+Since this process results in the build system analysing a considerable
+amount of additional code, this version is hived off into a separate
+sub-project, ``umphysics``. Its Makefile offers a special target
+``partial-clean`` or ``pclean`` which deletes only the working Gung Ho copy,
+not the UM copy.
 
-The make procedure will then carry out the ``fcm make`` invocation and then 
-subsequently rsync the extracted and preprocessed code to the ``working`` directory 
-tree. It is the intention that the UM code for the build is kept separate from the main 
-LFRic source and any modifications on the UM side should be made through the branches 
-incorporated at the fcm make stage (these could be a separate working copy). To change the 
-UM branches incorporated into the build, modify the ``um_sources`` environment variable in the 
-``set_environment.sh`` file.
+The make procedure will then carry out the ``fcm make`` invocation and then
+subsequently rsync the extracted and preprocessed code to the ``working``
+directory tree. It is the intention that the UM code for the build is kept
+separate from the main LFRic source and any modifications on the UM side should
+be made through the branches incorporated at the fcm make stage (these could be
+a separate working copy). To change the UM branches incorporated into the
+build, modify the ``um_sources`` environment variable in the
+``set_environment-<platform>.sh`` file.
 
-Since the UM code will continue to evolve and we will want to source difference 
-versions/branches from the UM repository, the environment variables needed by the fcm make
-command (including the paths to the repository/branches/working) are set in 
-``um_physics/set_environment.sh``.  Typically, this script will be maintained in the 
-LFRic repository in but can be overridden if a different UM source/configuration is required.
+Since the UM code will continue to evolve and we will want to source difference
+versions/branches from the UM repository, the environment variables needed by
+the fcm make command (including the paths to the repository/branches/working)
+are set in ``um_physics/set_environment-<platform>.sh``.  Typically, this
+script will be maintained in the LFRic repository but can be overridden if a
+different UM source/configuration is required.
 
 fcm-make
 ~~~~~~~~
@@ -379,4 +392,3 @@ Environment Variable           Setting
 ``F90``                        ifort
 ``F90_VENDOR``                 Intel
 =============================  ===========================================================================================================
-

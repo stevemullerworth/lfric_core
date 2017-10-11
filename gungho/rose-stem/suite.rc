@@ -9,7 +9,7 @@
                                  'biperiodic-cosmic', 'weak_hs_short',
                                  'cosine_hill_45deg','divergence_cosmic',
                                  'baroclinic'%}
-{%- set miniapp_configurations = ['gravity_wave', 'umphysics_testbuild', 'miniapp_skeleton', 'io_miniapp'] %}
+{%- set miniapp_configurations = ['gravity_wave', 'miniapp_skeleton', 'io_miniapp'] %}
 {%- set canned_configurations  = ['gungho', 'gravity_wave'] %}
 {%- set groups = {'developer': ['science( semi-implicit, resolutions=[["C12",10.0]], env={"nrun":3})',
                                 'science( runge-kutta,   resolutions=[["C12",1.0]], env={"nrun":30})',
@@ -314,13 +314,13 @@
 {%-     endif %}
             export_for_{{label}} => compile_with_{{label}}
             export_for_{{label}} => compile_mesh_tools_with_{{label}}
+{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
+            export_for_{{label}} => unit_test_with_{{label}}
+{%-       endif %}
 {%-     if publish %}
             compile_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 {%-     if compiler in perform_run %}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
-            compile_with_{{label}} => unit_test_with_{{label}}
-{%-       endif %}
 {%-       for resolution in resolutions %}
 {%-         set res_value, dt_values, res_label, dt_labels, res_opt = resolution | getResolutionLabels() %}
 {%-         for i in range(0,dt_values|length) %}
@@ -590,7 +590,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 ##############################################################################
     [[TECHNICAL]]
         [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug/gungho
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
             WORKING_DIR           = {{LOCAL_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
 
@@ -624,12 +624,14 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                                     LOCAL_REVEAL_SETUP,
                                     'mkdir -p $DESTINATION_DIRECTORY' )}}
                      """
-        script = make -C $SOURCE_DIRECTORY document-api-gungho
+        script = make -C $SOURCE_DIRECTORY document-api
         post-script = """
                       # Future publisher stages need this information
                       RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")
                       echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/api.log.path
                       """
+        [[[environment]]]
+          DOCUMENT_DIR = $DESTINATION_DIRECTORY/documents/api
 {%- endif %}
 
 {%- if 'publish_api_log' in scheduledTasks %}
@@ -659,21 +661,23 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                      """
         script = rose task-run --app-key=publish --command-key=directory
         [[[environment]]]
-            DIRECTORY   = $SOURCE_DIRECTORY/documentation/gungho-api/
+            DIRECTORY   = $DESTINATION_DIRECTORY/documents/api/
             DESTINATION = {{publish_destination}}/documentation/api
 {%- endif %}
 
 {%- if 'uml_documentation' in scheduledTasks %}
     [[uml_documentation]]
       inherit = None, LOCAL, TECHNICAL
-        pre-script = """
-                     {{'\n                     '|
-                       commandList( LOCAL_BASE_SETUP,
-                                    LOCAL_TECHNICAL_SETUP,
-                                    LOCAL_REVEAL_SETUP,
-                                    'mkdir -p $DESTINATION_DIRECTORY' )}}
-                     """
-        script = make -C $SOURCE_DIRECTORY document-uml-gungho
+      pre-script = """
+                   {{'\n                     '|
+                     commandList( LOCAL_BASE_SETUP,
+                                  LOCAL_TECHNICAL_SETUP,
+                                  LOCAL_REVEAL_SETUP,
+                                  'mkdir -p $DESTINATION_DIRECTORY' )}}
+                   """
+        script = make -C $SOURCE_DIRECTORY document-uml
+        [[[environment]]]
+          DOCUMENT_DIR = $DESTINATION_DIRECTORY/documents/uml
 {%- endif %}
 
 {%- if 'publish_uml_documentation' in scheduledTasks %}
@@ -684,7 +688,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                      """
         script = rose task-run --app-key=publish --command-key=directory
         [[[environment]]]
-            DIRECTORY = $SOURCE_DIRECTORY/documentation/gungho-uml/
+            DIRECTORY   = $DESTINATION_DIRECTORY/documents/uml
             DESTINATION = {{publish_destination}}/documentation/uml
 {%- endif %}
 
@@ -698,7 +702,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                                     LOCAL_TECHNICAL_SETUP,
                                     LOCAL_REVEAL_SETUP )}}
                      """
-        script = make -dr -C $SOURCE_DIRECTORY document-latex-gungho
+        script = make -dr -C $SOURCE_DIRECTORY document-latex
 {%- endif %}
 
 {%- if 'publish_design_documentation' in scheduledTasks %}
@@ -721,7 +725,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-     set family = label | upper %}
     [[{{family}}]]
         [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}/gungho
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
             COMPILER              = {{compiler}}
             {#- We can't define WORKING_DIR here as it may contain    #}
@@ -741,6 +745,8 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                  ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
                  rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
                  """
+        [[[environment]]]
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}
 {%-     endif %}
 
 {%-     if 'compile_with_' + label in scheduledTasks %}
@@ -763,13 +769,10 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                       """
         [[[environment]]]
             WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}
-            TARGET               = build-gungho
+            TARGET               = build
             PROFILE              = {{build}}
             OPTIMISATION_PROFILE = {{TARGET_OPT}}
             MAKE_THREADS         = 4
-{%        if UM_PHYSICS is defined %}
-            UM_PHYSICS           = {{UM_PHYSICS}}
-{%        endif %}
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
@@ -794,12 +797,13 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                       {{deleteDirectory('$WORKING_DIR')}}
                       """
         [[[environment]]]
+            SOURCE_DIRECTORY     = $SOURCE_ROOT/{{label}}/mesh_tools
             WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}
-            TARGET               = build-mesh_tools
+            BIN_DIR              = $DESTINATION_DIRECTORY/bin
+            TARGET               = build
             PROFILE              = {{build}}
             OPTIMISATION_PROFILE = {{TARGET_OPT}}
             MAKE_THREADS         = 4
-
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
@@ -837,7 +841,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-     for configuration in canned_configurations %}
 {%-       if 'run_' + configuration + '_canned_test_' + label in scheduledTasks %}
     [[run_{{configuration}}_canned_test_{{label}}]]
-#       inherit = {{family}}, TARGET
         inherit = CANNED_TASKS_{{label|upper}}
         pre-script = """
                      {{'\n                     '|
@@ -847,8 +850,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                                     TARGET_REVEAL_SETUP )}}
                      """
         script = rose task-run --app-key=canned_test --opt-conf-key={{configuration}} --command-key={{TARGET_RUN_METHOD}}
-        [[[environment]]]
-            SOURCE_DIRECTORY = $SOURCE_ROOT/{{label}}
         [[[environment]]]
             OMP_NUM_THREADS=1
         [[[directives]]]
@@ -1159,14 +1160,19 @@ causes override warnings when using csar.
                        commandList( TARGET_BASE_SETUP,
                                     compiler_setup[compiler],
                                     TARGET_BUILD_SETUP,
-                                    TARGET_REVEAL_SETUP )}}
+                                    TARGET_REVEAL_SETUP,
+                                    deleteDirectory('$WORKING_DIR') )}}
                      """
-        script = make -C $SOURCE_DIRECTORY unit-test-gungho
+        script      = rose task-run --app-key=compile
         post-script = """
                       {{deleteDirectory('$WORKING_DIR')}}
                       """
         [[[environment]]]
-            WORKING_DIR = {{TARGET_BUILD_ROOT}}/{{label}}
+            WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}
+            TARGET               = unit-tests
+            PROFILE              = {{build}}
+            OPTIMISATION_PROFILE = {{TARGET_OPT}}
+            MAKE_THREADS         = 4
         [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
             {{DIRECTIVE}}
@@ -1182,7 +1188,7 @@ causes override warnings when using csar.
                                         TARGET_BUILD_SETUP,
                                         TARGET_REVEAL_SETUP)}}
                      """
-        script = make -C $SOURCE_DIRECTORY integration-test-gungho
+        script = make -C $SOURCE_DIRECTORY integration-tests
         post-script = """
                       {{deleteDirectory('$WORKING_DIR')}}
                       """

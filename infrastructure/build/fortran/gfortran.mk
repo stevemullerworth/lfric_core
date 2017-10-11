@@ -29,6 +29,5 @@ FFLAGS_WARNINGS           = -Wall
 FFLAGS_INIT               = -finit-integer=31173 -finit-real=snan \
                             -finit-logical=true -finit-character=85
 FFLAGS_RUNTIME            = -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow
-FFLAGS_UM_PHYSICS         = -fdefault-real-8 
 
 LDFLAGS_COMPILER =

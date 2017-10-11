@@ -55,6 +55,10 @@ export WORKING_DIR ?= working
 #
 export LFRIC_BUILD := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+# Make the infrastructure available...
+#
+export LFRIC_INFRASTRUCTURE := $(realpath $(LFRIC_BUILD)/..)
+
 # Make compiler macros available...
 #
 # Sometimes FC holds a full path which needs to be stripped off. It may also
@@ -125,68 +129,89 @@ ALWAYS:
 TARGET_DIR = $(patsubst $(PERCENT)/,$(PERCENT),$(dir $@))
 
 ##############################################################################
-# Build API documentation
-#
-PHONY: api-documentation-%
-api-documentation-%:
-	$(call MESSAGE,API,$*)
-	$(Q)mkdir -p $(DOCUMENT_DIR)
-	$(Q)( cat $(CONFIG_DIR)/Doxyfile; \
-	      echo INPUT = $(SOURCE_DIR); \
-	      echo OUTPUT_DIRECTORY = $(DOCUMENT_DIR) ) \
-	    | doxygen - $(VERBOSE_REDIRECT)
-
-##############################################################################
 # Build UML documentation
 #
-.PHONY: uml-documentation-%
-uml-documentation-%: $$(patsubst $$(SOURCE_DIR)/$$(PERCENT).puml,$$(DOCUMENT_DIR)/$$(PERCENT).pdf,$$(wildcard $$(SOURCE_DIR)/*.puml))
+# DOCUMENT_DIR - Directory in which documentation is placed.
+# SOURCE_DIR   - Root directory of source tree.
+# WORKING_DIR  - Location for temporary files.
+#
+.PHONY: uml-documentation
+uml-documentation:
+	$(MAKE) uml-pdfs DOCUMENT_DIR=$(DOCUMENT_DIR) SOURCE_DIR=$(SOURCE_DIR) WORKING_DIR=$(WORKING_DIR)
+
+.PHONY: uml-pdfs
+uml-pdfs: $$(patsubst $$(SOURCE_DIR)/$$(PERCENT).puml,$$(DOCUMENT_DIR)/$$(PERCENT).pdf,$$(wildcard $$(SOURCE_DIR)/*.puml))
 	$(Q)echo >/dev/null
 
 .PRECIOUS: $(DOCUMENT_DIR)/%.pdf
 $(DOCUMENT_DIR)/%.pdf: $(DOCUMENT_DIR)/%.svg
-	$(call MESSAGE,Translating,$@)
+	$(call MESSAGE,Translating,$(notdir $<))
 	$(Q)inkscape $< --export-pdf=$@
 
 .PRECIOUS: $(DOCUMENT_DIR)/%.svg
 $(DOCUMENT_DIR)/%.svg: $(SOURCE_DIR)/%.puml \
                       $$(addprefix $$(SOURCE_DIR)/,$$(shell sed -n -e 's/!include[ ]*\([^ \n]*\)/\1/p' $$(SOURCE_DIR)/$$*.puml))
-	$(call MESSAGE,Generating,$@)
+	$(call MESSAGE,Generating,$(notdir $@))
 	$(Q)mkdir -p $(DOCUMENT_DIR)
 	$(Q)plantuml $(SHORT_VERBOSE_ARG) -tsvg -o $(abspath $(dir $@)) $(abspath $<)
 
 ##############################################################################
-# Run integration tests.
+# Build API documentation
 #
-.PHONY: run-integration-test-%
-run-integration-test-%: PYTHONPATH := $(PYTHONPATH):$(LFRIC_BUILD)
-run-integration-test-%: $(addprefix integration-test-run/,$(PROGRAMS))
-	$(Q)echo >/dev/null
+# PROJECT      - Name of the project for logging purposes.
+# DOCUMENT_DIR - Directory in which documentation is placed.
+# CONFIG_DIR   - Directory where Doxyfile can be found.
+# SOURCE_DIR   - Root directory of source tree.
+# WORKING_DIR  - Location for temporary files.
+#
+.PHONY: api-documentation
+api-documentation: ALWAYS
+	$(call MESSAGE,API,$(PROJECT))
+	$(Q)mkdir -p $(DOCUMENT_DIR)
+	$(Q)( cat $(CONFIG_DIR)/Doxyfile; \
+	      echo INPUT=$(SOURCE_DIR); \
+	      echo OUTPUT_DIRECTORY=$(DOCUMENT_DIR) ) \
+	    | doxygen - $(VERBOSE_REDIRECT)
 
-.PHONY: integration-test-run/%
-integration-test-run/%: PROGRAMS := $(notdir $(PROGRAMS))
-integration-test-run/%: compile
-	$(call MESSAGE,Running,$*)
-	$(Q)cd $(dir $*); \
-	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$(notdir $*))
+##############################################################################
+# Launch test suite
+#
+# SUITE_CONFIG - Path to rose-stem directory.
+# SUITE_NAME   - Base name for suites.
+#
+.PHONY: launch-test-suite
+launch-test-suite: SUITE_GROUP ?= developer
+launch-test-suite: TEST_SUITE_TARGETS ?= $(error Please set the TEST_SUITE_TARGETS environment variable.)
+launch-test-suite:
+	$(Q)umask 022; for target in $(TEST_SUITE_TARGETS) ; do \
+	    echo Launching test suite against $$target ; \
+	    rose stem --name=$(SUITE_NAME)-$$target-$(SUITE_GROUP) \
+	              --config=$(SUITE_CONFIG) \
+	              --opt-conf-key=$$target \
+	              --group=$(SUITE_GROUP);\
+	done
 
 ##############################################################################
 # Run unit tests.
 #
-.PHONY: run-unit-test-%
-run-unit-test-%: compile
+.PHONY: run-unit-tests
+run-unit-tests: generate-unit-tests
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
 	$(call MESSAGE,Running,$(PROGRAMS))
 	$(Q)cd $(WORKING_DIR); mpiexec -n 1 $(BIN_DIR)/$(PROGRAMS) $(DOUBLE_VERBOSE_ARG)
 
 ##############################################################################
-# Simple build process targets.
+# Run integration tests.
 #
-
-.PHONY: compile
-compile:
-	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-	        BIN_DIR=$(BIN_DIR) PROGRAMS="$(PROGRAMS)"
+.PHONY: integration-test-run/%
+integration-test-run/%: PYTHONPATH := $(PYTHONPATH):$(LFRIC_BUILD)
+integration-test-run/%: generate-integration-tests
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk PROGRAMS=$(notdir $*)
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk PROGRAMS=$(notdir $*)
+	$(call MESSAGE,Running,$*)
+	$(Q)cd $(dir $*); \
+	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$(notdir $*))
 
 ##############################################################################
 # Generate configuration source.

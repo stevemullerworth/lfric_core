@@ -27,7 +27,6 @@ FFLAGS_SAFE_OPTIMISATION  = -O2
 FFLAGS_RISKY_OPTIMISATION = -O4
 FFLAGS_DEBUG              = -g -traceback
 FFLAGS_RUNTIME            = -Mbounds -Mchkptr -Mchkstk
-FFLAGS_UM_PHYSICS         = -r8
 
 LDFLAGS_COMPILER = -g
 

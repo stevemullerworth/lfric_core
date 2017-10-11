@@ -45,6 +45,9 @@
             compile_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 {%-     if compiler in perform_run %}
+{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
+            export_for_{{label}} => unit_test_with_{{label}}
+{%-       endif %}
 {%-       for mesh in mesh_types %}
             compile_with_{{label}} => generate_mesh_{{mesh}}_{{label}}
 {%-         if compiler in TARGET_PERFORM_KGO_TESTS %}
@@ -53,9 +56,6 @@
             generate_mesh_{{mesh}}_{{label}} => summarise_{{mesh}}_{{label}}
             summarise_{{mesh}}_{{label}} => check_summary_{{mesh}}_{{label}}
 {%-       endfor %}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
-            compile_with_{{label}} => unit_test_with_{{label}}
-{%-       endif %}
 {%-     endif %}
 {%-   endfor %}
 {%- endmacro %}
@@ -204,7 +204,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-     set family = label | upper %}
   [[{{family}}]]
     [[[environment]]]
-      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}
+      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}/mesh_tools
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
       COMPILER              = {{compiler}}
       PLATFORM_OPT          = {{PLATFORM_OPT}}
@@ -219,12 +219,14 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
     inherit = {{family}}, LOCAL
     script = """
              mkdir -p `dirname $SOURCE_DIRECTORY`
-             svn export {{ SOURCE_LFRIC }} $SOURCE_DIRECTORY
+             svn export {{SOURCE_LFRIC}} $SOURCE_DIRECTORY
              HOST={{TARGET_HOST}}
              RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
              ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
              rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
              """
+    [[[environment]]]
+      SOURCE_DIRECTORY = $SOURCE_ROOT/{{label}}
 {%-     endif %}
 
 {%-     if 'compile_with_' + label in scheduledTasks %}
@@ -245,11 +247,12 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                   echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher.{{compiler}}.log
                   """
     [[[environment]]]
-      WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}
+      WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}/mesh_tools
+      BIN_DIR              = $DESTINATION_DIRECTORY
       BUILD_TARGET         = {{build}}
       OPTIMISATION_PROFILE = {{PLATFORM_OPT}}
       PROFILE              = {{build}}
-      TARGET               = build-mesh_tools
+      TARGET               = build
       MAKE_THREADS         = 4
     [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
@@ -288,17 +291,18 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
                  {{'\n'|commandList( TARGET_BASE_SETUP,
                                      compiler_setup[compiler],
                                      TARGET_BUILD_SETUP,
-                                     TARGET_REVEAL_SETUP, 
-                                     "mkdir -p $WORKING_DIR",
-                                     "cp -rp $SOURCE_DIRECTORY/build/* $WORKING_DIR" )}}
+                                     TARGET_REVEAL_SETUP)}}
                  """
-    script = make -C $SOURCE_DIRECTORY test-mesh_tools PROFILE={{build}}
+    script      = rose task-run --app-key=compile
     post-script = """
-                  {{'\n'|commandList( "cp -rp $WORKING_DIR/* $SOURCE_DIRECTORY/build",
+                  {{'\n'|commandList( "cp -rp $WORKING_DIR $SOURCE_DIRECTORY/working",
                                       deleteDirectory('$WORKING_DIR') )}}
                   """
     [[[environment]]]
-      WORKING_DIR = {{TARGET_BUILD_ROOT}}/{{label}}
+      TARGET               = unit-tests
+      PROFILE              = {{build}}
+      MAKE_THREADS         = 6
+      WORKING_DIR          = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
     [[[directives]]]
 {%-       for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
       {{DIRECTIVE}}

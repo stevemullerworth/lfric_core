@@ -11,15 +11,19 @@ files-to-extract: $(addprefix $(WORKING_DIR)/,$(shell find $(SOURCE_DIR) -name '
 	$(Q)echo >/dev/null
 
 .PRECIOUS: $(WORKING_DIR)/%.F90
-$(WORKING_DIR)/%.F90: $(SOURCE_DIR)/%.F90
+$(WORKING_DIR)/%.F90: $(SOURCE_DIR)/%.F90 | $(WORKING_DIR)
 	$(call MESSAGE,Copying source,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)cp $< $@
 
 .PRECIOUS: $(WORKING_DIR)/%.f90
-$(WORKING_DIR)/%.f90: $(SOURCE_DIR)/%.f90
+$(WORKING_DIR)/%.f90: $(SOURCE_DIR)/%.f90 | $(WORKING_DIR)
 	$(call MESSAGE,Copying source,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)cp $< $@
+
+$(WORKING_DIR):
+	$(call MESSAGE,Creating,$@)
+	$(Q)mkdir -p $@
 
 include $(LFRIC_BUILD)/lfric.mk

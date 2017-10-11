@@ -25,19 +25,12 @@
 #           Default: Everything listed in programs.mk
 # PRE_PROCESS_MACROS: Macro definitions in the form NAME[=MACRO] to be passed
 #                     to the compiler.
+# PROJECT_MAKE_DIR: Used to locate project specific targets modifiers and
+#                   such.
 #
 ##############################################################################
 
 .SECONDEXPANSION:
-
-BIN_DIR   ?= $(ROOT)/bin
-PROGRAMS  ?= $(basename $(notdir $(PROG_OBJS)))
-
-# If the compiler produces module files, tell it where to put them
-#
-ifdef F_MOD_DESTINATION_ARG
-  MODULE_DESTINATION_ARGUMENT = $(F_MOD_DESTINATION_ARG)$(dir $@)
-endif
 
 # Build a set of "-I" arguments to seach the whole object tree:
 INCLUDE_ARGS := $(subst ./,-I,$(shell find . -mindepth 1 -type d -print))
@@ -69,19 +62,6 @@ $(BIN_DIR)/%: %.x | $(BIN_DIR)
 	             $^ \
 	             $(patsubst %,-l%,$(EXTERNAL_STATIC_LIBRARIES))
 
-.PRECIOUS: $(UM_PHYS_ROOT)/%.o $(UM_PHYS_ROOT)/%.mod
-$(UM_PHYS_ROOT)/%.o $(UM_PHYS_ROOT)/%.mod: $(UM_PHYS_ROOT)/%.f90
-	$(call MESSAGE,Compile um physics,$<)
-	$(Q)$(FC) $(FFLAGS) $(FFLAGS_UM_PHYSICS) \
-	          $(MODULE_DESTINATION_ARGUMENT) \
-	          $(INCLUDE_ARGS) -c -o $(basename $@).o $<
-
-$(UM_PHYS_ROOT)/%.o $(UM_PHYS_ROOT)/%.mod: $(UM_PHYS_ROOT)/%.F90
-	$(call MESSAGE,Pre-process and compile um physics,$<)
-	$(Q)$(FC) $(FPPFLAGS) $(FFLAGS) $(FFLAGS_UM_PHYSICS) \
-	          $(MODULE_DESTINATION_ARGUMENT) \
-	          $(INCLUDE_ARGS) $(MACRO_ARGS) -c -o $(basename $@).o $<
-
 .PRECIOUS: %.o %.mod
 %.o %.mod: %.f90
 	$(call MESSAGE,Compile,$<)
@@ -94,6 +74,7 @@ $(UM_PHYS_ROOT)/%.o $(UM_PHYS_ROOT)/%.mod: $(UM_PHYS_ROOT)/%.F90
 	$(Q)$(FC) $(FPPFLAGS) $(FFLAGS) \
 	          $(MODULE_DESTINATION_ARGUMENT) \
 	          $(INCLUDE_ARGS) $(MACRO_ARGS) -c -o $(basename $@).o $<
+
 #############################################################################
 # Directories
 #
@@ -109,6 +90,15 @@ include dependencies.mk
 ##############################################################################
 include $(LFRIC_BUILD)/lfric.mk
 
+BIN_DIR   ?= $(ROOT)/bin
+PROGRAMS  ?= $(basename $(notdir $(PROG_OBJS)))
+
+# If the compiler produces module files, tell it where to put them
+#
+ifdef F_MOD_DESTINATION_ARG
+  MODULE_DESTINATION_ARGUMENT = $(F_MOD_DESTINATION_ARG)$(dir $@)
+endif
+
 ifdef CRAY_ENVIRONMENT
   $(warning Running on a Cray, selecting static linking)
   LINK_TYPE ?= static
@@ -119,9 +109,14 @@ endif
 # Work out what to do with external libraries.
 #
 ifeq "$(LINK_TYPE)" "static"
-  EXTERNAL_STATIC_LIBRARIES := $(EXTERNAL_DYNAMIC_LIBRARIES) $(EXTERNAL_STATIC_LIBRARIES)
+  override EXTERNAL_STATIC_LIBRARIES  := $(EXTERNAL_DYNAMIC_LIBRARIES) $(EXTERNAL_STATIC_LIBRARIES)
+  override EXTERNAL_DYNAMIC_LIBRARIES :=
 else ifeq "$(LINK_TYPE)" "dynamic"
   # Nothing further needs to be done.
 else
   $(error Unrecognised LINK_TYPE. Must be either "static" or "dynamic")
 endif
+
+# Project specific stuff.
+-include $(PROJECT_MAKE_DIR)/fortran/$(FORTRAN_COMPILER).mk
+-include $(PROJECT_MAKE_DIR)/project.mk

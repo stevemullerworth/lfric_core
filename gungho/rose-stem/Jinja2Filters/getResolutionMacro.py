@@ -49,7 +49,7 @@ def getResolutionMacro(context, call):
         resDict={}
     else:
         configuration=argumentList[0] # First argument is always the configuration
-            
+ 
         argumentDictionary = {}
         for argument in keywordArguments:
             key, value = re.split(' *= *', argument)

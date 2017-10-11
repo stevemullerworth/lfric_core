@@ -1,0 +1,112 @@
+##############################################################################
+# (c) Crown copyright 2017 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+PROFILE ?= fast-debug
+
+export IGNORE_DEPENDENCIES = netcdf MPI ESMF pfunit_mod xios mod_wait
+export EXTERNAL_DYNAMIC_LIBRARIES = esmf netcdff netcdf hdf5
+export EXTERNAL_STATIC_LIBRARIES = xios
+
+export UMPHYSICS_TARGETS = extract-um-physics
+export UMPHYSICS_CLEAN   = clean-um-physics
+# Note that this defaults to the xcr0 build, but will be
+# set to the appropriate target if using the test-umphysics suites
+export UM_ENV=set_environment-xc40.sh
+export UM_FCM=$(UM_PHYS_DIR)/
+
+ifdef OPTIMISATION_PROFILE
+  export OPTIMISATION_PATH = optimisation/$(OPTIMISATION_PROFILE)
+endif
+
+export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR ?= ../
+
+.PHONY: default
+default: build
+	$(Q)echo > /dev/null
+
+include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include build/fortran/$(FORTRAN_COMPILER).mk
+
+export FFLAGS  := $(FFLAGS) $(OPENMP_ARG)
+export LDFLAGS := $(LDFLAGS) $(OPENMP_ARG)
+
+##############################################################################
+# Test
+#
+.PHONY: test-suite
+test-suite: SUITE_NAME   = $(notdir $(realpath $(shell pwd)/..))-umphysics
+test-suite: SUITE_CONFIG = rose-stem
+test-suite: launch-test-suite
+	$(Q)echo > /dev/null
+
+##############################################################################
+# Build
+#
+.PHONY: build
+ifeq "$(PROFILE)" "full-debug"
+build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_INIT) $(FFLAGS_RUNTIME) $(FFLAGS_NO_OPTIMISATION)
+else ifeq "$(PROFILE)" "fast-debug"
+build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_SAFE_OPTIMISATION)
+else ifeq "$(PROFILE)" "production"
+build: export FFLAGS += $(FFLAGS_DEBUG) $(FFLAGS_WARNINGS) $(FFLAGS_RISKY_OPTIMISATION)
+else
+  $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
+endif
+build: PROJECT      = gungho
+build: SOURCE_DIR   = source
+build: SCRATCH_DIR := $(WORKING_DIR)/gungho-scratch
+build: WORKING_DIR := $(WORKING_DIR)/gungho
+build: BIN_DIR     ?= $(PROJECT_DIR)/bin
+build: PROGRAMS    := $(basename $(notdir $(shell find $(SOURCE_DIR) -maxdepth 1 -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
+build: export PROJECT_MAKE_DIR = $(abspath build)
+build: generate-psykal extract-gungho extract-um-physics
+	$(MAKE) -C $(LFRIC_INFRASTRUCTURE) extract WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
+	$(MAKE) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
+	                             BIN_DIR=$(BIN_DIR) PROGRAMS="$(PROGRAMS)"
+
+.PHONY: generate-psykal
+generate-psykal: extract-gungho
+	$(MAKE) -f $(LFRIC_BUILD)/extract.mk SOURCE_DIR=source \
+	                                     WORKING_DIR=$(WORKING_DIR)
+	$(MAKE) -f $(LFRIC_BUILD)/lfric.mk psykal SOURCE_DIR=source
+
+.PHONY: extract-gungho
+extract-gungho: ALWAYS
+	$(MAKE) -C $(ROOT_DIR)/gungho extract \
+	        WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(MAKE) -C $(ROOT_DIR)/gungho -f $(LFRIC_BUILD)/lfric.mk psykal \
+	        SOURCE_DIR=source WORKING_DIR=$(abspath $(WORKING_DIR))
+	$(MAKE) -C $(ROOT_DIR)/gungho generate-configuration \
+	        PROJECT=$(PROJECT) WORKING_DIR=$(abspath $(WORKING_DIR))
+
+.PHONY: extract-um-physics
+extract-um-physics:
+	$(call MESSAGE,Extracting,UM physics)
+	# Retrieve and preprocess the UM, Jules and Socrates code
+	# The UM_ENV file contains the appropriate locations and UM side
+	# environment variables
+	$(Q)source $(UM_ENV); \
+	    fcm make -C $(SCRATCH_DIR) -f $(PROJECT_DIR)/fcm-make.cfg
+	# Note that if wanting to modify UM source this should be done via the
+	# UM repository either through a working copy or branch
+	$(Q)rsync -avz $(SCRATCH_DIR)/preprocess-atmos/ $(WORKING_DIR)/science/
+
+##############################################################################
+# Clean
+#
+.PHONY: clean
+clean: partial-clean
+	$(call MESSAGE,Removing,UM work space)
+	$(Q)-rm -r $(WORKING_DIR)
+
+.PHONY: partial-clean pclean
+partial-clean pclean: ALWAYS
+	$(call MESSAGE,Removing,GungHo workspace)
+	$(Q)-rm -r $(WORKING_DIR)/gungho
+	$(call MESSAGE,Removing,GungHo binaries)
+	$(Q)-rm -r bin

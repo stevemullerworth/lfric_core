@@ -56,5 +56,4 @@ def getEnvMacro(context, call):
     else:
         return_value =  arguments[0], envDict
 
-
     return return_value

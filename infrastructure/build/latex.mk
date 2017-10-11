@@ -42,13 +42,13 @@ $(WORKING_DIR)/%.aux: $(SOURCE_DIR)/%.latex \
 $(WORKING_DIR)/figures: $(patsubst $(COMMON_FIGURES)/%,$(WORKING_DIR)/figures/%.pdf,$(basename $(wildcard $(COMMON_FIGURES)/*)))
 	$(Q)echo >/dev/null
 
-.PRECIOUS: $(WORKING_DIR)/figures/%.pdf
+.PRECIOUS: $(WORKING_DIR)/figures/%.pdf | $(WORKING_DIR)/figures
 $(WORKING_DIR)/figures/%.pdf: $(COMMON_FIGURES)/%.svg
 	$(call MESSAGE,Transcoding,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)inkscape -z -f $< -A $@
 
-$(WORKING_DIR)/figures/%.pdf: $(COMMON_FIGURES)/%.eps
+$(WORKING_DIR)/figures/%.pdf: $(COMMON_FIGURES)/%.eps | $(WORKING_DIR)/figures
 	$(call MESSAGE,Transcoding,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)eps2pdf --outfile=$@ $<
@@ -58,14 +58,18 @@ $(WORKING_DIR)/figures/%: $$(patsubst $$(SOURCE_DIR)/$$*/figures/$$(PERCENT),$(W
 	$(Q)echo >/dev/null
 
 .PRECIOUS: $(WORKING_DIR)/figures/%.pdf
-$(WORKING_DIR)/figures/%.pdf: $(SOURCE_DIR)/$$(dir $$*)/figures/$$(notdir $$*).svg
+$(WORKING_DIR)/figures/%.pdf: $(SOURCE_DIR)/$$(dir $$*)/figures/$$(notdir $$*).svg | $(WORKING_DIR)/figures
 	$(call MESSAGE,Transcoding,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)inkscape -z -f $< -A $@
 
-$(WORKING_DIR)/figures/%.pdf: $(SOURCE_DIR)/$$(dir $$*)/figures/$$(notdir $$*).eps
+$(WORKING_DIR)/figures/%.pdf: $(SOURCE_DIR)/$$(dir $$*)/figures/$$(notdir $$*).eps | $(WORKING_DIR)
 	$(call MESSAGE,Transcoding,$<)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)epstopdf --outfile=$@ $<
+
+$(WORKING_DIR) $(WORKING_DIR)/figures: ALWAYS
+	$(call Message,Creating,$@)
+	$(Q)mkdir -p $@
 
 include $(LFRIC_BUILD)/lfric.mk

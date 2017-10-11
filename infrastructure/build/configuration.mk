@@ -17,19 +17,19 @@ NAMELIST_LOADERS = $(patsubst $(SOURCE_DIR)/%.nld,$(WORKING_DIR)/%_config_mod.f9
 
 .PRECIOUS: $(WORKING_DIR)/%_configuration_mod.f90
 $(WORKING_DIR)/%_configuration_mod.f90: $(NAMELIST_LOADERS)
-	$(call MESSAGE,Generating configuration loader,$@)
+	$(call MESSAGE,Generating configuration loader,$(notdir $@))
 	$(Q)$(LFRIC_BUILD)/tools/GenerateLoader $(VERBOSE_ARG) $@ $(patsubst %_config_mod.f90,%,$(notdir $^))
 
 .PRECIOUS: $(WORKING_DIR)/%_config_mod.f90
 $(WORKING_DIR)/%_config_mod.f90: $(SOURCE_DIR)/%.nld
-	$(call MESSAGE,Generating namelist loader,$@)
+	$(call MESSAGE,Generating namelist loader,$(notdir $@))
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(LFRIC_BUILD)/tools/GenerateNamelist $(VERBOSE_ARG) \
                                               -directory $(dir $@) $<
 
 .PRECIOUS: $(WORKING_DIR)/%_feign_config_mod.f90
 $(WORKING_DIR)/%_feign_config_mod.f90: $(NAMELIST_DESCRIPTIONS)
-	$(call MESSAGE,Generating feign module,$@)
+	$(call MESSAGE,Generating feign module,$(notdir $@))
 	$(Q)$(LFRIC_BUILD)/tools/GenerateFeigns -output $@ $^
 
 include $(LFRIC_BUILD)/lfric.mk

@@ -48,8 +48,8 @@
             purge_target => export_for_{{label}}
             export_for_{{label}} => api_documentation
             export_for_{{label}} => uml_documentation
-            uml_documentation    => publish_uml_documentation
 {%-     if publish %}
+            uml_documentation => publish_uml_documentation
             api_documentation => publish_api_documentation
             api_documentation => publish_api_log
 
@@ -221,7 +221,7 @@
 
     [[TECHNICAL]]
         [[[environment]]]
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug/infrastructure
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
             WORKING_DIR           = {{LOCAL_BUILD_ROOT}}/{{TARGET_TECHNICAL_COMPILER}}_fast-debug
 
@@ -230,16 +230,22 @@
     [[api_documentation]]
         inherit = TECHNICAL, LOCAL
         pre-script = """
-                     {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
+                     {{'\n'|commandList( LOCAL_BASE_SETUP,
+                                         LOCAL_TECHNICAL_SETUP,
+                                         LOCAL_REVEAL_SETUP,
+                                         'mkdir -p $DESTINATION_DIRECTORY',
+                                         'mkdir -p $DOCUMENT_DIR')}}
                      """
-        script = make -C $SOURCE_DIRECTORY document-api-infrastructure
+        script = make -C $SOURCE_DIRECTORY document-api
         post-script = """
                       # Future publisher stages need this information
                       cd `dirname $CYLC_TASK_LOG_ROOT`
-                      LEAFNAME=`basename $CYLC_TASK_LOG_ROOT    `
+                      LEAFNAME=`basename $CYLC_TASK_LOG_ROOT`
                       pax -wf $DESTINATION_DIRECTORY/api.pax \
                           $LEAFNAME.status $LEAFNAME.err $LEAFNAME.out
                       """
+        [[[environment]]]
+          DOCUMENT_DIR = $DESTINATION_DIRECTORY/documents/api
 {%- endif %}
 
 {%- if 'publish_api_log' in scheduledTasks %}
@@ -266,7 +272,7 @@
                      """
         script = rose task-run --app-key=publish --command-key=directory
         [[[environment]]]
-            DIRECTORY   = $SOURCE_DIRECTORY/documentation/infrastructure-api/
+            DIRECTORY   = $DESTINATION_DIRECTORY/documents/api/
             DESTINATION = {{publish_destination}}/documentation/api
 {%- endif %}
 
@@ -274,9 +280,22 @@
     [[uml_documentation]]
       inherit = TECHNICAL, LOCAL
         pre-script = """
-                     {{'\n'|commandList( LOCAL_BASE_SETUP, LOCAL_TECHNICAL_SETUP, LOCAL_REVEAL_SETUP, 'mkdir -p $DESTINATION_DIRECTORY') }}
+                     {{'\n'|commandList( LOCAL_BASE_SETUP,
+                                         LOCAL_TECHNICAL_SETUP,
+                                         LOCAL_REVEAL_SETUP,
+                                         'mkdir -p $DESTINATION_DIRECTORY',
+                                         'mkdir -p $DOCUMENT_DIR')}}
                      """
-        script = make -C $SOURCE_DIRECTORY document-uml-infrastructure
+        script = make -C $SOURCE_DIRECTORY document-uml
+        post-script = """
+                      # Future publisher stages need this information
+                      cd `dirname $CYLC_TASK_LOG_ROOT`
+                      LEAFNAME=`basename $CYLC_TASK_LOG_ROOT`
+                      pax -wf $DESTINATION_DIRECTORY/api.pax \
+                          $LEAFNAME.status $LEAFNAME.err $LEAFNAME.out
+                      """
+        [[[environment]]]
+          DOCUMENT_DIR = $DESTINATION_DIRECTORY/documents/uml
 {%- endif %}
 
 {%- if 'publish_uml_documentation' in scheduledTasks %}
@@ -287,7 +306,7 @@
                    """
       script = rose task-run --app-key=publish --command-key=directory
       [[[environment]]]
-        DIRECTORY = $SOURCE_DIRECTORY/documentation/infrastructure-uml/
+        DIRECTORY = $DESTINATION_DIRECTORY/documents/uml/
         DESTINATION = {{publish_destination}}/documentation/uml
 {%- endif %}
 
@@ -299,7 +318,7 @@
                                     compiler_setup[TARGET_TECHNICAL_COMPILER],
                                       TARGET_REVEAL_SETUP)}}
                    """
-      script = make -C $SOURCE_DIRECTORY/infrastructure/build/tools
+      script = make -C $SOURCE_DIRECTORY/build/tools
 {%- endif %}
 
 ##############################################################################
@@ -310,7 +329,7 @@
 {%-     set family = label | upper %}
   [[{{family}}]]
     [[[environment]]]
-      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}
+      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}/infrastructure
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
       COMPILER              = {{compiler}}
       {#- We can't define WORKING_DIR here as it may contain    #}
@@ -330,6 +349,8 @@
              ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
              rsync -avz $SOURCE_DIRECTORY/ $HOST:$RELATIVE_SOURCE_DIRECTORY/
              """
+    [[[environment]]]
+      SOURCE_DIRECTORY = $SOURCE_ROOT/{{label}}
 {%-     endif %}
 
 {%-     if 'unit_test_with_' + label in scheduledTasks %}
@@ -347,7 +368,7 @@
                                      deleteDirectory("$WORKING_DIR"))}}
                   """
     [[[environment]]]
-      TARGET       = unit-test-infrastructure
+      TARGET       = unit-tests
       PROFILE      = {{build}}
       MAKE_THREADS = 4
       WORKING_DIR  = {{TARGET_BUILD_ROOT}}/{{label}}/unit-test
@@ -372,7 +393,7 @@
                                      deleteDirectory("$WORKING_DIR"))}}
                   """
     [[[environment]]]
-      TARGET       = integration-test-infrastructure
+      TARGET       = integration-tests
       PROFILE      = {{build}}
       MAKE_THREADS = 1
       WORKING_DIR  = {{TARGET_BUILD_ROOT}}/{{label}}/integration-test

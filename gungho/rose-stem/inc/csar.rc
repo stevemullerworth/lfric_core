@@ -110,8 +110,6 @@
                                          resolutions=[["BiP30x4-12000x2000",10.0]],
                                          checkkgo=False)',
                              ],
-                'csar-umbuild':['miniapp(umphysics_testbuild, env={"umphysics":True}, checkkgo=True )',
-                    ],
                   }
 %}
 

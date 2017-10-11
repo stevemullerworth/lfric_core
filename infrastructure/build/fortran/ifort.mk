@@ -29,7 +29,6 @@ FFLAGS_DEBUG              = -g -traceback
 FFLAGS_WARNINGS           = -warn all -warn errors
 FFLAGS_INIT               = -ftrapuv
 FFLAGS_RUNTIME            = -check all -fpe0
-FFLAGS_UM_PHYSICS         = -r8
 
 # The "-assume realloc-lhs" switch causes Intel Fortran prior to v17 to
 # actually implement the Fortran2003 standard. At version 17 it becomes the
