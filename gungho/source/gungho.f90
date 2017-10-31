@@ -66,9 +66,9 @@ program gungho
   use io_mod,                         only : output_nodal, &
                                              output_xios_nodal, &
                                              xios_domain_init
-  use timestepping_config_mod,        only : method, &
-                                           timestepping_method_semi_implicit, &
-                                           timestepping_method_rk
+  use timestepping_config_mod,        only : method, dt, &
+                                             timestepping_method_semi_implicit, &
+                                             timestepping_method_rk
   use derived_config_mod,             only : set_derived_config
   use checksum_alg_mod,               only : checksum_alg
   use diagnostic_alg_mod,             only : divergence_diagnostic_alg, &
@@ -192,7 +192,7 @@ program gungho
   ! If xios output then set up XIOS domain and context
   if (write_xios_output) then
 
-    dtime = 1
+    dtime = int(dt)
 
 
     call xios_domain_init(xios_ctx, comm, dtime, mesh_id, chi, vm, local_rank, total_ranks)
@@ -246,9 +246,8 @@ program gungho
     ! XIOS output
     if (write_xios_output) then
 
-      ! Make sure XIOS calendar is set to timestep 1 as it starts there
-      ! not timestep 0.
-      call xios_update_calendar(1)
+      ! Make sure XIOS calendar is set to first timestep to be computed
+      call xios_update_calendar(ts_init+1)
  
       ! Output scalar fields
       call output_xios_nodal("init_theta", theta, mesh_id)

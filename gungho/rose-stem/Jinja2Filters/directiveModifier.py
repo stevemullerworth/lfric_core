@@ -13,12 +13,12 @@ import re
 
     
 
-def directiveModifier( directive, cores, walltime ):
+def directiveModifier( directive, cores, walltime, xios_nodes=0):
 
-    def choose_replacement(name, arguments):
+    def choose_replacement(name, arguments, xios_nodes):
         if name == 'nodes':
             nodeSize = int( arguments[0] )
-            middlebit = str(int(math.ceil( float(cores) / float(nodeSize) )))
+            middlebit = str(int(math.ceil( float(cores) / float(nodeSize) )) + xios_nodes)
         elif name == 'cores':
             middlebit = str(cores)
         elif name == 'time_hhmmss':
@@ -40,7 +40,7 @@ def directiveModifier( directive, cores, walltime ):
             name = match.group(1)
             arguments = match.group(2).split( ',' )
             match_string= '<<%s(%s)>>' % (match.group(1), match.group(2))
-            processed = processed.replace(match_string, choose_replacement(name, arguments))
+            processed = processed.replace(match_string, choose_replacement(name, arguments, xios_nodes))
         plist.append(processed)
 
     return plist

@@ -650,7 +650,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
         inherit = {{family}}, LOCAL
         script = """
                  mkdir -p `dirname $SOURCE_DIRECTORY`
-                 svn export {{ SOURCE_LFRIC }} $SOURCE_DIRECTORY
+                 svn export --force {{ SOURCE_LFRIC }} $SOURCE_DIRECTORY
                  HOST={{TARGET_HOST}}
                  RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
                  ssh $HOST mkdir -p $RELATIVE_SOURCE_DIRECTORY
@@ -794,7 +794,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%                    set directiveKey = res_value if res_value in scheduledTasksDict[configuration_label]['directives'].keys() else 'default'%}
 {%                    set directiveDict = scheduledTasksDict[configuration_label]['directives'][directiveKey] %}
 {%                    set mpi_parts = directiveDict['mpi_parts'] %}
-{%                    if mpi_parts=='' %}
+{%                    if mpi_parts!='' %}
 {%                      set mpiopt = '--opt-conf-key=setcores_x' %}
 {%                    endif %}
 {%                  endif %}
@@ -812,7 +812,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
         script = rose task-run --app-key=gungho --command-key={{command_key}} --opt-conf-key={{configuration}} {{res_opt}} {{mpiopt}}
         post-script = """
-                      find . -regex '.*PET[0-9]+\..+\.Log' -exec cp {} $ROSE_TASK_LOG_DIR \;
+                      find . -regex '.*PET0+\..+\.Log' -exec cp {} $ROSE_TASK_LOG_DIR \;
                       find . -regex '.*PET0+\..+\.Log' -exec cat {} \;
                       mkdir -p $DESTINATION_DIRECTORY/{{configuration}}
                       cp dynamo-checksums.txt $DESTINATION_DIRECTORY/{{configuration}}/{{compiler}}.checksums
@@ -880,7 +880,8 @@ causes override warnings when using csar.
 {%                    set mpi_parts = directiveDict['mpi_parts'] %}
 {%                    set wallclock = directiveDict['wallclock'] %}
 {%                    set threads = directiveDict['threads'] %}
-{%                    set run_batcher = TARGET_PARAM_RUN_BATCHER_DIRECTIVES| directiveModifier(mpi_parts*threads, wallclock) %}
+{%                    set xios_nodes = directiveDict['xios_nodes'] %}
+{%                    set run_batcher = TARGET_PARAM_RUN_BATCHER_DIRECTIVES| directiveModifier(mpi_parts*threads, wallclock,xios_nodes) %}
 {%                  endif  %}
 {%                endif  %}
 {%-               for DIRECTIVE in run_batcher %}
