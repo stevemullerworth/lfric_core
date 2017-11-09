@@ -16,7 +16,7 @@
                                                        {"mpi_parts":6,
                                                         "threads":1,
                                                         "wallclock":"00:20:00",
-                                                        "xios_nodes":1}
+                                                       }
                                                      }
                                              },
                                          checkkgo=False)'
@@ -35,7 +35,7 @@
                                                        {"mpi_parts":6,
                                                         "threads":1,
                                                         "wallclock":"00:20:00",
-                                                        "xios_nodes":1}
+                                                       }
                                                      }
                                              },
                                          checkkgo=False)'
@@ -54,7 +54,7 @@
                                                        {"mpi_parts":6,
                                                         "threads":1,
                                                         "wallclock":"00:20:00",
-                                                        "xios_nodes":1}
+                                                       }
                                                      }
                                              },
                                          checkkgo=False)'

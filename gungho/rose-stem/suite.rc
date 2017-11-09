@@ -35,12 +35,18 @@
                                           env={"crun":3, "nrun": {"default":3},
                                               "directives":{"default":{"mpi_parts":6,
                                                                        "threads":1,
-                                                                       "xios_nodes":1,
+								       "xios_nodes":1,
                                                                        "wallclock":"00:05:00"}
                                                            }
                                              },
                                           checkkgo=True)',   
                                 'science( baroclinic, resolutions=[["C24",600.0]],
+				          env={"crun":1, "nrun": {"default":10},
+                                              "directives":{"default":{"mpi_parts":6,
+                                                                       "threads":1,
+                                                                       "wallclock":"00:15:00"}
+                                                           }
+                                             },
                                           plotstr="slices.py diagDynamo $NODAL_DATA_DIR theta:rho:1u:2u:3u T000010 180 50 0 $PLOT_DIR")',
                                 'check_compilers(fast-debug, semi-implicit, resolutions=[["C12",10.0]], publish=False)',
                                 'miniapp( miniapp_skeleton, resolutions=[["C24"]])',
@@ -897,7 +903,10 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%                    set directiveKey = res_value if res_value in scheduledTasksDict[configuration_label]['directives'].keys() else 'default'%}
 {%                    set directiveDict = scheduledTasksDict[configuration_label]['directives'][directiveKey] %}
 {%                    set mpi_parts = directiveDict['mpi_parts'] %}
-{%                    if mpi_parts!='' %}
+{%                    set xios_nodes = directiveDict['xios_nodes'] if 'xios_nodes' in directiveDict.keys() else 0 %}
+{%                    if mpi_parts!='' and xios_nodes >= 1 %}
+{%                      set mpiopt = '--opt-conf-key=setcores_x_xios' %}
+{%                    else %}
 {%                      set mpiopt = '--opt-conf-key=setcores_x' %}
 {%                    endif %}
 {%                  endif %}
@@ -983,7 +992,7 @@ causes override warnings when using csar.
 {%                    set mpi_parts = directiveDict['mpi_parts'] %}
 {%                    set wallclock = directiveDict['wallclock'] %}
 {%                    set threads = directiveDict['threads'] %}
-{%                    set xios_nodes = directiveDict['xios_nodes'] %}
+{%                    set xios_nodes = directiveDict['xios_nodes'] if 'xios_nodes' in directiveDict.keys() else 0 %}
 {%                    set run_batcher = TARGET_PARAM_RUN_BATCHER_DIRECTIVES| directiveModifier(mpi_parts*threads, wallclock,xios_nodes) %}
 {%                  endif  %}
 {%                endif  %}
