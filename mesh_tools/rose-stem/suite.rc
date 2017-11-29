@@ -1,6 +1,6 @@
 #!jinja2
 {%- set groups = {'developer': ['check_compilers(fast-debug)'],
-                  'nightly'  : ['check_compilers(full-debug, True)',
+                  'nightly'  : ['check_compilers(full-debug, publish=True)',
                                 'publish_commit']} %}
 
 {%- set mesh_types = ['cubedsphere', 'biperiodic'] %}
@@ -41,7 +41,7 @@
             purge_local => purge_target
             purge_target => export_for_{{label}}
             export_for_{{label}} => compile_with_{{label}}
-{%-     if publish %}
+{%-     if publish == True %}
             compile_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 {%-     if compiler in perform_run %}
@@ -202,6 +202,9 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-   for build in 'fast-debug', 'full-debug' %}
 {%-     set label = compiler | lower + '_' + build | lower %}
 {%-     set family = label | upper %}
+
+{%-     if 'export_for_' + label in scheduledTasks %}
+
   [[{{family}}]]
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}/mesh_tools
@@ -214,7 +217,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
   # Export must be performed locally as it needs access to any working copy
   # involved. Such a working copy may well be on a local disc.
   #
-{%-     if 'export_for_' + label in scheduledTasks %}
   [[export_for_{{label}}]]
     inherit = {{family}}, LOCAL
     script = """

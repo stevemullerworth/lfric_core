@@ -37,19 +37,19 @@ def getResolutionMacro(context, call):
 
     argumentList = []
     for argument in normalArguments:
+        # Remove quote marks (if present) from the
+        # argument string
         if argument[0] == '"':
             arg=argumentList.append( argument[1:-1] )
         else:
             arg=argumentList.append( argument )
 
-    if len(argumentList) == 0: # We're processing a macro with no arguments so quit here
-        configuration=None
-        resList=[]
-        resSupportMeshes=['']
-        resDict={}
-    else:
-        configuration=argumentList[0] # First argument is always the configuration
- 
+    if len(argumentList) >= 2:
+
+        app_name      = argumentList[0] # First argument is always the app_name
+        configuration = argumentList[1] # Second argument is always the configuration
+        appKey = app_name + '_' + configuration
+
         argumentDictionary = {}
         for argument in keywordArguments:
             key, value = re.split(' *= *', argument)
@@ -65,8 +65,8 @@ def getResolutionMacro(context, call):
             resSupportMeshes = ast.literal_eval(argumentDictionary['support_meshes'])
 
         # We now consider the possibility that entries for the resolutions
-        # can either just be the resolution (i.e. a string) or a 
-        # (resolution,timestep) pair.  For the latter we generate a 
+        # can either just be the resolution (i.e. a string) or a
+        # (resolution,timestep) pair.  For the latter we generate a
         # dictionary relating the resolution to the timestep.
         resDict={}
         for entry in resList:
@@ -79,4 +79,10 @@ def getResolutionMacro(context, call):
                     if type(entry[1]) in [type(()),type([])]:
                         resDict[entry[0]].update(entry[1])
 
-    return configuration, resList, resDict, resSupportMeshes
+        return_value = appKey, resList, resDict, resSupportMeshes
+
+    else:
+
+        return_value = None, None, None, None
+
+    return return_value

@@ -2,10 +2,11 @@
 {%- set groups = {'developer': ['check_compilers(fast-debug)',
                                 'documentation',
                                 'build_system'],
-                  'nightly': ['check_compilers(full-debug, True)',
-                              'documentation(True)',
+                  'nightly': ['check_compilers(full-debug, publish=True)',
+                              'documentation(publish=True)',
                               'build_system',
                               'publish_commit']} %}
+
 
 {%- set compiler_setup = {} -%}
 {%- for compiler, setup in TARGET_COMPILER_SETUP|batch(2) -%}
@@ -48,7 +49,7 @@
             purge_target => export_for_{{label}}
             export_for_{{label}} => api_documentation
             export_for_{{label}} => uml_documentation
-{%-     if publish %}
+{%-     if publish == True %}
             uml_documentation => publish_uml_documentation
             api_documentation => publish_api_documentation
             api_documentation => publish_api_log
@@ -327,6 +328,11 @@
 {%-   for build in 'fast-debug', 'full-debug' %}
 {%-     set label = compiler | lower + '_' + build | lower %}
 {%-     set family = label | upper %}
+
+
+
+{%-     if 'export_for_' + label in scheduledTasks %}
+
   [[{{family}}]]
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{label}}/infrastructure
@@ -335,10 +341,8 @@
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
 
-    # Export must be performed locally as it needs access to any working copy
-    # involved. Such a working copy may well be on a local disc.
-    #
-{%-     if 'export_for_' + label in scheduledTasks %}
+  # Export must be performed locally as it needs access to any working copy
+  # involved. Such a working copy may well be on a local disc.
   [[export_for_{{label}}]]
     inherit = {{family}}, LOCAL
     script = """

@@ -26,20 +26,22 @@ def science_parser(s):
         if s=='[':r=']'
         return r
 
-    for c in s:
-        part += c
-        if balance == 0: bc=None
-        if c in ['(','{','['] and bc in [None,c]:
-            balance += 1
-            bc=c
-        elif c == c_comp(bc):
-            balance -= 1
-        elif c == ',' and balance == 0:
-            parts.append(part[:-1].strip())
-            part = ''
+    if len(s.strip()) > 0:
+        for c in s:
+            part += c
+            if balance == 0: bc=None
+            if c in ['(','{','['] and bc in [None,c]:
+                balance += 1
+                bc=c
+            elif c == c_comp(bc):
+                balance -= 1
+            elif c == ',' and balance == 0:
+                parts.append(part[:-1].strip())
+                part = ''
 
-    # Capture last part
-    if len(part):
-        parts.append(part.strip())
+        # Capture last part
+        if len(part):
+            parts.append(part.strip())
+
 
     return parts

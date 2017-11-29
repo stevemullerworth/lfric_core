@@ -15,14 +15,14 @@ import ast
 @contextfilter
 def getEnvMacro(context, call):
     '''
-    Takes a string and parses any instances of an env dictionary. 
+    Takes a string and parses any instances of an env dictionary.
     @param [inout] context Jinja2 instance to run macro against.
     @param [in]    call    Invokation string.
     @return String resulting from setting the environment.
     '''
     if call.find('(') == -1:
         macroName = call
-        arguments = ''
+        arguments = []
     else:
         macroName = call[:call.index('(')]
         arguments = re.split(', *', call[call.index('(')+1:call.rindex(')')])
@@ -34,6 +34,8 @@ def getEnvMacro(context, call):
 
     argumentList = []
     for argument in normalArguments:
+        # Remove quote marks (if present) from the
+        # argument string
         if argument[0] == '"':
             argumentList.append( argument[1:-1] )
         else:
@@ -53,12 +55,15 @@ def getEnvMacro(context, call):
     envVariables=[]
     for key, value in envDict.items():
         envVariables.append('%s = %s' % (key, value) )
-            
+
     values='\n'.join(envVariables)
 
-    if arguments == '':
-        return_value = None, None
+
+    if len(normalArguments) >= 2:
+        app_name = normalArguments[0]
+        key = app_name + '_' + normalArguments[1]
+        return_value =  app_name, key, values
     else:
-        return_value = arguments[0], values
+        return_value =  None, None, None
 
     return return_value

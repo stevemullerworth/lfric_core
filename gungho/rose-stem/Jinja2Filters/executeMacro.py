@@ -29,7 +29,7 @@ def executeMacro(context, call):
     '''
     if call.find('(') == -1:
         macroName = call
-        arguments = ''
+        arguments = []
     else:
         macroName = call[:call.index('(')]
         arguments = science_parser.science_parser(call[call.index('(')+1:call.rindex(')')])

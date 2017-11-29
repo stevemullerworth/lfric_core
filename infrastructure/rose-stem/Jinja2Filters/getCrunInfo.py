@@ -23,7 +23,7 @@ def getCrunInfo(context, call):
     '''
     if call.find('(') == -1:
         macroName = call
-        arguments = ''
+        arguments = []
     else:
         macroName = call[:call.index('(')]
         arguments = re.split(', *', call[call.index('(')+1:call.rindex(')')])
