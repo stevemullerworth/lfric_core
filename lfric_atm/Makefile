@@ -87,6 +87,9 @@ extract-um-physics: export platform_config_dir=$(strip $(shell grep -E "$(LFRIC_
 extract-um-physics:
 	$(call MESSAGE,Extracting,UM physics)
 	$(Q)if [ x$(platform_config_dir) = x ] ; then echo Unable to convert $(LFRIC_TARGET_PLATFORM):$(FORTRAN_COMPILER) to a UM target; false; fi
+	$(MAKE) -f $(LFRIC_BUILD)/extract.mk \
+	        SOURCE_DIR=$(ROOT_DIR)/um_physics/source \
+	        WORKING_DIR=$(abspath $(WORKING_DIR))
 	$(info Using UM target $(platform_config_dir))
 	# Retrieve and preprocess the UM, Jules and Socrates code
 	# The UM_ENV file contains the appropriate locations and UM side

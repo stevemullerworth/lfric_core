@@ -1,19 +1,20 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @page gung_ho GungHo Program
 !> This is a code that uses the LFRic infrastructure to build a model that
-!> just includes the GungHo dynamical core.
+!> includes the GungHo dynamical core and physics parametrisation schemes
+!> that are currently provided through the use of unified model code. 
 
-!> @brief Main program used to illustrate gungho functionality.
+!> @brief Main program used to illustrate an atmospheric model built using
+!>        LFRic infrastructure
 
 !> @details This top-level code simply calls initialise, run and finalise
-!>          routines that are required to run the model.
+!>          routines that are required to run the atmospheric model.
 
-program gungho
+program lfric_atm
 
   use cli_mod,           only : get_initial_filename
   use gungho_driver_mod, only : initialise, run, finalise
@@ -30,4 +31,4 @@ program gungho
 
   call finalise()
 
-end program gungho
+end program lfric_atm

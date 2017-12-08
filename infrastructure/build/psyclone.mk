@@ -18,6 +18,7 @@ OVERRIDDEN_FILES = $(patsubst %_psy.f90,%.x90,$(subst /psy/,/algorithm/,$(HAND_W
 ALGORITHM_ONLY_SOURCE = $(patsubst $(SOURCE_DIR)/%.x90,$(WORKING_DIR)/%.f90,$(ALGORITHM_ONLY_FILES) $(OVERRIDDEN_FILES))
 PSY_SOURCE := $(patsubst $(SOURCE_DIR)/%.x90,$(WORKING_DIR)/%_psy.f90,$(filter-out $(ALGORITHM_ONLY_FILES) $(OVERRIDDEN_FILES),$(shell find $(SOURCE_DIR) -name '*.x90')))
 KERNEL_SOURCE := $(patsubst ./%,$(WORKING_DIR)/%,$(shell find $(SOURCE_DIR) -path '*/kernel/*' -a -name '*.[Ff]90' -print))
+MACRO_ARGS := $(addprefix -D,$(PRE_PROCESS_MACROS))
 
 DIRECTORIES := $patsubst $(SOURCE_DIR)/%,$(WORKING_DIR)/%,($(shell find $(SOURCE_DIR) -type d -print))
 
@@ -60,7 +61,7 @@ $(WORKING_DIR)/%.f90: $(WORKING_DIR)/%.x90
 .PRECIOUS: $(WORKING_DIR)/%.x90
 $(WORKING_DIR)/%.x90: $(SOURCE_DIR)/%.x90 | $$(dir $$@)
 	$(call MESSAGE,Preprocessing,$<)
-	$(Q)$(FPP) $(FPPFLAGS) $< $@
+	$(Q)$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< $@
 
 $(DIRECTORIES): ALWAYS
 	$(call MESSAGE,Creating,$@)
