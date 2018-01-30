@@ -21,7 +21,7 @@ module sample_poly_flux_kernel_mod
 use argument_mod,  only : arg_type, func_type,                  &
                           GH_FIELD, GH_WRITE, GH_READ,          &
                           W2, W3, GH_BASIS, CELLS,              &
-                          GH_EVALUATOR
+                          GH_EVALUATOR, STENCIL, CROSS
 use constants_mod, only : r_def, i_def
 use kernel_mod,    only : kernel_type
 use reference_element_mod, only: out_face_normal
@@ -31,8 +31,7 @@ implicit none
 
 ! Precomputed operators, these are the same for all model columns
 real(kind=r_def), allocatable,    private :: coeff_matrix(:,:)
-real(kind=r_def), allocatable,    private :: coeff(:), density_stencil(:)
-integer(kind=i_def), allocatable, private :: stencil(:,:)
+integer(kind=i_def), allocatable, private :: dof_stencil(:,:)
 integer(kind=i_def), allocatable, private :: np_v(:)
 integer(kind=i_def),              private :: np
 real(kind=r_def),                 private :: x0
@@ -48,8 +47,7 @@ type, public, extends(kernel_type) :: sample_poly_flux_kernel_type
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, W2),                             &
        arg_type(GH_FIELD,   GH_READ,  W2),                             &
-!       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(cross))             &
-       arg_type(GH_FIELD,   GH_READ,  W3)                              &
+       arg_type(GH_FIELD,   GH_READ,  W3, STENCIL(CROSS))              &
        /)
   type(func_type) :: meta_funcs(1) = (/                                &
        func_type(W2, GH_BASIS)                                         &
@@ -97,14 +95,15 @@ subroutine sample_poly_flux_code( nlayers,              &
                                   flux,                 &
                                   wind,                 &
                                   density,              &
+                                  stencil_size,         &
+                                  stencil_map,          &
                                   ndf_w2,               &
                                   undf_w2,              &
                                   map_w2,               &
                                   basis_w2,             &
                                   ndf_w3,               &
                                   undf_w3,              &
-                                  stencil_size,         &
-                                  stencil_map           &
+                                  map_w3                &
                                   )
 
   implicit none
@@ -116,6 +115,7 @@ subroutine sample_poly_flux_code( nlayers,              &
   integer(kind=i_def), intent(in)                    :: ndf_w2
   integer(kind=i_def), intent(in)                    :: undf_w2
   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
 
   real(kind=r_def), dimension(undf_w2), intent(out)  :: flux
   real(kind=r_def), dimension(undf_w2), intent(in)   :: wind
@@ -130,6 +130,7 @@ subroutine sample_poly_flux_code( nlayers,              &
   integer(kind=i_def) :: k, df, p, i, nv
   real(kind=r_def)    :: direction, polynomial_density 
   real(kind=r_def)    :: z0
+  real(kind=r_def)    :: coeff(np), density_stencil(np)
 
   ! Horizontal terms
   do k = 0, nlayers - 1
@@ -140,7 +141,7 @@ subroutine sample_poly_flux_code( nlayers,              &
 
       if ( direction >= 0.0_r_def ) then         
         do p = 1,np       
-          density_stencil(p) = density( stencil_map(1,stencil(p,df)) + k )
+          density_stencil(p) = density( stencil_map(1,dof_stencil(p,df)) + k )
         end do
         coeff(:) = matmul(coeff_matrix,density_stencil)
         polynomial_density = 0.0_r_def
@@ -246,30 +247,30 @@ subroutine sample_poly_flux_init(order, nlayers)
   !           j+1, j, j-1
   !           i-1, i, i+1
   !           j-1, j, j+1) 
-  allocate(stencil(np,4))
+  allocate(dof_stencil(np,4))
 
   ! Index of first upwind cell is  (j + (nupwindcells-1)*4)
   ! where j = [2,3,4,5] for [W,S,E,N] directions
   nupwindcells = int(real(np,r_def)/2.0_r_def)
   i = 1
   do p = 1,nupwindcells
-    stencil(i,1) = int((4 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,2) = int((5 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,3) = int((2 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,4) = int((3 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,1) = int((4 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,2) = int((5 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,3) = int((2 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,4) = int((3 + (nupwindcells-1)*4) - (p-1)*4,i_def)
     i = i + 1
   end do
   !index of centre cell in stencil is always 1
-  stencil(i,:) = 1
+  dof_stencil(i,:) = 1
   i = i + 1
   ! Index of first downwind cell is j
   ! where j = [5,4,3,2] for [W,S,E,N] directions
   ndownwindcells = int(real(np-1,r_def)/2.0_r_def)
   do p = 1,ndownwindcells
-    stencil(i,1) = int(2 + (p-1)*4,i_def)
-    stencil(i,2) = int(3 + (p-1)*4,i_def)
-    stencil(i,3) = int(4 + (p-1)*4,i_def)
-    stencil(i,4) = int(5 + (p-1)*4,i_def)
+    dof_stencil(i,1) = int(2 + (p-1)*4,i_def)
+    dof_stencil(i,2) = int(3 + (p-1)*4,i_def)
+    dof_stencil(i,3) = int(4 + (p-1)*4,i_def)
+    dof_stencil(i,4) = int(5 + (p-1)*4,i_def)
     i = i + 1
   end do
 
@@ -294,8 +295,6 @@ subroutine sample_poly_flux_init(order, nlayers)
   do p = 1,np
     x_to_p(p) = x0**(p-1)
   end do
-
-  allocate(coeff(np), density_stencil(np) )
 
   ! For vertical terms we may need to reduce orders near the boundaries
   ! due to lack of points so for each cell compute order and 

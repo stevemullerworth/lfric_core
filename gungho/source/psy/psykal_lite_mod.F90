@@ -2891,11 +2891,10 @@ end subroutine invoke_calc_deppts
 
 
 !-------------------------------------------------------------------------------   
-!> This (and other) psy-lite functions were added because evaluator was not
-!> available in PSyClone as documented in #942. Since #1188, all psy-lite code that
-!> had a dependency on support for evaluators in PSyClone have been removed (they
-!> use PSyClone auto-generated code instead). However, this call requires more
-!> information than a standard call and this will be fixed in #919
+!> This call lies within psy-lite as the kernel makes use of stencils
+!> and requires psyclone to generate the infrastructure correct calls for the 
+!> horizontal looping when coloring is used
+!> These will be implemented in psyclone issue #127
 subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
 
   use sample_poly_flux_kernel_mod, only: sample_poly_flux_code
@@ -2912,7 +2911,7 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
 
   type(stencil_dofmap_type), pointer :: stencil => null()
 
-  integer, pointer :: map_w2(:,:)        => null()
+  integer, pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
   integer, pointer :: stencil_map(:,:,:) => null()
 
   integer :: undf_w3, ndf_w3
@@ -2927,6 +2926,9 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
   real(kind=r_def), pointer :: nodes_w2(:,:) => null()
   real(kind=r_def), allocatable :: basis_w2(:,:,:)
   integer :: dim_w2
+
+  integer :: colour, ncolour
+  integer, pointer :: cmap(:,:) =>null(), ncp_colour(:) => null()
 
   flux_proxy    = flux%get_proxy()
   wind_proxy    = wind%get_proxy()
@@ -2955,6 +2957,7 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
   stencil_size = stencil%get_size()
   stencil_map => stencil%get_whole_dofmap()
   map_w2 => flux_proxy%vspace%get_whole_dofmap()
+  map_w3 => density_proxy%vspace%get_whole_dofmap()
 
   if(wind_proxy%is_dirty(depth=1) ) then
     call wind_proxy%halo_exchange(depth=1)
@@ -2969,22 +2972,31 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
   end if
 
   mesh => flux%get_mesh()
-  do cell = 1,mesh%get_last_halo_cell(1)
+  ! Look-up colour map
+  call flux_proxy%vspace%get_colours(ncolour, ncp_colour, cmap)
+  do colour=1,ncolour
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
+    do cell=1,mesh%get_last_halo_cell_per_colour_any(colour,1)
+
 
       call sample_poly_flux_code( nlayers,                     &
                                   flux_proxy%data,             &
                                   wind_proxy%data,             &
                                   density_proxy%data,          &
+                                  stencil_size,                &
+                                  stencil_map(:,:,cmap(colour, cell)),       &
                                   ndf_w2,                      &
                                   undf_w2,                     &
-                                  map_w2(:,cell),              &
+                                  map_w2(:,cmap(colour, cell)),&
                                   basis_w2,                    &
                                   ndf_w3,                      &
                                   undf_w3,                     &
-                                  stencil_size,                &
-                                  stencil_map(:,:,cell)        &
+                                  map_w2(:,cmap(colour, cell)) &
                                   )
-
+    end do 
+    !$omp end do
+    !$omp end parallel
   end do
 
   call flux_proxy%set_dirty()
@@ -2992,11 +3004,10 @@ subroutine invoke_sample_poly_flux( flux, wind, density, stencil_extent )
 end subroutine invoke_sample_poly_flux
 
 !-------------------------------------------------------------------------------
-!> This (and other) psy-lite functions were added because evaluator was not
-!> available in PSyClone as documented in #942. Since #1188, all psy-lite code that
-!> had a dependency on support for evaluators in PSyClone have been removed (they
-!> use PSyClone auto-generated code instead). However, this call requires more
-!> information than a standard call and this will be fixed in #919
+!> This call lies within psy-lite as the kernel makes use of stencils
+!> and requires psyclone to generate the infrastructure correct calls for the 
+!> horizontal looping when coloring is used.
+!> These will be implemented in psyclone issue #127
 subroutine invoke_sample_poly_adv( adv, tracer, wind, chi, stencil_extent )
 
   use sample_poly_adv_kernel_mod, only: sample_poly_adv_code
@@ -3016,7 +3027,7 @@ subroutine invoke_sample_poly_adv( adv, tracer, wind, chi, stencil_extent )
   type(stencil_dofmap_type), pointer :: stencil => null()
   type(stencil_dofmap_type), pointer :: stencil_wx => null()
 
-  integer, pointer :: map_w2(:,:)        => null()
+  integer, pointer :: map_w2(:,:) => null(), map_wt(:,:) => null(), map_wx(:,:) => null()
   integer, pointer :: stencil_map(:,:,:) => null()
   integer, pointer :: stencil_map_wx(:,:,:) => null()
 
@@ -3038,6 +3049,9 @@ subroutine invoke_sample_poly_adv( adv, tracer, wind, chi, stencil_extent )
   real(kind=r_def), allocatable :: diff_basis_wx(:,:,:)
   integer :: dim_w2
   integer :: dim_wx, diff_dim_wx
+
+  integer :: colour, ncolour
+  integer, pointer :: cmap(:,:) =>null(), ncp_colour(:) => null()
 
   adv_proxy    = adv%get_proxy()
   wind_proxy   = wind%get_proxy()
@@ -3106,33 +3120,45 @@ subroutine invoke_sample_poly_adv( adv, tracer, wind, chi, stencil_extent )
   end if
 
   map_w2 => wind_proxy%vspace%get_whole_dofmap()
+  map_wt => tracer_proxy%vspace%get_whole_dofmap()
+  map_wx => chi_proxy(1)%vspace%get_whole_dofmap()
 
   mesh => adv%get_mesh()
-  do cell = 1,mesh%get_last_edge_cell()
+
+  ! Look-up colour map
+  call adv_proxy%vspace%get_colours(ncolour, ncp_colour, cmap)
+  do colour=1,ncolour
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
+    do cell=1,mesh%get_last_edge_cell_per_colour(colour)
 
       call sample_poly_adv_code( nlayers,                     &
                                  adv_proxy%data,              &
                                  tracer_proxy%data,           &
+                                 stencil_size,                &
+                                 stencil_map(:,:,cmap(colour, cell)),       &
                                  wind_proxy%data,             &
                                  chi_proxy(1)%data,           &
+                                 stencil_size_wx,             &
+                                 stencil_map_wx(:,:,cmap(colour, cell)),    &
                                  chi_proxy(2)%data,           &
                                  chi_proxy(3)%data,           &
-                                 stencil_size,                &
-                                 stencil_map(:,:,cell),       &
                                  ndf_wt,                      &
                                  undf_wt,                     &
+                                 map_wt(:,cmap(colour, cell)),&
                                  ndf_w2,                      &
                                  undf_w2,                     &
-                                 map_w2(:,cell),              &
+                                 map_w2(:,cmap(colour, cell)),&
                                  basis_w2,                    &
                                  ndf_wx,                      &
                                  undf_wx,                     &
+                                 map_wx(:,cmap(colour, cell)),&
                                  basis_wx,                    &
-                                 diff_basis_wx,               &
-                                 stencil_size_wx,             &
-                                 stencil_map_wx(:,:,cell)     &
+                                 diff_basis_wx                &
                                  )
-
+    end do
+    !$omp end do
+    !$omp end parallel
   end do
 
   call adv_proxy%set_dirty()

@@ -131,6 +131,7 @@ contains
 
     integer, pointer :: stencil_map(:,:,:) => null()
     integer, pointer :: map_u(:,:) => null() 
+    integer, pointer :: map_rho(:,:) => null() 
 
     type(field_proxy_type)    :: flux_p, rho_p, u_p
     real(kind=r_def), pointer :: nodes_u(:,:) => null()
@@ -158,6 +159,7 @@ contains
 
     stencil_map => this%stencil%get_whole_dofmap()
     map_u => flux_p%vspace%get_whole_dofmap()
+    map_rho => rho_p%vspace%get_whole_dofmap()
 
     ! Create the data
     cell = 5
@@ -176,14 +178,15 @@ contains
                                flux_p%data, & 
                                u_p%data, &
                                rho_p%data, &
+                               5, &
+                               stencil_map(:,:,cell), &
                                ndf_u, & 
                                undf_u, &
                                map_u(:,cell), &
                                this%basis_u, &
                                ndf_rho, &
                                undf_rho, &
-                               5, &
-                               stencil_map(:,:,cell) &
+                               map_rho(:,cell) &
                               )
 
      answer = 0.0_r_def 

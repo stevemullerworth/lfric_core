@@ -173,6 +173,8 @@ contains
     integer, pointer          :: stencil_map_x(:,:,:) => null()
     integer, pointer          :: map_u(:,:) => null() 
     integer, pointer          :: map_chi(:) => null() 
+    integer, pointer          :: map_theta(:,:) => null() 
+    integer, pointer          :: map_wx(:,:) => null() 
     real(kind=r_def), pointer :: nodes_adv(:,:) => null()
 
     type(field_proxy_type)   :: adv_p, theta_p, u_p
@@ -232,6 +234,8 @@ contains
     stencil_map => this%stencil%get_whole_dofmap()
     stencil_map_x => this%stencil_x%get_whole_dofmap()
     map_u => u_p%vspace%get_whole_dofmap()
+    map_theta => theta_p%vspace%get_whole_dofmap()
+    map_wx => chi_p(1)%vspace%get_whole_dofmap()
 
     ! Create the data
     cell = 5
@@ -250,24 +254,26 @@ contains
     call sample_poly_adv_code(adv_p%vspace%get_nlayers(), &
                               adv_p%data, & 
                               theta_p%data, &
-                              u_p%data, &
-                              chi_p(1)%data, &
-                              chi_p(2)%data, &
-                              chi_p(3)%data, &
                               5, &
                               stencil_map(:,:,cell),&
+                              u_p%data, &
+                              chi_p(1)%data, &
+                              5, &
+                              stencil_map_x(:,:,cell), &
+                              chi_p(2)%data, &
+                              chi_p(3)%data, &
                               ndf_theta, &
                               undf_theta, &
+                              map_theta(:,cell), &
                               ndf_u, &
                               undf_u, & 
                               map_u(:,cell), &
                               this%basis_u, &
                               ndf_chi, &
                               undf_chi, &                              
+                              map_wx(:,cell), &
                               this%basis_x, &
-                              this%diff_basis_x, &
-                              5, &
-                              stencil_map_x(:,:,cell) &
+                              this%diff_basis_x &
                               )
      ! u.grad(theta) = 5, but need extra half factor to account for 
      ! weighting of mass matrix term: int(1-z,z=0..1) = 1/2

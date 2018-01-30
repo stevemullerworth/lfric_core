@@ -22,7 +22,8 @@ use argument_mod,  only : arg_type, func_type,                  &
                           GH_FIELD, GH_WRITE, GH_READ,          &
                           W2, Wtheta, ANY_SPACE_1,              &
                           GH_BASIS, GH_DIFF_BASIS, CELLS,       &
-                          GH_EVALUATOR
+                          GH_EVALUATOR, STENCIL, CROSS
+
 use constants_mod,         only: r_def, i_def
 use kernel_mod,            only: kernel_type
 use reference_element_mod, only: W, E, N, S
@@ -32,8 +33,7 @@ implicit none
 
 ! Precomputed operators, these are the same for all model columns
 real(kind=r_def), allocatable,    private :: coeff_matrix(:,:)
-real(kind=r_def), allocatable,    private :: coeff(:), tracer_stencil(:)
-integer(kind=i_def), allocatable, private :: stencil(:,:)
+integer(kind=i_def), allocatable, private :: dof_stencil(:,:)
 integer(kind=i_def), allocatable, private :: np_v(:,:)
 integer(kind=i_def),              private :: np
 real(kind=r_def),                 private :: x0
@@ -46,11 +46,13 @@ real(kind=r_def), allocatable,    private :: coeff_matrix_v(:,:,:)
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_poly_adv_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(6) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta),                         &
+       arg_type(GH_FIELD,   GH_READ,  Wtheta, STENCIL(CROSS)),         &
        arg_type(GH_FIELD,   GH_READ,  W2),                             &
-       arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_1)                     &
+       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1, STENCIL(CROSS)),    &
+       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                    &
+       arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1)                     &
        /)
   type(func_type) :: meta_funcs(2) = (/                                &
        func_type(W2,          GH_BASIS),                               &
@@ -98,22 +100,25 @@ end function sample_poly_adv_kernel_constructor
 subroutine sample_poly_adv_code( nlayers,              &
                                  advection,            &
                                  tracer,               &
-                                 wind,                 &
-                                 chi1, chi2, chi3,     &
                                  stencil_size,         &
                                  stencil_map,          &
+                                 wind,                 &
+                                 chi1,                 &
+                                 stencil_size_wx,      &
+                                 stencil_map_wx,       &
+                                 chi2, chi3,           &
                                  ndf_wt,               &
                                  undf_wt,              &
+                                 map_wt,               &
                                  ndf_w2,               &
                                  undf_w2,              &
                                  map_w2,               &
                                  basis_w2,             &
                                  ndf_wx,               &
                                  undf_wx,              &
+                                 map_wx,               &
                                  basis_wx,             &
-                                 diff_basis_wx,        &
-                                 stencil_size_wx,      &
-                                 stencil_map_wx        &
+                                 diff_basis_wx         &
                                  )
 
   implicit none
@@ -122,11 +127,13 @@ subroutine sample_poly_adv_code( nlayers,              &
   integer(kind=i_def), intent(in)                    :: nlayers
   integer(kind=i_def), intent(in)                    :: ndf_wt
   integer(kind=i_def), intent(in)                    :: undf_wt
+  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
   integer(kind=i_def), intent(in)                    :: ndf_w2
   integer(kind=i_def), intent(in)                    :: undf_w2
   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
   integer(kind=i_def), intent(in)                    :: ndf_wx
   integer(kind=i_def), intent(in)                    :: undf_wx
+  integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
   real(kind=r_def), dimension(undf_wt), intent(out)  :: advection
   real(kind=r_def), dimension(undf_w2), intent(in)   :: wind
@@ -148,6 +155,7 @@ subroutine sample_poly_adv_code( nlayers,              &
   real(kind=r_def)    :: polynomial_tracer, advection_update, z0 
   real(kind=r_def), allocatable :: x(:,:,:)
   real(kind=r_def)    :: etadot, dzdx_l, dzdx_c, dzdy_l, dzdy_c, dx, dy, dz
+  real(kind=r_def)    :: coeff(np), tracer_stencil(np)
 
   ! Compute wind at tracer points
   u(:,:) = 0.0_r_def
@@ -202,7 +210,7 @@ subroutine sample_poly_adv_code( nlayers,              &
       dir = E
     end if
     do p = 1,np
-      tracer_stencil(p) = tracer( stencil_map(dft,stencil(p,dir)) + k )
+      tracer_stencil(p) = tracer( stencil_map(dft,dof_stencil(p,dir)) + k )
     end do
     coeff(:) = matmul(coeff_matrix,tracer_stencil)
     polynomial_tracer = 0.0_r_def
@@ -217,7 +225,7 @@ subroutine sample_poly_adv_code( nlayers,              &
     ! Compute metric term using advection scheme
     if ( consistent_metric ) then
       do p = 1,np
-        tracer_stencil(p) = x(3,k+dft,stencil(p,dir))
+        tracer_stencil(p) = x(3,k+dft,dof_stencil(p,dir))
       end do
       coeff(:) = matmul(coeff_matrix,tracer_stencil)
       dzdx_c = 0.0_r_def
@@ -233,7 +241,7 @@ subroutine sample_poly_adv_code( nlayers,              &
       dir = N
     end if
     do p = 1,np
-      tracer_stencil(p) = tracer( stencil_map(dft,stencil(p,dir)) + k )
+      tracer_stencil(p) = tracer( stencil_map(dft,dof_stencil(p,dir)) + k )
     end do
     coeff(:) = matmul(coeff_matrix,tracer_stencil)
     polynomial_tracer = 0.0_r_def
@@ -248,7 +256,7 @@ subroutine sample_poly_adv_code( nlayers,              &
     ! Compute metric term using advection scheme
     if ( consistent_metric ) then
       do p = 1,np
-        tracer_stencil(p) = x(3,k+dft,stencil(p,dir))
+        tracer_stencil(p) = x(3,k+dft,dof_stencil(p,dir))
       end do
       coeff(:) = matmul(coeff_matrix,tracer_stencil)
       dzdy_c = 0.0_r_def
@@ -354,30 +362,30 @@ subroutine sample_poly_adv_init(order, nlayers)
   !           j+1, j, j-1
   !           i-1, i, i+1
   !           j-1, j, j+1) 
-  allocate(stencil(np,4))
+  allocate(dof_stencil(np,4))
 
   ! Index of first upwind cell is  (j + (nupwindcells-1)*4)
   ! where j = [2,3,4,5] for [W,S,E,N] directions
   nupwindcells = int(real(np,r_def)/2.0_r_def)
   i = 1
   do p = 1,nupwindcells
-    stencil(i,1) = int((2 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,2) = int((3 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,3) = int((4 + (nupwindcells-1)*4) - (p-1)*4,i_def)
-    stencil(i,4) = int((5 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,1) = int((2 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,2) = int((3 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,3) = int((4 + (nupwindcells-1)*4) - (p-1)*4,i_def)
+    dof_stencil(i,4) = int((5 + (nupwindcells-1)*4) - (p-1)*4,i_def)
     i = i + 1
   end do
   !index of centre cell in stencil is always 1
-  stencil(i,:) = 1
+  dof_stencil(i,:) = 1
   i = i + 1
   ! Index of first downwind cell is j
   ! where j = [5,4,3,2] for [W,S,E,N] directions
   ndownwindcells = int(real(np-1,r_def)/2.0_r_def)
   do p = 1,ndownwindcells
-    stencil(i,1) = int(4 + (p-1)*4,i_def)
-    stencil(i,2) = int(5 + (p-1)*4,i_def)
-    stencil(i,3) = int(2 + (p-1)*4,i_def)
-    stencil(i,4) = int(3 + (p-1)*4,i_def)
+    dof_stencil(i,1) = int(4 + (p-1)*4,i_def)
+    dof_stencil(i,2) = int(5 + (p-1)*4,i_def)
+    dof_stencil(i,3) = int(2 + (p-1)*4,i_def)
+    dof_stencil(i,4) = int(3 + (p-1)*4,i_def)
     i = i + 1
   end do
   
@@ -401,8 +409,6 @@ subroutine sample_poly_adv_init(order, nlayers)
   do p = 1,np-1
     dx0(p) = real(p,r_def)*x0**(p-1)
   end do
-
-  allocate(coeff(np), tracer_stencil(np) )
   
   ! For vertical terms we may need to reduce orders near the boundaries
   ! due to lack of points so for each cell compute order and 
