@@ -196,6 +196,7 @@
 
                  mkdir -p `dirname $TMP_TARGET_DIR/source`
                  mkdir -p `dirname $TMP_TARGET_DIR/optimisation`
+                 mkdir -p `dirname $TMP_TARGET_DIR/kgos`
                  mkdir -p `dirname $TMP_TARGET_DIR/unit-test`
                  mkdir -p `dirname $TMP_TARGET_DIR/integration-test`
                  mkdir -p `dirname $TMP_TARGET_DIR/documentation`
@@ -203,6 +204,7 @@
                  mkdir -p `dirname $TMP_TARGET_DIR/gw_example`
                  svn export --force $TMP_SOURCE_DIR/source           $TMP_TARGET_DIR/source
                  svn export --force $TMP_SOURCE_DIR/optimisation     $TMP_TARGET_DIR/optimisation
+                 svn export --force $TMP_SOURCE_DIR/kgos             $TMP_TARGET_DIR/kgos
                  svn export --force $TMP_SOURCE_DIR/unit-test        $TMP_TARGET_DIR/unit-test
                  svn export --force $TMP_SOURCE_DIR/integration-test $TMP_TARGET_DIR/integration-test
                  svn export --force $TMP_SOURCE_DIR/documentation    $TMP_TARGET_DIR/documentation
@@ -799,6 +801,7 @@
         script = rose task-run --app-key=check_application_kgo
         [[[environment]]]
             APP_NAME   = {{appName}}
+            KGO_DIR    = $SOURCE_ROOT/{{projectName}}/kgos
             TARGET_OPT = {{TARGET_OPT}}
             CONFIG     = {{configuration}}
             RES        = {{res_value}}{{dt_labels[i]}}
