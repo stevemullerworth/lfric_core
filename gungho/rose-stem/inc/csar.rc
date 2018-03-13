@@ -2,28 +2,18 @@
 {# These can then be imported into the main rose stem groups as required #}
 
 {%- set csar_groups = {
-                'csar-robert':['run_application(gungho, robert,
-                                         resolutions=[("BiP100x4-10x10", 0.25, 0.5, 1.0, 2.0),
-                                                      ("BiP50x4-20x20", 0.5, 1.0, 2.0)],
-                                         env={"crun": 12,
-                                              "nrun":{"default":36,
-                                                      ("BiP100x4-10x10", 0.25): 360,
-                                                      ("BiP100x4-10x10", 0.5): 180,
-                                                      ("BiP100x4-10x10", 1.0): 90,
-                                                      ("BiP100x4-10x10", 2.0): 45,
-                                                      ("BiP100x4-20x20", 0.5): 180,
-                                                      ("BiP100x4-20x20", 1.0): 90,
-                                                      ("BiP100x4-20x20", 2.0): 45
-                                                     },
-                                              "directives":
-                                                     {"default":
-                                                       {"mpi_parts":25,
-                                                        "threads":1,
-                                                        "wallclock":"01:30:00"}
-                                                     }
-                                             },
-                                         checkkgo=False)'
-                               ],
+                'csar-robert':['run_application( gungho, robert,     resolutions=[("BiP50x4-20x20",2.5)],checkkgo=False,
+                                                 env={"crun":1, "nrun":432,
+                                                      "directives":{"default":{"mpi_parts":5,"threads":1,"wallclock":"02:00:00"} } },
+                                                 plotstr="robert_plot.py $NODAL_DATA_DIR 50 4 theta:w3projection_xi2 T000000:T000288:T000432 $PLOT_DIR" )',
+                                'run_application( gungho, robert10m, resolutions=[("BiP100x4-10x10",1.25)],checkkgo=False,
+                                                 env={"crun":1, "nrun":864,
+                                                      "directives":{"default":{"mpi_parts":10,"threads":2,"wallclock":"03:00:00"} } },
+                                                 plotstr="robert_plot.py $NODAL_DATA_DIR 100 4 theta:w3projection_xi2 T000000:T000576:T000864 $PLOT_DIR" )',
+                                'run_application( gungho, robert5m, resolutions=[("BiP200x4-5x5",0.625)],checkkgo=False,
+                                                 env={"crun":2, "nrun":864,
+                                                      "directives":{"default":{"mpi_parts":80,"threads":2,"wallclock":"03:00:00"} } },
+                                                 plotstr="robert_plot.py $NODAL_DATA_DIR 200 4 theta:w3projection_xi2 T000000:T001152:T001728 $PLOT_DIR" )'],
                 'csar-robert-moist':['run_application(gungho, robert-moist,
                                       resolutions=[("BiP100x4-10x10", 0.25, 0.5),
                                                    ("BiP50x4-20x20", 0.5)],
