@@ -34,6 +34,7 @@ public :: return_part_mass
 public :: w2_dof
 public :: reorientate_w2field
 public :: dof_to_update
+public :: calc_local_vertical_index
 
 
 !--------------------------------------------------------------------------------
@@ -390,5 +391,53 @@ contains
 
   end function
 
+  !--------------------------------------------------------------------------------
+  !>  @brief  Returns the layers which to sum in the vertical for calculating the
+  !>          vertical mass flux in Cosmic. The Cosmic transport scheme is
+  !>          designed to work for Courant numbers greater than 1.
+  !!
+  !!  @param[out]  local_index        Indexes of cells to sum to calculate mass flux
+  !!  @param[in]   departure_dist     Departure distance
+  !!  @param[in]   n_cells_to_sum     Number of cells to sum
+  !!  @param[in]   k                  Cell for which mass flux is calculated for
+  !!  @param[in]   nlayers            Number of vertical levels
+  !!  @param[in]   edge               Each cell has two edges in the vertical, 
+  !!                                  edge=1 denotes the top edge, edge=0 denotes
+  !!                                  the bottom edge
+  !--------------------------------------------------------------------------------
+  subroutine calc_local_vertical_index(local_index,departure_dist,n_cells_to_sum,k,nlayers,edge)
+
+    use log_mod, only : log_event, LOG_LEVEL_ERROR, log_scratch_space
+
+    implicit none
+
+    integer, intent(in)           :: n_cells_to_sum
+    integer, intent(in)           :: k
+    integer, intent(in)           :: nlayers
+    integer, intent(in)           :: edge
+    integer                       :: local_index(n_cells_to_sum)
+    real(kind=r_def), intent(in)  :: departure_dist
+
+    integer :: jj
+
+    if (departure_dist>0.0) then
+      do jj=0,n_cells_to_sum-1
+        local_index(jj+1) = -jj-1+k+edge
+      end do
+    else
+      do jj=0,n_cells_to_sum-1
+        local_index(jj+1) = jj+k+edge
+      end do
+    end if
+
+    ! Now check that the values are in the limits [0,nlayers-1]
+    do jj=1,n_cells_to_sum
+      if (local_index(jj)<0 .or. local_index(jj)>(nlayers-1)) then
+        write( log_scratch_space, '( A, E12.4E3, A, I6, A, 10I6 )' ) "ERROR: Departure distance", departure_dist, " is too big. Layer of interest is ",k ,' Index values are ', local_index
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+    end do
+
+  end subroutine calc_local_vertical_index
 
 end module cosmic_flux_mod
