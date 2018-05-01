@@ -180,6 +180,7 @@
 &mixing
   viscosity = .false.
   viscosity_mu = 0.0
+  smagorinsky = .false.
 /
 
 &orography

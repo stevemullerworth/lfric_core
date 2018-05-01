@@ -80,7 +80,7 @@ contains
 
     this%stencil_t => theta_p%vspace%get_stencil_dofmap(STENCIL_CROSS,1)
 
-    call feign_mixing_config(.false., 10.0_r_def)
+    call feign_mixing_config(.false., 10.0_r_def, .false.)
 
   end subroutine setUp
 

@@ -21,6 +21,7 @@ module runtime_constants_mod
                                                rotating
   use transport_config_mod,              only: scheme,                     &
                                                transport_scheme_cusph_cosmic
+  use mixing_config_mod,                 only: smagorinsky
 
   ! Derived Types
   use field_mod,                         only: field_type
@@ -50,6 +51,7 @@ module runtime_constants_mod
   use compute_geopotential_kernel_mod,       only: compute_geopotential_kernel_type
   use calc_detj_at_w2_kernel_mod,            only: calc_detj_at_w2_kernel_type
   use calc_dA_at_w2_kernel_mod,              only: calc_dA_at_w2_kernel_type
+  use calc_delta_at_wtheta_kernel_mod,       only: calc_delta_at_wtheta_kernel_type
   use w2_normalisation_kernel_mod,           only: w2_normalisation_kernel_type
   use compute_coriolis_matrix_kernel_mod,    only: compute_coriolis_matrix_kernel_type
   use output_config_mod,                     only: subroutine_timers 
@@ -80,6 +82,7 @@ module runtime_constants_mod
   type(field_type), target              :: cell_orientation
   type(field_type), target              :: detj_at_w2
   type(field_type), target              :: dA_at_w2
+  type(field_type), target              :: delta_at_wtheta
   type(operator_type), target           :: grad, curl, div
   type( quadrature_xyoz_type ),target   :: qr
   type( quadrature_rule_gaussian_type ) :: quadrature_rule
@@ -147,6 +150,7 @@ contains
     type(function_space_type), pointer :: wth_k0_fs => null() ! lowest order wth fs 
     type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs 
     type(field_type)                   :: ones
+    type(field_type)                   :: dx_at_w2
 
 
     ! Temporary fields
@@ -200,6 +204,15 @@ contains
     dA_at_w2 = field_type( vector_space = w2_fs )
     call invoke( setval_c(dA_at_w2, 9999.0_r_def),&
                  calc_dA_at_w2_kernel_type(dA_at_w2, chi) )
+
+    !================ Create edge lengths and delta values ==================!
+
+    if (smagorinsky) then
+      dx_at_w2 = field_type( vector_space = w2_fs )
+      delta_at_wtheta = field_type( vector_space = wtheta_fs )
+      call invoke( X_divideby_Y(dx_at_w2, detJ_at_w2, dA_at_w2),&
+                   calc_delta_at_wtheta_kernel_type(delta_at_wtheta, dx_at_w2)  )
+    end if
 
     !=================== Create DeRahm cochain operators =========================!
 
