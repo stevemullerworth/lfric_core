@@ -290,6 +290,7 @@
   [[generate_{{mesh}}_{{label}}]]
     inherit = {{family}}, TARGET
     pre-script = """
+                 mkdir -p $DESTINATION_DIRECTORY/meshes
                  {{'\n'| commandList( TARGET_BASE_SETUP,
                                       compiler_setup[compiler],
                                       TARGET_BUILD_SETUP,
@@ -297,7 +298,7 @@
                  """
     script = "rose task-run --app-key=mesh --opt-conf-key={{mesh}}"
     [[[environment]]]
-      OUTPUT_FILE = $DESTINATION_DIRECTORY/{{mesh}}.nc
+      OUTPUT_FILE = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
 
     [[[directives]]]
 {%-         for DIRECTIVE in TARGET_RUN_BATCHER_DIRECTIVES %}
@@ -317,7 +318,6 @@
                  {{'\n'|commandList( TARGET_BASE_SETUP,
                                      compiler_setup[compiler],
                                      TARGET_REVEAL_SETUP )}}
-                 cp $DESTINATION_DIRECTORY/{{mesh}}.nc $SOURCE_DIRECTORY/bin
                  """
     script = rose task-run --app-key=summarise_ugrid {{command_key}}
 
@@ -327,7 +327,7 @@
                   """
 
     [[[environment]]]
-      MESH_FILE    = $DESTINATION_DIRECTORY/{{mesh}}.nc
+      MESH_FILE    = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
     [[[directives]]]
@@ -378,7 +378,7 @@
     script = rose task-run --app-key=check_{{mesh}}
 
     [[[environment]]]
-      MESH_FILE = $DESTINATION_DIRECTORY/{{mesh}}.nc
+      MESH_FILE = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
 
     [[[directives]]]
 {%-         for DIRECTIVE in TARGET_TECHNICAL_BATCHER_DIRECTIVES %}

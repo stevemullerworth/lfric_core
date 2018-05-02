@@ -90,7 +90,7 @@ extract-gungho: ALWAYS
 .PHONY: extract-um-physics
 extract-um-physics: export platform_config_dir=$(strip $(shell grep -E "$(LFRIC_TARGET_PLATFORM)\s*:\s*$(FORTRAN_COMPILER)\s*:" $(PROJECT_DIR)/fcm-make/target-map.txt | cut -d : -f 3))
 extract-um-physics:
-	$(call MESSAGE,Extracting,UM physics)
+	$(call MESSAGE,Extracting,"UM physics" )
 	$(Q)if [ x$(platform_config_dir) = x ] ; then echo Unable to convert $(LFRIC_TARGET_PLATFORM):$(FORTRAN_COMPILER) to a UM target; false; fi
 	$(Q)$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	        SOURCE_DIR=$(ROOT_DIR)/um_physics/source \
@@ -117,8 +117,8 @@ clean: partial-clean
 
 .PHONY: partial-clean pclean
 partial-clean pclean: ALWAYS
-	$(call MESSAGE,Removing,"GungHo workspace")
+	$(call MESSAGE,Removing,"gungho workspace")
 	$(Q)-rm -r $(WORKING_DIR)/gungho
-	$(call MESSAGE,Removing,"GungHo binaries")
+	$(call MESSAGE,Removing,"gungho binaries")
 	$(Q)-if [ -d bin ] ; then rm -r bin ; fi
 

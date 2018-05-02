@@ -46,8 +46,8 @@
 {%-           endif %}
 {%-           if plotstr %}
 {%-             do plot_config.update( {appLabel : plotstr} ) %}
-            run_{{appName_res_label}}_{{label}}:finish => plot_{{appName_res_label}}_{{label}}
-            plot_{{appName_res_label}}_{{label}}:finish  => publish_{{appName_res_label}}_{{label}}_plots
+            run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+            plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
 {%-           endif %}
                  """
 {%-         endif %}
@@ -90,8 +90,8 @@
 {%-         endif %}
 {%-         if plotstr and crun < 2 %}
 {%-           do plot_config.update( {appLabel : plotstr} ) %}
-            run_{{appName_res_label}}_{{label}}:finish  => plot_{{appName_res_label}}_{{label}}
-            plot_{{appName_res_label}}_{{label}}:finish => publish_{{appName_res_label}}_{{label}}_plots
+            run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+            plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
 {%-         endif %}
                  """
 {%-       endfor %} {# i #}
@@ -208,7 +208,7 @@
             run_{{appLabel_res}}_{{label}}:finish => publish_{{appLabel_res}}_{{label}}
 {%-           endif %}
 {%-           if compiler in TARGET_PERFORM_KGO_TESTS %}
-            run_{{appLabel_res}}_{{label}}:finish => check_{{appLabel_res}}_{{label}}
+            run_{{appLabel_res}}_{{label}} => check_{{appLabel_res}}_{{label}}
 {%-           endif %}
 {%-         endfor %} {# i #}
 {%-       endfor %} {# resolution #}

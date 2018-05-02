@@ -256,10 +256,10 @@ extract-integration-tests: ALWAYS
 #
 .PHONY: clean
 clean: ALWAYS
-	$(call MESSAGE,Removing,$(PROJECT_NAME) work space)
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) work space")
 	$(Q)-rm -r $(WORKING_DIR)
-	$(call MESSAGE,Removing,$(PROJECT_NAME) documents)
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) documents")
 	$(Q)-if [ -d documents ] ; then rm -r documents; fi
-	$(call MESSAGE,Removing,$(PROJECT_NAME) binaries)
+	$(call MESSAGE,Removing,"$(PROJECT_NAME) binaries")
 	$(Q)-if [ -d bin ] ; then rm -r bin ; fi
 	$(Q)-if [ -d test ] ; then rm -r test ; fi

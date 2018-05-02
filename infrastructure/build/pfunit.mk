@@ -19,7 +19,7 @@ include $(LFRIC_BUILD)/lfric.mk
 .PRECIOUS: $(WORKING_DIR)/$(PROJECT)_unit_tests.F90
 $(WORKING_DIR)/$(PROJECT)_unit_tests.F90: $(PFUNIT)/include/driver.F90 \
                                          $(WORKING_DIR)/testSuites.inc
-	$(call MESSAGE,Processing,pFUnit driver source)
+	$(call MESSAGE,Processing, "pFUnit driver source")
 	$(Q)sed "s/program main/program $(basename $(notdir $@))/" <$< >$@
 
 .PRECIOUS: $(WORKING_DIR)/testSuites.inc
