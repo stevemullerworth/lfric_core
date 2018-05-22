@@ -41,7 +41,7 @@
                  """
          [[[R1/P{{crun}}/{{crun}}]]]
             graph = """
-{%-           if checkkgo==True %}
+{%-           if checkkgo %}
 {%-             if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS  %}
             run_{{appName_res_label}}_{{label}} => check_{{appName_res_label}}_{{label}}
 {%-             endif %}
@@ -49,7 +49,9 @@
 {%-           if plotstr %}
 {%-             do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+{%-             if publish %}
             plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
+{%-             endif %}
 {%-           endif %}
                  """
 {%-         endif %}
@@ -79,7 +81,7 @@
 
             compile_{{projectName}}_with_{{label}} => run_{{appName_res_label}}_{{label}}
 
-{%-         if checkkgo == True  %}
+{%-         if checkkgo %}
 {%-           if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
 {%-             if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS and crun < 2  %}
             run_{{appName_res_label}}_{{label}} => check_{{appName_res_label}}_{{label}}
@@ -93,7 +95,9 @@
 {%-         if plotstr and crun < 2 %}
 {%-           do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+{%-           if publish %}
             plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
+{%-           endif %}
 {%-         endif %}
                  """
 {%-       endfor %} {# i #}
@@ -141,12 +145,12 @@
             purge_target => export_source
             export_source => api_documentation
             export_source => uml_documentation
-            uml_documentation    => publish_uml_documentation
             export_source => design_documentation
 {%-     if publish %}
             api_documentation    => publish_api_documentation
             api_documentation    => publish_api_log
             design_documentation => publish_design_documentation
+            uml_documentation    => publish_uml_documentation
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}
@@ -281,7 +285,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-     if compiler in TARGET_PERFORM_UNIT_TESTS %}
             export_source => unit_test_with_{{label}}
 {%-     endif %}
-{%-     if publish == True %}
+{%-     if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 
@@ -293,7 +297,7 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
             compile_mesh_tools_with_{{label}} => generate_mesh{{res_label}}_{{label}}
             generate_mesh{{res_label}}_{{label}} => run_{{appLabel_res}}_{{label}}
             compile_{{projectName}}_with_{{label}} => run_{{appLabel_res}}_{{label}}
-{%-           if publish == True %}
+{%-           if publish %}
             run_{{appLabel_res}}_{{label}}:finish => publish_{{appLabel_res}}_{{label}}
 {%-           endif %}
 {%-           if compiler in TARGET_PERFORM_KGO_TESTS %}

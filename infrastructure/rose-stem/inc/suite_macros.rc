@@ -26,11 +26,10 @@
             purge_target  => export_source
             export_source => api_documentation
             export_source => uml_documentation
-{%-     if publish == True %}
+{%-     if publish %}
             uml_documentation => publish_uml_documentation
             api_documentation => publish_api_documentation
             api_documentation => publish_api_log
-
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}

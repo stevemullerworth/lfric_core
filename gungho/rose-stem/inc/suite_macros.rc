@@ -39,7 +39,7 @@
                  """
          [[[R1/P{{crun}}/{{crun}}]]]
             graph = """
-{%-           if checkkgo==True %}
+{%-           if checkkgo %}
 {%-             if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS  %}
             run_{{appName_res_label}}_{{label}} => check_{{appName_res_label}}_{{label}}
 {%-             endif %}
@@ -47,7 +47,9 @@
 {%-           if plotstr %}
 {%-             do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}} => plot_{{appName_res_label}}_{{label}}
+{%-             if publish %}
             plot_{{appName_res_label}}_{{label}} => publish_{{appName_res_label}}_{{label}}_plots
+{%-             endif %}
 {%-           endif %}
                  """
 {%-         endif %}
@@ -58,7 +60,7 @@
             purge_target => export_source
             export_source => compile_{{projectName}}_with_{{label}}
             export_source => compile_mesh_tools_with_{{label}}
-{%-         if plotstr %}
+{%-         if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
 {%-         endif %}
 
@@ -77,7 +79,7 @@
 
             compile_{{projectName}}_with_{{label}} => run_{{appName_res_label}}_{{label}}
 
-{%-         if checkkgo == True  %}
+{%-         if checkkgo %}
 {%-           if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
 {%-             if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_KGO_TESTS and crun < 2  %}
             run_{{appName_res_label}}_{{label}} => check_{{appName_res_label}}_{{label}}
@@ -91,7 +93,9 @@
 {%-         if plotstr and crun < 2 %}
 {%-           do plot_config.update( {appLabel : plotstr} ) %}
             run_{{appName_res_label}}_{{label}}:finish  => plot_{{appName_res_label}}_{{label}}
+{%-           if publish %}
             plot_{{appName_res_label}}_{{label}}:finish => publish_{{appName_res_label}}_{{label}}_plots
+{%-           endif %}
 {%-         endif %}
                  """
 {%-       endfor %} {# i #}
@@ -141,12 +145,12 @@
             purge_target => export_source
             export_source => api_documentation
             export_source => uml_documentation
-            uml_documentation    => publish_uml_documentation
             export_source => design_documentation
 {%-     if publish %}
             api_documentation    => publish_api_documentation
             api_documentation    => publish_api_log
             design_documentation => publish_design_documentation
+            uml_documentation    => publish_uml_documentation
 {%-     endif %}
 {%-   endif %}
 {%- endmacro %}

@@ -20,7 +20,7 @@
             purge_local   => purge_target
             purge_target  => export_source
             export_source => compile_{{projectName}}_with_{{label}}
-{%-     if publish == True %}
+{%-     if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
 {%-     endif %}
 {%-     if compiler in perform_run %}
