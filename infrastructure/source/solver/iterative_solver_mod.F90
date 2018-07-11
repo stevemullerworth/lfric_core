@@ -19,9 +19,9 @@ module iterative_solver_mod
   use linear_operator_mod,  only : abstract_linear_operator_type
   use preconditioner_mod,   only : abstract_preconditioner_type
   use log_mod,              only : log_event, LOG_LEVEL_INFO, &
+                                   LOG_LEVEL_DEBUG, &
                                    LOG_LEVEL_ERROR, &
                                    log_scratch_space
-  
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
 
   implicit none
@@ -166,7 +166,7 @@ module iterative_solver_mod
   
   interface 
      module subroutine gmres_solve(self, x, b)
-       class(gmres_type),           intent(inout) :: self
+       class(gmres_type),              intent(inout) :: self
        class(abstract_vector_type),    intent(inout) :: x
        class(abstract_vector_type),    intent(inout) :: b
      end subroutine gmres_solve
@@ -200,6 +200,7 @@ contains
     self%r_tol  = r_tol
     self%a_tol  = a_tol
     self%max_iter    = max_iter
+
   end function
 
   !> CG solve. Over-rides the abstract interface to do the actual solve.
@@ -219,7 +220,7 @@ contains
     real(kind=r_def)    :: r_nrm, r_nrm_0, r_nrm_old, rz, rz_new
     logical             :: converged
     integer :: astat
-
+    
     ! temporary vectors 
     class(abstract_vector_type), allocatable :: r
     class(abstract_vector_type), allocatable :: p
@@ -239,8 +240,8 @@ contains
     call r%axpy(1.0_r_def, b)   ! r = b - A.x
     r_nrm_0 = r%norm()                   ! r_0 = ||r||_2
     write(log_scratch_space,'(A,E15.8)')  &
-         "iterative_solver:cg starting ||b|| = ", r_nrm_0
-    call log_event(log_scratch_space,LOG_LEVEL_INFO)
+         "cg starting ||b|| = ", r_nrm_0
+    call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
 
     call z%set_scalar(0.0_r_def)
     call self%prec%apply(r,z)         ! z = P^{-1}.r    
@@ -249,7 +250,7 @@ contains
     call p%copy(z)
 
     write(log_scratch_space,'("iter      ||r_i||        ||r_i||/||r_0||  ||r_i/r_{i-1}||")')
-    call log_event(log_scratch_space,LOG_LEVEL_INFO)
+    call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
     ! iterate until maximal number of iterations is reached
     do iter=1, self%max_iter
        call self%lin_op%apply(p,z)       ! z = A.p
@@ -259,7 +260,7 @@ contains
        r_nrm = r%norm()                  ! r = ||r||_2
        write(log_scratch_space,'(I6, "    ",E12.5,"   ",E12.5,"   ",F8.4)')&
             iter, r_nrm, r_nrm/r_nrm_0, r_nrm/r_nrm_old
-    call log_event(log_scratch_space,LOG_LEVEL_INFO)       
+       call log_event(log_scratch_space,LOG_LEVEL_DEBUG)       
        ! exit if either absolute or relative tolerance is reached
        if (      ( r_nrm/r_nrm_0 <= self%r_tol ) &
             .or. ( r_nrm <= self%a_tol ) ) then
@@ -275,12 +276,13 @@ contains
     end do
     if (converged) then
        write(log_scratch_space, &
-            '("Solver converged after ",I6," iterations")') iter
+            '("cg converged after ",I6," iterations")') iter
+       call log_event(log_scratch_space,LOG_LEVEL_INFO)
     else
        write(log_scratch_space, &
-            '("Solver failed to converge after ",I6," iterations")') iter
+            '("cg failed to converge after ",I6," iterations")') iter
+       call log_event(log_scratch_space,LOG_LEVEL_ERROR)
     end if
-    call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
   end subroutine cg_solve
 
@@ -308,7 +310,7 @@ contains
     integer(kind=i_def),                          intent(in) :: max_iter
     type(bicgstab_type) :: self
     
-    write(log_scratch_space,'(A)') "bicgstab_constructor:Hello, World"
+    write(log_scratch_space,'(A)') "bicgstab_constructor:"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
     self%lin_op => lin_op
     self%prec   => prec
@@ -326,7 +328,7 @@ contains
     implicit none
     class(bicgstab_type),           intent(inout) :: self
     class(abstract_vector_type),    intent(inout) :: x
-     class(abstract_vector_type),    intent(inout) :: b
+    class(abstract_vector_type),    intent(inout) :: b
 
     ! tempory vectors
     class(abstract_vector_type), allocatable :: r
@@ -349,8 +351,8 @@ contains
     sc_err = r%norm()
     sc_err = max(sc_err,0.001_r_def)    
     write( log_scratch_space, '(A,E15.8)' ) &
-         "iterative solver: bicgstab starting ... ||b|| = ", sc_err
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+         " bicgstab starting ... ||b|| = ", sc_err
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
     alpha = 1.0_r_def
     omega = 1.0_r_def
@@ -405,13 +407,13 @@ contains
 
        ! check for convergence
        err = r%norm()/sc_err
-       write( log_scratch_space, '(A,I2,A, E15.8)' ) "iterative_solver:bicgstab[", &
+       write( log_scratch_space, '(A,I2,A, E15.8)' ) "bicgstab[", &
             iter, "]: res = ", err
-       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
        if (err < self%r_tol) then
           write( log_scratch_space, '(A, I2, A, E15.8)' ) &
-               "iterative_solver:bicgstab:converged in ", iter,    &
+             "bicgstab:converged in ", iter,              &
              " iters, final=", err
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
         exit
@@ -420,7 +422,7 @@ contains
     
     if(iter >= self%max_iter) then
        write(log_scratch_space, '(A, I3, A, E15.8)') &
-           "iterative_solver:bicgstab: NOT converged in", iter, " iters, Res=", err
+           "bicgstab: NOT converged in", iter, " iters, Res=", err
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
    
@@ -500,7 +502,7 @@ contains
     sc_err = res%norm()
     sc_err = max(sc_err,self%a_tol)    
     write( log_scratch_space, '(A,E15.8,":",E15.8)' ) &
-         "iterative solver: GMRES starting ... ||b|| = ", b%norm(),sc_err
+         "GMRES starting ... ||b|| = ", b%norm(),sc_err
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
     init_err = sc_err
 
@@ -589,9 +591,8 @@ contains
        err = beta/sc_err
        if (err < self%r_tol ) then
           write( log_scratch_space, '(A, I2, A, E12.4, A, E15.8)' ) &
-               "GMRES solver_algorithm: converged in ", iter,        &
-               " iters, init=", init_err,                           &
-               " final=", err
+               "GMRES solver_algorithm: converged in ", &
+               iter, " iters, init=", init_err, " final=", err
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
           exit ! break out of loop
        end if

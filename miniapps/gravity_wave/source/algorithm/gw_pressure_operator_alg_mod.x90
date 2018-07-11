@@ -1,0 +1,247 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+!>@brief Application of the Helmholtz operator in the gravity wave system
+!>
+!>@details The Helmholtz operator is given by
+!>
+!>   \f[ H = Id + \alpha^2(\Delta t)^2 c_s^2 M_3^{-1} D H_B^{-1} D^T\f]
+!>
+!> with the lumped matrix \f$H_B\f$ defined by
+!>
+!> \f[ H_B=\tilde{M}_2+\alpha^2(\Delta t)^2N^2\tilde{Q \tilde{M}_b^{-1}Q^T} \f]
+!>
+!> This module provides a type derived from the abstract operator type which
+!> allows application of this Helmholtz operator.
+
+module gw_pressure_operator_alg_mod
+  use linear_operator_mod,                only: abstract_linear_operator_type
+  use vector_mod,                         only: abstract_vector_type
+  use field_mod,                          only: field_type
+  use field_vector_mod,                   only: field_vector_type
+  use constants_mod,                      only: i_def, r_def
+  use runtime_constants_mod,              only: get_mass_matrix,     &
+                                                get_div,             &
+                                                w0_id, w2_id, w3_id, &
+                                                w3inv_id, wt_id
+  use timestepping_config_mod,            only: dt
+
+  use initial_temperature_config_mod,     only: bvf_square
+
+  use operator_mod,                       only: operator_type
+  use field_indices_mod,                  only: igw_u, igw_p, igw_b
+  use log_mod,                            only: log_event,       &
+                                                LOG_LEVEL_ERROR, &
+                                                LOG_LEVEL_INFO,  &
+                                                log_scratch_space
+  use gravity_wave_constants_config_mod,  only: cs_square,                       &
+                                                b_space,                         &
+                                                gravity_wave_constants_b_space_w0, &
+                                                gravity_wave_constants_b_space_w3, &
+                                                gravity_wave_constants_b_space_wtheta
+
+  implicit none
+
+  type, public, extends(abstract_linear_operator_type) :: &
+                        gw_pressure_operator_type
+  private
+     !> Off-centering parameter in SI timestepping
+     real(kind=r_def) :: alpha
+     !> Temporary fields used in operator application
+     type(field_type) :: grad_p, div_grad_p
+     !> Lumped inverse \f$\tilde{H}_B^{-1}\f$
+     type(field_type) :: Hb_lumped_inv
+
+     contains
+     !> Return the lumped inverse \f$\tilde{H}_B^{-1}\f$
+     procedure, public :: get_Hb_lumped_inv
+     !> over-ride the abstract interface
+     !> param[in] self a linear operator
+     !> param[in] x a fieldvector the linear operator is applied to
+     !> param[inout] y a fieldvector, the result.
+     procedure, public  :: apply => apply_gw_pressure_operator
+     procedure, private :: apply_gw_pressure_operator
+
+     final :: destroy_gw_pressure_operator
+
+  end type gw_pressure_operator_type
+
+  interface gw_pressure_operator_type
+     module procedure gw_pressure_operator_constructor
+  end interface
+
+contains
+
+  !>@brief Construct new instance of type
+  !>
+  !>@details Extract function spaces and build the lumped approximate
+  !>         inverse \f$ \tilde{H}_b^{-1} \f$ as well as other operators
+  !>         such as div and grad for the Helmholtz operator application.
+  !>
+  !>@param[in] state Field vector \f$(\textbf{U},P,B)\f$ representing
+  !>                 current state. This is required for extracting the
+  !>                 relevant function spaces required for operator
+  !>                 construction
+  !>@return instance of the Helmholtz operator
+  function gw_pressure_operator_constructor(state) result(self)
+    use function_space_mod,            only: function_space_type
+    use finite_element_config_mod,     only: element_order
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
+    use compute_q_operator_kernel_mod, only: compute_q_operator_type
+    use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
+    use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+
+    implicit none
+
+    type(gw_pressure_operator_type)     :: self
+    type(field_vector_type), intent(in) :: state
+    type(function_space_type), pointer  :: wp => null(), &
+                                           wu => null(), &
+                                           wb => null()
+    real(kind=r_def)                    :: const1
+    type(field_type)                    :: ones, M_lumped, &
+                                           ones_u, M_lumped_u, &
+                                           Mb_lumped_inv, QT1
+    type(operator_type), pointer        :: Mb => null(), Mu => null()
+    type(quadrature_xyoz_type)          :: qr
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+    type(operator_type)                 :: Q
+
+
+    call log_event( 'Constructing pressure operator...', LOG_LEVEL_INFO )
+
+    self%alpha = 0.5_r_def
+
+    ! Get needed function spaces
+    wu => state%vector(igw_u)%get_function_space()
+    wp => state%vector(igw_p)%get_function_space()
+    wb => state%vector(igw_b)%get_function_space()
+    
+    ! Temporaries required in operator application
+    self%grad_p     = field_type(vector_space = wu)
+    self%div_grad_p = field_type(vector_space = wp)
+
+    ! Compute inverse approximate \tilde{M}_b^{-1}
+    ones          = field_type(vector_space = wb)
+    M_lumped      = field_type(vector_space = wb)
+    Mb_lumped_inv = field_type(vector_space = wb)
+    select case(b_space)
+      case(gravity_wave_constants_b_space_w0)  
+        Mb => get_mass_matrix(w0_id)
+      case(gravity_wave_constants_b_space_w3)  
+        Mb => get_mass_matrix(w3_id)
+      case(gravity_wave_constants_b_space_wtheta)  
+        Mb => get_mass_matrix(wt_id)
+    end select
+    call invoke( setval_c( ones,     1.0_r_def ),               &
+                 setval_c( M_lumped, 0.0_r_def ),               &
+                 matrix_vector_kernel_type(M_lumped, ones, Mb), &
+                 X_divideby_Y(Mb_lumped_inv, ones, M_lumped) )
+    
+    ! Compute Q (projection) operator 
+    Q = operator_type( wu, wb )
+    qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
+    call invoke( compute_q_operator_type(Q, qr) )
+
+   ! Compute inverse approximate \f$ \tilde{H}_b^{-1} \f$
+    ones_u             = field_type(vector_space = wu)
+    M_lumped_u         = field_type(vector_space = wu)
+    QT1                = field_type(vector_space = wb)
+    self%Hb_lumped_inv = field_type(vector_space = wu)
+    Mu => get_mass_matrix(w2_id)
+
+    const1 = self%alpha**2*dt**2*bvf_square
+    call invoke( setval_c(ones_u,     1.0_r_def),                        &
+                 setval_c(M_lumped_u, 0.0_r_def),                        & 
+                 setval_c(QT1,        0.0_r_def),                        &
+                 transpose_matrix_vector_kernel_type(QT1, ones_u, Q),    &
+                 inc_X_times_Y(QT1, Mb_lumped_inv),                      &
+                 matrix_vector_kernel_type(M_lumped_u, QT1, Q),          &
+                 inc_a_times_X(const1, M_lumped_u),                      &
+                 matrix_vector_kernel_type(M_lumped_u, ones_u, Mu),      &
+                 X_divideby_Y(self%Hb_lumped_inv, ones_u, M_lumped_u) )
+
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function gw_pressure_operator_constructor
+
+  !>@brief Return lumped inverse matrix
+  !>
+  !>@details Return the matrix \f$\tilde{H}_b^{-1}\f$. This matrix is also
+  !> used in the mixed preconditioner and returning it here avoids building
+  !> it twice.
+  !>
+  !>@param [in] self Instance of object
+  function get_Hb_lumped_inv(self) result(Hb_lumped_inv)
+    implicit none
+    class(gw_pressure_operator_type), intent(in) :: self
+    type(field_type) :: Hb_lumped_inv
+    Hb_lumped_inv = self%Hb_lumped_inv
+  end function get_Hb_lumped_inv
+
+  !>@brief Apply Helmholtz operator to a pressure field to obtain \f$y=Hx\f$
+  !>
+  !>@param[in] self instance of gw_pressure_operator_type
+  !>@param[in] x field \f$x\f$ to apply operator to
+  !>@param[inout] y Resulting field \f$y=Hx\f$ in pressure space
+  subroutine apply_gw_pressure_operator(self, x, y)
+    use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+    use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+    use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
+
+    implicit none
+    class(gw_pressure_operator_type), intent(inout) :: self
+    class(abstract_vector_type), intent(in)      :: x
+    class(abstract_vector_type), intent(inout)   :: y
+    real(kind=r_def) :: const
+
+    type(operator_type), pointer :: div => null(), M3_inv => null()
+
+    select type (x)
+    type is (field_vector_type)
+       select type (y)
+       type is (field_vector_type)
+          div    => get_div()
+          M3_inv => get_mass_matrix(w3inv_id)
+          const = self%alpha**2*dt**2*cs_square
+          call invoke( setval_c(self%grad_p, 0.0_r_def),                &
+                       transpose_matrix_vector_kernel_type(self%grad_p, &
+                                                           x%vector(1), &
+                                                           div),        &
+                       enforce_bc_kernel_type(self%grad_p),             &
+                       inc_X_times_Y(self%grad_p, self%Hb_lumped_inv),  &
+                       dg_matrix_vector_kernel_type(self%div_grad_p,    &
+                                                    self%grad_p,        &
+                                                    div),               &
+                       dg_matrix_vector_kernel_type(y%vector(1),        &
+                                                    self%div_grad_p,    &
+                                                    M3_inv),            &
+                       inc_aX_plus_Y(const, y%vector(1), x%vector(1)) )
+
+
+          nullify( div, M3_inv )
+       class default
+          write(log_scratch_space, '(A)') &
+               "gw_pressure_operator_alg_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       end select
+    class default
+       write(log_scratch_space, '(A)') &
+             "gw_pressure_operator_alg_mod: incorrect vector_type argument x"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+  end subroutine apply_gw_pressure_operator
+
+  !> Finalizer for the Helmholtz operator
+  !> @param [inout] self the pressure operator
+  subroutine destroy_gw_pressure_operator(self)
+    type(gw_pressure_operator_type), intent(inout) :: self
+    
+  end subroutine destroy_gw_pressure_operator
+
+end module gw_pressure_operator_alg_mod

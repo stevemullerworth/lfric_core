@@ -29,7 +29,7 @@ module linear_operator_mod
      subroutine apply_interface(self, x, y)
        import :: abstract_linear_operator_type
        import :: abstract_vector_type
-       class(abstract_linear_operator_type), intent(in)    :: self
+       class(abstract_linear_operator_type), intent(inout) :: self
        class(abstract_vector_type),          intent(in)    :: x
        class(abstract_vector_type),          intent(inout) :: y
      end subroutine apply_interface

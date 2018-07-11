@@ -1,6 +1,6 @@
 namelist helmholtz_solver
   ! This namelist contains the options for the preconditioner (helmholtz) solver
-  method                         : enumeration [ bicgstab, gmres, gcr ]
+  method                         : enumeration [ bicgstab, gmres, gcr, cg ]
   si_pressure_tolerance          : real     ! Relative tolerance of semi-implicit pressure solver
   preconditioner                 : enumeration[ none, diagonal, tridiagonal]
   si_pressure_maximum_iterations : integer  ! Iteration limit for si preconditioner solver

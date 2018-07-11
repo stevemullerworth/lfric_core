@@ -1,6 +1,6 @@
 namelist mixed_solver
   ! This namelist is for the mixed (outer) si solver
-  si_method                  : enumeration [ gmres, gcr, jacobi ]
+  si_method                  : enumeration [ gmres, gcr, jacobi, bicgstab, cg ]
   si_tolerance               : real     ! Relative tolerance of semi-implicit solver
   si_preconditioner          : enumeration [ none, diagonal, tridiagonal, pressure]
   si_postconditioner         : enumeration [ none, diagonal, pressure]

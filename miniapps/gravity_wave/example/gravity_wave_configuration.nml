@@ -86,7 +86,7 @@
 &helmholtz_solver
   gcrk                           = 4,
   method                         = 'bicgstab',
-  preconditioner                 = 'diagonal',
+  preconditioner                 = 'tridiagonal',
   si_pressure_tolerance          = 1.0e-4,
   si_pressure_maximum_iterations = 199,
   normalise                      = .true.,

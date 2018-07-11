@@ -19,7 +19,7 @@ module gravity_wave_driver_mod
   use global_mesh_collection_mod,     only: global_mesh_collection, &
                                             global_mesh_collection_type
   use gravity_wave_mod,               only: load_configuration
-  use gw_alg_mod,                     only: gravity_wave_alg_init, &
+  use gravity_wave_alg_mod,           only: gravity_wave_alg_init, &
                                             gravity_wave_alg_step, &
                                             gravity_wave_alg_final
   use init_fem_mod,                   only: init_fem
@@ -295,7 +295,6 @@ contains
 
   implicit none
 
-  integer(i_def) :: rc
   integer(i_def) :: ierr
 
   !----------------------------------------------------------------------------

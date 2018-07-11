@@ -27,7 +27,7 @@ module runtime_constants_mod
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
-  use fs_continuity_mod,                 only: W0, W1, W2, W2H, W3, Wtheta, Wchi
+  use fs_continuity_mod,                 only: W0, W1, W2, W2H, W2V, W3, Wtheta, Wchi
   use mesh_mod,                          only: mesh_type
   use operator_mod,                      only: operator_type
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
@@ -41,6 +41,8 @@ module runtime_constants_mod
 
   ! PsyKAl PSYClone kernels
   use compute_derahm_matrices_kernel_mod,    only: compute_derahm_matrices_kernel_type
+  use compute_mass_matrix_kernel_w2_mod,     only : compute_mass_matrix_kernel_w2_type
+  use compute_div_operator_kernel_mod,       only : compute_div_operator_kernel_type
   use compute_dl_matrix_kernel_mod,          only: compute_dl_matrix_kernel_type
   use compute_geopotential_kernel_mod,       only: compute_geopotential_kernel_type
   use mm_diagonal_kernel_mod,                only: mm_diagonal_kernel_type
@@ -53,6 +55,7 @@ module runtime_constants_mod
   use calc_delta_at_wtheta_kernel_mod,       only: calc_delta_at_wtheta_kernel_type
   use w2_normalisation_kernel_mod,           only: w2_normalisation_kernel_type
   use compute_coriolis_matrix_kernel_mod,    only: compute_coriolis_matrix_kernel_type
+  use compute_mass_matrix_kernel_w2_mod, only : compute_mass_matrix_kernel_w2_type
   use output_config_mod,                     only: subroutine_timers 
   use timer_mod,                             only: timer
   implicit none
@@ -71,6 +74,8 @@ module runtime_constants_mod
   type(operator_type), target           :: mm_w0
   type(operator_type), target           :: mm_w1
   type(operator_type), target           :: mm_w2
+  type(operator_type), target           :: mm_w2v
+  type(operator_type), target           :: mm_w2h
   type(operator_type), target           :: mm_w3
   type(operator_type), target           :: mm_w3_inv
   type(operator_type), target           :: mm_wtheta
@@ -82,7 +87,7 @@ module runtime_constants_mod
   type(field_type), target              :: detj_at_w2
   type(field_type), target              :: dA_at_w2
   type(field_type), target              :: delta_at_wtheta
-  type(operator_type), target           :: grad, curl, div
+  type(operator_type), target           :: grad, curl, div, div_v, div_h
   type( quadrature_xyoz_type ),target   :: qr
   type( quadrature_rule_gaussian_type ) :: quadrature_rule
   type(field_type), target              :: m0_lumped_inv
@@ -105,7 +110,9 @@ module runtime_constants_mod
   integer(i_def), parameter, public :: w3inv_id = 5_i_def
   integer(i_def), parameter, public :: eye_id   = 6_i_def
   integer(i_def), parameter, public :: theta_space_id = 7_i_def
-  integer(i_def), parameter, public :: dl_id = 8_i_def
+  integer(i_def), parameter, public :: dl_id    = 8_i_def
+  integer(i_def), parameter, public :: w2v_id   = 9_i_def
+  integer(i_def), parameter, public :: w2h_id   = 10_i_def
 
 
   ! Public functions to create and access the module contents
@@ -123,6 +130,8 @@ module runtime_constants_mod
   public :: get_grad
   public :: get_curl
   public :: get_div
+  public :: get_div_v
+  public :: get_div_h
   public :: get_qr
   public :: get_rmultiplicity
   public :: get_inverse_lumped_mass_matrix
@@ -145,6 +154,7 @@ contains
     type(function_space_type), pointer :: w1_fs     => null()
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w2h_fs    => null()
+    type(function_space_type), pointer :: w2v_fs    => null()
     type(function_space_type), pointer :: w3_fs     => null()
     type(function_space_type), pointer :: wtheta_fs => null()
     type(function_space_type), pointer :: wth_k0_fs => null() ! lowest order wth fs 
@@ -172,6 +182,7 @@ contains
     w0_fs     => function_space_collection%get_fs( mesh_id, element_order, W0 )
     w1_fs     => function_space_collection%get_fs( mesh_id, element_order, W1 )
     w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
+    w2v_fs    => function_space_collection%get_fs( mesh_id, element_order, W2V )
     w2h_fs    => function_space_collection%get_fs( mesh_id, element_order, W2H )
     w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
     wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
@@ -222,6 +233,8 @@ contains
     mm_w0 = operator_type( w0_fs, w0_fs )
     mm_w1 = operator_type( w1_fs, w1_fs )
     mm_w2 = operator_type( w2_fs, w2_fs )
+    mm_w2v = operator_type( w2v_fs, w2v_fs )
+    mm_w2h = operator_type( w2h_fs, w2h_fs )
     mm_dl = operator_type( w2_fs, w2_fs )
     mm_w3 = operator_type( w3_fs, w3_fs )
     mm_w3_inv = operator_type( w3_fs, w3_fs )
@@ -229,6 +242,8 @@ contains
     grad = operator_type( w1_fs, w0_fs )
     curl = operator_type( w2_fs, w1_fs )
     div  = operator_type( w3_fs, w2_fs )
+    div_v  = operator_type( w3_fs, w2v_fs )
+    div_h  = operator_type( w3_fs, w2h_fs )
 
     call invoke( name = "Create mass matrix operators",                   &
                  compute_derahm_matrices_kernel_type(mm_w0, mm_w1, mm_w2, &
@@ -236,6 +251,14 @@ contains
                                                      grad, curl, div,     &
                                                      chi, qr),            &
                  invert_local_operator_kernel_type(mm_w3_inv, mm_w3) )
+
+    ! Construct vertical- and horizontal-only velocity mass matrices
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_w2v, chi, qr ) )
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_w2h, chi, qr ) )
+
+    ! Construct vertical- and horizontal-only weak divergence operator
+    call invoke( compute_div_operator_kernel_type( div_v, chi, qr ) )
+    call invoke( compute_div_operator_kernel_type( div_h, chi, qr ) )
 
     ! Compute W2 mass matrix with damping layer
     ! Eventually this may be absorbed into the DeRham complex computations
@@ -364,6 +387,7 @@ contains
     nullify( w1_fs  )
     nullify( w2_fs  )
     nullify( w2h_fs )
+    nullify( w2v_fs )
     nullify( w3_fs  )
     nullify( wtheta_fs )
     nullify( wth_k0_fs )
@@ -469,6 +493,10 @@ contains
         mm => mm_w1
       case (w2_id)
         mm => mm_w2
+      case (w2v_id)
+        mm => mm_w2v
+      case (w2h_id)
+        mm => mm_w2h
       case (w3_id)
         mm => mm_w3
       case (w3inv_id)
@@ -544,6 +572,24 @@ contains
     div_op => div
 
   end function get_div
+
+  !> @brief Function to return a pointer to the vertical div operator
+  !> @return The div operator
+  function get_div_v() result(div_v_op)
+
+    type(operator_type), pointer :: div_v_op
+    div_v_op => div_v
+
+  end function get_div_v
+
+  !> @brief Function to return a pointer to the horizontal div operator
+  !> @return The div operator
+  function get_div_h() result(div_h_op)
+
+    type(operator_type), pointer :: div_h_op
+    div_h_op => div_h
+
+  end function get_div_h
 
   !> @brief Function to return a pointer to the quadrature object
   !> @return The quadrature object

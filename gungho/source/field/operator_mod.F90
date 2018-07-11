@@ -41,6 +41,13 @@ module operator_mod
 
   contains
 
+    !> function returns functions_space which the local stencil maps from
+    procedure, public :: get_fs_from
+
+    !> function returns the the functions_space which the local stencil mapsto
+    procedure, public :: get_fs_to
+
+    !> Returns a pointer to the mesh on which the function spaces, used by
     !> function returns the enumerated integer for the functions_spaces which
     !! the local stencil maps from
     procedure, public :: which_fs_from
@@ -69,6 +76,9 @@ module operator_mod
     !> Function to get a proxy with public pointers to the data in a
     !! operator_type.
     procedure, public :: get_proxy => get_proxy_op
+    !> Deep copy methods
+    procedure, private :: operator_type_deep_copy
+    procedure, public  :: deep_copy => operator_type_deep_copy
 
     !> Destroys object
     procedure, public :: operator_final
@@ -246,6 +256,30 @@ contains
   ! base type procedures
   !>@brief Get the function space the operator maps from
   !>@return fs Function space the operator maps from
+  function get_fs_from(self) result(fs)
+    implicit none
+    class(base_operator_type), intent(in) :: self
+    type( function_space_type ), pointer :: fs
+
+    fs => self%fs_from
+
+    return
+  end function get_fs_from
+
+  !>@brief Get the function space the operator maps to
+  !>@return fs Function space the operator maps to
+  function get_fs_to(self) result(fs)
+    implicit none
+    class(base_operator_type), intent(in)  :: self
+    type( function_space_type ), pointer :: fs
+
+    fs => self%fs_to
+
+    return
+  end function get_fs_to
+
+  !>@brief Get the id of the function space the operator maps from
+  !>@return fs Id of function space the operator maps from
   function which_fs_from(self) result(fs)
     implicit none
     class(base_operator_type), intent(in) :: self
@@ -256,8 +290,8 @@ contains
     return
   end function which_fs_from
 
-  !>@brief Get the function space the operator maps to
-  !>@return fs Function space the operator maps to
+  !>@brief Get the id of the function space the operator maps to
+  !>@return fs Id of function space the operator maps to
   function which_fs_to(self) result(fs)
     implicit none
     class(base_operator_type), intent(in)  :: self
@@ -302,6 +336,14 @@ contains
     allocate(self%local_stencil( fs_to%get_ndf(),fs_from%get_ndf(), self%ncell_3d ) )
 
   end function operator_constructor
+
+  function operator_type_deep_copy(self) result(other)
+    class(operator_type), intent(inout) :: self
+    type(operator_type) :: other
+    ! make field_vector
+    other = operator_type(self%fs_to,self%fs_from)
+    other%local_stencil(:,:,:) = self%local_stencil(:,:,:)
+  end function operator_type_deep_copy
 
   !> Function to create a proxy with access to the data in the operator_type.
   !>

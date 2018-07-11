@@ -32,9 +32,9 @@ module preconditioner_mod
      subroutine apply_interface(self, x, y)
        import :: abstract_vector_type
        import :: abstract_preconditioner_type
-       class(abstract_preconditioner_type),      intent(in)    :: self
-       class(abstract_vector_type),              intent(in)    :: x
-       class(abstract_vector_type),              intent(inout) :: y
+       class(abstract_preconditioner_type), intent(inout) :: self
+       class(abstract_vector_type),         intent(in)    :: x
+       class(abstract_vector_type),         intent(inout) :: y
      end subroutine apply_interface
   end interface
 
