@@ -8,15 +8,21 @@
 !>
 module held_suarez_kernel_mod_test
 
-  use constants_mod,                 only: i_def, r_def, PI
-  use function_space_collection_mod, only: function_space_collection_type, &
-                                           function_space_collection
+  use constants_mod,                 only : i_def, r_def, PI
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
   use mesh_collection_mod,           only : mesh_collection_type, &
                                             mesh_collection
-  use field_mod,                     only: field_type,      &
-                                           field_proxy_type
-  use fs_continuity_mod,             only: W2, W3, Wtheta
-  use function_space_mod,            only: function_space_type
+  use field_mod,                     only : field_type,      &
+                                            field_proxy_type
+  use fs_continuity_mod,             only : W2, W3, Wtheta
+  use function_space_mod,            only : function_space_type
+  use gungho_feign_config_mod,       only : feign_base_mesh_config, &
+                                            feign_planet_config, &
+                                            feign_timestepping_config, &
+                                            feign_physics_config
+  use physics_config_mod,            only : cloud_scheme, &
+                                            physics_cloud_scheme_none
   use pFUnit_Mod
   use quadrature_xyoz_mod,           only: quadrature_xyoz_type, &
                                            quadrature_xyoz_proxy_type
@@ -70,10 +76,6 @@ contains
     use timestepping_config_mod,   only : timestepping_method_semi_implicit, &
                                           timestepping_runge_kutta_method_ssp3
     use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
-    use gungho_feign_config_mod,   only : feign_base_mesh_config, &
-                                          feign_planet_config, &
-                                          feign_timestepping_config, &
-                                          feign_physics_config
     use function_space_mod,        only : function_space_type
     use mesh_mod,                  only : PLANE_BI_PERIODIC, PLANE
 
@@ -114,14 +116,6 @@ contains
                                    runge_kutta_method=timestepping_runge_kutta_method_ssp3,    &
                                    spinup_period=0.0_r_def, spinup_alpha=.false.,     &
                                    spinup_winds=.false.    )
-
-    call feign_physics_config( boundary_layer_placement=0,     &
-                               heldsuarez_thermo_placement=-1, &
-                               heldsuarez_wind_placement=-1,   &
-                               hs_random=.false.,              &
-                               l_flux_bc=.false.,              &
-                               fixed_flux_e=0.0_r_def,         &
-                               fixed_flux_h=0.0_r_def )
 
     ! Create top level mesh collection
     mesh_collection = mesh_collection_type()
@@ -186,6 +180,9 @@ contains
     ! Clear the stored MPI communicator
     call clear_comm()
 
+    ! Finalise namelist
+    call final_configuration()
+
   end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -238,6 +235,18 @@ contains
     end do
 
     nlayers = theta_proxy%vspace%get_nlayers()
+
+
+    call feign_physics_config( boundary_layer_placement=0,     &
+                               heldsuarez_thermo_placement=-1, &
+                               heldsuarez_wind_placement=-1,   &
+                               hs_random=.false.,              &
+                               l_flux_bc=.false.,              &
+                               fixed_flux_e=0.0_r_def,         &
+                               fixed_flux_h=0.0_r_def,         &
+                               cloud_scheme = physics_cloud_scheme_none, &
+                               rhcritical = [1.0_r_def])
+
 
     ndf_w2      = u_proxy%vspace%get_ndf( )
     undf_w2     = u_proxy%vspace%get_undf()

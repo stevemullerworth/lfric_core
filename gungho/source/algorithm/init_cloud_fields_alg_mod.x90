@@ -1,0 +1,108 @@
+!-------------------------------------------------------------------------------
+! (c) The copyright relating to this work is owned jointly by the Crown,
+! Met Office and NERC 2014.
+! However, it has been created with the help of the GungHo Consortium,
+! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+!-------------------------------------------------------------------------------
+
+!>@brief Prepares the cloud fields and critical relative humidity, needed
+!>       when not initialising from a restart file.
+
+module init_cloud_fields_alg_mod
+
+  use log_mod,                         only: log_event,         &
+                                             LOG_LEVEL_INFO
+
+  ! Configuration and restart/checkpoint options
+  use restart_control_mod,             only: restart_type
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  ! Handles
+  use fs_continuity_mod,               only: Wtheta
+
+  ! Physics options
+  use physics_config_mod,         only: cloud_scheme, &
+                                        physics_cloud_scheme_none
+
+  implicit none
+
+  private
+  public :: init_cloud_fields_alg
+
+contains
+
+  !> @brief Prepares the cloud fields and critical relative humidity
+  !> @details An algorithm for initialising cloud fields (liquid, ice and bulk cloud 
+  !>          fraction) and critical relative humidity for all solvers.
+  !>          The cloud fields need to be initialised so that they have a value
+  !>          when passed on to the microphysics at the first time step, in case no 
+  !>          restart file is used. Also, rhcrit is set to the namelist value here.
+  !>          In case a restart/checkpoint file is used, clouds and rhcrit will be 
+  !>          initialised to the values in this restart/checkpoint file
+  !> @param[in,out] cloud_fields Cloud related fields 
+  !> @param[in] restart         Checkpoint control object
+  subroutine init_cloud_fields_alg(cloud_fields, restart)
+
+    use initial_cloud_kernel_mod,        only: initial_cloud_kernel_type
+
+    implicit none
+
+    ! Moist fields
+    type( field_collection_type ), intent( inout ) :: cloud_fields
+    ! Prognostic fields
+
+    ! Control
+    type( restart_type ), intent(in)      :: restart
+
+    type( field_type ), pointer :: cf_area  => null()
+    type( field_type ), pointer :: cf_ice  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+    type( field_type ), pointer :: rhcrit_in_wth  => null()
+
+    !=== Initialise cloud fields ==================================!
+
+    cf_area => cloud_fields%get_field('area_fraction')
+    cf_ice => cloud_fields%get_field('ice_fraction')
+    cf_liq => cloud_fields%get_field('liquid_fraction')
+    cf_bulk => cloud_fields%get_field('bulk_fraction')
+    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+
+    if (.not.restart%read_checkpoint() .or. cloud_scheme == physics_cloud_scheme_none) then  
+      ! No check point to start from
+
+      call log_event( "Gungho: Initialising cloud fields", LOG_LEVEL_INFO )
+
+      call invoke(initial_cloud_kernel_type( cf_area, cf_ice, cf_liq, &
+                                             cf_bulk, rhcrit_in_wth))
+
+      call log_event( "Gungho: Initialised cloud fields", LOG_LEVEL_INFO )
+
+    else                                   ! Recorded check point to start from
+
+      call log_event("Reading checkpoint file to restart area_fraction",LOG_LEVEL_INFO)
+      call cf_area%read_restart("restart_area_fraction", trim(restart%startfname("area_fraction")))
+
+      call log_event("Reading checkpoint file to restart ice_fraction",LOG_LEVEL_INFO)
+      call cf_ice%read_restart("restart_ice_fraction", trim(restart%startfname("ice_fraction")))
+
+      call log_event("Reading checkpoint file to restart liquid_fraction",LOG_LEVEL_INFO)
+      call cf_liq%read_restart("restart_liquid_fraction", trim(restart%startfname("liquid_fraction")))
+
+      call log_event("Reading checkpoint file to restart bulk_fraction",LOG_LEVEL_INFO)
+      call cf_bulk%read_restart("restart_bulk_fraction", trim(restart%startfname("bulk_fraction")))
+
+      call log_event("Reading checkpoint file to restart rhcrit",LOG_LEVEL_INFO)
+      call rhcrit_in_wth%read_restart("restart_rhcrit", trim(restart%startfname("rhcrit")))
+
+      call log_event( "Gungho: Read cloud fields from files", LOG_LEVEL_INFO )
+    end if
+
+    !==========================================================================!
+
+  end subroutine init_cloud_fields_alg
+
+end module init_cloud_fields_alg_mod

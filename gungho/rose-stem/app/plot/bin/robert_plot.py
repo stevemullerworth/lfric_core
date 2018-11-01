@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     for field in field_list:
 
-        if field in ['rho', 'theta', 'exner', 'buoyancy', 'm_v', 'm_c', 'm_r', 'm_nc', 'm_nr']:
+        if field in ['rho', 'theta', 'exner', 'buoyancy', 'm_v', 'm_cl', 'm_r', 'm_nc', 'm_nr']:
             # Scalar fields
             ncomp = 1
             comp = 1

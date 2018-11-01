@@ -131,7 +131,8 @@ contains
   subroutine invoke_initial_mr_kernel( theta, rho, mr, chi )
 
     use initial_mr_kernel_mod, only : initial_mr_code
-    use mr_indices_mod,        only : imr_v, imr_c, imr_r, imr_nc, imr_nr, nummr
+    use mr_indices_mod,        only : imr_v, imr_cl, imr_r, imr_ci, &
+                                      imr_nc, imr_nr, nummr
     use mesh_mod,              only : mesh_type
     implicit none
 
@@ -158,6 +159,7 @@ contains
     do imr = 1,nummr
       mr_proxy(imr)  = mr(imr)%get_proxy()
     end do
+
     chi_proxy(1) = chi(1)%get_proxy()
     chi_proxy(2) = chi(2)%get_proxy()
     chi_proxy(3) = chi(3)%get_proxy()
@@ -201,8 +203,9 @@ contains
         undf_w3,                            &
         map_w3,                             &
         mr_proxy(imr_v)%data,               &
-        mr_proxy(imr_c)%data,               &
+        mr_proxy(imr_cl)%data,              &
         mr_proxy(imr_r)%data,               &
+        mr_proxy(imr_ci)%data,              &
         mr_proxy(imr_nc)%data,              &
         mr_proxy(imr_nr)%data,              &
         ndf_chi,                            &

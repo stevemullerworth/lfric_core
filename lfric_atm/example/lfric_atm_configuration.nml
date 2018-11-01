@@ -31,7 +31,7 @@
     set_hydrostatic_init = .true.,
     shallow              = .false.,
     transport_only       = .false.,
-    use_moisture         = .false.,
+    use_moisture         = .true.,
     use_physics          = .true.,
     use_wavedynamics     = .false.,
 /
@@ -180,6 +180,8 @@
     heldsuarez_wind_placement=0,
     hs_random=.false.,
     l_flux_bc=.true.,
+    cloud_scheme = 'smith',
+    rhcritical=98*0.99, 
 /
 
 &orography

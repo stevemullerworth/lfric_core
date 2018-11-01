@@ -11,7 +11,7 @@ module gungho_driver_mod
 
   use checksum_alg_mod,           only : checksum_alg
   use conservation_algorithm_mod, only : conservation_algorithm
-  use constants_mod,              only : i_def, imdi
+  use constants_mod,              only : i_def, imdi, str_def, str_short
   use derived_config_mod,         only : set_derived_config
   use diagnostic_alg_mod,         only : divergence_diagnostic_alg, &
                                          density_diagnostic_alg,    &
@@ -52,14 +52,17 @@ module gungho_driver_mod
   use minmax_tseries_mod,         only : minmax_tseries, &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mr_indices_mod,             only : imr_v, imr_c, imr_r, imr_nc, &
-                                         imr_nr, nummr
+  use mr_indices_mod,             only : imr_v, imr_cl, imr_r, imr_ci, &
+                                         imr_nc, imr_nr, nummr, mr_names
+  use physics_config_mod,         only : cloud_scheme, &
+                                         physics_cloud_scheme_none
   use output_config_mod,          only : diagnostic_frequency, &
                                          subroutine_timers, &
                                          write_minmax_tseries, &
                                          subroutine_counters, &
                                          write_nodal_output, &
                                          write_xios_output
+
 
   use restart_config_mod,         only : restart_filename => filename
   use restart_control_mod,        only : restart_type
@@ -98,6 +101,16 @@ module gungho_driver_mod
                         xi,        &
                         mr(nummr)
 
+  type( field_type ), pointer :: cf_area  => null()
+  type( field_type ), pointer :: cf_ice  => null()
+  type( field_type ), pointer :: cf_liq  => null()
+  type( field_type ), pointer :: cf_bulk  => null()
+  type( field_type ), pointer :: rhcrit_in_wth  => null()
+
+
+  ! A pointer used for retrieving fields for use in diagnostics
+  type( field_type ), pointer :: diag_ptr  => null()
+
   ! Field collections
   type( field_collection_type ) :: derived_fields
   type( field_collection_type ) :: cloud_fields
@@ -108,6 +121,14 @@ module gungho_driver_mod
 
   integer(i_def) :: mesh_id      = imdi
   integer(i_def) :: twod_mesh_id = imdi
+
+  character(str_def) :: name
+
+  ! Cloud fields names
+  character(str_short) :: cloudnames(5) = &
+     [ 'area_fraction  ', 'ice_fraction   ', 'liquid_fraction', 'bulk_fraction  ', &
+       'rhcrit         ']
+
 
 contains
 
@@ -206,11 +227,11 @@ contains
     timestep = 0
     call init_gungho( mesh_id, chi, u, rho, theta, exner, mr, xi, restart )
 
-    if (use_physics)then
-      call init_physics(mesh_id, twod_mesh_id,                      &
+    ! Create and initialise physics fields
+    if (use_physics) then
+      call init_physics(mesh_id, twod_mesh_id, restart,             &
                         u, exner, rho, theta,                       &
                         derived_fields, cloud_fields, twod_fields)
-
     end if
 
     ! Initial output
@@ -228,12 +249,30 @@ contains
         call output_nodal('rho',   ts_init, rho,   mesh_id)
         call output_nodal('exner', ts_init, exner, mesh_id)
 
-        if (use_moisture)then
-        call output_nodal('m_v',   ts_init, mr(imr_v),   mesh_id)
-        call output_nodal('m_c',   ts_init, mr(imr_c),   mesh_id)
-        call output_nodal('m_r',   ts_init, mr(imr_r),   mesh_id)
-        call output_nodal('m_nc',  ts_init, mr(imr_nc),   mesh_id)
-        call output_nodal('m_nr',  ts_init, mr(imr_nr),   mesh_id)
+        if (use_moisture) then
+
+          ! Output moist fields
+          call output_nodal('m_v',     ts_init, mr(imr_v),   mesh_id)
+          call output_nodal('m_cl',    ts_init, mr(imr_cl),  mesh_id)
+          call output_nodal('m_r',     ts_init, mr(imr_r),   mesh_id)
+          call output_nodal('m_ci',    ts_init, mr(imr_ci),  mesh_id)
+          call output_nodal('m_nc',    ts_init, mr(imr_nc),  mesh_id)
+          call output_nodal('m_nr',    ts_init, mr(imr_nr),  mesh_id)
+
+          if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+            ! Extract cloud fields
+            cf_area        => cloud_fields%get_field('area_fraction')
+            cf_ice         => cloud_fields%get_field('ice_fraction')
+            cf_liq         => cloud_fields%get_field('liquid_fraction')
+            cf_bulk        => cloud_fields%get_field('bulk_fraction')
+            rhcrit_in_wth  => cloud_fields%get_field('rhcrit')
+            call output_nodal('area_fraction', ts_init, cf_area,   mesh_id)
+            call output_nodal('ice_fraction', ts_init, cf_ice,     mesh_id)
+            call output_nodal('liquid_fraction', ts_init, cf_liq,  mesh_id)
+            call output_nodal('bulk_fraction', ts_init, cf_bulk,   mesh_id)
+            call output_nodal('rhcrit', ts_init, rhcrit_in_wth,    mesh_id)
+          end if
+
         end if
 
       end if
@@ -254,11 +293,29 @@ contains
         call output_xios_nodal("init_xi", xi, mesh_id)
 
         if (use_moisture)then
-        call output_xios_nodal('init_m_v',  mr(imr_v),   mesh_id)
-        call output_xios_nodal('init_m_c',  mr(imr_c),   mesh_id)
-        call output_xios_nodal('init_m_r',  mr(imr_r),   mesh_id)
-        call output_xios_nodal('init_m_nc', mr(imr_nc),   mesh_id)
-        call output_xios_nodal('init_m_nr', mr(imr_nr),   mesh_id)
+
+          ! Output moist fields
+          call output_xios_nodal('init_m_v',     mr(imr_v),   mesh_id)
+          call output_xios_nodal('init_m_cl',    mr(imr_cl),  mesh_id)
+          call output_xios_nodal('init_m_r',     mr(imr_r),   mesh_id)
+          call output_xios_nodal('init_m_ci',    mr(imr_ci),  mesh_id)
+          call output_xios_nodal('init_m_nc',    mr(imr_nc),  mesh_id)
+          call output_xios_nodal('init_m_nr',    mr(imr_nr),  mesh_id)
+
+          if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+            ! Extract cloud fields
+            cf_area        => cloud_fields%get_field('area_fraction')
+            cf_ice         => cloud_fields%get_field('ice_fraction')
+            cf_liq         => cloud_fields%get_field('liquid_fraction')
+            cf_bulk        => cloud_fields%get_field('bulk_fraction')
+            rhcrit_in_wth  => cloud_fields%get_field('rhcrit')
+            call output_xios_nodal('init_area_fraction', cf_area,    mesh_id)
+            call output_xios_nodal('init_ice_fraction',  cf_ice,     mesh_id)
+            call output_xios_nodal('init_liquid_fraction',  cf_liq,  mesh_id)
+            call output_xios_nodal('init_bulk_fraction', cf_bulk,    mesh_id)
+            call output_xios_nodal('init_rhcrit', rhcrit_in_wth,     mesh_id)
+          end if
+
         end if
 
       end if
@@ -373,11 +430,29 @@ contains
           call output_nodal("xi",    timestep, xi,    mesh_id)
 
           if (use_moisture)then
-            call output_nodal('m_v',    timestep, mr(imr_v),   mesh_id)
-            call output_nodal('m_c',    timestep, mr(imr_c),   mesh_id)
-            call output_nodal('m_r',    timestep, mr(imr_r),   mesh_id)
-            call output_nodal('m_nc',   timestep, mr(imr_nc),   mesh_id)
-            call output_nodal('m_nr',   timestep, mr(imr_nr),   mesh_id)
+
+            ! Output moist fields
+            call output_nodal('m_v',     timestep, mr(imr_v),   mesh_id)
+            call output_nodal('m_cl',    timestep, mr(imr_cl),  mesh_id)
+            call output_nodal('m_r',     timestep, mr(imr_r),   mesh_id)
+            call output_nodal('m_ci',    timestep, mr(imr_ci),  mesh_id)
+            call output_nodal('m_nc',    timestep, mr(imr_nc),  mesh_id)
+            call output_nodal('m_nr',    timestep, mr(imr_nr),  mesh_id)
+
+            if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+              ! Extract cloud fields
+              cf_area       => cloud_fields%get_field('area_fraction')
+              cf_ice        => cloud_fields%get_field('ice_fraction')
+              cf_liq        => cloud_fields%get_field('liquid_fraction')
+              cf_bulk       => cloud_fields%get_field('bulk_fraction')
+              rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+              call output_nodal('area_fraction', timestep, cf_area,    mesh_id)
+              call output_nodal('ice_fraction',  timestep, cf_ice,     mesh_id)
+              call output_nodal('liquid_fraction', timestep,  cf_liq,  mesh_id)
+              call output_nodal('bulk_fraction', timestep, cf_bulk,    mesh_id)
+              call output_nodal('rhcrit', timestep, rhcrit_in_wth,     mesh_id)
+            end if
+
           end if
 
         end if
@@ -392,11 +467,29 @@ contains
           call output_xios_nodal("exner", exner, mesh_id)
 
           if (use_moisture)then
-            call output_xios_nodal('m_v', mr(imr_v),   mesh_id)
-            call output_xios_nodal('m_c', mr(imr_c),   mesh_id)
-            call output_xios_nodal('m_r', mr(imr_r),   mesh_id)
-            call output_xios_nodal('m_nc', mr(imr_nc),   mesh_id)
-            call output_xios_nodal('m_nr', mr(imr_nr),   mesh_id)
+
+            ! Output moist fields
+            call output_xios_nodal('m_v',     mr(imr_v),   mesh_id)
+            call output_xios_nodal('m_cl',    mr(imr_cl),  mesh_id)
+            call output_xios_nodal('m_r',     mr(imr_r),   mesh_id)
+            call output_xios_nodal('m_ci',    mr(imr_ci),  mesh_id)
+            call output_xios_nodal('m_nc',    mr(imr_nc),  mesh_id)
+            call output_xios_nodal('m_nr',    mr(imr_nr),  mesh_id)
+
+            if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none) then
+              ! Extract cloud fields
+              cf_area       => cloud_fields%get_field('area_fraction')
+              cf_ice        => cloud_fields%get_field('ice_fraction')
+              cf_liq        => cloud_fields%get_field('liquid_fraction')
+              cf_bulk       => cloud_fields%get_field('bulk_fraction')
+              rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+              call output_xios_nodal('area_fraction', cf_area,    mesh_id)
+              call output_xios_nodal('ice_fraction',  cf_ice,     mesh_id)
+              call output_xios_nodal('liquid_fraction',  cf_liq,  mesh_id)
+              call output_xios_nodal('bulk_fraction', cf_bulk,    mesh_id)
+              call output_xios_nodal('rhcrit', rhcrit_in_wth,     mesh_id)
+            end if
+
           end if
 
           ! Output vector fields
@@ -424,8 +517,6 @@ contains
     integer(i_def) :: rc
     integer(i_def) :: ierr
     integer(i_def) :: i 
-
-    character(5) :: name
 
     ! Log fields
     call rho%log_field(   LOG_LEVEL_DEBUG, 'rho' )
@@ -466,11 +557,22 @@ contains
 
        if (use_moisture)then
          do i=1,nummr
-           write(name, '(A,I2.2)') 'mr_', i
+           write(name, '(A,A)') 'checkpoint_',trim(mr_names(i))
            write(log_scratch_space,'(A,A,A,I6)') "Checkpointing ",  trim(name), " at ts ",restart%ts_end() 
            call log_event(log_scratch_space,LOG_LEVEL_INFO)
-           call mr(i)%write_checkpoint(name, trim(restart%endfname(name)))
+           call mr(i)%write_checkpoint(trim(name), trim(restart%endfname(mr_names(i))))
          end do
+
+         if (use_physics .and. cloud_scheme /= physics_cloud_scheme_none)then
+           do i=1,5
+             diag_ptr => cloud_fields%get_field(trim(cloudnames(i)))
+             write(name, '(A,A)') 'checkpoint_',trim(cloudnames(i))
+             write(log_scratch_space,'(3A,I6)') "Checkpointing ", trim(name) ," at ts ",restart%ts_end() 
+             call log_event(log_scratch_space,LOG_LEVEL_INFO)
+             call diag_ptr%write_checkpoint(trim(name), trim(restart%endfname(cloudnames(i))))
+           end do 
+         endif
+
        end if
 
     end if
@@ -488,6 +590,15 @@ contains
     do i=1, nummr
       call mr(i)%field_final()
     end do
+
+    if (use_moisture .and. use_physics) then
+      do i=1,5
+        ! Extract cloud fields
+        diag_ptr => cloud_fields%get_field(trim(cloudnames(i)))
+        ! Finalise cloud fields
+        call diag_ptr%field_final()
+      end do   
+    endif
 
     if(write_minmax_tseries) call minmax_tseries_final(mesh_id)
 

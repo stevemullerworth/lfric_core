@@ -7,15 +7,22 @@
 
 module bl_init_mod
 
-  use constants_mod,         only : i_um, r_def
-  use field_collection_mod, only: field_collection_type
+  use constants_mod,         only: i_um, r_def, i_def
+  use field_collection_mod,  only: field_collection_type
+  use physics_config_mod,    only: cloud_scheme,               &
+                                   physics_cloud_scheme_none,  &
+                                   physics_cloud_scheme_smith, &
+                                   rhcritical
+  use log_mod,               only: log_event,         &
+                                   log_scratch_space, &
+                                   LOG_LEVEL_ERROR
   implicit none
 
 contains
 
   !>@brief Initialize the UM Boundary Layer scheme
   !>@param[in]    theta_in_wth Theta in its native space
-  !>@param[inout] twod_fields Group of 2D fields
+  !>@param[in,out] twod_fields Group of 2D fields
   subroutine bl_init(theta_in_wth, twod_fields)
 
     ! UM modules
@@ -31,10 +38,13 @@ contains
          relax_sc_over_cu, bl_res_inv, blending_option,                    &
          a_ent_shr_nml, alpha_cd, puns, pstb, nl_bl_levels, kprof_cu
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
-         l_fixbug_pc2_mixph
+         l_fixbug_pc2_mixph, rhcrit, cloud_fraction_method,                &
+         ice_fraction_method,falliceshear_method, cff_spread_rate,         &
+         l_subgrid_qv, ice_width
     use cv_run_mod, only: icvdiag, cvdiag_inv, cvdiag_sh_wtest,            &
          limit_pert_opt, tv1_sd_opt, iconv_congestus, iconv_deep,          &
-         ent_fac_dp, cldbase_opt_dp, cldbase_opt_sh, w_cape_limit
+         ent_fac_dp, cldbase_opt_dp, cldbase_opt_sh, w_cape_limit,         & 
+         l_param_conv
     use dyn_coriolis_mod, only: f3_at_u
     use dynamics_input_mod, only: numcycles
     use jules_sea_seaice_mod, only: nice_use, iseasurfalg, emis_sea,       &
@@ -53,7 +63,6 @@ contains
 
     ! LFRic modules
     use field_mod, only : field_type, field_proxy_type
-    use mesh_mod, only : mesh_type
     use timestepping_config_mod, only: dt
 
     implicit none
@@ -61,13 +70,17 @@ contains
     type( field_type ), intent( in ) :: theta_in_wth
     type( field_collection_type ), intent(inout) :: twod_fields
     type( field_proxy_type )  :: theta_in_wth_proxy
-    type( mesh_type ), pointer :: mesh => null()
     type( field_type ), pointer :: tstar_2d  => null()
     type( field_type ), pointer :: zh_2d => null()
     type( field_type ), pointer :: z0msea_2d => null()
+    type( field_type ), pointer :: ntml_2d => null()
+    type( field_type ), pointer :: cumulus_2d => null()
+
+
+    integer(kind=i_def) :: nlayers
 
     ! loop counters
-    integer :: i,j,l,n
+    integer :: i,j,l
 
     theta_in_wth_proxy = theta_in_wth%get_proxy()
 
@@ -75,9 +88,13 @@ contains
     zh_2d => twod_fields%get_field('zh')
     z0msea_2d => twod_fields%get_field('z0msea')
 
+    ntml_2d => twod_fields%get_field('ntml')
+    cumulus_2d => twod_fields%get_field('cumulus')
+
     ! set up various dimensions for a single column sea point
+    nlayers = theta_in_wth_proxy%vspace%get_nlayers()
     model_levels = theta_in_wth_proxy%vspace%get_nlayers()
-    bl_levels = model_levels-1
+    bl_levels = nlayers-1
     row_length=1
     rows=1
     land_field=0
@@ -92,7 +109,7 @@ contains
     model_type=5
     call atm_fields_bounds_init( 0_i_um, 0_i_um, 0_i_um, &
                                  0_i_um, row_length, rows,rows,  &
-                                 model_levels, bl_levels, model_levels )
+                                 nlayers, bl_levels, nlayers )
 
     ! allocate jules stuff
     nnpft=5
@@ -148,13 +165,33 @@ contains
     cldbase_opt_dp=3
     cldbase_opt_sh=0
     w_cape_limit=0.3
+    l_param_conv=.false.
 
     ! cloud options
-    i_cld_vn=0
+    select case (cloud_scheme)
+      case(physics_cloud_scheme_none) 
+        i_cld_vn=0
+      case(physics_cloud_scheme_smith) 
+        i_cld_vn=1
+      case default
+        write( log_scratch_space, '(A,I3)' )  &
+          'Invalid cloud scheme option, stopping', cloud_scheme 
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end select
     i_rhcpt=0
     forced_cu=0
     i_cld_area=0
     l_fixbug_pc2_mixph=.true.
+    cloud_fraction_method=1
+    ice_fraction_method=1
+    falliceshear_method=2 
+    cff_spread_rate=1.0e-3
+    l_subgrid_qv=.true.
+    ice_width=0.02
+    ! set rhcrit to the profile provided in the physics namelist.
+    ! rhcrit is used throughout the UM and its value needs setting 
+    ! here.
+    rhcrit = rhcritical
 
     ! dynamics options
     numcycles=1
@@ -174,14 +211,16 @@ contains
 
     ! arrays that should be allocated at startup
     allocate(f3_at_u(row_length,rows))
-    allocate(r_theta_levels(row_length,rows,0:model_levels))
-    allocate(r_rho_levels(row_length,rows,model_levels))
-    allocate(eta_theta_levels(0:model_levels))
+    allocate(r_theta_levels(row_length,rows,0:nlayers))
+    allocate(r_rho_levels(row_length,rows,nlayers))
+    allocate(eta_theta_levels(0:nlayers))
 
     ! BL prognostics - initialise
     call invoke( setval_c(tstar_2d, 300.0_r_def))
     call invoke( setval_c(zh_2d, 1000.0_r_def))
     call invoke( setval_c(z0msea_2d, 1.5e-4_r_def))
+    call invoke( setval_c(ntml_2d, 1.0_r_def))
+    call invoke( setval_c(cumulus_2d, 0.0_r_def))
 
     !-----------------------------------------------------------------------
     ! Set up index for sea and sea-ice

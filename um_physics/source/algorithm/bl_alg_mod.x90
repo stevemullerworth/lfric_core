@@ -11,7 +11,7 @@ module bl_alg_mod
   use constants_mod,        only: i_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
-  use mr_indices_mod,       only: nummr, imr_v, imr_c
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
 
   implicit none
 
@@ -24,8 +24,8 @@ contains
   !>             vertical mixing of heat and momentum (no moisture yet),
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
-  !>@param[inout] dtheta_bl Theta increment
-  !>@param[inout] mr        Mixing ratios
+  !>@param[in,out] dtheta_bl Theta increment
+  !>@param[in,out] mr        Mixing ratios
   !>@param[in]    outer     outer loop counter
   !>@param[in]    theta     Theta in its native space
   !>@param[in]    rho       Dry density in its native space
@@ -33,12 +33,14 @@ contains
   !>@param[in]    exner     Exner Pressure in the w3 space (i.e. colocated with density)
   !>@param[in]    height_w3  Height in w3
   !>@param[in]    height_wth Height in wth
-  !>@param[in]    derived_fields Group of derived fields
-  !>@param[inout] twod_fields Group of 2D fields
+  !>@param[in,out] derived_fields Group of derived fields
+  !>@param[in,out] cloud_fields Group of cloud fields
+  !>@param[in,out] twod_fields Group of 2D fields
   subroutine bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner, &
-                         height_w3, height_wth, derived_fields, twod_fields)
+                         height_w3, height_wth, derived_fields,         &
+                         cloud_fields, twod_fields)
 
-    use psykal_lite_phys_mod, only: invoke_bl_kernel
+    use bl_kernel_mod, only: bl_kernel_type
 
     implicit none
 
@@ -46,6 +48,7 @@ contains
     type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
     type( field_type ), intent( in )        :: height_w3, height_wth
     type( field_collection_type ), intent(inout) :: derived_fields
+    type( field_collection_type ), intent(inout) :: cloud_fields
     type( field_collection_type ), intent(inout) :: twod_fields
     integer(kind=i_def), intent(in)         :: outer
 
@@ -62,8 +65,16 @@ contains
     type( field_type ), pointer :: tstar_2d  => null()
     type( field_type ), pointer :: zh_2d => null()
     type( field_type ), pointer :: z0msea_2d => null()
+    type( field_type ), pointer :: ntml_2d => null()
+    type( field_type ), pointer :: cumulus_2d => null()
+    type( field_type ), pointer :: cf_area  => null()
+    type( field_type ), pointer :: cf_ice  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+    type( field_type ), pointer :: rhcrit_in_wth => null()
 
-    !Unpack fields
+
+    !Unpack derived fields
     exner_in_wth => derived_fields%get_field('exner_in_wth')
     rho_in_wth => derived_fields%get_field('rho_in_wth')
     u1_in_w3 => derived_fields%get_field('u1_in_w3')
@@ -74,17 +85,30 @@ contains
     u2_in_w3_star => derived_fields%get_field('u2_in_w3_star')
     w_physics_star => derived_fields%get_field('w_physics_star')
 
+    !Unpack twod fields
     tstar_2d => twod_fields%get_field('tstar')
     zh_2d => twod_fields%get_field('zh')
     z0msea_2d => twod_fields%get_field('z0msea')
+    ntml_2d => twod_fields%get_field('ntml')
+    cumulus_2d => twod_fields%get_field('cumulus')
+
+    !Unpack cloud fields
+    cf_area => cloud_fields%get_field('area_fraction')
+    cf_ice => cloud_fields%get_field('ice_fraction')
+    cf_liq => cloud_fields%get_field('liquid_fraction')
+    cf_bulk => cloud_fields%get_field('bulk_fraction')
+    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
     
-    call invoke_bl_kernel( outer, theta, rho, rho_in_wth,                 &
+    call invoke(bl_kernel_type( outer, theta, rho, rho_in_wth,            &
                            exner, exner_in_wth, u1_in_w3, u2_in_w3,       &
-                           w_physics, mr_n(imr_v), mr_n(imr_c),           &
+                           w_physics, mr_n(imr_v), mr_n(imr_cl),          &
+                           mr_n(imr_ci),                                  &
                            theta_star, u1_in_w3_star, u2_in_w3_star,      &
                            w_physics_star,                                &
                            height_w3, height_wth, tstar_2d, zh_2d,        &
-                           z0msea_2d, dtheta_bl, mr(imr_v), mr(imr_c) )
+                           z0msea_2d, ntml_2d, cumulus_2d, dtheta_bl,     &
+                           mr(imr_v), mr(imr_cl),mr(imr_ci), cf_area,     &
+                           cf_ice, cf_liq, cf_bulk, rhcrit_in_wth ))
 
   end subroutine bl_alg_step
 

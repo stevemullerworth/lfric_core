@@ -40,13 +40,13 @@ contains
 
   !>@brief Initialise the gungho model
   !> @param[in] mesh_id Identifier of the mesh
-  !> @param[inout] chi Spatial coordinates
-  !> @param[inout] u Wind field
-  !> @param[inout] rho Density field
-  !> @param[inout] theta Potential temperature field
-  !> @param[inout] exner Exner pressure field
-  !> @param[inout] mr Moisture mixing ratios
-  !> @param[inout] xi Vorticity
+  !> @param[in,out] chi Spatial coordinates
+  !> @param[in,out] u Wind field
+  !> @param[in,out] rho Density field
+  !> @param[in,out] theta Potential temperature field
+  !> @param[in,out] exner Exner pressure field
+  !> @param[in,out] mr Moisture mixing ratios
+  !> @param[in,out] xi Vorticity
   !> @param[in] restart Restart dump to read prognostic fields from
   subroutine init_gungho( mesh_id, chi, u, rho, theta, exner, mr, xi, restart )
 

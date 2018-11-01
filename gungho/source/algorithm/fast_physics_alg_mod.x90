@@ -26,7 +26,7 @@ module fast_physics_alg_mod
   use field_indices_mod,         only: igh_u, igh_t, igh_d, igh_p
 
   ! Moisture species
-  use mr_indices_mod,            only: nummr, imr_v, imr_c
+  use mr_indices_mod,            only: nummr
 
 #ifdef UM_PHYSICS
   ! UM BL scheme
@@ -105,7 +105,8 @@ contains
       call dtheta%copy_field_properties(dtheta_bl)
       call invoke( setval_c(dtheta_bl, 0.0_r_def) )
       call bl_alg_step(dtheta_bl, mr, outer, theta, rho, mr_n, exner, &
-                       height_w3, height_wth, derived_fields, twod_fields)
+                       height_w3, height_wth, derived_fields,         &
+                       cloud_fields, twod_fields)
       boundary_layer_done=.true. ! We've done it, so need to collect this term later on
     end if
 #endif

@@ -1,0 +1,165 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the initial_cloud_kernel
+!>
+
+module initial_cloud_kernel_mod_test
+
+  use constants_mod,                 only : r_def, i_def
+  use pFUnit_Mod
+  use yaxt,                          only : xt_initialize, xt_finalize
+  use mpi_mod,                       only : store_comm, clear_comm
+
+  implicit none
+
+  private
+  public:: test_of_initial_cloud
+
+  @TestCase
+  type, extends(MPITestCase), public  :: cloud_test_type
+    private
+    real(kind=r_def), allocatable :: answer_cfarea(:), answer_cfice(:),  &
+                                     answer_cfliq(:),  answer_cfbulk(:), &
+                                     answer_rhcrit(:), cfarea(:),        &
+                                     cfliq(:), cfice(:), cfbulk(:),      &
+                                     rhcrit(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_of_initial_cloud
+  end type cloud_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use gungho_feign_config_mod,       only : feign_physics_config
+    use physics_config_mod,            only : cloud_scheme,              &
+                                              physics_cloud_scheme_smith
+    implicit none
+
+    class(cloud_test_type), intent(inout) :: this
+
+    integer          :: undf_wth
+    integer          :: nlayers
+
+    ! Initialise YAXT
+    call xt_initialize(this%getMpiCommunicator())
+    ! Store the MPI communicator for later use
+    call store_comm(this%getMpiCommunicator())
+
+    call feign_physics_config( boundary_layer_placement=0,     &
+                               heldsuarez_thermo_placement=-1, &
+                               heldsuarez_wind_placement=-1,   &
+                               hs_random=.false.,              &
+                               l_flux_bc=.false.,              &
+                               fixed_flux_e=0.0_r_def,         &
+                               fixed_flux_h=0.0_r_def,         &
+                               cloud_scheme = physics_cloud_scheme_smith, &
+                               rhcritical=[0.5_r_def])
+
+    undf_wth  = 1_i_def
+    nlayers  = 1_i_def
+
+    allocate( this%answer_cfarea(undf_wth) )
+    allocate( this%answer_cfliq(undf_wth) )
+    allocate( this%answer_cfice(undf_wth) )
+    allocate( this%answer_cfbulk(undf_wth) )
+    allocate( this%answer_rhcrit(undf_wth) )
+
+    allocate( this%cfarea(undf_wth) )
+    allocate( this%cfliq(undf_wth) )
+    allocate( this%cfice(undf_wth) )
+    allocate( this%cfbulk(undf_wth) )
+    allocate( this%rhcrit(undf_wth) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use gungho_configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(cloud_test_type), intent(inout) :: this
+
+    deallocate( this%answer_cfarea, this%answer_cfliq,  &
+                this%answer_cfice,  this%answer_cfbulk, &
+                this%answer_rhcrit, this%cfarea,        &
+                this%cfliq, this%cfice, this%cfbulk,    &
+                this%rhcrit)
+
+    ! Finalise YAXT
+    call xt_finalize()
+    ! Clear the stored MPI communicator
+    call clear_comm()
+
+    ! Finalise namelists
+    call final_configuration()
+
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes=[1] )
+  subroutine test_of_initial_cloud( this )
+
+    use initial_cloud_kernel_mod, only : initial_cloud_code
+
+    implicit none
+
+    class(cloud_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter   :: tol = 1.0e-14_r_def
+
+    integer, allocatable          :: map_wth(:)
+    integer          :: nlayers
+    integer          :: ndf_wth
+    integer          :: undf_wth
+
+    nlayers  = 1_i_def
+    ndf_wth  = 1_i_def
+    undf_wth = 1_i_def
+
+    allocate(map_wth(ndf_wth))
+    map_wth(:)  = 0_i_def
+
+    ! Set correct answers
+    this%answer_cfarea(:) = 0.0_r_def
+    this%answer_cfliq(:)  = 0.0_r_def
+    this%answer_cfice(:)  = 0.0_r_def
+    this%answer_cfbulk(:) = 0.0_r_def
+    this%answer_rhcrit(:) = 0.5_r_def
+
+    ! Make up initial wrong fields    
+    this%cfarea(:) = -9.0_r_def
+    this%cfliq(:)  = -9.0_r_def
+    this%cfice(:)  = -9.0_r_def
+    this%cfbulk(:) = -9.0_r_def
+    this%rhcrit(:) = -9.0_r_def
+
+    call initial_cloud_code(nlayers, &
+                           this%cfarea(:), &
+                           this%cfice(:), &
+                           this%cfliq(:), &
+                           this%cfbulk(:), &
+                           this%rhcrit(:), &
+                           ndf_wth,  & 
+                           undf_wth, &
+                           map_wth)
+
+    @assertEqual( this%answer_cfarea(:), this%cfarea(:), tol )
+    @assertEqual( this%answer_cfice(:),  this%cfice(:), tol )
+    @assertEqual( this%answer_cfliq(:),  this%cfliq(:), tol )
+    @assertEqual( this%answer_cfbulk(:), this%cfbulk(:), tol )
+    @assertEqual( this%answer_rhcrit(:), this%rhcrit(:), tol )
+
+  end subroutine test_of_initial_cloud
+
+end module initial_cloud_kernel_mod_test

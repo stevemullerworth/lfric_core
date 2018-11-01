@@ -12,7 +12,8 @@ module iter_timestep_alg_mod
   use log_mod,                   only: log_event,         &
                                        log_scratch_space, &
                                        LOG_LEVEL_INFO,    &
-                                       LOG_LEVEL_TRACE
+                                       LOG_LEVEL_TRACE,   &
+                                       LOG_LEVEL_ERROR
 
   ! Configuration options
   use restart_control_mod,       only: restart_type
@@ -37,7 +38,6 @@ module iter_timestep_alg_mod
                                        get_delta_at_wtheta, w3inv_id,       &
                                        theta_space_id, w2_id,               &
                                        get_normalisation
-
   use fs_continuity_mod,         only: W3, Wtheta
 
   ! PsyKAl-lite kernels
@@ -91,7 +91,8 @@ module iter_timestep_alg_mod
  
   ! Field mappings
   use map_physics_fields_alg_mod, only: map_physics_fields_alg
-  use physics_mappings_alg_mod,   only: map_physics_winds
+  use physics_mappings_alg_mod,   only: map_physics_winds, &
+                                        map_physics_scalars
 
   ! Moisture species
   use mr_indices_mod,             only: nummr
@@ -104,10 +105,13 @@ module iter_timestep_alg_mod
 
 #ifdef UM_PHYSICS
   ! UM BL scheme
-  use bl_init_mod, only: bl_init
+  use bl_init_mod,                only: bl_init
+  use cld_alg_mod,                only: cld_alg_step
+  use physics_config_mod,         only: cloud_scheme, &
+                                        physics_cloud_scheme_none
 #endif
 
-  use timer_mod,                 only: timer
+  use timer_mod,                  only: timer
 
   implicit none
 
@@ -128,6 +132,7 @@ module iter_timestep_alg_mod
   type( field_type ), allocatable :: rhs_phys(:), inc(:)
   type( field_type ) :: u_adv   ! Advective wind (centered in time)
   type( field_type ) :: dtheta ! increment to theta
+  type( field_type ) :: dtheta_cld ! increment to theta from cloud
   type( field_type ) :: du ! increment to u
   type( field_type ) :: shear ! shear term
   logical            :: helmholtz_solve
@@ -141,12 +146,12 @@ contains
   !> @details Initialisation procedure for the timestepping algorithm
   !>          Initialises various internal fields
   !> @param[in]    mesh_id Mesh id of the mesh object on which the model runs
-  !> @param[inout] u  3D wind field
-  !> @param[inout] rho Density
-  !> @param[inout] theta Potential temperature
-  !> @param[inout] exner Exner pressure
-  !> @param[inout] mr Mixing ratios
-  !> @param[inout] twodfields 2D field collection for UM physics
+  !> @param[in,out] u  3D wind field
+  !> @param[in,out] rho Density
+  !> @param[in,out] theta Potential temperature
+  !> @param[in,out] exner Exner pressure
+  !> @param[in,out] mr Mixing ratios
+  !> @param[in,out] twodfields 2D field collection for UM physics
   subroutine iter_alg_init( mesh_id, u, rho, theta, exner, mr, &
                             twod_fields )
 
@@ -271,15 +276,15 @@ contains
   !>          by default. This means that there is one evaluation of old time
   !>          level terms, 2 evaluation of advective terms and 4 evaluations 
   !>          of new time level terms and increment updates per timestep
-  !> @param[inout] u  3D wind field
-  !> @param[inout] rho Density
-  !> @param[inout] theta Potential temperature
-  !> @param[inout] exner Exner pressure
-  !> @param[inout] mr Mixing ratios
-  !> @param[inout] xi Vorticity field
-  !> @param[inout] derived_fields Group of derived fields
-  !> @param[inout] cloud_fields Group of cloud fields
-  !> @param[inout] twod_fields  2D fields for UM physics
+  !> @param[in,out] u  3D wind field
+  !> @param[in,out] rho Density
+  !> @param[in,out] theta Potential temperature
+  !> @param[in,out] exner Exner pressure
+  !> @param[in,out] mr Mixing ratios
+  !> @param[in,out] xi Vorticity field
+  !> @param[in,out] derived_fields Group of derived fields
+  !> @param[in,out] cloud_fields Group of cloud fields
+  !> @param[in,out] twod_fields  2D fields for UM physics
   !> @param[in]    timestep model timestep number
   subroutine iter_alg_step(u, rho, theta, exner, mr, xi, &
                            derived_fields, cloud_fields, twod_fields,    &
@@ -321,6 +326,7 @@ contains
     type( field_type ), pointer :: u1_in_w3_star  => null()
     type( field_type ), pointer :: u2_in_w3_star  => null()
     type( field_type ), pointer :: u3_in_w3_star  => null()
+    type( field_type ), pointer :: exner_theta  => null()
 
     integer(kind=i_def):: outer, inner, iter, imr
     real(kind=r_def)   :: varalpha, varbeta ! alpha, beta weight to use
@@ -587,6 +593,42 @@ contains
     !--------------------------------------------------------------------
     ! End of Outer (advection) loop
     !--------------------------------------------------------------------
+
+    ! ----------------------------------------------------------------------
+    ! Call cloud scheme to generate cloud and latent heating after pressure 
+    ! changes are applied from the solver. First obtain current exner mapped 
+    ! on theta levels
+    ! ----------------------------------------------------------------------
+
+
+#ifdef UM_PHYSICS
+    if (use_physics) then
+     if (cloud_scheme /= physics_cloud_scheme_none) then
+      if (use_moisture) then
+
+        call log_event( 'iter timestep: Running Cloud Scheme', LOG_LEVEL_INFO )
+  
+        dtheta_cld = field_type( vector_space = theta%get_function_space() )
+        call invoke( setval_c(dtheta_cld, 0.0_r_def) )
+        exner_theta => derived_fields%get_field('exner_in_wth')
+        call map_physics_scalars(exner_theta, state(igh_p))
+  
+        call cld_alg_step(  state(igh_p), exner_theta, state(igh_t),   &
+                   mr, cloud_fields, twod_fields, dtheta_cld)    
+
+        call invoke(inc_X_plus_Y(state(igh_t), dtheta_cld))
+
+      else ! not use moisture
+
+        ! throw an error: user has made a mistake --> no clouds without moisture.
+        call log_event( &
+        'iter_timestep_: Cloud scheme cannot be run without moisture. Please correct', &
+         LOG_LEVEL_ERROR )
+
+      end if ! use moisture
+     end if
+    endif
+#endif
 
     !--------------------------------------------------------------------
     ! Apply viscosity

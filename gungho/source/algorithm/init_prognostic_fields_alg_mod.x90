@@ -11,7 +11,7 @@ module init_prognostic_fields_alg_mod
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_TRACE
-  use constants_mod,                   only: r_def, i_def
+  use constants_mod,                   only: r_def, i_def, str_short
 
   use solver_alg_mod,                  only: solver_algorithm
   use runtime_constants_mod,           only: get_coordinates, &
@@ -50,7 +50,7 @@ module init_prognostic_fields_alg_mod
 
   ! Handles
   use fs_continuity_mod,               only: W3, Wtheta
-  use mr_indices_mod,                  only: nummr
+  use mr_indices_mod,                  only: nummr, mr_names
   implicit none
 
   private
@@ -87,7 +87,7 @@ contains
     type(operator_type), pointer        :: m3_inv => null()
 
     integer :: i
-    character(5) :: name
+    character(str_short) :: name
 
     real(kind=r_def) :: initial_time
 
@@ -171,12 +171,12 @@ contains
 
       if (use_moisture)then
         do i=1,nummr
-          write(name, '(A,I2.2)') 'mr_', i
+          write(name, '(A,A)') 'restart_',trim(mr_names(i))
           write(log_scratch_space,'(A,A)') "Reading checkpoint file to restart ", trim(name)
-          call mr(i)%read_restart("restart_"//name,trim(restart%startfname(name)))
+          call log_event(log_scratch_space,LOG_LEVEL_INFO)
+          call mr(i)%read_restart(trim(name),trim(restart%startfname(mr_names(i))))
         end do
       end if
-
 
       call log_event( "Gungho: Read prognostic fields from files", LOG_LEVEL_INFO )
     end if

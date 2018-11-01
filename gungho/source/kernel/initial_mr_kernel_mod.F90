@@ -8,7 +8,7 @@
 
 !> @brief Kernel computes the initial mr field
 
-!> @detail The kernel computes initial mixing ratio fields for mr in the same
+!> @detail The kernel computes initial mixing ratio fields for mr in the same  
 !>         space as that of theta
 
 module initial_mr_kernel_mod
@@ -34,7 +34,7 @@ module initial_mr_kernel_mod
         type(arg_type) :: meta_args(4) = (/              &
             arg_type(GH_FIELD, GH_READ, WTHETA),         &
             arg_type(GH_FIELD, GH_READ, W3),             &
-            arg_type(GH_FIELD*5, GH_WRITE, WTHETA),      &
+            arg_type(GH_FIELD*6, GH_WRITE, WTHETA),      &
             arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)   &
             /)
         integer :: iterates_over = CELLS
@@ -63,26 +63,27 @@ contains
     end function initial_mr_kernel_constructor
 
     !> @brief The subroutine which is called directly by the Psy layer
-    !! @param[in] nlayers Integer the number of layers
-    !! @param[in] ndf_wtheta The number of degrees of freedom per cell for wtheta
+    !! @param[in] nlayers     The number of layers
+    !! @param[in] ndf_wtheta  The number of degrees of freedom per cell for wtheta
     !! @param[in] undf_wtheta The number of total degrees of freedom for wtheta
-    !! @param[in] map_wtheta Integer array holding the dofmap for the cell at the base of the column
-    !! @param[in] theta Real array the data: theta
-    !! @param[in] rho Real array the data: dry rho
-    !! @param[inout] mr_v Real array the data: vapour
-    !! @param[inout] mr_c Real array the data: cloud
-    !! @param[inout] mr_r Real array the data: rain
-    !! @param[inout] mr_nc Real array the data: cloud number
-    !! @param[inout] mr_nr Real array the data: rain number
-    !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
-    !! @param[in] undf_chi Number of total degrees of freedom for chi
-    !! @param[in] map_chi Dofmap for the cell at the base of the column
-    !! @param[in] chi_1 X component of the chi coordinate field
-    !! @param[in] chi_2 Y component of the chi coordinate field
-    !! @param[in] chi_3 Z component of the chi coordinate field
-    subroutine initial_mr_code(nlayers, ndf_wtheta, undf_wtheta, map_wtheta,     &
-                               theta, rho, ndf_w3, undf_w3, map_w3,       &
-                               mr_v, mr_c, mr_r, mr_nc, mr_nr,                   &
+    !! @param[in] map_wtheta  Array holding the dofmap for the cell at the base of the column
+    !! @param[in] theta       Theta
+    !! @param[in] rho         Dry rho
+    !! @param[in,out] mr_v    Vapour
+    !! @param[in,out] mr_c    Liquid cloud
+    !! @param[in,out] mr_r    Rain
+    !! @param[in,out] mr_i    Ice cloud
+    !! @param[in,out] mr_nc   Cloud number
+    !! @param[in,out] mr_nr   Rain number
+    !! @param[in] ndf_chi     Number of degrees of freedom per cell for chi
+    !! @param[in] undf_chi    Number of total degrees of freedom for chi
+    !! @param[in] map_chi     Dofmap for the cell at the base of the column
+    !! @param[in] chi_1       X component of the chi coordinate field
+    !! @param[in] chi_2       Y component of the chi coordinate field
+    !! @param[in] chi_3       Z component of the chi coordinate field
+    subroutine initial_mr_code(nlayers, ndf_wtheta, undf_wtheta, map_wtheta,  &
+                               theta, rho, ndf_w3, undf_w3, map_w3,              &
+                               mr_v, mr_c, mr_r, mr_i, mr_nc, mr_nr,             &
                                ndf_chi, undf_chi, map_chi, chi_1, chi_2, chi_3)
 
         implicit none
@@ -93,7 +94,8 @@ contains
         integer(kind=i_def), dimension(ndf_wtheta), intent(in)  :: map_wtheta
         integer(kind=i_def), dimension(ndf_w3), intent(in)      :: map_w3
         integer(kind=i_def), dimension(ndf_chi), intent(in)     :: map_chi
-        real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_v, mr_c, mr_r, mr_nc, mr_nr
+        real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_v, mr_c, mr_r, mr_i, &
+                                                                   mr_nc, mr_nr
         real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
         real(kind=r_def), dimension(undf_w3), intent(in)        :: rho
         real(kind=r_def), dimension(undf_chi), intent(in)       :: chi_1, chi_2, chi_3
@@ -117,12 +119,14 @@ contains
                qsaturation(temperature_at_dof, 0.01_r_def*pressure_at_dof)
             mr_c(map_wtheta(df) + k) = 0.0_r_def
             mr_r(map_wtheta(df) + k) = 0.0_r_def
+            mr_i(map_wtheta(df) + k) = 0.0_r_def
             mr_nc(map_wtheta(df) + k) = 0.0_r_def
             mr_nr(map_wtheta(df) + k) = 0.0_r_def
           end do
-          
+
         end do
 
     end subroutine initial_mr_code
 
 end module initial_mr_kernel_mod
+

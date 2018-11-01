@@ -1,0 +1,80 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the UM diagnostic cloud scheme
+
+module cld_alg_mod
+
+  use constants_mod, only: i_def
+  use field_mod, only: field_type
+  use field_collection_mod, only: field_collection_type
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
+
+  implicit none
+
+  public cld_alg_step
+
+contains
+
+  !>@brief Run the UM Large-scale diagnostic Cloud Scheme
+  !>@details The UM Diagnostic cloud scheme does:
+  !>             generate liquid and ice cloud fraction and water content,
+  !>             and adjust vapour and temperature, as described in UMDP29
+  !>             (for liquid only for now)
+  !>@param[in]    exner_in_w3  Exner Pressure in w3 space
+  !>@param[in]    exner_in_wth  Exner Pressure in theta space
+  !>@param[in]    theta_in_wth predicted theta in its native space
+  !>@param[in,out] mr        Mixing ratios
+  !>@param[in,out] cloud_fields    Group of cloud fields
+  !>@param[in,out] twod_fields     Group of 2D fields
+  !>@param[in,out] theta_inc       Potential temperature increment in native space
+
+
+  subroutine cld_alg_step(exner_in_w3, exner_in_wth, theta_in_wth,   &
+                         mr, cloud_fields, twod_fields, theta_inc) 
+
+    use cld_kernel_mod, only: cld_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(inout) :: twod_fields
+
+    type( field_type ), intent( in )    :: theta_in_wth
+
+    type( field_type ), intent( in )    :: exner_in_w3
+    type( field_type ), intent( in )    :: exner_in_wth
+
+    type( field_type ), intent( inout ) :: theta_inc, mr(nummr)
+
+    type( field_type ), pointer :: cf_area  => null()
+    type( field_type ), pointer :: cf_ice  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+
+    type( field_type ), pointer :: ntml_2d => null()
+    type( field_type ), pointer :: cumulus_2d => null()
+
+    type( field_type ), pointer :: rhcrit_in_wth => null()
+
+    cf_area => cloud_fields%get_field('area_fraction')
+    cf_ice => cloud_fields%get_field('ice_fraction')
+    cf_liq => cloud_fields%get_field('liquid_fraction')
+    cf_bulk => cloud_fields%get_field('bulk_fraction')
+
+    rhcrit_in_wth => cloud_fields%get_field('rhcrit')
+
+    ntml_2d => twod_fields%get_field('ntml')
+    cumulus_2d => twod_fields%get_field('cumulus')
+
+    call invoke(cld_kernel_type( theta_in_wth, exner_in_w3 , exner_in_wth, &
+                            rhcrit_in_wth, ntml_2d, cumulus_2d,            &
+                            mr(imr_v), mr(imr_cl), mr(imr_ci),             &
+                            cf_area, cf_ice, cf_liq, cf_bulk, theta_inc))
+
+  end subroutine cld_alg_step
+
+end module cld_alg_mod

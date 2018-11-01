@@ -140,13 +140,13 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
         x_i[:, :, p] = (p_data['x'].values).reshape((ny, nx))/1000.0
         y_i[:, :, p] = (p_data['y'].values).reshape((ny, nx))/1000.0
 
-    if field in ('theta', 'm_c', 'rho'):
+    if field in ('theta', 'm_cl', 'rho'):
         for p in xrange(len(levels0)):
             p_data = data0.loc[data0['level'] == levels0[p]]
             # Using reshape of numpy array
             val_i0[:, :, p] = (p_data[val_col].values).reshape((ny, nx))
 
-    if field in ('theta', 'm_c', 'rho'):
+    if field in ('theta', 'm_cl', 'rho'):
         # subtracting entire background profile (profile at initial time)
         val_i -= val_i0
 
@@ -601,7 +601,7 @@ if __name__ == "__main__":
             if (component != '1'):
                 print "Scalars have only one component!"
                 exit(1)
-        if field in ('theta', 'm_c', 'rho'):
+        if field in ('theta', 'm_cl', 'rho'):
             # Create initial data for theta
             filestem = datapath + "/diagDynamo_nodal_" + \
                 field + "_T000000" + "*"

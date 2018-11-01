@@ -50,10 +50,18 @@ contains
 
 {%- for param in parameters[name] %}
 {%-   if loop.first %}{{'\n'}}{% endif %}
-{%-   if param.fortran_type.intrinsic_type == 'character' %}
+{%-   if param.get_configure_type() == 'array' %}
+{%-     if param.fortran_type.intrinsic_type == 'character' %}
     character(*), intent(in) :: {{param.name}}
+{%-     else %}
+   {{param.fortran_type.declaration()}}, intent(in) :: {{param.name}}(:)
+{%-     endif %}
 {%-   else %}
+{%-     if param.fortran_type.intrinsic_type == 'character' %}
+    character(*), intent(in) :: {{param.name}}
+{%-     else %}
     {{param.fortran_type.declaration()}}, intent(in) :: {{param.name}}
+{%-     endif %}
 {%-   endif %}
 {%- endfor %}
 
