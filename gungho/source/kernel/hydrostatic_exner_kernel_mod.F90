@@ -19,7 +19,6 @@ use constants_mod,              only : r_def, i_def
 use planet_config_mod,          only : gravity, cp, rd, p_zero
 use idealised_config_mod,       only : test
 use kernel_mod,                 only : kernel_type
-use extrusion_config_mod,       only : domain_top
 use fs_continuity_mod,          only : WTHETA, W3
 use formulation_config_mod,     only : init_exner_bt
 use coord_transform_mod,        only : xyz2llr

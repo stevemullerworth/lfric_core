@@ -6,20 +6,16 @@
 
 module momentum_viscosity_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
-  use function_space_collection_mod, only : function_space_collection_type, &
-                                            function_space_collection
-  use mesh_collection_mod,           only : mesh_collection_type, &
-                                            mesh_collection
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size
 
-  use field_mod,                     only : field_type,      &
-                                            field_proxy_type
-  use fs_continuity_mod,             only : W2, W0
-  use function_space_mod,            only : function_space_type
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap,      &
+                                                  get_w2_m3x3_dofmap,      &
+                                                  get_m3x3_stencil_dofmap_cross
   use pFUnit_Mod
-  use stencil_dofmap_mod,            only : stencil_dofmap_type, STENCIL_CROSS
-  use yaxt,                          only : xt_initialize, xt_finalize
-  use mpi_mod,                       only : store_comm, clear_comm
+  use yaxt,                                only : xt_initialize, xt_finalize
+  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -29,63 +25,27 @@ module momentum_viscosity_kernel_mod_test
   @TestCase
   type, extends(MPITestCase), public :: momentum_viscosity_test_type
     private
-    type(function_space_type), pointer :: w2_fs => null()
-    type(function_space_type), pointer :: w0_fs => null()
-    type(field_type)                   :: u, u_inc
-    type(field_type)                   :: chi(3)
-    type(stencil_dofmap_type), pointer :: stencil_u => null()
-    integer(i_def)                     :: mesh_id 
-
   contains
     procedure setUp
     procedure tearDown
     procedure test_all
   end type momentum_viscosity_test_type
 
-  integer(i_def), parameter :: element_order = 0
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use finite_element_config_mod, only : finite_element_cellshape_quadrilateral
-    use mesh_mod,                  only : PLANE_BI_PERIODIC
     use gungho_feign_config_mod,   only : feign_mixing_config
 
     implicit none
 
     class(momentum_viscosity_test_type), intent(inout) :: this
 
-    type(field_proxy_type)    :: u_p, theta_p
-
-    integer(i_def) :: mesh_id
-
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
     !Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    ! Create top level mesh collection
-    mesh_collection = mesh_collection_type()
-    ! Create top level function space collection
-    function_space_collection = function_space_collection_type()
-
-    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
-    this%mesh_id = mesh_collection%add_unit_test_mesh( PLANE_BI_PERIODIC )
-
-    this%w2_fs => function_space_collection%get_fs(this%mesh_id, element_order, W2)
-    this%w0_fs => function_space_collection%get_fs(this%mesh_id, element_order, W0)
-
-    this%u     = field_type( vector_space = this%w2_fs )
-    this%u_inc = field_type( vector_space = this%w2_fs )
-    u_p        = this%u%get_proxy()
-
-    this%chi(1) = field_type( vector_space = this%w0_fs ) 
-    this%chi(2) = field_type( vector_space = this%w0_fs ) 
-    this%chi(3) = field_type( vector_space = this%w0_fs ) 
-
-    this%stencil_u => u_p%vspace%get_stencil_dofmap(STENCIL_CROSS,1)
 
     call feign_mixing_config( smagorinsky  = .false.,    &
                               viscosity    = .false.,    &
@@ -103,8 +63,6 @@ contains
 
     class(momentum_viscosity_test_type), intent(inout) :: this
 
-    call function_space_collection%clear()
-    call mesh_collection%clear()
     call final_configuration()
 
     ! Finalise YAXT
@@ -119,7 +77,6 @@ contains
   subroutine test_all( this )
 
     use momentum_viscosity_kernel_mod, only : momentum_viscosity_code
-    use mesh_mod,                      only : mesh_type
 
     implicit none
 
@@ -127,83 +84,89 @@ contains
 
     real(r_def), parameter :: tol = 1.0e-12_r_def
     real(r_def), parameter :: dx = 6000.0_r_def, &
-                              dy = 1000.0_r_def
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
     real(r_def) :: answer
 
-    integer(i_def) :: cell, i, j, k
+    integer(i_def) :: i, j, k, df, icell
 
     ! Variables for testing momentum_viscosity
+    integer(i_def) :: nlayers, ncells, cell
+    integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
 
-    integer          :: ndf_u, undf_u, &
-                        df
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: stencil_map_w2(:,:,:)
 
-    integer, pointer :: stencil_map_u(:,:,:) => null()
+    real(r_def), allocatable :: u(:)
+    real(r_def), allocatable :: u_inc(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
 
-    type(field_proxy_type)   :: u_p, u_inc_p, chi_p(3)
+    nlayers=3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w0_m3x3_dofmap(map_w0)
 
-    real(r_def) :: dz, dz_test(3)
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w2, map_w2)
 
-    integer                   :: ndf_chi, undf_chi
-    integer, pointer          :: map_chi(:,:)  => null()
-    type(mesh_type), pointer  :: mesh => null()
-
-    mesh => mesh_collection%get_mesh( this%mesh_id )
-    call mesh%get_dz(dz_test)
-    dz = dz_test(1)
-
-    do i = 1,3
-      chi_p(i) = this%chi(i)%get_proxy()
-    end do
-    map_chi => chi_p(1)%vspace%get_whole_dofmap()
     ! Compute coordinates
-    cell = 1
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    icell = 1
     do j = 1,3
       do i = 1,3
         do k = 0,3
-          chi_p(1)%data(map_chi(1,cell) + k) = real(i-1)*dx
-          chi_p(2)%data(map_chi(1,cell) + k) = real(j-1)*dy
-          chi_p(3)%data(map_chi(1,cell) + k) = real(k)  *dz
+          chi1(map_w0(1,icell)+k) = real(i-1)*dx
+          chi2(map_w0(1,icell)+k) = real(j-1)*dy
+          chi3(map_w0(1,icell)+k) = real(k)*dz
         end do
-        cell = cell + 1
+        icell = icell + 1
       end do
     end do
 
-    u_p     = this%u%get_proxy()
-    u_inc_p = this%u_inc%get_proxy()
-
-    ndf_u  = u_p%vspace%get_ndf( )
-    undf_u = u_p%vspace%get_undf( )
-
-    ndf_chi  = chi_p(1)%vspace%get_ndf( )
-    undf_chi = chi_p(1)%vspace%get_undf( )
-
-
-    stencil_map_u => this%stencil_u%get_whole_dofmap()
-    map_chi => chi_p(1)%vspace%get_whole_dofmap()
-
     ! Create the data
-    cell = 5
-    u_p%data(:) = 12.0_r_def
-    u_inc_p%data(:) = 0.0_r_def
+    allocate(u(undf_w2))
+    u(:) = 12.0_r_def
+    allocate(u_inc(undf_w2))
+    u_inc(:) = 0.0_r_def
 
+    cell = 5
     call momentum_viscosity_code( &
-                                 u_p%vspace%get_nlayers(), &
-                                 u_inc_p%data, &
-                                 u_p%data, &
-                                 5, stencil_map_u(:,:,cell), &
-                                 chi_p(1)%data, &
-                                 chi_p(2)%data, & 
-                                 chi_p(3)%data, &
-                                 ndf_u, undf_u, &
-                                 stencil_map_u(:,1,cell), &
-                                 ndf_chi, undf_chi, map_chi(:,cell) &
+                                 nlayers, &
+                                 u_inc, &
+                                 u, &
+                                 5, stencil_map_w2(:,:,cell), &
+                                 chi1, &
+                                 chi2, & 
+                                 chi3, &
+                                 ndf_w2, undf_w2, &
+                                 map_w2(:,cell), &
+                                 ndf_w0, undf_w0, map_w0(:,cell) &
                                 )
 
-     answer = 0.0_r_def 
-     do df = 1, ndf_u
-       @assertEqual(answer, u_inc_p%data(stencil_map_u(df,1,cell) ), tol)
-     end do
+    answer = 0.0_r_def 
+    do df = 1, ndf_w2
+      @assertEqual(answer, u_inc(map_w2(df,cell) ), tol)
+    end do
 
+    deallocate(u)
+    deallocate(u_inc)
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(stencil_map_w2)
 
   end subroutine test_all
 

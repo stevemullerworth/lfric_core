@@ -6,10 +6,13 @@
 
 module tracer_smagorinsky_diff_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap, &
+                                                  get_m3x3_stencil_dofmap_cross
   use pFUnit_Mod
-  use yaxt,                          only : xt_initialize, xt_finalize
-  use mpi_mod,                       only : store_comm, clear_comm
+  use yaxt,                                only : xt_initialize, xt_finalize
+  use mpi_mod,                             only : store_comm, clear_comm
 
   implicit none
 
@@ -72,44 +75,49 @@ contains
 
     class(tracer_smagorinsky_diff_test_type), intent(inout) :: this
 
-    integer(i_def), parameter :: nlayers = 3
-    integer(i_def), parameter :: ncells = 9
-    integer(i_def), parameter :: ndf_wt = 2      ! shear, height_wt
-    integer(i_def), parameter :: undf_wt = 36
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2, &
+                      ndf_w3, undf_w3, ndf_wt, undf_wt
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
     
-    integer(i_def) :: map_wt(ndf_wt, ncells)
-    integer(i_def) :: stencil_map_wt(ndf_wt, 5, ncells)
+    integer(i_def), allocatable :: map_wt(:,:)
+    integer(i_def), allocatable :: stencil_map_wt(:,:,:)
 
-    real(r_def) :: theta(undf_wt)
-    real(r_def) :: theta_inc(undf_wt)
-    real(r_def) :: delta(undf_wt)
-    real(r_def) :: shear(undf_wt)
+    real(r_def), allocatable :: theta(:)
+    real(r_def), allocatable :: theta_inc(:)
+    real(r_def), allocatable :: delta(:)
+    real(r_def), allocatable :: shear(:)
 
     real(r_def), parameter :: tol = 1.0e-12_r_def
 
     real(r_def) :: answer
 
     integer(i_def) :: cell
-    cell = 5
 
     ! Variables for testing tracer_smagorinsky_diff
-
+    ! Get sizes of everything
+    nlayers=3
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells, &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, &
+                                      nlayers )
     ! Setup maps
-    map_wt(:,cell) = (/17,18/)
-
-    stencil_map_wt(:,1,cell) = (/ 17,18 /)
-    stencil_map_wt(:,2,cell) = (/ 13,14 /)
-    stencil_map_wt(:,3,cell) = (/  5, 6 /)
-    stencil_map_wt(:,4,cell) = (/ 21,22 /)
-    stencil_map_wt(:,5,cell) = (/ 29,30 /)
+    call get_wtheta_m3x3_dofmap(map_wt)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_wt, map_wt)
 
     ! Create the data
+    allocate(theta(undf_wt))
+    allocate(theta_inc(undf_wt))
+    allocate(delta(undf_wt))
+    allocate(shear(undf_wt))
     theta(:) = 300.0_r_def
     theta_inc(:) = 0.0_r_def
     delta(:) = 1000.0_r_def
     shear(:) = 1.0_r_def
 
     ! Call the kernel
+    cell = 5
     call tracer_smagorinsky_diff_code( nlayers,              &
                                theta_inc,                    &
                                theta,                        &
@@ -122,6 +130,13 @@ contains
 
      answer = 0.0_r_def 
      @assertEqual(answer, theta_inc(map_wt(1,cell) ), tol)
+
+    deallocate(map_wt)
+    deallocate(stencil_map_wt)
+    deallocate(theta)
+    deallocate(theta_inc)
+    deallocate(delta)
+    deallocate(shear)
 
   end subroutine test_all
 
