@@ -222,7 +222,7 @@
                       # Future publisher stages need this information
                       cd `dirname $CYLC_TASK_LOG_ROOT`
                       LEAFNAME=`basename $CYLC_TASK_LOG_ROOT`
-                      pax -wf $DESTINATION_DIRECTORY/api.pax \
+                      pax -w -f $DESTINATION_DIRECTORY/api.pax \
                           $LEAFNAME.status $LEAFNAME.err $LEAFNAME.out
                       """
         [[[environment]]]
@@ -272,7 +272,7 @@
                       # Future publisher stages need this information
                       cd `dirname $CYLC_TASK_LOG_ROOT`
                       LEAFNAME=`basename $CYLC_TASK_LOG_ROOT`
-                      pax -wf $DESTINATION_DIRECTORY/api.pax \
+                      pax -w -f $DESTINATION_DIRECTORY/api.pax \
                           $LEAFNAME.status $LEAFNAME.err $LEAFNAME.out
                       """
         [[[environment]]]

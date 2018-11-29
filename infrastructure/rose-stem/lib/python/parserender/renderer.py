@@ -146,7 +146,8 @@ class HtmlCompileRenderer(CompileRenderer):
         environment = Environment(loader=PackageLoader('parserender',
                                                        'templates'))
         template = environment.get_template('compilelog.html')
-        print(template.render(variables), file=stream)
+        print(template.render(variables).encode('ascii', 'xmlcharrefreplace'),
+              file=stream)
 
 
 ##############################################################################
