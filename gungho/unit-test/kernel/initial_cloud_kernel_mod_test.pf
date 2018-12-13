@@ -130,7 +130,7 @@ contains
     undf_wth = 1_i_def
 
     allocate(map_wth(ndf_wth))
-    map_wth(:)  = 0_i_def
+    map_wth(:)  = 1_i_def
 
     ! Set correct answers
     this%answer_cfarea(:) = 0.0_r_def

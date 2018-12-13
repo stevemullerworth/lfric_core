@@ -86,13 +86,13 @@ contains
         integer(kind=i_def)                 :: k, df
 
         ! compute the pointwise cloud and rhcrit profile
-        do k = 1, nlayers
+        do k = 0, nlayers-1
           do df = 1, ndf_wth
             cf_area(map_wth(df) + k)       = 0.0_r_def
             cf_ice(map_wth(df) + k)        = 0.0_r_def
             cf_liq(map_wth(df) + k)        = 0.0_r_def
             cf_bulk(map_wth(df) + k)       = 0.0_r_def
-            rhcrit_in_wth(map_wth(df) + k) = rhcritical(k)
+            rhcrit_in_wth(map_wth(df) + k) = rhcritical(k+1)
           end do
         end do
 
