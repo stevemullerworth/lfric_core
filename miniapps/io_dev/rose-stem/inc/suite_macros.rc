@@ -60,8 +60,6 @@
 
         [[[R1]]]
             graph = """
-            purge_local => purge_target
-            purge_target => export_source
             export_source => compile_{{projectName}}_with_{{label}}
             export_source => compile_mesh_tools_with_{{label}}
 {%-         if publish %}
@@ -115,8 +113,6 @@
 {%-   endif %}
 {%-   set label = TARGET_SCIENCE_COMPILER | lower + '_' + 'fast-debug' %}
 {%-   if TARGET_SCIENCE_COMPILER in TARGET_PERFORM_RUN %}
-            purge_local => purge_target
-            purge_target => export_source
             export_source => compile_{{projectName}}_with_{{label}}
             compile_{{projectName}}_with_{{label}} => run_{{appName}}_canned_test_{{label}}
 {%-   endif %}
@@ -125,11 +121,9 @@
 {#- #########################################################################}
 {%- macro cleanliness() %}
       [[[R1]]]
-            purge_local => purge_target
 {%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
-{%-   if 'cleanliness' in TECHNICAL_DEVELOPER_TESTS %}
-            purge_target => export_source
             export_source => compile_{{projectName}}_with_{{label}}
+{%-   if 'cleanliness' in TECHNICAL_DEVELOPER_TESTS %}
 
 {#- The following line removed due to a bug brought to light by #730. #}
 {#- Ticket #762 has been created to fix this.                         #}
@@ -143,8 +137,6 @@
 {%- macro godliness(publish=False) %}
       [[[R1]]]
 {%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
-            purge_local   => purge_target
-            purge_target  => export_source
             export_source => api_documentation
             export_source => uml_documentation
             export_source => design_documentation
@@ -291,8 +283,6 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
 {%-   for compiler in compiler_setup.keys() %}
 {%-     set label = compiler | lower + '_' + build | lower%}
-            purge_local => purge_target
-            purge_target => export_source
 {%-     if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
             export_source => integration_test_with_{{label}}
 {%-     endif %}

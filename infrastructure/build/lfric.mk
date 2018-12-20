@@ -22,7 +22,9 @@
 #              files" performance, i.e. probably not Lustre.
 #              Default: ./working
 # VERBOSE: Set in order to see actual commands issued by the build system.
-# PURGE_SUITES: Set in order clean out exisiting rose suites of same name.
+# PURGE_SUITES: Set to non-zero value to clean out exisiting rose suites of
+#               same name. (this is also the default action)
+#               Set to zero to not clean out existing rose suite.
 #
 # Plus the normal compiler macros...
 #
@@ -149,8 +151,9 @@ endif
 export Q QUIET_ARG VERBOSE_REDIRECT
 
 # Set flag to perform a fresh rose stem suite
-ifdef PURGE_SUITES
-  CLEAN_OPT :='--new'
+CLEAN_OPT = '--new'
+ifeq '$(PURGE_SUITES)' '0'
+  CLEAN_OPT = ''
 endif
 
 # We only want to send terminal control characters if there is a terminal to

@@ -160,28 +160,6 @@
     [[DOCUMENTATION]]
 {%- endif %}
 
-    [[purge_local]]
-        inherit = HOUSEKEEPING, LOCAL
-        script = '''
-                 {{deleteDirectory( LOCAL_BUILD_ROOT )}}
-                 {{deleteDirectory( "$OUTPUT_ROOT" )}}
-                 {{deleteDirectory( "$SOURCE_ROOT" )}}
-                 '''
-
-    # The build directives are used to ensure that any temporary space which
-    # might be used for building is available to be cleaned.
-    [[purge_target]]
-        inherit = HOUSEKEEPING, TARGET
-        script = '''
-                 {{deleteDirectory( TARGET_BUILD_ROOT )}}
-                 {{deleteDirectory( "$OUTPUT_ROOT" )}}
-                 {{deleteDirectory( "$SOURCE_ROOT" )}}
-                 '''
-        [[[directives]]]
-{%- for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-            {{DIRECTIVE}}
-{%- endfor %}
-
 {%- if 'export_source' in scheduledTasks %}
     [[export_source]]
         inherit = HOUSEKEEPING, LOCAL

@@ -5,8 +5,6 @@
 {%- macro check_compilers( build, publish=False ) %}
 {%-   for compiler in compiler_setup.keys() %}
 {%-     set label = compiler | lower + '_' + build | lower%}
-    purge_local  => purge_target
-    purge_target => export_source
 {%-     if compiler in TARGET_PERFORM_UNIT_TESTS %}
     export_source => unit_test_with_{{label}}
 {%-     endif %}
@@ -22,8 +20,6 @@
 {%- macro documentation(publish=False) %}
 {%-   set label = TARGET_TECHNICAL_COMPILER | lower ~ '_fast-debug' %}
 {%-   if 'documentation' in TECHNICAL_DEVELOPER_TESTS %}
-  purge_local   => purge_target
-  purge_target  => export_source
   export_source => api_documentation
   export_source => uml_documentation
 {%-     if publish %}
@@ -39,8 +35,6 @@
 {#- #########################################################################}
 {%- macro build_system() %}
 {%-   set label =  TARGET_TECHNICAL_COMPILER | lower + '_fast-debug' %}
-            purge_local   => purge_target
-            purge_target  => export_source
             export_source => unit_test_build_tools
 {%- endmacro %}
 
@@ -48,7 +42,7 @@
 
 {#- #########################################################################}
 {%- macro publish_commit() %}
-            purge_target => publish_nothing
+            export_source => publish_nothing
             PUBLISH:finish-all => publish_index
             publish_index      => mirror_results_local
 {%-   if MIRROR_UPLOAD_URL %}
