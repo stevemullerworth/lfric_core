@@ -66,6 +66,7 @@ module advection_alg_mod
   use transport_config_mod,           only: scheme, &
                                             transport_scheme_cosmic_3D, &
                                             transport_scheme_method_of_lines
+  use runtime_constants_mod,          only: get_detj_at_w2
 
   implicit none
 
@@ -202,6 +203,7 @@ contains
 
   type(field_type)          :: dep_pts_x, dep_pts_y, dep_pts_z
   type(field_type)          :: wind_divergence
+  type(field_type), pointer :: detj_at_w2 => null()
 
   type(field_type), allocatable :: rrho_prediction(:), rtheta_prediction(:)
 
@@ -234,6 +236,8 @@ contains
     dep_pts_y       = field_type( vector_space = u_fs )
     dep_pts_z       = field_type( vector_space = u_fs )
     wind_divergence = field_type( vector_space = rho_fs )
+
+    detj_at_w2 => get_detj_at_w2()
   end if
 
   r_rho     = field_type( vector_space = rho_fs )
@@ -392,8 +396,8 @@ contains
 
   elseif (scheme == transport_scheme_cosmic_3D) then
 
-    call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence, advecting_wind, chi )
-    call cosmic_threed_transport_step( advection(igh_d), rho, dep_pts_x, dep_pts_y, dep_pts_z )
+    call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence, advecting_wind, detj_at_w2, chi )
+    call cosmic_threed_transport_step( advection(igh_d), rho, dep_pts_x, dep_pts_y, dep_pts_z, detj_at_w2 )
     call invoke( inc_a_times_X(-1.0_r_def, advection(igh_d)) )
 
   end if
@@ -407,7 +411,7 @@ contains
   deallocate ( rrho_prediction, rtheta_prediction )
 
   nullify( mm_wt, mm_w3_inv, div, curl, chi, u, theta, rho, &
-           xi_fs, u_fs, rho_fs, theta_fs, mt_lumped_inv )
+           xi_fs, u_fs, rho_fs, theta_fs, mt_lumped_inv, detj_at_w2 )
 
   if ( subroutine_timers ) call timer('advection_alg')
   end subroutine advection_alg

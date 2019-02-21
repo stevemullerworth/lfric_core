@@ -16,7 +16,6 @@ module vert_advective_cosmic_alg_mod
   use function_space_mod,                only: function_space_type
   use vert_conservative_cosmic_alg_mod,  only: vert_conservative_cosmic_alg
   use cosmic_divergence_alg_mod,         only: cosmic_divergence_alg
-  use runtime_constants_mod,             only: get_detJ_at_w2
   use flux_direction_mod,                only: x_direction, z_direction
 
   implicit none
@@ -33,11 +32,13 @@ contains
   !> @param[inout]  rho_adv        Advected density at time level n+1
   !> @param[in]  rho               Density at time level n
   !> @param[in]  dep_pts           Winds at time level n
+  !> @param[in]  detj_at_w2        Det(J) values at W2 points
   !> @param[in]  cell_orientation  Cell orientation
   !> @param[in]  dt                Time step length
   subroutine  vert_advective_cosmic_alg( rho_adv,           &
                                          rho,               &
                                          dep_pts,           &
+                                         detj_at_w2,        &
                                          cell_orientation,  &
                                          dt )
 
@@ -46,6 +47,7 @@ contains
     type(field_type),    intent(inout)  :: rho_adv
     type(field_type),    intent(in)     :: rho
     type(field_type),    intent(in)     :: dep_pts
+    type(field_type),    intent(in)     :: detj_at_w2
     type(field_type),    intent(in)     :: cell_orientation
     real(r_def),         intent(in)     :: dt
 
@@ -59,11 +61,8 @@ contains
     type(function_space_type), pointer :: w3_fs     => null()
     type(function_space_type), pointer :: w2_fs     => null()
 
-    type(field_type), pointer :: detj_at_w2 => null()
-
     w2_fs => dep_pts%get_function_space()
     w3_fs => rho%get_function_space()
-    detj_at_w2 => get_detj_at_w2()
 
     rho_n              = field_type( vector_space = w3_fs )
     rho_np1            = field_type( vector_space = w3_fs )
@@ -105,7 +104,7 @@ contains
     call invoke( X_divideby_Y(rho_adv,rho_np1,rho_constant_1_np1) )
 
 
-    nullify( w2_fs, w3_fs, detj_at_w2 )
+    nullify( w2_fs, w3_fs )
 
   end subroutine vert_advective_cosmic_alg
 

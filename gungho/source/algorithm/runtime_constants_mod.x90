@@ -36,8 +36,7 @@ module runtime_constants_mod
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
 
   ! PsyKAl-lite kernels
-  use psykal_lite_mod,                   only: invoke_mpi_calc_cell_orientation, &
-                                               invoke_mpi_detj_at_w2
+  use psykal_lite_mod,                   only: invoke_mpi_calc_cell_orientation
 
   use multiplicity_kernel_mod,           only: multiplicity_kernel_type
 
@@ -88,6 +87,7 @@ module runtime_constants_mod
   type(field_type), target              :: temp_w2_field
   type(field_type), target              :: cell_orientation
   type(field_type), target              :: detj_at_w2
+  type(field_type), target              :: detj_at_w2_shifted
   type(field_type), target              :: dA_at_w2
   type(field_type), target              :: delta_at_wtheta
   type(operator_type), target           :: grad, curl, div, &
@@ -129,6 +129,7 @@ module runtime_constants_mod
   public :: get_geopotential
   public :: get_cell_orientation
   public :: get_detj_at_w2
+  public :: get_detj_at_w2_shifted
   public :: get_dA_at_w2
   public :: get_delta_at_wtheta
   public :: get_mass_matrix
@@ -148,14 +149,18 @@ module runtime_constants_mod
 
 contains
   !>@brief Subroutine to create the runtime constants
-  !> @param[in] mesh_id Mesh_id
-  !> @param[in] chi chi field
-  subroutine create_runtime_constants(mesh_id, chi)
+  !> @param[in] mesh_id         Mesh_id
+  !> @param[in] chi             chi field
+  !> @param[in] shifted_mesh_id Mesh_id for vertically shifted field
+  !> @param[in] shifted_chi     chi field for vertically shifted field
+  subroutine create_runtime_constants(mesh_id, chi, shifted_mesh_id, shifted_chi)
 
     implicit none
 
-    integer(i_def),           intent(in) :: mesh_id
-    type(field_type), target, intent(in) :: chi(:)
+    integer(i_def),             intent(in) :: mesh_id
+    type(field_type), target,   intent(in) :: chi(:)
+    integer(i_def), optional,   intent(in) :: shifted_mesh_id
+    type(field_type), optional, intent(in) :: shifted_chi(:)
 
     type(function_space_type), pointer :: w0_fs     => null()
     type(function_space_type), pointer :: w1_fs     => null()
@@ -170,10 +175,10 @@ contains
     type(field_type)                   :: ones
     type(field_type)                   :: dx_at_w2
 
-
     ! Temporary fields
     type(field_type) :: nodal_multiplicity_w1
     type(field_type) :: nodal_multiplicity_w2
+    type(field_type) :: nodal_multiplicity_w2_shifted
     type(field_type) :: nodal_multiplicity_w2h
     type(field_type) :: nodal_multiplicity_w0
 
@@ -221,26 +226,6 @@ contains
     end if
 
 
-    !================ Create detj values at W2 dof locations ==================!
-
-    detj_at_w2 = field_type( vector_space = w2_fs )
-    call invoke( setval_c(detj_at_w2, 9999.0_r_def) )
-    call invoke_mpi_detj_at_w2(detj_at_w2, chi)
-
-    !================ Create dA values at W2 dof locations ==================!
-
-    dA_at_w2 = field_type( vector_space = w2_fs )
-    call invoke( setval_c(dA_at_w2, 9999.0_r_def),&
-                 calc_dA_at_w2_kernel_type(dA_at_w2, chi) )
-
-    !================ Create edge lengths and delta values ==================!
-
-    if (smagorinsky) then
-      dx_at_w2 = field_type( vector_space = w2_fs )
-      delta_at_wtheta = field_type( vector_space = wtheta_fs )
-      call invoke( X_divideby_Y(dx_at_w2, detJ_at_w2, dA_at_w2),&
-                   calc_delta_at_wtheta_kernel_type(delta_at_wtheta, dx_at_w2)  )
-    end if
 
     !=================== Create DeRahm cochain operators =========================!
 
@@ -351,6 +336,13 @@ contains
     
     nodal_multiplicity_w1  = field_type( vector_space = w1_fs )
     nodal_multiplicity_w2  = field_type( vector_space = w2_fs )
+    if ( present(shifted_mesh_id) ) then
+      nodal_multiplicity_w2_shifted = field_type( vector_space = &
+                            function_space_collection%get_fs( shifted_mesh_id, element_order, W2 ) )
+      call invoke( name = "create_shifted_multiplicity",             &
+                   multiplicity_kernel_type(nodal_multiplicity_w2_shifted) )
+    end if
+
     nodal_multiplicity_w2h = field_type( vector_space = w2h_fs )
     nodal_multiplicity_w0  = field_type( vector_space = w0_fs )
     call invoke( name = "Create multiplicity",                     &
@@ -362,6 +354,7 @@ contains
                  multiplicity_kernel_type(nodal_multiplicity_w2h), &
                  setval_c(nodal_multiplicity_w0, 0.0_r_def),       &
                  multiplicity_kernel_type(nodal_multiplicity_w0) )
+
 
     ! Calculate the reciprocals
     nodal_rmultiplicity_w1  = field_type( vector_space = w1_fs )
@@ -396,6 +389,42 @@ contains
       coriolis = operator_type( w2_fs, w2_fs )
       call invoke( compute_coriolis_matrix_kernel_type(coriolis, chi, qr) )
     end if
+
+
+    !================ Create detj values at W2 dof locations ==================!
+
+    detj_at_w2 = field_type( vector_space = w2_fs )
+    call invoke(setval_c(detj_at_w2,0.0_r_def),               &
+                calc_detj_at_w2_kernel_type(detj_at_w2,chi),  &
+                inc_X_divideby_Y(detj_at_w2, nodal_multiplicity_w2) )
+
+
+    !================ Create detj values at vertically shifted W2 dofs ========!
+
+    if ( present(shifted_mesh_id) ) then
+      detj_at_w2_shifted = field_type( vector_space = &
+                            function_space_collection%get_fs( shifted_mesh_id, &
+                                                          element_order, W2 ) )
+      call invoke(setval_c(detj_at_w2_shifted,0.0_r_def),               &
+                  calc_detj_at_w2_kernel_type(detj_at_w2_shifted,shifted_chi),  &
+                  inc_X_divideby_Y(detj_at_w2_shifted, nodal_multiplicity_w2_shifted) )
+    end if
+
+    !================ Create dA values at W2 dof locations ==================!
+
+    dA_at_w2 = field_type( vector_space = w2_fs )
+    call invoke( setval_c(dA_at_w2, 0.0_r_def),&
+                 calc_dA_at_w2_kernel_type(dA_at_w2, chi) )
+
+    !================ Create edge lengths and delta values ==================!
+
+    if (smagorinsky) then
+      dx_at_w2 = field_type( vector_space = w2_fs )
+      delta_at_wtheta = field_type( vector_space = wtheta_fs )
+      call invoke( X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2),&
+                   calc_delta_at_wtheta_kernel_type(delta_at_wtheta, dx_at_w2)  )
+    end if
+
 
     ! Store pointer to chi field so things downstream can access it via
     ! runtime_constants
@@ -481,6 +510,18 @@ contains
     detj => detj_at_w2
 
   end function get_detj_at_w2
+
+
+  !> @brief Function to return the detj values at W2 dof locations on vertically
+  !>        shifted mesh
+  !> @return The detj field for vertically shifted mesh
+  function get_detj_at_w2_shifted() result(detj)
+    implicit none
+    type(field_type), pointer :: detj
+    detj => detj_at_w2_shifted
+
+  end function get_detj_at_w2_shifted
+
 
   !> @brief Function to return the dA values at W2 dof locations
   !> @return The dA field
@@ -742,7 +783,8 @@ contains
     call geopotential%field_final() 
     call temp_w2_field%field_final() 
     call cell_orientation%field_final() 
-    call detj_at_w2%field_final() 
+    call detj_at_w2%field_final()
+    call detj_at_w2_shifted%field_final()
     call dA_at_w2%field_final() 
     call grad%operator_final()
     call curl%operator_final()

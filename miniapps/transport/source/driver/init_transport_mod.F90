@@ -36,22 +36,29 @@ module init_transport_mod
 
   contains
 
-  !> @param[in] mesh_id        Mesh-id
-  !> @param[in,out] chi        Coordinate field
-  !> @param[in,out] wind       Wind field
-  !> @param[in,out] density    Density field
-  !> @param[in,out] dep_pts_x  Departure points in the x-direction
-  !> @param[in,out] dep_pts_y  Departure points in the y-direction
-  !> @param[in,out] dep_pts_z  Departure points in the z-direction
-  !> @param[in,out] increment  Density increment
-  !> @param[in,out] divergence Divergence field
-  subroutine init_transport( mesh_id, chi, wind, density, dep_pts_x,  &
-                             dep_pts_y, dep_pts_z, increment, divergence )
+  !> @param[in] mesh_id                Mesh-id
+  !> @param[in,out] chi                Coordinate field
+  !> @param[in] shifted_mesh_id        Mesh-id for vertically shifted coordinates
+  !> @param[in,out] shifted_chi        Coordinate field for vertically shifted coordinates
+  !> @param[in,out] wind               Wind field
+  !> @param[in,out] density            Density field
+  !> @param[in,out] dep_pts_x          Departure points in the x-direction
+  !> @param[in,out] dep_pts_y          Departure points in the y-direction
+  !> @param[in,out] dep_pts_z          Departure points in the z-direction
+  !> @param[in,out] increment          Density increment
+  !> @param[in,out] divergence         Divergence field
+  !> @param[in,out] wind_shifted       Wind field on vertically shifted W2 field
+  !> @param[in,out] density_shifted    Density field on vertically shifted W3 field
+  subroutine init_transport( mesh_id, chi, shifted_mesh_id, shifted_chi,      &
+                             wind, density, dep_pts_x, dep_pts_y, dep_pts_z,  &
+                             increment, divergence, wind_shifted, density_shifted )
 
     implicit none
 
-    integer(i_def), intent(in)        :: mesh_id
+    integer(i_def),   intent(in)      :: mesh_id
     type(field_type), intent(inout)   :: chi(:)
+    integer(i_def),   intent(in)      :: shifted_mesh_id
+    type(field_type), intent(inout)   :: shifted_chi(:)
     type(field_type), intent(inout)   :: wind
     type(field_type), intent(inout)   :: density
     type(field_type), intent(inout)   :: dep_pts_x
@@ -59,6 +66,8 @@ module init_transport_mod
     type(field_type), intent(inout)   :: dep_pts_z
     type(field_type), intent(inout)   :: increment
     type(field_type), intent(inout)   :: divergence
+    type(field_type), intent(inout)   :: wind_shifted
+    type(field_type), intent(inout)   :: density_shifted
 
     type(function_space_type), pointer       :: function_space => null()
     procedure(write_diag_interface), pointer :: tmp_write_diag_ptr => null()
@@ -80,9 +89,18 @@ module init_transport_mod
     dep_pts_z  = field_type( vector_space = &
                           function_space_collection%get_fs( mesh_id, element_order, W2 ) )
 
+    ! Create wind and density fields which live on the shifted coordinate field
+    ! so that the finite-volume Cosmic transport scheme can be used to transport
+    ! species living at Wtheta dofs.
+    ! The shifted coordinate field has nlayers+1 with a half layer at the top and
+    ! bottom of the column.
+    wind_shifted    = field_type( vector_space = &
+                          function_space_collection%get_fs( shifted_mesh_id, element_order, W2 ) )
+    density_shifted = field_type( vector_space = &
+                          function_space_collection%get_fs( shifted_mesh_id, element_order, W3 ) )
 
     ! Create runtime_constants object.
-    call create_runtime_constants( mesh_id, chi )
+    call create_runtime_constants( mesh_id, chi, shifted_mesh_id, shifted_chi )
 
     ! Initialise density field
     call transport_init_fields_alg( density )

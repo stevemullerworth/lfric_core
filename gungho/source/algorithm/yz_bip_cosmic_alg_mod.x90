@@ -19,7 +19,6 @@ module yz_bip_cosmic_alg_mod
   use finite_element_config_mod,         only: element_order
   use fs_continuity_mod,                 only: W2, W3
   use runtime_constants_mod,             only: get_coordinates
-  use runtime_constants_mod,             only: get_detJ_at_w2
   use vert_advective_cosmic_alg_mod,     only: vert_advective_cosmic_alg
   use vert_conservative_cosmic_alg_mod,  only: vert_conservative_cosmic_alg
   use oned_conservative_flux_alg_mod,    only: oned_conservative_flux_alg
@@ -42,11 +41,12 @@ contains
   !>          has currently been tested in the biperiodic planar domain and in
   !>          the horizontal direction only. The wind profile is defined
   !>          analytically.
-  !> @param[in,out] increment  Density increment
-  !> @param[in]     rho        Density field
-  !> @param[in]     dep_pts_y  Departure points in the y-direction
-  !> @param[in]     dep_pts_z  Departure points in the z-direction
-  subroutine yz_bip_cosmic_step( increment, rho, dep_pts_y, dep_pts_z )
+  !> @param[in,out] increment    Density increment
+  !> @param[in]     rho          Density field
+  !> @param[in]     dep_pts_y    Departure points in the y-direction
+  !> @param[in]     dep_pts_z    Departure points in the z-direction
+  !> @param[in]     detj_at_w2   Det(J) at W2 dofs
+  subroutine yz_bip_cosmic_step( increment, rho, dep_pts_y, dep_pts_z, detj_at_w2 )
 
     implicit none
 
@@ -54,6 +54,7 @@ contains
     type(field_type), intent(in)    :: rho
     type(field_type), intent(in)    :: dep_pts_y
     type(field_type), intent(in)    :: dep_pts_z
+    type(field_type), intent(in)    :: detj_at_w2
 
     type(field_type) :: cell_orientation
     type(field_type) :: mass_flux_y, mass_flux_z
@@ -64,10 +65,6 @@ contains
 
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w3_fs     => null()
-
-    type(field_type), pointer :: detj_at_w2 => null()
-
-    detj_at_w2 => get_detj_at_w2()
 
     w2_fs      => dep_pts_y%get_function_space()
     w3_fs      => rho%get_function_space()
@@ -87,10 +84,12 @@ contains
     call invoke( setval_c(cell_orientation, 1.0_r_def) )
 
     ! Perform advective update in the Y direction.
-    call oned_density_update_alg(y_direction,dep_pts_y,cell_orientation,detj_at_w2,rho,rho_adv_y)
+    call oned_density_update_alg( y_direction, dep_pts_y, cell_orientation,    &
+                                  detj_at_w2, rho, rho_adv_y )
 
     ! Perform advective update in the Z direction.
-    call vert_advective_cosmic_alg(rho_adv_z,rho,dep_pts_z,cell_orientation,dt)
+    call vert_advective_cosmic_alg( rho_adv_z, rho, dep_pts_z, detj_at_w2,     &
+                                    cell_orientation, dt )
 
     ! This step is equation (37) of Leonard, Lock and MacVean (1996) or equivalenlty
     ! equations (17) and (18) of Putman and Lin, 2007.
@@ -99,23 +98,23 @@ contains
                  aX_plus_bY(rho_hat_adv_z, 0.5_r_def, rho, 0.5_r_def, rho_adv_z) )
 
     ! Calculate the mass flux in the Y direction.
-    call oned_conservative_flux_alg(y_direction, dep_pts_y, cell_orientation,  &
-                                                    rho_hat_adv_z, rho_hat_adv_z, mass_flux_y)
+    call oned_conservative_flux_alg( y_direction, dep_pts_y, cell_orientation, &
+                                     rho_hat_adv_z, rho_hat_adv_z, mass_flux_y )
 
     ! Calculate the divergence in the Y direction and update density.
-    call cosmic_divergence_alg(increment_y, mass_flux_y, detj_at_w2,          &
-                               cell_orientation, y_direction)
+    call cosmic_divergence_alg( increment_y, mass_flux_y, detj_at_w2,          &
+                                cell_orientation, y_direction )
 
     ! Calculate the mass flux in the Z direction.
     call vert_conservative_cosmic_alg( mass_flux_z, rho_hat_adv_y, dep_pts_z, dt )
 
     ! Calculate the divergence in the Z direction and update density.
-    call cosmic_divergence_alg(increment_z, mass_flux_z, detj_at_w2,          &
-                               cell_orientation, z_direction)
+    call cosmic_divergence_alg( increment_z, mass_flux_z, detj_at_w2,          &
+                                cell_orientation, z_direction )
 
     call invoke( X_plus_Y( increment, increment_y, increment_z ) )
 
-    nullify( w2_fs, w3_fs, detj_at_w2 )
+    nullify( w2_fs, w3_fs )
 
   end subroutine yz_bip_cosmic_step
 

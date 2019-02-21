@@ -79,7 +79,7 @@ subroutine calc_detj_at_w2_code( nlayers,                                  &
                                  ndf_chi, undf_chi, map_chi,               &
                                  diff_basis_chi                            )
 
-  use coordinate_jacobian_mod, only: coordinate_jacobian
+  use coordinate_jacobian_mod, only: pointwise_coordinate_jacobian
 
   implicit none
 
@@ -98,22 +98,23 @@ subroutine calc_detj_at_w2_code( nlayers,                                  &
   !Internal variables
   integer(kind=i_def)                  :: df, k
   real(kind=r_def), dimension(ndf_chi) :: chi1_e, chi2_e, chi3_e
-
-  real(kind=r_def), dimension(ndf_w2)     :: dj
-  real(kind=r_def), dimension(3,3,ndf_w2) :: jacobian
+  real(kind=r_def)                     :: detj
+  real(kind=r_def), dimension(3,3)     :: jacobian
 
   do k = 0, nlayers-1
+
     do df = 1,ndf_chi
       chi1_e(df) = chi1(map_chi(df) + k)
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, ndf_w2, 1, chi1_e, chi2_e, chi3_e,  &
-                             diff_basis_chi, jacobian, dj)
 
     do df = 1,ndf_w2
-      detj_w2(map_w2(df)+k) = dj(df)
+      call pointwise_coordinate_jacobian(ndf_chi, chi1_e, chi2_e, chi3_e, diff_basis_chi(:,:,df), &
+                                         jacobian, detj)
+      detj_w2(map_w2(df)+k) = detj + detj_w2(map_w2(df)+k)
     end do
+
   end do
 
 end subroutine calc_detj_at_w2_code

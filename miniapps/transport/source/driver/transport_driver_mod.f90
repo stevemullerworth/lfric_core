@@ -20,7 +20,6 @@ module transport_driver_mod
   use init_fem_mod,                   only: init_fem
   use init_transport_mod,             only: init_transport
   use init_mesh_mod,                  only: init_mesh
-  use init_shifted_fields_mod,        only: init_shifted_fields
   use io_mod,                         only: xios_domain_init
   use diagnostics_io_mod,             only: write_scalar_diagnostic,          &
                                             write_vector_diagnostic      
@@ -57,6 +56,7 @@ module transport_driver_mod
   use calc_dep_pts_alg_mod,           only: calc_dep_pts
   use density_inc_update_alg_mod,     only: density_inc_update_alg
   use xios
+  use runtime_constants_mod,          only: get_detj_at_w2, get_detj_at_w2_shifted
 
   implicit none
 
@@ -78,6 +78,8 @@ module transport_driver_mod
   type(field_type) :: density_shifted
   type(field_type) :: increment
   type(field_type) :: wind_divergence
+  type(field_type), pointer :: detj_at_w2 => null()
+  type(field_type), pointer :: detj_at_w2_shifted => null()
 
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi
@@ -151,9 +153,16 @@ contains
     call init_fem( mesh_id, chi, shifted_mesh_id, shifted_chi )
 
     ! Transport initialisation
-    call init_transport( mesh_id, chi, wind, density, dep_pts_x, dep_pts_y,   &
-                         dep_pts_z, increment, wind_divergence )
-    call init_shifted_fields( shifted_mesh_id, wind_shifted, density_shifted )
+    call init_transport( mesh_id, chi, shifted_mesh_id, shifted_chi,      &
+                         wind, density, dep_pts_x, dep_pts_y,             &
+                         dep_pts_z, increment, wind_divergence,           &
+                         wind_shifted, density_shifted )
+
+    ! Calculate det(J) at W2 dofs for chi and shifted_chi fields.
+    ! The calculation of det(J) for the shifted_chi field is done in preparation
+    ! for Ticket #1608.
+    detj_at_w2 => get_detj_at_w2()
+    detj_at_w2_shifted => get_detj_at_w2_shifted()
 
 
     if ( use_xios_io ) then
@@ -218,20 +227,28 @@ contains
       ! Update the wind each timestep.
       call set_winds( wind, mesh_id, timestep )
       ! Calculate departure points.
-      call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence, wind, chi )
+      call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,    &
+                                                        wind, detj_at_w2, chi )
+
+      if ( subroutine_timers ) call timer( 'cosmic step' )
 
       select case( scheme )
         case ( transport_scheme_yz_bip_cosmic )
-          call yz_bip_cosmic_step( increment, density, dep_pts_y, dep_pts_z )
+          call yz_bip_cosmic_step( increment, density, dep_pts_y, dep_pts_z,  &
+                                                                   detj_at_w2 )
         case ( transport_scheme_horz_cosmic )
-          call cusph_cosmic_transport_step( increment, density, dep_pts_x, dep_pts_y )
+          call cusph_cosmic_transport_step( increment, density, dep_pts_x,    &
+                                                        dep_pts_y, detj_at_w2 )
         case ( transport_scheme_cosmic_3D )
-          call cosmic_threed_transport_step( increment, density, dep_pts_x, dep_pts_y, dep_pts_z )
+          call cosmic_threed_transport_step( increment, density, dep_pts_x,   &
+                                             dep_pts_y, dep_pts_z, detj_at_w2 )
         case default
           call log_event( "Transport mini-app: incorrect transport option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR )
           stop
       end select
+
+      if ( subroutine_timers ) call timer( 'cosmic step' )
 
       ! Add the increment to density
       call density_inc_update_alg(density, increment)
