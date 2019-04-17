@@ -8,8 +8,9 @@
 '''
 Implements a Jinja2 filter to strip the resolutions info.
 '''
+from __future__ import absolute_import
 from jinja2 import contextfilter
-import repr
+
 
 def unique_entries(inDict):
     ''' Returns unique entries from a dictionary of lists '''

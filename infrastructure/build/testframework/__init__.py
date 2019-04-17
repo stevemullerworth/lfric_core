@@ -6,6 +6,7 @@
 # should have received as part of this distribution.
 ##############################################################################
 
-from exception  import TestFailed
-from test       import Test, MpiTest, LFRicLoggingTest
-from testengine import TestEngine
+from __future__ import absolute_import
+from .exception  import TestFailed
+from .test       import Test, MpiTest, LFRicLoggingTest
+from .testengine import TestEngine

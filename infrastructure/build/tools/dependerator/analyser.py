@@ -17,12 +17,14 @@
 
 from __future__ import print_function;
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import os
 import os.path
 import re
 import shutil
 import subprocess
+import six
 
 '''
 Examine Fortran source and build dependency information for use by "make".
@@ -31,9 +33,7 @@ Examine Fortran source and build dependency information for use by "make".
 ###############################################################################
 # Interface for analysers
 #
-class Analyser(object):
-    __metaclass__ = ABCMeta
-
+class Analyser(six.with_metaclass(ABCMeta, object)):
     ###########################################################################
     # Examine a source file and store dependency information in the database.
     #
@@ -96,7 +96,7 @@ class FortranAnalyser(Analyser):
   #
   def __init__( self, logger, ignoreModules, database ):
     self._logger          = logger
-    self._ignoreModules   = map(str.lower, ignoreModules)
+    self._ignoreModules   = [str.lower(mod) for mod in ignoreModules]
     self._database        = database
 
     self._ignoreModules.extend( ['iso_fortran_env', 'ieee_arithmetic'] )
@@ -154,7 +154,7 @@ class FortranAnalyser(Analyser):
       self._logger.logEvent( '  Preprocessing ' + sourceFilename )
       preprocessCommand = self._fpp
       if preprocessMacros:
-        for name, macro in preprocessMacros.iteritems():
+        for name, macro in preprocessMacros.items():
           if macro:
             preprocessCommand.append( '-D{}={}'.format( name, macro ) )
           else:

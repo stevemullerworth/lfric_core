@@ -21,6 +21,8 @@ there is a file for each processor.
 
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib
@@ -64,7 +66,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
 
   zi = np.zeros([ny,nx,len(levels)])
 
-  for p in xrange(len(levels)):
+  for p in range(len(levels)):
     p_data = data.loc[data['level'] == levels[p]]
     zi[:,:,p] = (p_data[val_col].values).reshape((ny, nx))
 

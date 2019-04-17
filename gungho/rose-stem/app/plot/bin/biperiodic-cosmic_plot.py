@@ -20,6 +20,8 @@ case where there is a file for each processor.
 This version is for plotting under suites and accepts command line args
 for the field and timestep to plot. It also plots to file rather than to screen 
 '''
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 
 # Need to set a non-interactive backend for suites
@@ -43,8 +45,8 @@ def make_figure(field, nx, ny, component, timestep):
   fig = plt.figure(figsize=(15,10))
   plt.plot()
 
-#  for p in xrange(len(levels)):
-  for p in xrange(1):
+#  for p in range(len(levels)):
+  for p in range(1):
 
     p_data = data.loc[data['level'] == levels[p]]
 
@@ -69,7 +71,7 @@ def make_figure(field, nx, ny, component, timestep):
     out_file_name = plotpath + "/" "biperiodic-cosmic_" + field + "_" + timestep +  ".png"
     plt.savefig(out_file_name , bbox_inches='tight')
 
-  print out_file_name
+  print(out_file_name)
 
 
 if __name__ == "__main__":

@@ -8,16 +8,16 @@
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta
 import os
 import re
 import sys
 
 from testframework import LFRicLoggingTest, TestEngine, TestFailed
+import six
 
-class CMATest(LFRicLoggingTest):
-  __metaclass__ = ABCMeta
-
+class CMATest(six.with_metaclass(ABCMeta, LFRicLoggingTest)):
   def __init__(self,flag):
     self._flag = flag
     if 'MPIEXEC_BROKEN' in os.environ:

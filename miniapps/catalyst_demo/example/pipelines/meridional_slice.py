@@ -6,6 +6,7 @@
 # the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE.  See the above copyright notice for more information.
 
+from __future__ import absolute_import
 import paraview.simple as pvs
 from paraview import coprocessing as cp
 import math

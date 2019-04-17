@@ -9,6 +9,7 @@
 
 from __future__ import print_function;
 
+from __future__ import absolute_import
 import os.path
 
 from utilities.path import replaceExtension
@@ -66,7 +67,7 @@ class FortranProcessor():
 
             prerequisites = set()
             self._descend( program, prerequisites )
-            unit, unit_file, prereq, prereq_file = self._database.getLinkDependencies( program ).next()
+            unit, unit_file, prereq, prereq_file = next(self._database.getLinkDependencies( program ))
             program_object_file = os.path.join( self._objectDirectory, \
                                           replaceExtension( unit_file, 'o' ) )
             prerequisites.add( program_object_file )

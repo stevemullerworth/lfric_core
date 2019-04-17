@@ -8,6 +8,7 @@
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 import os.path
 import shutil
 import tempfile
@@ -16,6 +17,7 @@ import unittest
 import dependerator.analyser
 import dependerator.database
 import utilities.logging
+import six
 
 ##############################################################################
 class NamelistDescriptionAnalyserTest(unittest.TestCase):
@@ -90,7 +92,7 @@ class FortranAnalyserTest(unittest.TestCase):
       self._dependencies.addModuleLinkDependency( u'stock', u'thingy' )
       self._dependencies.addModule( u'beef', u'cow.f90' )
       self._dependencies.addModule( u'pork', u'pig.f90' )
-      testFilename = unicode( os.path.join( self._scratchDirectory,
+      testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                             'cont.f90' ) )
       with open( testFilename, 'w' ) as fortranFile:
         print( '''
@@ -133,7 +135,7 @@ end subroutine old_school
     # Procedure as program unit.
     #
     def testProcedure( self ):
-      testFilename = unicode( os.path.join( self._scratchDirectory,
+      testFilename = six.text_type( os.path.join( self._scratchDirectory,
                               'test.f90' ) )
       with open( testFilename, 'w' ) as fortranFile:
           print( '''
@@ -186,16 +188,16 @@ end program fOo
         self.assertEqual( [u'foo'], programs )
 
         dependencies = list(self._dependencies.getCompileDependencies())
-        self.assertEqual( [(u'foo', unicode(testFilename),
+        self.assertEqual( [(u'foo', six.text_type(testFilename),
                             u'constants_mod', u'constants_mod.f90'),
-                           (u'foo', unicode(testFilename),
+                           (u'foo', six.text_type(testFilename),
                             u'trumpton_mod', u'trumpton_mod.f90')],
                           sorted(dependencies) )
 
         dependencies = list(self._dependencies.getLinkDependencies( 'foo' ))
-        self.assertEqual( [(u'foo', unicode(testFilename),
+        self.assertEqual( [(u'foo', six.text_type(testFilename),
                             u'constants_mod', u'constants_mod.f90'),
-                           (u'foo', unicode(testFilename),
+                           (u'foo', six.text_type(testFilename),
                             u'trumpton_mod', u'trumpton_mod.f90')],
                           sorted(dependencies) )
 
@@ -266,7 +268,7 @@ end module coNstants_mod
                                                      [],
                                                      self._dependencies )
 
-        parentFilename = unicode(os.path.join( self._scratchDirectory,
+        parentFilename = six.text_type(os.path.join( self._scratchDirectory,
                                                'parent.f90' ), "utf-8")
         with open( parentFilename, 'w' ) as parentFile:
             print( '''
@@ -315,7 +317,7 @@ end submodule chIld3
                    '''.strip(), file=parentFile )
         uut.analyse( parentFilename )
 
-        child1Filename = unicode(os.path.join( self._scratchDirectory,
+        child1Filename = six.text_type(os.path.join( self._scratchDirectory,
                                                'child1.f90' ), 'utf-8')
         with open( child1Filename, 'w' ) as child1File:
             print( '''
@@ -357,7 +359,7 @@ end submodule Child1
                    '''.strip(), file=child1File )
         uut.analyse( child1Filename )
 
-        child2Filename = unicode(os.path.join( self._scratchDirectory,
+        child2Filename = six.text_type(os.path.join( self._scratchDirectory,
                                  'child2.f90' ), 'utf-8')
         with open( child2Filename, 'w' ) as child2File:
             print( '''
@@ -379,7 +381,7 @@ end submodule cHild2
                    '''.strip(), file=child2File )
         uut.analyse( child2Filename )
 
-        child3Filename = unicode(os.path.join( self._scratchDirectory,
+        child3Filename = six.text_type(os.path.join( self._scratchDirectory,
                                  'child3.f90' ), 'utf-8')
         with open( child3Filename, 'w' ) as child3File:
             print( '''
@@ -490,7 +492,7 @@ end dependson
     #
     def testDependsOn( self ):
         self._dependencies.add_procedure( u'flibble', u'flibble.f90' )
-        testFilename = unicode( os.path.join( self._scratchDirectory,
+        testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                               'test.f90' ) )
         with open( testFilename, 'w' ) as fortranFile:
             print( '''
@@ -520,7 +522,7 @@ contains
 end module function_thing_mod
                    '''.strip(), file=fortranFile )
 
-        otherFilename = unicode( os.path.join( self._scratchDirectory,
+        otherFilename = six.text_type( os.path.join( self._scratchDirectory,
                                  'other.f90' ) )
         with open( otherFilename, 'w' ) as otherFile:
             print( '''
@@ -532,7 +534,7 @@ end subroutine wooble
 end module constants_mod
                    '''.strip(), file=otherFile )
 
-        dependFilename = unicode( os.path.join( self._scratchDirectory,
+        dependFilename = six.text_type( os.path.join( self._scratchDirectory,
                                   'wooble.f90' ) )
         with open( dependFilename, 'w' ) as dependFile:
             print( '''
@@ -629,7 +631,7 @@ end module second_mod
       self._dependencies.addModule( 'bibble', 'bibble.f90' )
       self._dependencies.addModule( 'ibble', 'ibble.f90' )
       self._dependencies.addModule( 'gribble', 'gribble.f90' )
-      testFilename = unicode( os.path.join( self._scratchDirectory,
+      testFilename = six.text_type( os.path.join( self._scratchDirectory,
                                             'test.f90' ) )
       with open( testFilename, 'w' ) as fortranFile:
         print( '''

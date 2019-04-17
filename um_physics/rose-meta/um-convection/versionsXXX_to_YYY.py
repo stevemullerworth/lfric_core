@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import rose.upgrade
 import re
 import sys

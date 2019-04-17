@@ -8,6 +8,7 @@
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import collections
 import math
@@ -16,14 +17,14 @@ import subprocess
 import sys
 import tempfile
 import time
+import six
 
 ##############################################################################
-class AbstractTest(object):
+class AbstractTest(six.with_metaclass(ABCMeta, object)):
   '''
   Base functionality of a test. This class is responsible for actually
   running a test and handing the result on to the handler method.
   '''
-  __metaclass__ = ABCMeta
 
   def __init__( self, executable ):
     '''
@@ -91,11 +92,10 @@ class AbstractTest(object):
     return err
 
 ##############################################################################
-class Test(AbstractTest):
+class Test(six.with_metaclass(ABCMeta, AbstractTest)):
   '''
   Base for serial tests.
   '''
-  __metaclass__ = ABCMeta
 
   def __init__( self, command=sys.argv[1] ):
     if type(command) is not list:
@@ -103,11 +103,10 @@ class Test(AbstractTest):
     super(Test, self).__init__( command )
 
 ##############################################################################
-class MpiTest(AbstractTest):
+class MpiTest(six.with_metaclass(ABCMeta, AbstractTest)):
   '''
   Base for parallel tests.
   '''
-  __metaclass__ = ABCMeta
 
   _mpiexec_broken = None
 
@@ -140,7 +139,7 @@ class MpiTest(AbstractTest):
     print( 'sync', file=handle )
     print( 'exit $result', file=handle )
     handle.close()
-    os.chmod( self._scriptname, 0700 )
+    os.chmod( self._scriptname, 0o700 )
 
     if MpiTest._mpiexec_broken:
       mpi_launcher = 'mpirun'
@@ -185,11 +184,10 @@ class MpiTest(AbstractTest):
     return '\n'.join( newErr[:-self._processes] )
 
 ##############################################################################
-class LFRicLoggingTest(MpiTest):
+class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
   '''
   Base for LFRicLogging parallel tests.
   '''
-  __metaclass__ = ABCMeta
 
   def __init__( self, command=sys.argv[1], name='log_mod_error_test.Log', processes=4 ):
     '''

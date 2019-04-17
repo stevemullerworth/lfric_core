@@ -8,6 +8,7 @@
 '''
 Implements a Jinja2 filter which removes duplicates from a Cylc task schedule.
 '''
+from __future__ import absolute_import
 import re
 
 _LINE_TEMPLATE = '{indent}{prerequisite} => {result}'
@@ -59,7 +60,7 @@ def deduplicate_schedule(schedule):
         key, value = match.group(1), match.group(2)
         if key == '[[[]]]':
             key = '[[[R1]]]'
-        if key in schedule_dict.keys():
+        if key in schedule_dict:
             schedule_dict[key] = schedule_dict[key] + value
         else:
             schedule_dict[key] = value

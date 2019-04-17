@@ -9,14 +9,14 @@
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 import abc
 import sys
+import six
 
 ###############################################################################
 # Abstract logging provider class
-class Logger():
-    __metaclass__ = abc.ABCMeta
-
+class Logger(six.with_metaclass(abc.ABCMeta)):
     @abc.abstractmethod
     def logEvent( self, description ):
         raise NotImplementedError( 'Logger.logEvent not implemented' )

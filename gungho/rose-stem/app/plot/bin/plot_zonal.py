@@ -1,6 +1,8 @@
 #!/usr/bin/env python2.7
 
 # Need to set a non-interactive backend for suites
+from __future__ import absolute_import
+from __future__ import print_function
 import matplotlib
 matplotlib.use('Agg')
 
@@ -55,7 +57,7 @@ def make_figures(filein, plotpath, fields):
 
       xf, yf = np.meshgrid(xi, yi)
       
-      for p,l in enumerate(range(n_levs)):
+      for l in range(n_levs):
          data = cube.data[:,l].mean(axis=0)
 
          dmin  = min(data)

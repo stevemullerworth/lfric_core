@@ -10,8 +10,10 @@
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import sqlite3
+import six
 
 ##############################################################################
 # Databases throw this exception.
@@ -22,9 +24,7 @@ class DatabaseException(Exception):
 ##############################################################################
 # Basic backend database functionality.
 #
-class _Database(object):
-    __metaclass__ = ABCMeta
-
+class _Database(six.with_metaclass(ABCMeta, object)):
     ##########################################################################
     # Makes sure a described table exists in the database.
     #

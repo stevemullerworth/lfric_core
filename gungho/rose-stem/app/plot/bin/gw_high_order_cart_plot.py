@@ -6,6 +6,8 @@
 # which you should have received as part of this distribution
 ##############################################################################
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib
@@ -35,8 +37,8 @@ def make_figure(datapath, plotpath, field, component, timestep, nx, ny):
     # Sort levels in asscending order, this is needed for high order spaces
     sorted_levels = sorted(levels)
     l2h = np.zeros(len(levels))
-    for i in xrange(len(levels)):
-        for j in xrange(len(levels)):
+    for i in range(len(levels)):
+        for j in range(len(levels)):
             if (sorted_levels[i] == levels[j]):
                 l2h[i] = j
 
@@ -59,7 +61,7 @@ def make_figure(datapath, plotpath, field, component, timestep, nx, ny):
     z2d = np.linspace(zmin, zmax, nz)
     wi = np.zeros([ny, nx, len(levels)])
     xi, yi = np.meshgrid(x2d, y2d)
-    for p in xrange(len(levels)):
+    for p in range(len(levels)):
         pp = int(l2h[p])
         p_data = data.loc[data['level'] == levels[pp]]
         wi[:, :, p] = griddata((p_data['x'].values, p_data['z'].values),

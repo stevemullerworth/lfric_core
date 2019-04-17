@@ -9,6 +9,8 @@
 """ Create a new miniapp based on the existing skeleton miniapp.
 This will replace instances of "skeleton" with the name provided
 in the command line arguments."""
+from __future__ import absolute_import
+from __future__ import print_function
 import argparse
 import re
 import os

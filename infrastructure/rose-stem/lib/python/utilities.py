@@ -30,9 +30,9 @@ def dictionary_from_arguments(string):
             continue
 
         item += character
-        if character in _CLOSE_BRACKET.values():
+        if character in list(_CLOSE_BRACKET.values()):
             bracket_nest.append(character)
-        elif character in _CLOSE_BRACKET.keys():
+        elif character in _CLOSE_BRACKET:
             if _CLOSE_BRACKET[character] != bracket_nest[-1]:
                 raise Exception('Mismatched brackets in string: '
                                 + string)

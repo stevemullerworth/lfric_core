@@ -12,6 +12,7 @@ This is for debug purposes only.
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 import sys
 
 

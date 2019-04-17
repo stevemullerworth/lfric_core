@@ -8,6 +8,7 @@
 '''
 Implements a Jinja2 filter to strip the crun info.
 '''
+from __future__ import absolute_import
 from jinja2 import contextfilter
 import re
 import ast
@@ -47,7 +48,7 @@ def getCrunInfo(context, call):
 
     # Return info about the crun arguments
     return_value={}
-    if 'crun' in argumentDictionary.keys():
+    if 'crun' in argumentDictionary:
         return_value.update({'crun':int(argumentDictionary['crun'])})
 
     return return_value

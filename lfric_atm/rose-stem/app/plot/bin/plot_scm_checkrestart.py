@@ -2,6 +2,8 @@
 ''' Quick plot of for lfric_atm scm output '''
 
 # Need to set a non-interactive backend for suites
+from __future__ import absolute_import
+from __future__ import print_function
 import matplotlib
 matplotlib.use('Agg')
 
@@ -42,6 +44,6 @@ if __name__ == "__main__":
     try:
         datapath, plotpath = sys.argv[1:3]
     except ValueError:
-        print "Usage: {0} <datapath> <plotpath>".format(sys.argv[0])
+        print("Usage: {0} <datapath> <plotpath>".format(sys.argv[0]))
         exit(1)
     do_plot(datapath, plotpath)

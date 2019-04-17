@@ -581,7 +581,7 @@ contains
           call invoke( inc_X_times_Y(rhs_np1(igh_t), t_normalisation), &
                        inc_X_times_Y(rhs_np1(igh_u), u_normalisation) )
           write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
-                                                    , outer, inner
+                                                    outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
           ! Write out si residuals

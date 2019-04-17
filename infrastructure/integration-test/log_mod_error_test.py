@@ -12,6 +12,7 @@ unit testing framework as it terminates the unit tests as well.
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 import datetime
 import re
 

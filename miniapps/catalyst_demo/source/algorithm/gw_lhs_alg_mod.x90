@@ -42,7 +42,7 @@ contains
     type(function_space_type), pointer    :: u_fs => null(), &
                                              b_fs => null(), &
                                              p_fs => null()
-    integer(i_def),                       :: mesh_id
+    integer(i_def)                        :: mesh_id
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
 

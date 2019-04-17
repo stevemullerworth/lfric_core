@@ -22,6 +22,8 @@ there is a file for each processor.
 
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib

@@ -11,6 +11,7 @@ about its contents.
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import datetime
 import glob
@@ -52,7 +53,7 @@ class TreeNode(object):
       return None
 
   def getChildren( self ):
-    return self._children.values()
+    return list(self._children.values())
 
   def containsChild( self, name ):
     for node in self._children.values():

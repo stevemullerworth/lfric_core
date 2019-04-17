@@ -11,6 +11,7 @@ some attractive fashion.
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import datetime
 from jinja2 import Environment, PackageLoader

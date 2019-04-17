@@ -8,6 +8,7 @@
 '''
 Implements a Jinja2 filter to strip the resolutions info.
 '''
+from __future__ import absolute_import
 import ast
 import re
 import utilities
@@ -56,11 +57,11 @@ def get_resolution_macro(call):
 
         # Return info about the resolutions arguments
         resource_list = []
-        if 'resolutions' in argument_dictionary.keys():
+        if 'resolutions' in argument_dictionary:
             resource_list = argument_dictionary['resolutions']
 
         resource_support_meshes = ['']
-        if 'support_meshes' in argument_dictionary.keys():
+        if 'support_meshes' in argument_dictionary:
             resource_support_meshes = argument_dictionary['support_meshes']
 
         # We now consider the possibility that entries for the resolutions
@@ -70,7 +71,7 @@ def get_resolution_macro(call):
         resource_dictionary = {}
         for entry in resource_list:
             if isinstance(entry, (list, tuple)):
-                if entry[0] not in resource_dictionary.keys():
+                if entry[0] not in resource_dictionary:
                     resource_dictionary[entry[0]] = set()
                 if len(entry) > 1:
                     if isinstance(entry[1], (int, float)):

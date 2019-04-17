@@ -438,7 +438,7 @@ contains
       iconst = 2_i_def
       max_diff_wtheta = delta_at_wtheta
       call invoke( inc_X_powint_n (max_diff_wtheta, iconst),  & 
-                   inc_a_times_X(const, max_diff_wtheta),     &
+                   inc_a_times_X(const, max_diff_wtheta)      &
                    )	
 
     end if

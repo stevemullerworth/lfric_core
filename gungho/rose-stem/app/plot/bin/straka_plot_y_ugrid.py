@@ -17,6 +17,8 @@ Levels are determined from the data.
 
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib
@@ -68,7 +70,7 @@ def make_figure(plotpath, nx, ny, field, timestep):
   vali = np.zeros([ny,nx,n_levs])
   yi = np.zeros([ny,nx,n_levs])
 
-  for p in xrange(n_levs):
+  for p in range(n_levs):
 
     # get the data for this level
     data = cube.data[-1,p]

@@ -10,6 +10,8 @@ colouring, OpenMP and redundant computation to the level1 halo for
 setval_* generically.
 
 '''
+from __future__ import absolute_import
+from __future__ import print_function
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
@@ -32,7 +34,7 @@ def trans(psy):
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
-        print "Transforming invoke '{0}' ...".format(invoke.name)
+        print("Transforming invoke '{0}' ...".format(invoke.name))
         schedule = invoke.schedule
 
         # Make setval_* compute redundantly to the level 1 halo if it

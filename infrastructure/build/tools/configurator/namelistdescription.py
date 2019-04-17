@@ -11,6 +11,7 @@ Turns namelist descriptions into namelist modules.
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 
 import collections
@@ -20,6 +21,7 @@ import json
 
 import jinja2 as jinja
 import configurator.jinjamacros as jinjamacros
+import six
 
 
 ##############################################################################
@@ -64,9 +66,7 @@ class FortranType(object):
 
 
 ##############################################################################
-class _Property(object):
-    __metaclass__ = ABCMeta
-
+class _Property(six.with_metaclass(ABCMeta, object)):
     def __init__(self, name, fortran_type):
         self.name = name
         self.fortran_type = fortran_type
@@ -112,7 +112,7 @@ class _Enumeration(_Property):
 
         self.mapping = keyDictionary
         self.inverse_mapping = {value:
-                                key for key, value in self.mapping.iteritems()}
+                                key for key, value in self.mapping.items()}
         self.first_key = self.inverse_mapping[min(self.inverse_mapping.keys())]
         self._missing_data_indicator = 'emdi'
 
@@ -301,7 +301,7 @@ class NamelistDescription(object):
                                            dereferenced_list_vars )
 
     def get_parameters(self):
-        return self._parameters.values()
+        return list(self._parameters.values())
 
     def write_module(self, file_object):
 
@@ -390,7 +390,7 @@ class NamelistDescription(object):
 
     def add_member(self, member_name, meta_dict):
 
-        meta_keys = meta_dict.keys()
+        meta_keys = list(meta_dict.keys())
         string_length = None
         xkind = None
         xtype = None
@@ -477,8 +477,8 @@ class NamelistConfigDescription(object):
 
         if isinstance(namelist_config, dict):
             new_dict = {}
-            for key, value in namelist_config.iteritems():
-                if isinstance(key, unicode):
+            for key, value in namelist_config.items():
+                if isinstance(key, six.text_type):
                     key = key.encode('ascii')
                 if isinstance(value, dict):
                     value = self.decode_unicode(value)

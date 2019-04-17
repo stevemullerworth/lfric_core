@@ -10,6 +10,8 @@ Python script for reading LFRic diagnostic output data with separate functions
 for nodal text file data and UGRID NetCDF
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 

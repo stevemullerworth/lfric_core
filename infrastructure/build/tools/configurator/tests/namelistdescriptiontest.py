@@ -6,6 +6,7 @@
 # should have received as part of this distribution.
 ##############################################################################
 
+from __future__ import absolute_import
 import unittest
 import StringIO
 import random
@@ -1936,7 +1937,7 @@ class NamelistConfigDescriptionTest(unittest.TestCase):
                      parameter.fortran_type.kind]
                 if parameter.get_configure_type() == 'enumeration':
                     parameters[parameter.name].extend(
-                        parameter.mapping.keys())
+                        list(parameter.mapping.keys()))
                 elif parameter.get_configure_type() == 'computed':
                     parameters[parameter.name].append(
                         parameter.computation)

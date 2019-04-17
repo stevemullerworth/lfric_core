@@ -22,6 +22,8 @@ there is a file for each processor.
 
 '''
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 
 # Need to set a non-interactive backend for suites
@@ -71,7 +73,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
         if (case != 'cosine'):
             zmax = 12.0
         else:
-            print 'Error: cosine orography does not have the zoom option'
+            print('Error: cosine orography does not have the zoom option')
     elif zoom == 'zoom_2':  # zooming up to bottom of damping layer
         if case == 'nhmw':
             zmax = 25.0
@@ -82,7 +84,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
         elif case == 'bell':
             zmax = 10.0
         else:
-            print 'Error: cosine orography does not have the zoom option'
+            print('Error: cosine orography does not have the zoom option')
     elif zoom == 'no_zoom':  # plotting the entire domain depth
         if case == 'nhmw':
             zmax = 35.0
@@ -131,7 +133,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
     height_i = np.zeros([ny, nx, nl])
 
     # Interpolate field values and heights onto xy for each level
-    for p in xrange(len(levels)):
+    for p in range(len(levels)):
         p_data = data.loc[data['level'] == levels[p]]
 
         # Using reshape of numpy array
@@ -141,7 +143,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
         y_i[:, :, p] = (p_data['y'].values).reshape((ny, nx))/1000.0
 
     if field in ('theta', 'm_cl', 'rho'):
-        for p in xrange(len(levels0)):
+        for p in range(len(levels0)):
             p_data = data0.loc[data0['level'] == levels0[p]]
             # Using reshape of numpy array
             val_i0[:, :, p] = (p_data[val_col].values).reshape((ny, nx))
@@ -338,7 +340,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
             xmax_lim = 20
             plt.xticks(np.arange(-20, 25, 5))
         else:
-            print 'Error: cosine orography does not have the zoom option.'
+            print('Error: cosine orography does not have the zoom option.')
 
     if zoom == 'zoom_1':  # Ticks as in paper
         plt.yticks(np.arange(0, 14, 2))
@@ -471,7 +473,7 @@ def make_figure(plotpath, field, component, timestep, plotlevel_x,
                 xmax_lim = 20
                 plt.xticks(np.arange(-20, 25, 5))
             else:
-                print 'Error: please select one of schar3d, bell orography.'
+                print('Error: please select one of schar3d, bell orography.')
 
         if zoom == 'zoom_1':  # Ticks as in paper
             plt.yticks(np.arange(0, 14, 2))
@@ -599,7 +601,7 @@ if __name__ == "__main__":
         if((field != 'u') & (field != 'xi') & (field != 'w3projection_u1') &
            (field != 'w3projection_u2') & (field != 'w3projection_u3')):
             if (component != '1'):
-                print "Scalars have only one component!"
+                print("Scalars have only one component!")
                 exit(1)
         if field in ('theta', 'm_cl', 'rho'):
             # Create initial data for theta

@@ -8,6 +8,7 @@
 '''
 Implements a Jinja2 filter to run a macro specified by a string.
 '''
+from __future__ import absolute_import
 import re
 from jinja2 import contextfilter
 

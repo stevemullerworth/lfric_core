@@ -7,9 +7,10 @@
 ##############################################################################
 
 from __future__ import print_function
+from __future__ import absolute_import
 from sys import exit
 
-from exception import TestFailed
+from .exception import TestFailed
 
 class TestEngine:
   '''

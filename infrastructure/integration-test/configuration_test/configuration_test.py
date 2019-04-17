@@ -10,11 +10,13 @@ Exercise namelist loading capabilities.
 '''
 from __future__ import print_function
 
+from __future__ import absolute_import
 import collections
 import re
 import sys
 
 from testframework import MpiTest, TestEngine, TestFailed
+from six.moves import range
 
 
 ##############################################################################
@@ -95,8 +97,8 @@ class configuration_test(MpiTest):
                     message = 'Addition variables found: {adds}'
                     raise TestFailed(message.format(adds=', '.join(additions)))
 
-        if seen.keys() != [0, 1, 2, 3]:
-            message = 'Incorrect ranks: ' + str(seen.keys())
+        if list(seen.keys()) != [0, 1, 2, 3]:
+            message = 'Incorrect ranks: ' + str(list(seen.keys()))
             raise TestFailed(message)
 
         return 'One of each configuration type loaded'

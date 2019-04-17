@@ -9,6 +9,7 @@
 Implements a Jinja2 filter to break appart a macro call and extract the
 environment arguments.
 '''
+from __future__ import absolute_import
 import ast
 import re
 from jinja2 import contextfilter
@@ -47,7 +48,7 @@ def getEnvMacro(context, call):
         argument_dictionary[key.strip()] = ast.literal_eval(value.strip())
 
     # We only do work on the 'env' dictionary
-    if 'env' in argument_dictionary.keys():
+    if 'env' in argument_dictionary:
         environment_dictionary = argument_dictionary['env']
     else:
         environment_dictionary = {}

@@ -6,6 +6,8 @@
 # should have received as part of this distribution.
 ##############################################################################
 
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 # Need to set a non-interactive backend for suites
 import matplotlib
@@ -36,8 +38,8 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   # Sort levels in ascending order, this is needed for high order spaces
   sorted_levels = sorted(levels)
   l2h = np.zeros(len(levels))
-  for i in xrange(len(levels)):
-    for j in xrange(len(levels)):
+  for i in range(len(levels)):
+    for j in range(len(levels)):
       if ( sorted_levels[i] == levels[j] ):
         l2h[i] = j
 
@@ -65,7 +67,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
   wi0= np.zeros([ny,nx,len(levels)])
   wi_bg = np.zeros(len(levels))
 
-  for p in xrange(len(levels)):
+  for p in range(len(levels)):
     pp = int(l2h[p])
     p_data = data.loc[data['level'] == levels[pp]]
     p_data0 = data0.loc[data0['level'] == levels[pp]]
@@ -74,7 +76,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
 
 
   # subtracting background profile
-  for l in xrange(len(levels)):
+  for l in range(len(levels)):
     wi_bg[l] = wi0[0,0,l]
     wi[:,:,l] -= wi_bg[l]
 

@@ -12,6 +12,7 @@ en-route.
 
 from __future__ import print_function
 
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import ftplib
 import os
@@ -22,13 +23,13 @@ import pwd
 import shutil
 import stat
 import StringIO
-import urlparse
+import six.moves.urllib.parse
 import xml.etree.ElementTree as ET
+import six
+from six import unichr
 
 ##############################################################################
-class TreeVisitor:
-  __metaclass__ = ABCMeta
-
+class TreeVisitor(six.with_metaclass(ABCMeta)):
   @abstractmethod
   def visit( self, directory, subdirs, files ):
     '''
@@ -57,16 +58,14 @@ class GenerateTreeIndeces(TreeVisitor):
 
   def newFiles( self ):
     pageList = {}
-    for filename, fileList in self._directoryList.iteritems():
+    for filename, fileList in self._directoryList.items():
       content = self._renderer.render( '"{}" Directory'.format(filename), \
                                        fileList )
       pageList[os.path.join( filename, 'index.html' )] = content
     return pageList
 
 ##############################################################################
-class XmlTransformation:
-  __metaclass__ = ABCMeta
-
+class XmlTransformation(six.with_metaclass(ABCMeta)):
   @abstractmethod
   def transform( self, root ):
     '''
@@ -104,7 +103,7 @@ class AddRelativePrefix(XmlTransformation):
     xpath = './/*[@href]'
     for parent in root.findall( xpath + '/..' ):
       for element in parent.findall( xpath ):
-        url = urlparse.urlparse( element.attrib['href'] )
+        url = six.moves.urllib.parse.urlparse( element.attrib['href'] )
         if not url.scheme and not url.netloc:
           element.attrib['href'] = self._prefix + element.attrib['href']
 
@@ -128,9 +127,7 @@ class NoNakedURLs(XmlTransformation):
           element.attrib['href'] = element.attrib['href'] + 'index.html'
 
 ##############################################################################
-class Credentials:
-  __metaclass__ = ABCMeta
-
+class Credentials(six.with_metaclass(ABCMeta)):
   @abstractmethod
   def getCredentials():
     '''
@@ -165,9 +162,7 @@ class ObjectMissing(Exception):
   pass
 
 ##############################################################################
-class Uploader:
-  __metaclass__ = ABCMeta
-
+class Uploader(six.with_metaclass(ABCMeta)):
   @abstractmethod
   def upload( self, fileObject, filename ):
     '''
@@ -324,7 +319,7 @@ class Mirrorer:
     '''
     Constructor taking upload URL and fileTransforms to apply to HTML files.
     '''
-    url = urlparse.urlparse( destination )
+    url = six.moves.urllib.parse.urlparse( destination )
 
     ET.register_namespace( '', 'http://www.w3.org/1999/xhtml' )
 
@@ -363,7 +358,7 @@ class Mirrorer:
           transformedStream.close()
 
     for transformation in self._treeTransforms:
-      for filename, content in transformation.newFiles().iteritems():
+      for filename, content in transformation.newFiles().items():
         fakeFile = StringIO.StringIO()
         print( content, file=fakeFile )
         fakeFile.seek( 0, os.SEEK_SET )
