@@ -98,6 +98,7 @@ contains
           cf_ice(map_wth(1) + k)  = 0.0_r_def
           cf_liq(map_wth(1) + k)  = 0.0_r_def
           cf_bulk(map_wth(1) + k) = 0.0_r_def
+          rh_crit_wth(map_wth(1) + k) = 0.0_r_def
         end do
         if ( cloud == cloud_um .and. &
              scheme == scheme_smith ) then

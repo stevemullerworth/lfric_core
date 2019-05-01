@@ -1,0 +1,50 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Initialisation of prognostic fields
+module init_physics_prognostics_alg_mod
+
+  use field_collection_mod,           only : field_collection_type
+  use init_cloud_twod_fields_alg_mod, only : init_cloud_twod_fields_alg
+  use init_physics_incs_alg_mod,      only : init_physics_incs_alg
+
+  implicit none
+
+  private
+  public :: init_physics_prognostics_alg
+
+contains
+
+  !>@brief Initialisation of physics prognostic fields
+  !> @param[inout] derived_fields Collection of FD fields derived from FE fields 
+  !> @param[inout] cloud_fields Collection of FD cloud fields
+  !> @param[inout] twod_fields Collection of two-d fields
+  !> @param[inout] physics_incs Collection of physics increments
+  subroutine init_physics_prognostics_alg( derived_fields, &
+                                           cloud_fields, &
+                                           twod_fields, &
+                                           physics_incs )
+
+    implicit none
+
+    ! Collections of fields
+    type(field_collection_type), intent(inout) :: twod_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
+    type(field_collection_type), intent(inout) :: derived_fields
+    type(field_collection_type), intent(inout) :: physics_incs
+
+
+    ! Initialise cloud fields
+    call init_cloud_twod_fields_alg( cloud_fields, twod_fields )
+
+    ! Set the increments to 0 initially
+    call init_physics_incs_alg(physics_incs)
+
+
+
+  end subroutine init_physics_prognostics_alg
+
+end module init_physics_prognostics_alg_mod

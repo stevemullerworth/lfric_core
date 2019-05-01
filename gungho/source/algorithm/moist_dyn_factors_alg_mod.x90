@@ -1,0 +1,47 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>
+!>@brief Update factors for moist dynamics
+!>
+module moist_dyn_factors_alg_mod
+
+  use constants_mod,                only : i_def
+  use field_mod,                    only : field_type
+  use formulation_config_mod,       only : use_moisture
+  use mr_indices_mod,               only : nummr
+  use moist_dyn_mod,                only : num_moist_factors
+  use moist_dyn_factors_kernel_mod, only : moist_dyn_factors_kernel_type
+
+  implicit none
+
+contains
+
+  !> @details Update factors for moist dynamics
+  !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
+  !> @param[in] mr Field bundle containing the moisture mixing ratios
+  subroutine moist_dyn_factors_alg( moist_dyn, mr )
+
+    implicit none
+
+    ! Moist dynamics
+    type( field_type ), intent(inout) :: moist_dyn(num_moist_factors)
+    ! Moisture mixing ratios
+    type( field_type ), intent(in)    :: mr(nummr)
+    integer (i_def) :: i
+
+    if (use_moisture)then
+      ! Set moist dynamics factors
+      call invoke(moist_dyn_factors_kernel_type( moist_dyn, mr ))
+    else
+      ! Dry dynamics - set moist dynamics factors to one
+      do i = 1, num_moist_factors
+        call invoke( setval_c( moist_dyn(i), 1.0_r_def) )
+      end do
+    end if
+
+  end subroutine moist_dyn_factors_alg
+
+end module moist_dyn_factors_alg_mod

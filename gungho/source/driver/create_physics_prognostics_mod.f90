@@ -1,11 +1,11 @@
 !-------------------------------------------------------------------------------
-! (C) Crown copyright 2017 Met Office. All rights reserved.
+! (C) Crown copyright 2019 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Init functionality for physics
-!> @details Handles initialization of prognostic fields
-module init_physics_mod
+!> @brief create physics prognostics
+!> @details Creates the physics prognostic fields
+module create_physics_prognostics_mod
 
   use constants_mod,                  only : i_def, l_def
   use field_mod,                      only : field_type, &
@@ -13,51 +13,41 @@ module init_physics_mod
                                              checkpoint_write_interface, &
                                              checkpoint_read_interface
   use finite_element_config_mod,      only : element_order
-  use formulation_config_mod,         only : transport_only, &
-                                             use_moisture
   use function_space_collection_mod,  only : function_space_collection
   use field_collection_mod,           only : field_collection_type
-  use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta
+  use fs_continuity_mod,              only : W2, W3, Wtheta
   use function_space_mod,             only : function_space_type
-  use init_cloud_twod_fields_alg_mod, only : init_cloud_twod_fields_alg
-  use init_physics_incs_alg_mod,      only : init_physics_incs_alg
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO,         &
                                              LOG_LEVEL_ERROR
-  use transport_config_mod,           only : scheme, &
-                                             operators, &
-                                             scheme_method_of_lines, &
-                                             operators_fv
-  use mr_indices_mod,                 only : nummr
-  use runtime_constants_mod,          only : create_runtime_constants
-
+  use section_choice_config_mod,      only : cloud, cloud_none
   implicit none
+
+  private
+  public :: create_physics_prognostics
 
 contains
   !>@brief Routine to initialise the field objects required by the physics
-  !> @param[in] mesh_id Identifier of the mesh
-  !> @param[in] twod_mesh_id Identifier of the 2D (surface) mesh
-  !> @param[in,out] u Wind field
-  !> @param[in,out] exner Exner pressure field
-  !> @param[in,out] rho Density field
-  !> @param[in,out] theta Potential temperature field
+  !> @param[in]    mesh_id The identifier given to the current 3d mesh
+  !> @param[in]    twod_mesh_id The identifier given to the current 2d mesh
+  !> @param[inout] prognostic_fields A collection of the fields that make up the
+  !>                                 prognostic variables in the model 
   !> @param[out]   derived_fields Collection of FD fields derived from FE fields 
   !> @param[out]   cloud_fields Collection of FD cloud fields
   !> @param[out]   twod_fields Collection of two fields
   !> @param[out]   physics_incs Collection of physics increments
-  subroutine init_physics(mesh_id, twod_mesh_id,                      &
-                          u, exner, rho, theta,                       &
-                          derived_fields, cloud_fields, twod_fields,  &
-                          physics_incs)
+  subroutine create_physics_prognostics( mesh_id, twod_mesh_id, &
+                                         prognostic_fields, &
+                                         derived_fields, cloud_fields, &
+                                         twod_fields, physics_incs )
 
     implicit none
 
     integer(i_def), intent(in)               :: mesh_id
     integer(i_def), intent(in)               :: twod_mesh_id
-    ! Prognostic fields
-    type( field_type ), intent(inout)        :: u, exner, rho, theta
 
     ! Collections of fields
+    type(field_collection_type), intent(inout) :: prognostic_fields
     type(field_collection_type), intent(out) :: twod_fields
     type(field_collection_type), intent(out) :: cloud_fields
     type(field_collection_type), intent(out) :: derived_fields
@@ -66,11 +56,15 @@ contains
     ! pointers to vector spaces
     type(function_space_type), pointer  :: vector_space => null()
 
+    type( field_type ), pointer   :: theta => null()
+ 
     integer(i_def) :: theta_space
     logical(l_def) :: checkpoint_restart_flag
 
-    call log_event( 'Physics: initialisation...', LOG_LEVEL_INFO )
+    call log_event( 'Create physics prognostics', LOG_LEVEL_INFO )
     
+
+    theta => prognostic_fields%get_field('theta')
     theta_space=theta%which_function_space()
     
     if (theta_space /= Wtheta)then
@@ -138,6 +132,7 @@ contains
     !========================================================================
     ! Here we create some cloud fields
     !========================================================================
+
     cloud_fields = field_collection_type(name='cloud_fields')
     vector_space=>function_space_collection%get_fs(mesh_id, 0, Wtheta)
     checkpoint_restart_flag = .true.
@@ -147,9 +142,6 @@ contains
     call add_physics_field(cloud_fields, 'liquid_fraction', vector_space, checkpoint_restart_flag)
     call add_physics_field(cloud_fields, 'bulk_fraction',   vector_space, checkpoint_restart_flag)
     call add_physics_field(cloud_fields, 'rh_crit_wth',     vector_space, checkpoint_restart_flag)
-
-    ! Initialise cloud fields
-    call init_cloud_twod_fields_alg( cloud_fields, twod_fields )
 
     !========================================================================
     ! Increment values from individual physics parametrizations
@@ -168,14 +160,22 @@ contains
     call add_physics_field(physics_incs, 'sw_heating_rate', vector_space, checkpoint_restart_flag)
     call add_physics_field(physics_incs, 'lw_heating_rate', vector_space, checkpoint_restart_flag)
 
-    ! Set the increments to 0 initially
-    call init_physics_incs_alg(physics_incs)
+    ! Put references to fields requiring checkpointing into the prognostic fields collection
+    call prognostic_fields%add_reference_to_field( twod_fields%get_field('tstar') )
+    call prognostic_fields%add_reference_to_field( twod_fields%get_field('zh') )
+    call prognostic_fields%add_reference_to_field( twod_fields%get_field('z0msea') )
 
-    call log_event( 'Physics initialised', LOG_LEVEL_INFO ) 
+    if (cloud /= cloud_none)then
+      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('area_fraction') )
+      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('ice_fraction') )
+      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('liquid_fraction') )
+      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('bulk_fraction') )
+      call prognostic_fields%add_reference_to_field( cloud_fields%get_field('rh_crit_wth') )
+    end if
 
-  end subroutine init_physics
+  end subroutine create_physics_prognostics
 
-  !>@brief Add field to field collection and set its write, 
+  !>@brief Add field to field collection and set its write, 
   !>       checkpoint and restart behaviour 
   !> @param[in,out] field_collection Field collection that 'name' will be added to
   !> @param[in]     name             Name of field to be added to collection 
@@ -208,9 +208,6 @@ contains
     procedure(checkpoint_write_interface), pointer  :: checkpoint_write_behaviour => null() 
     procedure(checkpoint_read_interface), pointer   :: checkpoint_read_behaviour => null()
 
-    ! All physics fields currently require output on faces...
-    write_diag_behaviour => xios_write_field_face
-
     if ( use_xios_io) then
       checkpoint_write_behaviour => checkpoint_write_xios
       checkpoint_read_behaviour => checkpoint_read_xios
@@ -222,6 +219,8 @@ contains
     new_field = field_type( vector_space, name=trim(name) )
 
     if (use_xios_io .and. write_diag) then
+      ! All physics fields currently require output on faces...
+      write_diag_behaviour => xios_write_field_face
       call new_field%set_write_diag_behaviour(write_diag_behaviour)
     end if
     if (checkpoint_restart_flag) then
@@ -233,4 +232,4 @@ contains
 
   end subroutine add_physics_field
 
-end module init_physics_mod
+end module create_physics_prognostics_mod

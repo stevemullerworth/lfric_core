@@ -10,7 +10,7 @@
 module gungho_driver_mod
 
   use checksum_alg_mod,           only : checksum_alg
-  use section_choice_config_mod,  only : cloud, cloud_um
+  use section_choice_config_mod,  only : cloud, cloud_um, cloud_none
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, imdi, str_def, str_short
   use derived_config_mod,         only : set_derived_config
@@ -35,16 +35,27 @@ module gungho_driver_mod
   use configuration_mod,          only : final_configuration
   use gungho_mod,                 only : load_configuration
   use init_fem_mod,               only : init_fem
-  use init_gungho_mod,            only : init_gungho
+  use create_gungho_prognostics_mod, &
+                                  only : create_gungho_prognostics
+  use create_physics_prognostics_mod, &
+                                  only : create_physics_prognostics
+  use init_gungho_prognostics_alg_mod, &
+                                  only : init_gungho_prognostics_alg
+  use moist_dyn_factors_alg_mod,  only : moist_dyn_factors_alg
+  use initial_cloud_alg_mod,      only : initial_cloud_alg
+  use init_physics_prognostics_alg_mod, &
+                                  only : init_physics_prognostics_alg
   use init_mesh_mod,              only : init_mesh
-  use init_physics_mod,           only : init_physics
+  use runtime_constants_mod,      only : create_runtime_constants
   use io_mod,                     only : xios_domain_init, &
                                          ts_fname,         &
+                                         read_checkpoint,  &
                                          write_checkpoint
   use io_config_mod,              only : write_diag,           &
                                          diagnostic_frequency, &
                                          use_xios_io,          &
                                          nodal_output_on_w3,   &
+                                         checkpoint_read,      &
                                          checkpoint_write,     &
                                          checkpoint_stem_name, &
                                          write_minmax_tseries, &
@@ -152,7 +163,7 @@ contains
 
     integer(i_def) :: total_ranks, local_rank
     integer(i_def) :: comm = -999
-    integer(i_def) :: timestep, ts_init, dtime
+    integer(i_def) :: ts_init, dtime
 
     ! Initialse mpi and create the default communicator: mpi_comm_world
     call initialise_comm(comm)
@@ -226,26 +237,55 @@ contains
 
     end if
 
+    ! Create runtime_constants object. This in turn creates various things
+    ! needed by the timestepping algorithms such as mass matrix operators, mass
+    ! matrix diagonal fields and the geopotential field
+    call create_runtime_constants(mesh_id, chi)
 
-    ! Create and initialise prognostic and auxilliary (diagnostic) fields
-    timestep = 0
-    call init_gungho( mesh_id, chi, prognostic_fields, mr, moist_dyn, xi )
+    ! Create gungho prognostics and auxilliary (diagnostic) fields
+    call create_gungho_prognostics( mesh_id, chi, &
+                                    prognostic_fields, mr, moist_dyn, xi )
+
+    ! Create prognostics used by physics
+    if (use_physics) then
+      call create_physics_prognostics( mesh_id, twod_mesh_id, &
+                                       prognostic_fields, &
+                                       derived_fields, cloud_fields, &
+                                       twod_fields, physics_incs )
+    end if
+
+    ! Either read prognostics from checkpoint/restart or set them analytically
+    if( checkpoint_read ) then 
+      call read_checkpoint(prognostic_fields, timestep_start-1)
+
+      ! Update factors for moist dynamics
+        call moist_dyn_factors_alg(moist_dyn, mr)
+
+      ! if no cloud scheme, reset cloud variables
+      if (use_physics) then
+        if ( cloud == cloud_none ) then  
+          call initial_cloud_alg(cloud_fields)
+        end if
+      end if
+
+    else
+      call init_gungho_prognostics_alg(prognostic_fields, mr, moist_dyn, xi)
+
+      if (use_physics) then
+        call init_physics_prognostics_alg(derived_fields, &
+                                          cloud_fields, &
+                                          twod_fields, &
+                                          physics_incs)
+      end if
+    end if
 
     ! Get pointers to fields in the prognostic fields collection
     ! for use downstream
-
     theta => prognostic_fields%get_field('theta')
     u => prognostic_fields%get_field('u')
     rho => prognostic_fields%get_field('rho')
     exner => prognostic_fields%get_field('exner')
 
-    ! Create and initialise physics fields
-    if (use_physics) then
-      call init_physics(mesh_id, twod_mesh_id,                      &
-                        u, exner, rho, theta,                       &
-                        derived_fields, cloud_fields, twod_fields,  &
-                        physics_incs)
-    end if
 
     ! Initial output
     ! We only want these once at the beginning of a run
@@ -468,26 +508,7 @@ contains
     ! Write checkpoint files if required
     if( checkpoint_write ) then 
 
-
        call write_checkpoint(prognostic_fields, timestep_end)
-
-       if (use_moisture) then
-         do i=1,nummr
-           write(name, '(A,A)') 'checkpoint_',trim(mr_names(i))
-           write(log_scratch_space,'(A,A,A,I6)') "Checkpointing ",  trim(name), " at ts ",timestep_end
-           call log_event(log_scratch_space,LOG_LEVEL_INFO)
-           call mr(i)%write_checkpoint(trim(name), trim(ts_fname(checkpoint_stem_name,"", &
-                            trim(mr_names(i)), timestep_end,"")))
-         end do
-       end if
-
-       if (use_physics .and. cloud == cloud_um) then
-         call write_checkpoint(cloud_fields, timestep_end)
-       endif
-
-       if (use_physics) then
-         call write_checkpoint(twod_fields, timestep_end)
-       endif
 
     end if
 

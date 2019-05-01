@@ -1,14 +1,14 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Init functionality for gungho model
-!> @details Creates and initialises prognostic fields, also runtime_constants
-!>          specific to the model
+!> @brief Create empty fields for use by the gungho model
+!> @details Creates the empty prognostic fields that will be later 
+!>          initialise and used by the gungho model
 
-module init_gungho_mod
+module create_gungho_prognostics_mod
 
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type, &
@@ -18,14 +18,14 @@ module init_gungho_mod
   use field_collection_mod,           only : field_collection_type
   use finite_element_config_mod,      only : element_order, &
                                              vorticity_in_w1
+  use formulation_config_mod,         only : use_moisture
   use fs_continuity_mod,              only : W0, W1, W2, W3, Wtheta
   use function_space_collection_mod , only : function_space_collection
-  use init_prognostic_fields_alg_mod, only : init_prognostic_fields_alg
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
-  use mr_indices_mod,                 only : nummr
+  use mr_indices_mod,                 only : nummr, &
+                                             mr_names
   use moist_dyn_mod,                  only : num_moist_factors
-  use runtime_constants_mod,          only : create_runtime_constants
   use io_mod,                         only : xios_write_field_node, &
                                              xios_write_field_face, &
                                              checkpoint_read_xios,   &
@@ -36,33 +36,37 @@ module init_gungho_mod
                                              write_diag,      &
                                              checkpoint_read, &
                                              checkpoint_write
-
   implicit none
 
+  private
+  public :: create_gungho_prognostics
 
 contains
 
-  !>@brief Initialise the gungho model
-  !> @param[in] mesh_id Identifier of the mesh
-  !> @param[in,out] chi Spatial coordinates
-  !> @param[in,out] prognostic_fields The collection of prognostics
-  !> @param[in,out] mr Moisture mixing ratios
-  !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
-  !> @param[in,out] xi Vorticity
-  subroutine init_gungho( mesh_id, chi, prognostic_fields, mr, &
-                          moist_dyn, xi)
-
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Create empty fields to be used as prognostics by the gungho model
+  !> @param[in] mesh_id The identifier given to the current 3d mesh
+  !> @param[in] chi. An array of fields that hold the finite-element
+  !>                 representation of the mesh
+  !> @param[inout] prognostic_fields A collection of the fields that make up the
+  !>                                 prognostic variables in the model 
+  !> @param[inout] mr An array of fields that hold the moisture mixing ratios
+  !> @param[inout] moist_dyn An array of the moist dynamics fields
+  subroutine create_gungho_prognostics(mesh_id, chi, prognostic_fields, mr, &
+                                       moist_dyn, xi)
     implicit none
 
     integer(i_def), intent(in)                 :: mesh_id
     ! Prognostic fields
     type(field_collection_type), intent(inout) :: prognostic_fields
-    type( field_type ), intent(inout)          :: mr(nummr)
+    type( field_type ), intent(inout), target  :: mr(nummr)
     ! Diagnostic fields
     type( field_type ), intent(inout)        :: xi
     type( field_type ), intent(inout)        :: moist_dyn(num_moist_factors)
     ! Coordinate fields
     type( field_type ), intent(in)           :: chi(:)
+
+    type( field_type ), pointer              :: tmp_ptr
 
     integer(i_def)                           :: imr
 
@@ -73,7 +77,7 @@ contains
     ! Temp fields to create prognostics
     type( field_type )                         :: u, rho, theta, exner
 
-    call log_event( 'GungHo: initialisation...', LOG_LEVEL_INFO )
+    call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
     ! Create prognostic fields
     theta = field_type( vector_space = &
@@ -98,9 +102,13 @@ contains
                         function_space_collection%get_fs(mesh_id, element_order, W3), &
                         name = "exner" )
 
+    ! The moisture mixing ratio fields (mr) and moist dynamics fields
+    ! (moist_dyn) are always passed into the timestep algorithm, so are
+    ! always created here (even if use_moisture is false).
     do imr = 1,nummr
       mr(imr) = field_type( vector_space = &
-      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()) )
+      function_space_collection%get_fs(mesh_id, element_order, theta%which_function_space()), &
+                            name = trim(mr_names(imr)) )
     end do
 
     ! Auxilliary fields holding moisture-dependent factors for dynamics
@@ -198,17 +206,16 @@ contains
     call prognostic_fields%add_field( u )
     call prognostic_fields%add_field( exner )
 
-    ! Create runtime_constants object. This in turn creates various things
-    ! needed by the timestepping algorithms such as mass matrix operators, mass
-    ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_id, chi)
+    ! The moisture mixing ratios are always created, but only add them
+    ! to the prognostics collection if they are active
+    if ( use_moisture )then
+      do imr = 1,nummr
+        tmp_ptr => mr(imr)
+        call prognostic_fields%add_reference_to_field( tmp_ptr )
+      end do
+    end if
 
-    ! Initialise fields
-    call init_prognostic_fields_alg( prognostic_fields, mr, moist_dyn, xi )
+  end subroutine create_gungho_prognostics
 
-    nullify( tmp_write_diag_ptr, tmp_checkpoint_write_ptr, tmp_checkpoint_read_ptr )
 
-    call log_event( 'Gungho initialised', LOG_LEVEL_INFO )
-
-  end subroutine init_gungho
-end module init_gungho_mod
+end module create_gungho_prognostics_mod

@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
-! For further details please refer to the file LICENCE.original which you
-! should have received as part of this distribution.
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
 
 !>@brief Initialisation of prognostic fields
-module init_prognostic_fields_alg_mod
+module init_gungho_prognostics_alg_mod
 
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
@@ -19,15 +19,11 @@ module init_prognostic_fields_alg_mod
                                              w3inv_id,        &
                                              get_height
 
-  ! Configuration and restart/checkpoint options
   use finite_element_config_mod,       only: element_order
   use formulation_config_mod,          only: use_moisture, set_hydrostatic_init
   use initial_density_config_mod,      only: sample_init_rho
   use initial_wind_config_mod,         only: smp_init_wind
-  use io_mod,                          only: ts_fname, &
-                                             read_checkpoint
-  use io_config_mod,                   only: checkpoint_read, &
-                                             checkpoint_stem_name
+  use io_mod,                          only: ts_fname
   use time_config_mod,                 only: timestep_start
 
   ! PsyKAl-lite kernels
@@ -63,7 +59,7 @@ module init_prognostic_fields_alg_mod
   implicit none
 
   private
-  public :: init_prognostic_fields_alg
+  public :: init_gungho_prognostics_alg
 
 contains
 
@@ -73,7 +69,7 @@ contains
   !> @param[in,out] mr Field bundle containing the moisture mixring ratios
   !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
   !> @param[in,out] xi The vorticity field 
-  subroutine init_prognostic_fields_alg( prognostic_fields, mr, moist_dyn, xi )
+  subroutine init_gungho_prognostics_alg( prognostic_fields, mr, moist_dyn, xi )
 
     implicit none
 
@@ -121,103 +117,79 @@ contains
 
     !=== Initialise global prognostic fields ==================================!
 
-    if (.not. checkpoint_read ) then           ! No check point to start from
+    call log_event( "Gungho: Initialising prognostic fields", LOG_LEVEL_INFO )
 
-      call log_event( "Gungho: Initialising prognostic fields", LOG_LEVEL_INFO )
+    ! Initialise Xi
+    call invoke( setval_c( xi, 0.0_r_def ) )
+    ! Initialise theta
+    call invoke( initial_theta_kernel_type( theta, chi ) )
 
-      ! Initialise Xi
-      call invoke( setval_c( xi, 0.0_r_def ) )
-      ! Initialise theta
-      call invoke( initial_theta_kernel_type( theta, chi ) )
+    initial_time = 0.0_r_def
 
-      initial_time = 0.0_r_def
-
-      if (smp_init_wind) then
-        call invoke( name = "Initialise U",    &
-                     setval_c( u, 0.0_r_def ), &
-                     sample_initial_u_kernel_type( u, chi ) )
-      else
-        ! Initialise U and Rho according to formulation
-        r_u = field_type( vector_space =  u%get_function_space() )
-        call invoke( name = "Initialise U and Rho",   &
-                     setval_c( u,   0.0_r_def ),      &
-                     setval_c( r_u, 0.0_r_def ),      &
-                     initial_u_kernel_type( r_u, chi, initial_time, qr ), &
-                     enforce_bc_kernel_type( r_u ) )
-        call mass_matrix_solver_alg(u, r_u)
-      end if
-
-      if (set_hydrostatic_init) then
-        height_w3 => get_height(W3)
-        height_wth => get_height(Wtheta)
-
-        ! Initialize exner assuming hydrostatic balance
-        call invoke_hydrostatic_exner_kernel( exner, theta, moist_dyn, height_wth, &
-                                              height_w3, chi )
-        ! Diagnose density from equation of state
-        call invoke( sample_eos_rho_kernel_type( rho, exner, theta,                &
-                                                 moist_dyn(gas_law) ) )
-      else
-        if(sample_init_rho) then
-          call invoke_initial_rho_sample_kernel  ( rho,   chi, initial_time )
-          call invoke_initial_exner_sample_kernel( exner, chi, initial_time )
-        else
-          call invoke( set_rho_kernel_type   ( rho,   chi, initial_time, qr ), &
-                       set_exner_kernel_type ( exner, chi, initial_time, qr ) )
-          call log_event( "Gungho: Computing initial pressure as projection..", LOG_LEVEL_INFO )
-          m3_inv => get_mass_matrix(w3inv_id)
-          qr = quadrature_xyoz_type(1, quadrature_rule)
-
-          ! Pressure has already been initialized
-          call invoke( project_pressure_kernel_type( exner, rho, theta, moist_dyn(gas_law), &
-                                                     chi, m3_inv, qr ) )
-
-        end if
-      end if
-
-      if (use_moisture) then
-        ! Initialise moisture and update factors for moist dynamics
-        call invoke( initial_mr_kernel_type( theta, exner, rho, mr, chi ),         &
-                     moist_dyn_factors_kernel_type( moist_dyn, mr ) )
-        ! Recalculate hydrostatic pressure and dry density
-        height_w3 => get_height(W3)
-        height_wth => get_height(Wtheta)
-        call invoke_hydrostatic_exner_kernel( exner, theta, moist_dyn, height_wth, &
-                                              height_w3, chi )
-        call invoke( sample_eos_rho_kernel_type( rho, exner, theta,                &
-                                                 moist_dyn(gas_law) ) )
-      else
-        call set_bundle_scalar(0.0_r_def, mr, nummr)
-      end if
-
-      call log_event( "Gungho: Initialised prognostic fields", LOG_LEVEL_INFO )
-
-    else                                   ! Recorded check point to start from
-
-      call read_checkpoint(prognostic_fields, timestep_start-1)
-
-
-      if (use_moisture)then
-        do i=1,nummr
-          write(name, '(A)') 'restart_'//trim(mr_names(i))
-          write(log_scratch_space,'(A,A)') "Reading checkpoint file to restart ", trim(name)
-          call log_event(log_scratch_space,LOG_LEVEL_INFO)
-          call mr(i)%read_checkpoint(trim(name), trim(ts_fname(checkpoint_stem_name,"", &
-                            trim(mr_names(i)), (timestep_start - 1),"")))
-        end do
-        ! Update factors for moist dynamics
-        write(log_scratch_space,'(A)') 'Restart step 1: update moist_dyn'
-        call log_event(log_scratch_space,LOG_LEVEL_INFO)
-        call invoke(moist_dyn_factors_kernel_type( moist_dyn, mr ))
-      end if
-
-      call log_event( "Gungho: Read prognostic fields from files", LOG_LEVEL_INFO )
+    if (smp_init_wind) then
+      call invoke( name = "Initialise U",    &
+                   setval_c( u, 0.0_r_def ), &
+                   sample_initial_u_kernel_type( u, chi ) )
+    else
+      ! Initialise U and Rho according to formulation
+      r_u = field_type( vector_space =  u%get_function_space() )
+      call invoke( name = "Initialise U and Rho",   &
+                   setval_c( u,   0.0_r_def ),      &
+                   setval_c( r_u, 0.0_r_def ),      &
+                   initial_u_kernel_type( r_u, chi, initial_time, qr ), &
+                   enforce_bc_kernel_type( r_u ) )
+      call mass_matrix_solver_alg(u, r_u)
     end if
+
+    if (set_hydrostatic_init) then
+      height_w3 => get_height(W3)
+      height_wth => get_height(Wtheta)
+
+      ! Initialize exner assuming hydrostatic balance
+      call invoke_hydrostatic_exner_kernel( exner, theta, moist_dyn, height_wth, &
+                                            height_w3, chi )
+      ! Diagnose density from equation of state
+      call invoke( sample_eos_rho_kernel_type( rho, exner, theta,                &
+                                               moist_dyn(gas_law) ) )
+    else
+      if(sample_init_rho) then
+        call invoke_initial_rho_sample_kernel  ( rho,   chi, initial_time )
+        call invoke_initial_exner_sample_kernel( exner, chi, initial_time )
+      else
+        call invoke( set_rho_kernel_type   ( rho,   chi, initial_time, qr ), &
+                     set_exner_kernel_type ( exner, chi, initial_time, qr ) )
+        call log_event( "Gungho: Computing initial pressure as projection..", LOG_LEVEL_INFO )
+        m3_inv => get_mass_matrix(w3inv_id)
+        qr = quadrature_xyoz_type(1, quadrature_rule)
+
+        ! Pressure has already been initialized
+        call invoke( project_pressure_kernel_type( exner, rho, theta, moist_dyn(gas_law), &
+                                                   chi, m3_inv, qr ) )
+
+      end if
+    end if
+
+    if (use_moisture) then
+      ! Initialise moisture and update factors for moist dynamics
+      call invoke( initial_mr_kernel_type( theta, exner, rho, mr, chi ),         &
+                   moist_dyn_factors_kernel_type( moist_dyn, mr ) )
+      ! Recalculate hydrostatic pressure and dry density
+      height_w3 => get_height(W3)
+      height_wth => get_height(Wtheta)
+      call invoke_hydrostatic_exner_kernel( exner, theta, moist_dyn, height_wth, &
+                                            height_w3, chi )
+      call invoke( sample_eos_rho_kernel_type( rho, exner, theta,                &
+                                               moist_dyn(gas_law) ) )
+    else
+      call set_bundle_scalar(0.0_r_def, mr, nummr)
+    end if
+
+    call log_event( "Gungho: Initialised prognostic fields", LOG_LEVEL_INFO )
 
     !==========================================================================!
     nullify( m3_inv, chi, height_wth, height_w3 )
     nullify( theta, rho, u, exner)
 
-  end subroutine init_prognostic_fields_alg
+  end subroutine init_gungho_prognostics_alg
 
-end module init_prognostic_fields_alg_mod
+end module init_gungho_prognostics_alg_mod
