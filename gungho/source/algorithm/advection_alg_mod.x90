@@ -75,7 +75,7 @@ module advection_alg_mod
   use timestepping_config_mod,        only: dt
   use runge_kutta_init_mod,           only: num_rk_stage, ak
   use field_indices_mod,              only: igh_u, igh_t, igh_d, igh_p
-  use io_config_mod,                  only: subroutine_timers 
+  use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
   use timestepping_config_mod,        only: time_method => method, &
                                             method_rk  
@@ -375,9 +375,14 @@ contains
   !> @param[in]    state Current state of the model prognostics
   !> @param[inout] xi Relative vorticity field
   !> @param[in]    advecting_wind Wind field used to advect all quantities
-  subroutine advection_alg( advection, &
-                            state, &
-                            xi, advecting_wind)
+  !> @param[in]    wind_n Wind field at timestep n
+  !> @param[in]    wind_np1 Latest estimate of wind field at timestep n+1
+  subroutine advection_alg( advection,           &
+                            state,               &
+                            xi,                  &
+                            advecting_wind,      &
+                            wind_n,              &
+                            wind_np1 )
 
   implicit none
   ! Form of state and advection is [u,theta,rho] & [r_u,r_theta,r_rho]
@@ -385,6 +390,9 @@ contains
   type(field_type), intent(inout)          :: advection(bundle_size)
   type(field_type), intent(inout)          :: xi
   type(field_type), intent(in)             :: advecting_wind
+  type(field_type), intent(in)             :: wind_n
+  type(field_type), intent(in)             :: wind_np1
+
 
   type(field_type),    pointer :: chi(:) => null()
   type(operator_type), pointer :: mm_wt => null(), mm_w3_inv => null(), &
@@ -597,9 +605,10 @@ contains
   elseif (scheme == scheme_cosmic_3D) then
 
     call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,      &
-                            advecting_wind, detj_at_w2, chi, cell_orientation )
+                       wind_n, wind_np1, detj_at_w2, chi, cell_orientation )
     call cosmic_threed_transport_step( advection(igh_d), rho, dep_pts_x,      &
-                           dep_pts_y, dep_pts_z, detj_at_w2, cell_orientation )
+                                       dep_pts_y, dep_pts_z, detj_at_w2,      &
+                                       cell_orientation )
     call invoke( inc_a_times_X(-1.0_r_def, advection(igh_d)) )
 
   end if

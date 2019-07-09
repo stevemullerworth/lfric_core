@@ -46,7 +46,8 @@ contains
   !> @param[in,out] dep_pts_y         Departure points in y direction
   !> @param[in,out] dep_pts_z         Departure points in z direction
   !> @param[in,out] wind_divergence   Divergence of wind field
-  !> @param[in]     wind              Wind field
+  !> @param[in]     wind_n            Wind field at timestep n
+  !> @param[in]     wind_np1          Wind field at timestep n+1
   !> @param[in]     detj_at_w2        Det(J) at W2 dofs
   !> @param[in]     chi               Coordinate field
   !> @param[in]     cell_orientation  Orientation of halo cells
@@ -54,7 +55,8 @@ contains
                            dep_pts_y,       &
                            dep_pts_z,       &
                            wind_divergence, &
-                           wind,            &
+                           wind_n,          &
+                           wind_np1,        &
                            detj_at_w2,      &
                            chi,             &
                            cell_orientation )
@@ -65,7 +67,8 @@ contains
     type( field_type ), intent(inout) :: dep_pts_y
     type( field_type ), intent(inout) :: dep_pts_z
     type( field_type ), intent(inout) :: wind_divergence
-    type( field_type ), intent(in)    :: wind
+    type( field_type ), intent(in)    :: wind_n
+    type( field_type ), intent(in)    :: wind_np1
     type( field_type ), intent(in)    :: detj_at_w2
     type( field_type ), intent(in)    :: chi(3)
     type( field_type ), intent(in)    :: cell_orientation
@@ -84,7 +87,7 @@ contains
     integer(i_def) ::  mesh_id
 
     w2_fs => dep_pts_x%get_function_space()
-    mesh_id = wind%get_mesh_id()
+    mesh_id = wind_n%get_mesh_id()
     w3_fs   => function_space_collection%get_fs( mesh_id, element_order, W3 )
 
     u_x_fem_n                = field_type( vector_space = w2_fs )
@@ -113,33 +116,28 @@ contains
     ! points in the vertical.
     ! *_n and *_np1 denotes fields at timestep n and timestep n+1 with density known
     ! at timestep n.
-    ! Below the wind field is being copied to variable departure_wind_n and 
-    ! departure_wind_np1 which means that the same wind is being used at timesteps
-    ! n and n+1. 
-    ! The current version of this algorithm passes in the variable "wind" but future
-    ! versions may pass in "wind_n" and "wind_np1" as the wind at timestep n will be
-    ! known and an estimate for wind at timestep n+1 will be given by the dynamics.
-    ! Since the current Cosmic code is only doing transport only tests the current
-    ! method of using the same wind at timestep n and n+1 is sufficient.
-    call invoke( setval_c( dep_pts_x, LARGE_REAL_NEGATIVE ),                        &
-                 setval_c( dep_pts_y, LARGE_REAL_NEGATIVE ),                        &
-                 setval_c( dep_pts_z, LARGE_REAL_NEGATIVE ),                        &
-                 setval_c( departure_wind_n, LARGE_REAL_NEGATIVE ),                 &
-                 setval_c( departure_wind_np1, LARGE_REAL_NEGATIVE ),               &
-                 setval_c( u_x_fem_n, LARGE_REAL_NEGATIVE ),                        &
-                 setval_c( u_y_fem_n, LARGE_REAL_NEGATIVE ),                        &
-                 setval_c( u_x_fem_np1, LARGE_REAL_NEGATIVE ),                      &
-                 setval_c( u_y_fem_np1, LARGE_REAL_NEGATIVE ),                      &
-                 calc_departure_wind_kernel_type( departure_wind_n, wind, chi ),    &
-                 calc_departure_wind_kernel_type( departure_wind_np1, wind, chi ),  &
-                 vertical_trapezoidal_kernel_type( dep_pts_z, departure_wind_n,     &
-                                                              departure_wind_np1 )  )
+    call invoke( setval_c( dep_pts_x, LARGE_REAL_NEGATIVE ),                   &
+                 setval_c( dep_pts_y, LARGE_REAL_NEGATIVE ),                   &
+                 setval_c( dep_pts_z, LARGE_REAL_NEGATIVE ),                   &
+                 setval_c( departure_wind_n, LARGE_REAL_NEGATIVE ),            &
+                 setval_c( departure_wind_np1, LARGE_REAL_NEGATIVE ),          &
+                 setval_c( u_x_fem_n, LARGE_REAL_NEGATIVE ),                   &
+                 setval_c( u_y_fem_n, LARGE_REAL_NEGATIVE ),                   &
+                 setval_c( u_x_fem_np1, LARGE_REAL_NEGATIVE ),                 &
+                 setval_c( u_y_fem_np1, LARGE_REAL_NEGATIVE ),                 &
+                 calc_departure_wind_kernel_type( departure_wind_n, wind_n,    &
+                                                  chi ),      &
+                 calc_departure_wind_kernel_type( departure_wind_np1,          &
+                                                  wind_np1, chi ),             &
+                 vertical_trapezoidal_kernel_type( dep_pts_z,                  &
+                                                   departure_wind_n,           &
+                                                   departure_wind_np1 )  )
 
     ! Calculate horizontal departure points.
 
     ! Separate finite-element wind field into x and y directional components.
-    call invoke_extract_xy( u_x_fem_n, u_y_fem_n, wind, cell_orientation )
-    call invoke_extract_xy( u_x_fem_np1, u_y_fem_np1, wind, cell_orientation )
+    call invoke_extract_xy( u_x_fem_n, u_y_fem_n, wind_n, cell_orientation )
+    call invoke_extract_xy( u_x_fem_np1, u_y_fem_np1, wind_np1, cell_orientation )
 
     ! Divide the Piola wind coefficients, u_x_fem and u_y_fem, by detj at the W2 dofs.
     ! Returning wind coefficients, dep_wind_x and dep_wind_y, which have dimension 1/T.

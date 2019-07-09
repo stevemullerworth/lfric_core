@@ -35,7 +35,7 @@ module init_transport_mod
   !> @param[in,out] chi                Coordinate field
   !> @param[in] shifted_mesh_id        Mesh-id for vertically shifted coordinates
   !> @param[in,out] shifted_chi        Coordinate field for vertically shifted coordinates
-  !> @param[in,out] wind               Wind field
+  !> @param[in,out] wind_n             Wind field at timestep n
   !> @param[in,out] density            Density field
   !> @param[in,out] dep_pts_x          Departure points in the x-direction
   !> @param[in,out] dep_pts_y          Departure points in the y-direction
@@ -45,7 +45,7 @@ module init_transport_mod
   !> @param[in,out] wind_shifted       Wind field on vertically shifted W2 field
   !> @param[in,out] density_shifted    Density field on vertically shifted W3 field
   subroutine init_transport( mesh_id, twod_mesh_id, chi, shifted_mesh_id, shifted_chi, &
-                             wind, density, dep_pts_x, dep_pts_y, dep_pts_z,           &
+                             wind_n, density, dep_pts_x, dep_pts_y, dep_pts_z,         &
                              increment, divergence, wind_shifted, density_shifted )
 
     implicit none
@@ -55,7 +55,7 @@ module init_transport_mod
     type(field_type), intent(inout)   :: chi(:)
     integer(i_def),   intent(in)      :: shifted_mesh_id
     type(field_type), intent(inout)   :: shifted_chi(:)
-    type(field_type), intent(inout)   :: wind
+    type(field_type), intent(inout)   :: wind_n
     type(field_type), intent(inout)   :: density
     type(field_type), intent(inout)   :: dep_pts_x
     type(field_type), intent(inout)   :: dep_pts_y
@@ -68,7 +68,7 @@ module init_transport_mod
     type(function_space_type), pointer       :: function_space => null()
     procedure(write_interface), pointer :: tmp_write_ptr => null()
 
-    wind    = field_type( vector_space = &
+    wind_n   = field_type( vector_space = &
                           function_space_collection%get_fs( mesh_id, element_order, W2 ) )
     density = field_type( vector_space = &
                           function_space_collection%get_fs( mesh_id, element_order, W3 ) )
@@ -105,7 +105,7 @@ module init_transport_mod
     if ( write_diag .and. use_xios_io ) then
        ! Fields that are output on the XIOS face domain
        tmp_write_ptr => xios_write_field_face
-       call wind%set_write_behaviour( tmp_write_ptr )
+       call wind_n%set_write_behaviour( tmp_write_ptr )
        call density%set_write_behaviour( tmp_write_ptr )
        call increment%set_write_behaviour( tmp_write_ptr )
        call divergence%set_write_behaviour( tmp_write_ptr )

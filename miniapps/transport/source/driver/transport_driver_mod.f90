@@ -74,7 +74,7 @@ module transport_driver_mod
   public :: initialise_transport, run_transport, finalise_transport
 
   ! Prognostic fields
-  type(field_type) :: wind
+  type(field_type) :: wind_n
   type(field_type) :: density
   type(field_type) :: dep_pts_x
   type(field_type) :: dep_pts_y
@@ -193,9 +193,9 @@ contains
     call init_fem( mesh_id, chi, shifted_mesh_id, shifted_chi )
 
     ! Transport initialisation
-    call init_transport( mesh_id, twod_mesh_id, chi, shifted_mesh_id,        &
-                         shifted_chi, wind, density, dep_pts_x, dep_pts_y,   &
-                         dep_pts_z, increment, wind_divergence,              &
+    call init_transport( mesh_id, twod_mesh_id, chi, shifted_mesh_id,          &
+                         shifted_chi, wind_n, density, dep_pts_x, dep_pts_y,   &
+                         dep_pts_z, increment, wind_divergence,                &
                          wind_shifted, density_shifted )
 
     ! Calculate det(J) at W2 dofs for chi and shifted_chi fields.
@@ -230,7 +230,7 @@ contains
 
         end if
 
-        call write_vector_diagnostic('wind', wind, ts_init, mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic('wind', wind_n, ts_init, mesh_id, nodal_output_on_w3)
         call write_scalar_diagnostic('density', density, ts_init, mesh_id, nodal_output_on_w3)
 
      end if
@@ -268,10 +268,11 @@ contains
       end if
 
       ! Update the wind each timestep.
-      call set_winds( wind, mesh_id, timestep )
+      call set_winds( wind_n, mesh_id, timestep )
       ! Calculate departure points.
+      ! Here the wind is assumed to be the same at timestep n and timestep n+1
       call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence,    &
-                                            wind, detj_at_w2, chi, cell_orientation )
+                         wind_n, wind_n, detj_at_w2, chi, cell_orientation )
 
       if ( subroutine_timers ) call timer( 'cosmic step' )
 
@@ -308,7 +309,7 @@ contains
       ! Output wind and density values.
       if ( (mod( timestep, diagnostic_frequency ) == 0) .and. write_diag ) then
 
-        call write_vector_diagnostic('wind', wind, timestep, mesh_id, nodal_output_on_w3)
+        call write_vector_diagnostic('wind', wind_n, timestep, mesh_id, nodal_output_on_w3)
         call write_scalar_diagnostic('density', density, timestep, mesh_id, nodal_output_on_w3)
         call write_scalar_diagnostic('wind_divergence', wind_divergence, timestep,    &
                                       mesh_id, nodal_output_on_w3)
@@ -335,7 +336,7 @@ contains
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
     ! Write checksums to file
-    call checksum_alg( program_name, density, 'density', wind, 'wind' )
+    call checksum_alg( program_name, density, 'density', wind_n, 'wind' )
 
     if ( subroutine_timers ) then
       call timer( program_name )

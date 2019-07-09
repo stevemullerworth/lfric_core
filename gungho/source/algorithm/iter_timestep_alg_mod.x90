@@ -461,7 +461,7 @@ contains
 
         ! Set advecting velocity & terms
         call invoke( aX_plus_bY(u_adv, varbeta, state_after_slow(igh_u), varalpha, state(igh_u)) )
-        call advection_alg(rhs_adv, state_after_slow, xi, u_adv)
+        call advection_alg(rhs_adv, state_after_slow, xi, u_adv, state_n(igh_u), state(igh_u) )
         if ( use_moisture )then
           ! Advect mr_after_slow values with latest advecting velocity 
           call advection_mr_alg(mr_inc, mr_after_slow, u_adv)
