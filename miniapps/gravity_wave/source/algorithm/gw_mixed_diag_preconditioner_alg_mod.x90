@@ -109,8 +109,6 @@ contains
   subroutine apply_gw_mixed_diag_preconditioner(self, x, y)
 
     use field_indices_mod,          only: igw_u, igw_p, igw_b
-    use psykal_lite_mod,            only: invoke_copy_field_data, &
-                                          invoke_divide_field_data
 
     implicit none
     class(gw_mixed_diag_preconditioner_type), intent(inout) :: self

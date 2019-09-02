@@ -22,8 +22,8 @@ module init_solver_miniapp_mod
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR, &
                                              log_scratch_space
-  use psykal_lite_mod,                only : invoke_set_field_scalar
   use runtime_constants_mod,          only : create_runtime_constants
+  use init_solver_fields_alg_mod,     only : init_solver_fields_alg
   implicit none
 
 
@@ -54,9 +54,9 @@ contains
     f2 = field_type( vector_space = &
          function_space_collection%get_fs(mesh_id, element_order, W3) )
 
-    ! set the fields to scalars
-    call invoke_set_field_scalar(0.5_r_def,f1)
-    call invoke_set_field_scalar(1.0_r_def,f2)
+    ! Initialise the fields
+    call init_solver_fields_alg(f1, f2)
+
     ! make the vector
     fv = field_vector_type(2_i_def)
     call fv%import_field(f1,1)

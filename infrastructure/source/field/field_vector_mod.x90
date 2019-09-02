@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 
 !>@brief Abstract vector type for fields to use the new solver API and 
-!! extended vector types for particular solvers.
+!!       extended vector types for particular solvers.
 
 module field_vector_mod
   use constants_mod,                 only : i_def, r_def
@@ -15,9 +15,6 @@ module field_vector_mod
   use fs_continuity_mod
   use log_mod,                       only : log_event, LOG_LEVEL_ERROR, &
                                             log_scratch_space
-
-  use psykal_lite_field_vector_mod, only: invoke_0, invoke_1, invoke_2, invoke_3, invoke_4, invoke_5
-
 
   implicit none
   private 
@@ -44,7 +41,7 @@ module field_vector_mod
      procedure, public  :: set_scalar => set_field_vector_scalar
      !> Compute y = y + alpha * x
      !> @param[in] alpha  real
-     !> @param[inout] x  vector, an array of fields
+     !> @param[in, out] x  vector, an array of fields
      procedure, public  :: axpy => axpy_field_vector
      !> Compute norm of the field vector, returns a real scalar
      !! n = sqrt( sum_i( f_i*f_i )) where f_i is each field
@@ -57,7 +54,7 @@ module field_vector_mod
      procedure, public  :: scale => scale_field_vector
      !> Compute y = alpha*y + x
      !> @param[in] alpha  real
-     !> @param[inout] x  vector, an array of fields
+     !> @param[in, out] x  vector, an array of fields
      procedure, public  :: aypx => aypx_field_vector
      !> multiply a field vector by a scalar
      !> @param [in] scalar real     
@@ -92,15 +89,13 @@ contains
     implicit none
     class(field_vector_type), intent(in) :: self
     real(kind=r_def)    :: normal
-    integer(kind=i_def) :: fctr
-    real(kind=r_def)    :: field_norm
+    integer(kind=i_def) :: fctr, nfctr
+    real(kind=r_def)    :: field_norm   
     normal = 0.0_r_def
         
-    do fctr = 1, size(self%vector)
-       ! invoke calls commented out. They are correct and Psyclone can generate
-       !  the correct code when pointed at the file. Prefixed with psyclone
-       !psyclone       call invoke(X_innerproduct_X(field_norm, self%vector(fctr)) )
-       call invoke_0(field_norm, self%vector(fctr))
+    nfctr = size(self%vector)
+    do fctr = 1, nfctr
+       call invoke( X_innerproduct_X(field_norm, self%vector(fctr)) )
        normal=normal + field_norm
     end do
     normal = sqrt(normal)
@@ -113,15 +108,15 @@ contains
     class(abstract_vector_type), intent(in) :: x
     real(kind=r_def)                        :: dot_prod
     real(kind=r_def)                        :: inner_prod_field
-    integer(kind=i_def)                     :: fctr
+    integer(kind=i_def)                     :: fctr, nfctr
 
     select type(x)
     type is(field_vector_type)
        dot_prod = 0.0_r_def
-       do fctr = 1, size(self%vector)
+       nfctr = size(self%vector)
+       do fctr = 1, nfctr
           inner_prod_field = 0.0_r_def
-          !psyclone          call invoke( X_innerproduct_Y( inner_prod_field, self%vector(fctr), x%vector(fctr) ))
-          call invoke_1(inner_prod_field, self%vector(fctr), x%vector(fctr))          
+          call invoke( X_innerproduct_Y( inner_prod_field, self%vector(fctr), x%vector(fctr) ))
           dot_prod = dot_prod + inner_prod_field
        end do
     class default
@@ -137,14 +132,13 @@ contains
     class(field_vector_type),    intent(inout) :: self
     real(kind=r_def),            intent(in)    :: alpha
     class(abstract_vector_type), intent(inout) :: x
-    integer(kind=i_def) :: fctr
+    integer(kind=i_def) :: fctr, nfctr
 
     select type(x)
     type is(field_vector_type)
-    
-       do fctr = 1, size(self%vector)
-          !psyclone          call invoke(inc_X_plus_bY( self%vector(fctr), alpha, y%vector(fctr) ))
-          call invoke_2(self%vector(fctr), alpha, x%vector(fctr))
+       nfctr =  size(self%vector)
+       do fctr = 1, nfctr
+          call invoke(inc_X_plus_bY( self%vector(fctr), alpha, x%vector(fctr) ))
        end do
     class default
        write(log_scratch_space,'(A)') &
@@ -160,12 +154,12 @@ contains
     implicit none
     class(field_vector_type), intent(inout) :: self
     real(kind=r_def),         intent(in)    :: scalar
-    integer(kind=i_def) :: fctr
+    integer(kind=i_def) :: fctr, nfctr
     
-    do fctr = 1, size(self%vector)
+    nfctr = size(self%vector)
+    do fctr = 1, nfctr
        ! check we have a field set in each position
-       !psyclone       call invoke( setval_c(self%vector(fctr), scalar) )
-       call invoke_3(self%vector(fctr), scalar)       
+       call invoke( setval_c(self%vector(fctr), scalar) )
     end do
     self%vector_set=.true.
     
@@ -178,15 +172,14 @@ contains
     class(field_vector_type),    intent(inout) :: self
     real(kind=r_def),            intent(in)    :: alpha
     class(abstract_vector_type), intent(inout) :: x
-    integer(kind=i_def) :: fctr
+    integer(kind=i_def) :: fctr, nfctr
 
     select type(x)
     type is(field_vector_type)
-    
-       do fctr = 1, size(self%vector)
+       nfctr = size(self%vector)
+       do fctr = 1, nfctr
           ! pass the field to
-          !psyclone          call invoke( inc_aX_plus_Y(alpha, self%vector(fctr), x%vector(fctr)) )
-          call invoke_4(alpha, self%vector(fctr), x%vector(fctr))          
+          call invoke( inc_aX_plus_Y(alpha, self%vector(fctr), x%vector(fctr)) )
        end do
     class default
        write(log_scratch_space,'(A)') &
@@ -200,11 +193,11 @@ contains
     implicit none
     class(field_vector_type), intent(inout) :: self
     real(kind=r_def),         intent(in)    :: scalar
-    integer(kind=i_def) :: fctr
+    integer(kind=i_def) :: fctr, nfctr
 
-    do fctr = 1, size(self%vector)
-       !psyclone       call invoke( inc_a_times_X(scale, self%vector(fctr) ) )
-       call invoke_5(scalar, self%vector(fctr))       
+    nfctr = size(self%vector)
+    do fctr = 1, nfctr
+       call invoke( inc_a_times_X(scalar, self%vector(fctr) ) )
     end do
     
   end subroutine scale_field_vector
@@ -260,7 +253,7 @@ contains
     implicit none
     class(field_vector_type),                 intent(in)    :: self
     class(abstract_vector_type), allocatable, intent(inout) :: vec
-    integer :: pos, mesh_id, elem, fs_label, astat
+    integer :: pos, mesh_id, elem, fs_label, astat, nfctr
 
     allocate(field_vector_type::vec,stat=astat )
     select type (vec)
@@ -272,7 +265,8 @@ contains
 
           ! get the mesh id
           mesh_id = self%vector(1)%get_mesh_id()
-          do pos = 1, size(vec%vector)
+          nfctr = size(self%vector)
+          do pos = 1, nfctr
              elem = self%vector(pos)%get_element_order()
              fs_label = self%vector(pos)%which_function_space()
              vec%vector(pos) = field_type(vector_space = &
@@ -301,7 +295,7 @@ contains
     class(field_vector_type), intent(out) :: self
     class(abstract_vector_type), intent(in) :: source
     integer :: stat1
-    integer :: pos
+    integer :: pos, nfctr
     
     ! make field_vector
     select type (source) 
@@ -312,7 +306,8 @@ contains
        
        ! if fields don't exist set false, otherwise copy and set true
        if(source%vector_set) then
-          do pos = 1, size(source%vector)
+          nfctr = size(self%vector)
+          do pos = 1, nfctr
              self%vector(pos) = source%vector(pos)
           end do
           self%vector_set=.true.

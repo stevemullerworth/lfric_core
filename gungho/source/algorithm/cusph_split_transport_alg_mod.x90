@@ -19,8 +19,7 @@ module cusph_split_transport_alg_mod
   use psykal_lite_mod,                   only: invoke_calc_deppts,           &
                                                invoke_extract_xy,            &
                                                invoke_cosmic_departure_wind, &
-                                               invoke_correct_cosmic_wind,   &
-                                               invoke_set_field_scalar
+                                               invoke_correct_cosmic_wind
 
   use log_mod,                           only: LOG_LEVEL_INFO
 

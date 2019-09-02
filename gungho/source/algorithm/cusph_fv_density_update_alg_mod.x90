@@ -13,8 +13,7 @@ module cusph_fv_density_update_alg_mod
   use constants_mod,                     only: i_def, r_def, LARGE_REAL_NEGATIVE
   use field_mod,                         only: field_type
   use timestepping_config_mod,           only: dt
-  use psykal_lite_mod,                   only: invoke_set_field_scalar, &
-                                               invoke_fv_divergence,    &
+  use psykal_lite_mod,                   only: invoke_fv_divergence, &
                                                invoke_multiply_field_data
   use dg_matrix_vector_kernel_mod,       only: dg_matrix_vector_kernel_type
   use operator_mod,                      only: operator_type

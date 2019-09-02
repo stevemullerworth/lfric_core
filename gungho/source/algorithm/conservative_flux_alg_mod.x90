@@ -31,7 +31,6 @@ module conservative_flux_alg_mod
                                                invoke_subgrid_coeffs_conservative,  &
                                                invoke_fv_mass_fluxes
   use flux_direction_mod,                only: x_direction, y_direction
-  use psykal_lite_mod,                   only: invoke_set_field_scalar
 
   implicit none
 
