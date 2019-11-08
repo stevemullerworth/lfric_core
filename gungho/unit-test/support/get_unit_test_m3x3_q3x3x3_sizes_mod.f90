@@ -6,7 +6,7 @@
 
 module get_unit_test_m3x3_q3x3x3_sizes_mod
 ! A module containing a collection of helper routines that provide the sizes of
-! canned  dofmaps on a simple 3x3 mesh 
+! canned  dofmaps on a simple 3x3 mesh
 
   use constants_mod, only : i_def
 
@@ -26,7 +26,7 @@ module get_unit_test_m3x3_q3x3x3_sizes_mod
             get_wchi_m3x3_q3x3x3_size
 
   contains
-  
+
 !---------------------------------------------------------------------
 
   subroutine get_w0_m3x3_q3x3x3_size( ndf, undf, ncells, &

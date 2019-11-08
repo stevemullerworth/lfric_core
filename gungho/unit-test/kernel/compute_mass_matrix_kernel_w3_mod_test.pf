@@ -16,6 +16,7 @@ module compute_mass_matrix_kernel_w3_mod_test
                                                   get_w3_q3x3x3_basis
   use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
                                                   get_gaussian_q3x3x3_quadrature_weights_z
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use pFUnit_Mod
   use yaxt,                                only : xt_initialize, xt_finalize
   use mpi_mod,                             only : store_comm, clear_comm
@@ -128,17 +129,9 @@ contains
     allocate(chi1(undf_w0))
     allocate(chi2(undf_w0))
     allocate(chi3(undf_w0))
-    icell = 1
-    do j = 1,3
-      do i = 1,3
-        do k = 0,3
-          chi1(map_w0(1,icell)+k) = real(i-1)*dx
-          chi2(map_w0(1,icell)+k) = real(j-1)*dy
-          chi3(map_w0(1,icell)+k) = real(k)*dz
-        end do
-        icell = icell + 1
-      end do
-    end do
+
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
 
     ncell_3d = ncells*nlayers
 

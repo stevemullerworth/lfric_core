@@ -51,7 +51,7 @@ contains
                               viscosity_mu  = 0.0_r_def,  &
                               smagorinsky   = .false.,    &
                               mix_factor    = 0.2_r_def,  &
-                              method        = method_3d_smag ) 
+                              method        = method_3d_smag )
 
   end subroutine setUp
 
@@ -162,7 +162,7 @@ contains
                                map_w0(:,cell)                &
                               )
 
-     answer = 0.0_r_def 
+     answer = 0.0_r_def
      @assertEqual(answer, theta_inc(map_wt(1,cell) ), tol)
 
     deallocate(map_w0)
