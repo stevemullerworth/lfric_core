@@ -25,6 +25,7 @@ module compute_total_mass_kernel_mod_test
   implicit none
 
   private
+
   public :: compute_total_mass_kernel_test_type, test_all
 
   @TestCase
@@ -63,7 +64,7 @@ contains
 
     ! Initialise YAXT
     call xt_initialize(this%getMpiCommunicator())
-    !Store the MPI communicator for later use
+    ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
     call feign_base_mesh_config( filename='foo',                 &
@@ -106,7 +107,7 @@ contains
 
     class(compute_total_mass_kernel_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: tol = 1.0e-2_r_def
     real(r_def), parameter :: dx  = 6000.0_r_def, &
                               dy  = 2000.0_r_def, &
                               dz  = 2000.0_r_def
@@ -177,7 +178,7 @@ contains
                                  wh, wv)
 
 
-    answer = dx*dy*dz*rho(1)/radius**2
+    answer = dx*dy*dz*rho(1)
     @assertEqual(answer, mass(map_w3(1, cell)), tol)
 
     deallocate(map_w0)

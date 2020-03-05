@@ -25,7 +25,7 @@ module gungho_model_mod
   use io_config_mod,              only : subroutine_timers, &
                                          subroutine_counters, &
                                          use_xios_io, &
-                                         write_diag, &
+                                         write_conservation_diag, &
                                          write_dump, &
                                          write_minmax_tseries
 
@@ -57,10 +57,10 @@ module gungho_model_mod
                                          global_mesh_collection_type
   use create_mesh_mod,            only : init_mesh, final_mesh
   use create_fem_mod,             only : init_fem, final_fem
-  use timestepping_config_mod,        only : method, &
-                                             method_semi_implicit, &
-                                             method_rk, &
-                                             dt
+  use timestepping_config_mod,    only : method, &
+                                         method_semi_implicit, &
+                                         method_rk, &
+                                         dt
   use time_config_mod,            only : timestep_start
 
   use io_mod,                     only : initialise_xios
@@ -83,6 +83,8 @@ module gungho_model_mod
                                          radiation_socrates
   use iter_timestep_alg_mod,      only : iter_alg_init, &
                                          iter_alg_final
+  use moisture_conservation_alg_mod, &
+                                  only : moisture_conservation_alg
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
@@ -96,6 +98,7 @@ module gungho_model_mod
   use transport_config_mod,       only : scheme, &
                                          scheme_method_of_lines
   use init_altitude_mod,          only : init_altitude
+
   implicit none
 
   private
@@ -357,14 +360,20 @@ module gungho_model_mod
           ! Initialise and output initial conditions for first timestep
           call runge_kutta_init()
           call iter_alg_init(mesh_id, u, rho, theta, exner, mr)
-          if ( write_diag ) &
+          if ( write_conservation_diag ) then
            call conservation_algorithm(timestep_start, rho, u, theta, exner)
+           if ( use_moisture ) &
+             call moisture_conservation_alg(timestep_start, rho, mr, 'Before timestep')
+          end if
         case( method_rk )             ! RK
           ! Initialise and output initial conditions for first timestep
           call runge_kutta_init()
           call rk_alg_init(mesh_id, u, rho, theta, exner)
-          if ( write_diag ) &
+          if ( write_conservation_diag ) then
            call conservation_algorithm(timestep_start, rho, u, theta, exner)
+           if ( use_moisture ) &
+             call moisture_conservation_alg(timestep_start, rho, mr, 'Before timestep')
+          end if
         case default
           call log_event("Gungho: Incorrect time stepping option chosen, "// &
                           "stopping program! ",LOG_LEVEL_ERROR)

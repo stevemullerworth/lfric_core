@@ -10,17 +10,19 @@
 !>
 module compute_total_energy_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,                  &
-                              GH_FIELD, GH_WRITE, GH_READ,          &
-                              ANY_SPACE_9,                          &
-                              GH_BASIS, GH_DIFF_BASIS,              &
-                              CELLS, GH_QUADRATURE_XYoZ
-use constants_mod,     only : r_def
-use fs_continuity_mod, only : W2, W3, Wtheta
-use kernel_mod,        only : kernel_type
-use planet_config_mod, only : scaled_radius, cv
+  use argument_mod,      only : arg_type, func_type,                  &
+                                GH_FIELD, GH_WRITE, GH_READ,          &
+                                ANY_SPACE_9,                          &
+                                GH_BASIS, GH_DIFF_BASIS,              &
+                                CELLS, GH_QUADRATURE_XYoZ
+  use constants_mod,     only : r_def
+  use fs_continuity_mod, only : W2, W3, Wtheta
+  use kernel_mod,        only : kernel_type
+  use planet_config_mod, only : cv
 
-implicit none
+  implicit none
+
+  private
 
 !---------------------------------------------------------------------------
 ! Public types
@@ -199,7 +201,7 @@ subroutine compute_total_energy_code(                                           
                                         matmul(jac(:,:,qp1,qp2),u_at_quad))/(dj(qp1,qp2)**2)
         do df = 1, ndf_w3
           energy_e(df) = energy_e(df) + wqp_h(qp1)*wqp_v(qp2)*rho_at_quad &
-                  *(ke_term + phi_at_quad + temperature_term)*dj(qp1,qp2)/scaled_radius**2
+                  *(ke_term + phi_at_quad + temperature_term)*dj(qp1,qp2)
         end do
       end do
     end do

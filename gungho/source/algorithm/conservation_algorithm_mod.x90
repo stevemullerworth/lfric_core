@@ -100,11 +100,16 @@ contains
                  compute_total_aam_kernel_type(aam, u, rho, chi, qr),     &
                  sum_X(total_aam, aam) )
 
-    write( log_scratch_space, '(A,I4,4E32.24)')  &
-           'Conservation  = ',&
-            tstep, total_mass, total_energy, total_aam
-
+    write( log_scratch_space, '(A, I5, E32.24)')     &
+          'Conservation: dry mass at time step',   tstep, total_mass
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A, I5, E32.24)')     &
+          'Conservation: dry energy at time step', tstep, total_energy
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A, I5, E32.24)')     &
+          'Conservation: dry aam at time step',    tstep, total_aam
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
 
     nullify( geopotential )
     nullify( chi, w3_fs )

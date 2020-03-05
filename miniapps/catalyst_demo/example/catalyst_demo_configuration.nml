@@ -44,6 +44,7 @@
   diag_stem_name            = 'gravity_wave'
   restart_stem_name         = "restartGravityWave"
   use_xios_io               = .false.
+  write_conservation_diag   = .false.
   write_diag                = .true.
   diagnostic_frequency      = 36
   nodal_output_on_w3        = .false.

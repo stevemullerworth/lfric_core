@@ -12,12 +12,13 @@ module compute_total_mass_kernel_mod
                                 ANY_SPACE_9,                     &
                                 GH_BASIS, GH_DIFF_BASIS,         &
                                 CELLS, GH_QUADRATURE_XYoZ
-  use constants_mod,     only : r_def
+  use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : scaled_radius
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -74,59 +75,65 @@ subroutine compute_total_mass_code(                                            &
                                    ndf_w3, undf_w3, map_w3, w3_basis,          &
                                    ndf_chi, undf_chi, map_chi, chi_diff_basis, &
                                    nqp_h, nqp_v, wqp_h, wqp_v                  &
-                                 )
+                                  )
 
   use coordinate_jacobian_mod, only : coordinate_jacobian
 
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers, nqp_h, nqp_v
-  integer, intent(in) :: ndf_w3, undf_w3, ndf_chi, undf_chi
-  integer, dimension(ndf_w3), intent(in) :: map_w3
-  integer, dimension(ndf_chi), intent(in) :: map_chi
-  real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: w3_basis
+  ! Arguments
+  integer, intent(in)                               :: nlayers, nqp_h, nqp_v
+  integer, intent(in)                               :: ndf_w3, undf_w3
+  integer, intent(in)                               :: ndf_chi, undf_chi
+  integer, dimension(ndf_w3), intent(in)            :: map_w3
+  integer, dimension(ndf_chi), intent(in)           :: map_chi
+
+  real(kind=r_def), dimension(undf_w3), intent(in)  :: rho
+  real(kind=r_def), dimension(undf_w3), intent(out) :: mass
+  real(kind=r_def), dimension(undf_chi), intent(in) :: chi_1, chi_2, chi_3
+  real(kind=r_def), dimension(nqp_h), intent(in)    :: wqp_h
+  real(kind=r_def), dimension(nqp_v), intent(in)    :: wqp_v
+
+  real(kind=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v)  :: w3_basis
   real(kind=r_def), intent(in), dimension(3,ndf_chi,nqp_h,nqp_v) :: chi_diff_basis
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: rho
-  real(kind=r_def), dimension(undf_w3), intent(out)   :: mass
-  real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
 
-  real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
-  real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
 
-  !Internal variables
-  integer               :: df1, df2, k
-  integer               :: qp1, qp2
+  ! Internal variables
+  integer(kind=i_def)                          :: df, k
+  integer(kind=i_def)                          :: qp1, qp2
 
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
-  real(kind=r_def), dimension(ndf_chi) :: chi_1_e, chi_2_e, chi_3_e
-  real(kind=r_def), dimension(ndf_w3) :: rho_e, mass_e
-  real(kind=r_def) :: integrand
+  real(kind=r_def), dimension(ndf_chi)         :: chi_1_e, chi_2_e, chi_3_e
+  real(kind=r_def), dimension(ndf_w3)          :: rho_e, mass_e
+  real(kind=r_def)                             :: integrand
 
-  ! compute the LHS integrated over one cell and solve
+  ! Compute the LHS integrated over one cell and solve
   do k = 0, nlayers-1
-    do df1 = 1, ndf_chi
-      chi_1_e(df1) = chi_1( map_chi(df1) + k)
-      chi_2_e(df1) = chi_2( map_chi(df1) + k)
-      chi_3_e(df1) = chi_3( map_chi(df1) + k)
+    do df = 1, ndf_chi
+      chi_1_e(df) = chi_1(map_chi(df) + k)
+      chi_2_e(df) = chi_2(map_chi(df) + k)
+      chi_3_e(df) = chi_3(map_chi(df) + k)
     end do
-    do df1 = 1, ndf_w3
-      rho_e(df1) = rho( map_w3(df1) + k )
+
+    do df = 1, ndf_w3
+      rho_e(df) = rho( map_w3(df) + k )
     end do
+
     call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e, chi_diff_basis, jac, dj)
-    do df1 = 1, ndf_w3
-       mass_e(df1) = 0.0_r_def
-       do df2 = 1, ndf_w3
-          do qp2 = 1, nqp_v
-             do qp1 = 1, nqp_h
-                integrand =  w3_basis(1,df1,qp1,qp2) * &
-                             w3_basis(1,df2,qp1,qp2) * rho_e(df2) * dj(qp1,qp2)
-                 mass_e(df1) = mass_e(df1) + wqp_h(qp1)*wqp_v(qp2)*integrand/scaled_radius**2
-             end do
-          end do
-       end do
-       mass( map_w3(df1) + k ) = mass_e(df1)
+
+    do df = 1, ndf_w3
+      mass_e(df) = 0.0_r_def
+
+      do qp2 = 1, nqp_v
+        do qp1 = 1, nqp_h
+          integrand =  w3_basis(1,df,qp1,qp2) * rho_e(df) * dj(qp1,qp2)
+          mass_e(df) = mass_e(df) + wqp_h(qp1)*wqp_v(qp2)*integrand
+        end do
+      end do
+
+    mass( map_w3(df) + k ) = mass_e(df)
+
     end do
   end do
 

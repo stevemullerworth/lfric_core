@@ -217,8 +217,7 @@ contains
     ! This is only testing the vertical component of vorticity
     cv = cp - rd
     t = cv*theta(1)*exner(1)
-    answer = rho(1)*(gravity*0.5_r_def*dz + t) &
-             * dx*dy*dz/radius**2
+    answer = rho(1)*(gravity*0.5_r_def*dz + t) * dx*dy*dz
     @assertEqual(answer, energy(map_w3(1, cell)), tol)
 
     deallocate(map_w0)

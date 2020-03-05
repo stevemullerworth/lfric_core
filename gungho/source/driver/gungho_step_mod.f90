@@ -17,8 +17,10 @@ module gungho_step_mod
   use field_collection_mod,           only : field_collection_type
   use gungho_model_data_mod,          only : model_data_type
   use field_mod,                      only : field_type
-  use formulation_config_mod,         only : transport_only
-  use io_config_mod,                  only : write_diag, &
+  use formulation_config_mod,         only : transport_only, &
+                                             use_moisture, &
+                                             use_physics
+  use io_config_mod,                  only : write_conservation_diag, &
                                              write_minmax_tseries
   use log_mod,                        only : LOG_LEVEL_INFO
   use log_mod,                        only : log_event, &
@@ -29,8 +31,11 @@ module gungho_step_mod
   use mr_indices_mod,                 only : nummr
   use iter_timestep_alg_mod,          only : iter_alg_step
   use moist_dyn_mod,                  only : num_moist_factors
+  use moisture_conservation_alg_mod,  only : moisture_conservation_alg
+  use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
   use rk_alg_timestep_mod,            only : rk_alg_step
   use rk_transport_mod,               only : rk_transport_step
+  use runtime_constants_mod,          only : get_da_at_w2
   use timestepping_config_mod,        only : method, &
                                              method_semi_implicit, &
                                              method_rk
@@ -81,6 +86,7 @@ module gungho_step_mod
     type( field_type), pointer :: u => null()
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
+    type( field_type), pointer :: dA => null()  ! Areas of faces
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
@@ -110,6 +116,7 @@ module gungho_step_mod
     u => prognostic_fields%get_field('u')
     rho => prognostic_fields%get_field('rho')
     exner => prognostic_fields%get_field('exner')
+    dA => get_da_at_w2()
 
     if ( transport_only ) then
       select case( scheme )
@@ -117,8 +124,11 @@ module gungho_step_mod
           call rk_transport_step( u, rho, theta)
       end select
       call write_density_diagnostic(rho, timestep)
-      if ( write_diag ) &
+      if ( write_conservation_diag ) then
         call conservation_algorithm(timestep, rho, u, theta, exner)
+        if (use_moisture) &
+          call moisture_conservation_alg(timestep, rho, mr, 'After timestep')
+      end if
     else  ! Not transport_only
       select case( method )
         case( method_semi_implicit )  ! Semi-Implicit
@@ -133,7 +143,14 @@ module gungho_step_mod
           call rk_alg_step(u, rho, theta, moist_dyn, exner)
       end select
 
-      if ( write_diag ) call conservation_algorithm(timestep, rho, u, theta, exner)
+      if ( write_conservation_diag ) then
+        call conservation_algorithm(timestep, rho, u, theta, exner)
+        if ( use_moisture ) then
+          call moisture_conservation_alg(timestep, rho, mr, 'After timestep')
+          if ( use_physics ) call moisture_fluxes_alg(timestep, microphysics_fields, &
+                                                      convection_fields, surface_fields, dA)
+        end if
+      end if
 
       if(write_minmax_tseries) call minmax_tseries(u, 'u', mesh_id)
 

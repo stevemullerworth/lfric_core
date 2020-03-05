@@ -35,6 +35,7 @@ v0=0.0,
 /
 &io
   use_xios_io               = .false.
+  write_conservation_diag   = .false.
   write_diag                = .true.
   write_dump                = .true.
   diagnostic_frequency      = 32

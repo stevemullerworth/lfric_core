@@ -86,6 +86,7 @@
 
 &io
   use_xios_io               = .true.
+  write_conservation_diag   = .true.
   write_diag                = .true.
   write_dump                = .false.
   diagnostic_frequency      = 10

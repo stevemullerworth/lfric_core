@@ -17,9 +17,10 @@ module compute_total_pv_kernel_mod
   use constants_mod,     only : r_def
   use fs_continuity_mod, only : W0, W1, W3
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : scaled_radius
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -163,8 +164,7 @@ subroutine compute_total_pv_code(                                               
         do df = 1,ndf_w3
           pv_e(df) = pv_e(df) + wqp_h(qp1)*wqp_v(qp2)*dj(qp1,qp2) &
                     * dot_product(matmul(transpose(jac_inv(:,:,qp1,qp2)),xi_at_quad), &
-                                  matmul(transpose(jac_inv(:,:,qp1,qp2)),grad_theta_at_quad)) &
-                    /scaled_radius**2
+                                  matmul(transpose(jac_inv(:,:,qp1,qp2)),grad_theta_at_quad))
         end do
       end do
     end do

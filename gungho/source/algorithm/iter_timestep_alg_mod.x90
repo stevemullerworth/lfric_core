@@ -25,7 +25,8 @@ module iter_timestep_alg_mod
                                        exner_from_eos,                       &
                                        si_momentum_equation
 
-  use io_config_mod,             only: subroutine_timers
+  use io_config_mod,             only: subroutine_timers,                    &
+                                       write_conservation_diag
   use mixed_solver_config_mod,   only: guess_np1,                            &
                                        reference_reset_freq
   use timestepping_config_mod,   only: dt, alpha,                            &
@@ -81,10 +82,11 @@ module iter_timestep_alg_mod
   use smagorinsky_alg_mod,         only: smagorinsky_alg
   use checks_and_balances_alg_mod, only: check_fields
 
-  use semi_implicit_solver_alg_mod, only: semi_implicit_solver_alg_init, &
-                                          semi_implicit_solver_alg_step, &
-                                          semi_implicit_solver_alg_final
-  use field_vector_mod,             only: field_vector_type
+  use semi_implicit_solver_alg_mod,  only: semi_implicit_solver_alg_init, &
+                                           semi_implicit_solver_alg_step, &
+                                           semi_implicit_solver_alg_final
+  use field_vector_mod,              only: field_vector_type
+  use moisture_conservation_alg_mod, only: moisture_conservation_alg
 
   ! Field mappings
   use map_physics_fields_alg_mod, only: map_physics_fields_alg
@@ -347,6 +349,8 @@ contains
 
     ! Predictor the wind field (u-beta*dt*rhs) to be advected
     type( field_type ) :: advected_u
+    ! Density field used for moisture conservation diagnostics
+    type( field_type ) :: rho_guess
 
     ! Cloud fields after slow physics to be advected
     type( field_collection_type ) :: cloud_fields_after_slow
@@ -361,6 +365,7 @@ contains
     delta => get_delta_at_wtheta()
     max_diff_smag => get_max_diff()
     mm_wt => get_mass_matrix(theta_space_id)
+    call rho_guess%initialise( vector_space = rho%get_function_space() )
     ! Using modified velocity mass matrix if using damping layer
     if(dlayer_on) then
       mm_vel => get_mass_matrix(dl_id)
@@ -429,6 +434,10 @@ contains
                   inc_X_plus_Y(state_after_slow(igh_t), dtheta), &
                   inc_X_plus_Y(state_after_slow(igh_u), du)      &
                   )
+      if (write_conservation_diag .and. use_moisture) then
+        call moisture_conservation_alg(timestep, state_after_slow(igh_d), mr_after_slow, &
+                                       'After slow')
+      end if
       call log_event( "slow physics: completed slow physics.", LOG_LEVEL_INFO )
     end if !use_physics
 
@@ -452,6 +461,10 @@ contains
 
       if (use_wavedynamics) then
         call log_event("Advecting prognostic fields...", LOG_LEVEL_INFO)
+        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
+          call moisture_conservation_alg(timestep, state_after_slow(igh_d), &
+                                         mr_after_slow, 'Before transport')
+        end if
         call advection_alg(rhs_adv, state_after_slow, state_n(igh_u), state(igh_u), advected_u )
         if ( use_moisture )then
           ! Advect mr_after_slow values with latest advecting velocity
@@ -475,6 +488,11 @@ contains
 
         end if
         call bundle_ax(dt, rhs_adv, rhs_adv, bundle_size)
+        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
+          ! Calculate guess of rho = state_after_slow + rhs_adv
+          call invoke(X_plus_Y(rho_guess, state_after_slow(igh_d), rhs_adv(igh_d)))
+          call moisture_conservation_alg(timestep, rho_guess, mr, 'After transport')
+        end if
         call log_event("Finished advecting prognostic fields...", LOG_LEVEL_INFO)
       else
         ! No advection without wavedynamics at present
@@ -488,7 +506,9 @@ contains
         call calc_phys_predictors_alg(derived_fields, inc, rhs_np1,            &
                                       rhs_adv, rhs_n, state, state_after_slow, &
                                       moist_dyn, varalpha, dA)
-
+        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
+          call moisture_conservation_alg(timestep, rho_guess, mr, 'Before fast')
+        end if
         !--------------------------------------------------------------------
         ! Call the fast physics terms
         !--------------------------------------------------------------------
@@ -512,6 +532,10 @@ contains
                     matrix_vector_kernel_type(rhs_phys(igh_t), dtheta, mm_wt), &
                     matrix_vector_kernel_type(rhs_phys(igh_u), du, mm_vel )    &
                     )
+        end if
+
+        if (write_conservation_diag .and. outer == outer_iterations .and. use_moisture) then
+          call moisture_conservation_alg(timestep, rho_guess, mr, 'After fast')
         end if
 
         call log_event( "iter_timestep: completed fast physics.", LOG_LEVEL_INFO )
@@ -561,6 +585,16 @@ contains
           if ( inner > 1 ) then
             call invoke( setval_c(rhs_np1(igh_d), 0.0_r_def), &
                          setval_c(rhs_np1(igh_t), 0.0_r_def) )
+          end if
+
+          ! Moisture conservation diagnostics
+          if (write_conservation_diag .and. outer == outer_iterations &
+              .and. inner == inner_iterations .and. use_moisture) then
+            ! Best guess for the prognostic fields state can be calculated as
+            ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
+            ! where fortunately all of the above except "state" is already in "rhs_np1"
+            call invoke(X_plus_Y(rho_guess, state(igh_d), rhs_np1(igh_d)))
+            call moisture_conservation_alg(timestep, rho_guess, mr, 'Before solve')
           end if
 
           ! Normalise theta & u residual
@@ -615,6 +649,11 @@ contains
                                                        m3_inv, qr ) )
           end if
 
+          if (write_conservation_diag .and. outer == outer_iterations .and. &
+              inner == inner_iterations .and. use_moisture) then
+            call moisture_conservation_alg(timestep, state(igh_d), mr, 'After solve')
+          end if
+
         end do inner_dynamics_loop
         !--------------------------------------------------------------------
         ! End of Inner (nonlinear, coriolis) loop
@@ -645,6 +684,10 @@ contains
       ! Apply increments from Smagorinsky mixing
       call invoke( inc_X_plus_bY( state(igh_t), dt, inc(igh_t) ),      &
                    inc_X_plus_bY( state(igh_u), dt, inc(igh_u) ) )
+
+      if (write_conservation_diag .and. use_moisture) then
+        call moisture_conservation_alg(timestep, state(igh_d), mr, 'After mixing')
+      end if
     end if
 
     ! ----------------------------------------------------------------------
@@ -666,7 +709,9 @@ contains
                            state_n(igh_t), state_n(igh_p), mr_n)
 
         call invoke(inc_X_plus_Y(state(igh_t), dtheta))
-
+          if (write_conservation_diag) then
+             call moisture_conservation_alg(timestep, state(igh_d), mr, 'After cloud')
+          end if
       end if ! ( cloud == cloud_um )
     end if !(use_physics)
 #endif
