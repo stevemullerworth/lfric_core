@@ -10,13 +10,15 @@ module spectral_gwd_kernel_mod
 
   use argument_mod,             only: arg_type,                    &
                                       GH_FIELD, GH_READ, GH_WRITE, &
-                                      CELLS, ANY_SPACE_1
+                                      CELLS, ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,            only: r_def, i_def, r_um
   use fs_continuity_mod,        only: W3, Wtheta
   use kernel_mod,               only: kernel_type
   use spectral_gwd_config_mod,  only: ussp_heating
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -25,19 +27,19 @@ module spectral_gwd_kernel_mod
   !>
   type, public, extends(kernel_type) :: spectral_gwd_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/             &
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! du_spectral_gwd, u wind increment
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! dv_spectral_gwd, v wind increment
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),      & ! dtemp_spectral_gwd, temperature increment
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! u1_in_w3
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! u2_in_w3
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! wetrho_in_w3, wet density in w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),      & ! exner_in_wth
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),      & ! theta, theta in wtheta
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! height_w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),      & ! height_wtheta
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! totalppn
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1)  & ! latitude
+    type(arg_type) :: meta_args(12) = (/                           &
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_spectral_gwd, u wind increment
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_spectral_gwd, v wind increment
+        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_spectral_gwd, temperature increment
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u1_in_w3
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u2_in_w3
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
+        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! exner_in_wth
+        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! theta, theta in wtheta
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! height_w3
+        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! height_wtheta
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! totalppn
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1)  & ! latitude
         /)
     integer :: iterates_over = CELLS
   contains

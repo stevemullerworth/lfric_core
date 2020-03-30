@@ -7,14 +7,17 @@
 
 module illuminate_kernel_mod
 
-use argument_mod,  only : arg_type, &
-                          GH_FIELD, GH_INTEGER, GH_READ, GH_WRITE, GH_INC, &
-                          CELLS, ANY_SPACE_1
+use argument_mod,  only : arg_type,                      &
+                          GH_FIELD, GH_INTEGER, GH_READ, &
+                          GH_WRITE, GH_READWRITE, CELLS, &
+                          ANY_DISCONTINUOUS_SPACE_1
 use constants_mod, only : r_def, i_def
 use kernel_mod,    only : kernel_type
 
 implicit none
+
 private
+
 public :: illuminate_kernel_type
 public :: illuminate_code
 
@@ -22,20 +25,20 @@ public :: illuminate_code
 ! Public types
 !------------------------------------------------------------------------------
 ! The type declaration for the kernel.
-! Contains the metadata needed by the Psy layer.
+! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: illuminate_kernel_type
   private
-  type(arg_type) :: meta_args(10) = (/ &
-    arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1), & ! cos_zenith_angle
-    arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1), & ! lit_fraction
-    arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1), & ! cos_zenith_angle_rts
-    arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1), & ! lit_fraction_rts
-    arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1), & ! stellar_irradiance_rts
-    arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1), & ! sin_stellar_declination_rts
-    arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1), & ! stellar_eqn_of_time_rts
-    arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! latitude
-    arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! longitude
-    arg_type(GH_INTEGER, GH_READ              )  & ! timestep
+  type(arg_type) :: meta_args(10) = (/                             &
+    arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle
+    arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! stellar_irradiance_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sin_stellar_declination_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! stellar_eqn_of_time_rts
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! latitude
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! longitude
+    arg_type(GH_INTEGER, GH_READ                                )  & ! timestep
     /)
   integer :: iterates_over = CELLS
 contains
@@ -58,9 +61,9 @@ contains
 ! @param[in]     latitude                    Latitude field
 ! @param[in]     longitude                   Longitude field
 ! @param[in]     timestep                    Timestep number
-! @param[in]     ndf_2d     No. of degrees of freedom per cell for 2d space
-! @param[in]     undf_2d    No. unique of degrees of freedom for 2d space
-! @param[in]     map_2d     Dofmap for cell at base of column for 2d space
+! @param[in]     ndf_2d     No. of degrees of freedom per cell for 2D space
+! @param[in]     undf_2d    No. unique of degrees of freedom for 2D space
+! @param[in]     map_2d     Dofmap for cell at base of column for 2D space
 subroutine illuminate_code(nlayers,                     &
                            cos_zenith_angle,            &
                            lit_fraction,                &

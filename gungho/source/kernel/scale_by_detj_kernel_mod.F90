@@ -11,10 +11,12 @@
 module scale_by_detj_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
-                                GH_FIELD, GH_READ, GH_INC, &
-                                ANY_SPACE_1, ANY_SPACE_9,  &
-                                GH_BASIS, GH_DIFF_BASIS,   &
-                                CELLS, GH_EVALUATOR
+                                GH_FIELD, GH_READ,         &
+                                GH_READWRITE, CELLS,       &
+                                ANY_DISCONTINUOUS_SPACE_1, &
+                                ANY_SPACE_9,               &
+                                GH_DIFF_BASIS, GH_EVALUATOR
+
   use constants_mod,     only : r_def, i_def
   use kernel_mod,        only : kernel_type
 
@@ -27,16 +29,14 @@ module scale_by_detj_kernel_mod
   !---------------------------------------------------------------------------
   !> The type declaration for the kernel. Contains the metadata needed by the
   !> PSy layer.
-  !>@todo The metadata will become ANY_DISCONTINOUS_SPACE when #1968 is on
-  !>      trunk. Additionally GH_INC will become GH_READWRITE
   type, public, extends(kernel_type) :: scale_by_detj_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/             &
-        arg_type(GH_FIELD,   GH_INC,  ANY_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ, ANY_SPACE_9)  &
+    type(arg_type) :: meta_args(2) = (/                                &
+        arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+        arg_type(GH_FIELD*3, GH_READ,      ANY_SPACE_9)                &
         /)
-    type(func_type) :: meta_funcs(1) = (/      &
-        func_type(ANY_SPACE_9, GH_DIFF_BASIS)  &
+    type(func_type) :: meta_funcs(1) = (/                              &
+        func_type(ANY_SPACE_9, GH_DIFF_BASIS)                          &
         /)
     integer :: iterates_over = CELLS
     integer :: gh_shape = GH_EVALUATOR

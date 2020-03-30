@@ -7,11 +7,12 @@
 !>
 module conv_gr_kernel_mod
 
-  use argument_mod,           only : arg_type,                     &
-                                     GH_FIELD, GH_READ, GH_WRITE,  &
-                                     GH_READWRITE, CELLS, GH_INC,  &
-                                     GH_INTEGER, ANY_SPACE_1,      &
-                                     ANY_SPACE_2, ANY_SPACE_3
+  use argument_mod,           only : arg_type,                  &
+                                     GH_FIELD, GH_INTEGER,      &
+                                     GH_READ, GH_WRITE,         &
+                                     GH_READWRITE, CELLS,       &
+                                     ANY_DISCONTINUOUS_SPACE_1, &
+                                     ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
@@ -29,86 +30,86 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(79) = (/                &
-        arg_type(GH_INTEGER, GH_READ),                  &! outer
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! rho_in_w3
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! wetrho_in_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! wetrho_in_wth
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! exner_in_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! exner_in_wth
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! u3_in_wth
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! theta_star
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! u1_star
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! u2_star
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! height_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! height_wth
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! delta
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! ntml_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! cumulus_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! tile_fraction
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dt_conv
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dmv_conv
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dmcl_conv
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dmcf_conv
-        arg_type(GH_FIELD,   GH_READWRITE, W3),         &! du_conv
-        arg_type(GH_FIELD,   GH_READWRITE, W3),         &! dv_conv
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_v
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_cl
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_ci
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_r
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_g
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! cf_ice
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! cf_liq
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! cf_bulk
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! cca
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! ccw
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! deep_in_col
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! shallow_in_col
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! mid_in_col
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! freeze_level
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! deep_prec
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! shallow_prec
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! mid_prec
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! deep_term
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! cape_timescale
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! conv_rain
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! conv_snow
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! lowest_cv_base
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! lowest_cv_top
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! cv_base
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! cv_top
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! massflux_up
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! massflux_down
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! entrain_up
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! entrain_down
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! detrain_up
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! detrain_down
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dd_dt
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dd_dq
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! deep_dt
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! deep_dq
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! deep_massflux
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! deep_tops
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! shallow_dt
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! shallow_dq
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! shallow_massflux
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! mid_dt
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! mid_dq
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! mid_massflux
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! zh_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! shallow_flag
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! uw0_flux
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! vw0_flux
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! lcl_height
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! parcel_top
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! level_parcel_top
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! wstar_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! thv_flux
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! parcel_buoyancy
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! qsat_at_lcl
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dcfl_conv
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! dcff_conv
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA)      &! dbcf_conv
+    type(arg_type) :: meta_args(79) = (/                              &
+        arg_type(GH_INTEGER, GH_READ),                                &! outer
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! rho_in_w3
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! wetrho_in_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! wetrho_in_wth
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! exner_in_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! exner_in_wth
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! u3_in_wth
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! theta_star
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! u1_star
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! u2_star
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! height_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! height_wth
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! delta
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! cumulus_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_fraction
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dt_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dmv_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dmcl_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dmcf_conv
+        arg_type(GH_FIELD,   GH_READWRITE, W3),                       &! du_conv
+        arg_type(GH_FIELD,   GH_READWRITE, W3),                       &! dv_conv
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_v
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_cl
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_ci
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_r
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_g
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! cf_ice
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! cf_liq
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! cf_bulk
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! cca
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! ccw
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! deep_in_col
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! shallow_in_col
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! mid_in_col
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! freeze_level
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! deep_prec
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! shallow_prec
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! mid_prec
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! deep_term
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cape_timescale
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! conv_rain
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! conv_snow
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! lowest_cv_base
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! lowest_cv_top
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cv_base
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! cv_top
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! massflux_up
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! massflux_down
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! entrain_up
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! entrain_down
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! detrain_up
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! detrain_down
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dd_dt
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dd_dq
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! deep_dt
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! deep_dq
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! deep_massflux
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! deep_tops
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! shallow_dt
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! shallow_dq
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! shallow_massflux
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! mid_dt
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! mid_dq
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! mid_massflux
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! zh_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! shallow_flag
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! uw0_flux
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! vw0_flux
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lcl_height
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! parcel_top
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! level_parcel_top
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! wstar_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! thv_flux
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! parcel_buoyancy
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! qsat_at_lcl
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dcfl_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! dcff_conv
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA)                    &! dbcf_conv
         /)
     integer :: iterates_over = CELLS
   contains

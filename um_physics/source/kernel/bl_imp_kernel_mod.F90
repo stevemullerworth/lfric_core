@@ -7,13 +7,16 @@
 !>
 module bl_imp_kernel_mod
 
-  use argument_mod,           only : arg_type,                     &
-                                     GH_FIELD, GH_READ, GH_WRITE,  &
-                                     GH_READWRITE, CELLS, GH_INC,  &
-                                     GH_INTEGER, ANY_SPACE_1,      &
-                                     ANY_SPACE_2, ANY_SPACE_3,     &
-                                     ANY_SPACE_4, ANY_SPACE_5,     &
-                                     ANY_SPACE_6, ANY_SPACE_7
+  use argument_mod,           only : arg_type,                  &
+                                     GH_FIELD, GH_INTEGER,      &
+                                     GH_READ, GH_WRITE, GH_INC, &
+                                     GH_READWRITE, CELLS,       &
+                                     ANY_DISCONTINUOUS_SPACE_1, &
+                                     ANY_DISCONTINUOUS_SPACE_2, &
+                                     ANY_DISCONTINUOUS_SPACE_3, &
+                                     ANY_DISCONTINUOUS_SPACE_4, &
+                                     ANY_DISCONTINUOUS_SPACE_5, &
+                                     ANY_DISCONTINUOUS_SPACE_6
   use section_choice_config_mod, only : cloud, cloud_um
   use cloud_config_mod,       only : scheme, scheme_smith, scheme_pc2
   use constants_mod,          only : i_def, i_um, r_def, r_um
@@ -32,91 +35,91 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(80) = (/                &
-        arg_type(GH_INTEGER, GH_READ),                  &! outer
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! theta_in_wth
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! wetrho_in_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! wetrho_in_wth
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! exner_in_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! exner_in_wth
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! u_physics
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_v_n
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_cl_n
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! m_ci_n
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! theta_star
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! u_physics_star
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! height_w3
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! height_wth
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! ntml_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! cumulus_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! tile_fraction
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_3),&! leaf_area_index
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_3),&! canopy_height
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! peak_to_trough_orog
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! silhouette_area_orog
-        arg_type(GH_FIELD,   GH_INC,       ANY_SPACE_2),&! tile_temperature
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! tile_snow_mass
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! n_snow_layers
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! canopy_water
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_4),&! soil_temperature
-        arg_type(GH_FIELD,   GH_INC,       ANY_SPACE_2),&! tile_heat_flux
-        arg_type(GH_FIELD,   GH_INC,       ANY_SPACE_2),&! tile_moisture_flux
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! sw_up_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! sw_down_surf
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! lw_down_surf
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_2),&! snow_sublimation  (kg m-2 s-1)
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_2),&! surf_heat_flux (W m-2)
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_2),&! canopy_evap (kg m-2 s-1)
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_4),&! water_extraction (kg m-2 s-1)
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_2),&! total_snowmelt (kg m-2 s-1)
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),     &! dtheta_bl
-        arg_type(GH_FIELD,   GH_INC,       W2),         &! du_bl_w2
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),     &! dmv_bl
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! dt_conv
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! du_conv_w2
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! m_v
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! m_cl
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! m_ci
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! cf_area
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! cf_ice
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! cf_liq
-        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),     &! cf_bulk
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! rh_crit_wth
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! rhokm_w2
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! rhokm_surf_w2
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! rhokh_bl
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! ngstress_w2
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! bq_bl
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! bt_bl
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! moist_flux_bl
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! heat_flux_bl
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! dtrdz_w2
-        arg_type(GH_FIELD,   GH_READ,      WTHETA),     &! dtrdz_tq_bl
-        arg_type(GH_FIELD,   GH_READ,      W3),         &! rdz_tq_bl
-        arg_type(GH_FIELD,   GH_READ,      W2),         &! rdz_w2
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! alpha1_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! ashtf_prime_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! dtstar_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! fraca_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! z0h_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! z0m_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! rhokh_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! chr1p5m_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! resfs_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2),&! canhc_tile
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_6),&! tile_water_extract
-        arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1),&! zlcl_mixed
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! blend_height_tq
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! blend_height_uv
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! ustar
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! soil_moist_avail
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! zh_nonloc
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1),&! zh_2d
-        arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_7) &! bl_types
+    type(arg_type) :: meta_args(80) = (/                              &
+        arg_type(GH_INTEGER, GH_READ),                                &! outer
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! theta_in_wth
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! wetrho_in_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! wetrho_in_wth
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! exner_in_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! exner_in_wth
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! u_physics
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_v_n
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_cl_n
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! m_ci_n
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! theta_star
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! u_physics_star
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! height_w3
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! height_wth
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! cumulus_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_fraction
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! leaf_area_index
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! canopy_height
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! peak_to_trough_orog
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! silhouette_area_orog
+        arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_snow_mass
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! n_snow_layers
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! canopy_water
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! soil_temperature
+        arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_heat_flux
+        arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2),&! tile_moisture_flux
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! sw_up_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sw_down_surf
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! lw_down_surf
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! snow_sublimation  (kg m-2 s-1)
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! surf_heat_flux (W m-2)
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! canopy_evap (kg m-2 s-1)
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_4),&! water_extraction (kg m-2 s-1)
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! total_snowmelt (kg m-2 s-1)
+        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),                   &! dtheta_bl
+        arg_type(GH_FIELD,   GH_INC,       W2),                       &! du_bl_w2
+        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),                   &! dmv_bl
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! dt_conv
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! du_conv_w2
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! m_v
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! m_cl
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! m_ci
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! cf_area
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! cf_ice
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! cf_liq
+        arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! cf_bulk
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! rh_crit_wth
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! rhokm_w2
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! rhokm_surf_w2
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! rhokh_bl
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! ngstress_w2
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! bq_bl
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! bt_bl
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! moist_flux_bl
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! heat_flux_bl
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! dtrdz_w2
+        arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! dtrdz_tq_bl
+        arg_type(GH_FIELD,   GH_READ,      W3),                       &! rdz_tq_bl
+        arg_type(GH_FIELD,   GH_READ,      W2),                       &! rdz_w2
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! alpha1_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! ashtf_prime_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! dtstar_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! fraca_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! z0h_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! z0m_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! rhokh_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! chr1p5m_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! resfs_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! canhc_tile
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_5),&! tile_water_extract
+        arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! zlcl_mixed
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! blend_height_tq
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! blend_height_uv
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ustar
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_moist_avail
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! zh_nonloc
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! zh_2d
+        arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_6) &! bl_types
         /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass ::bl_imp_code
+    procedure, nopass :: bl_imp_code
   end type
 
   public bl_imp_code
@@ -211,16 +214,16 @@ contains
   !> @param[in]     bl_types             Diagnosed BL types
   !> @param[in]     ndf_wth              Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth             Number of unique DOFs for potential temperature space
-  !> @param[in]     map_wth              dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     map_wth              Dofmap for the cell at the base of the column for potential temperature space
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs for density space
-  !> @param[in]     map_w3               dofmap for the cell at the base of the column for density space
+  !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
   !> @param[in]     ndf_w2               Number of DOFs per cell for w2 space
   !> @param[in]     undf_w2              Number of unique DOFs for w2 space
-  !> @param[in]     map_w2               dofmap for the cell at the base of the column for w2 space
+  !> @param[in]     map_w2               Dofmap for the cell at the base of the column for w2 space
   !> @param[in]     ndf_2d               Number of DOFs per cell for 2D fields
   !> @param[in]     undf_2d              Number of unique DOFs for 2D fields
-  !> @param[in]     map_2d               dofmap for the cell at the base of the column for 2D fields
+  !> @param[in]     map_2d               Dofmap for the cell at the base of the column for 2D fields
   !> @param[in]     ndf_tile             Number of DOFs per cell for tiles
   !> @param[in]     undf_tile            Number of total DOFs for tiles
   !> @param[in]     map_tile             Dofmap for cell for surface tiles
@@ -233,9 +236,9 @@ contains
   !> @param[in]     ndf_smtile           Number of DOFs per cell for soil levels and tiles
   !> @param[in]     undf_smtile          Number of total DOFs for soil levels and tiles
   !> @param[in]     map_smtile           Dofmap for cell for soil levels and tiles
-  !> @param[in]     ndf_bl               Number of DOFs per cell for bl types
-  !> @param[in]     undf_bl              Number of total DOFs for bl types
-  !> @param[in]     map_bl               Dofmap for cell for bl types
+  !> @param[in]     ndf_bl               Number of DOFs per cell for BL types
+  !> @param[in]     undf_bl              Number of total DOFs for BL types
+  !> @param[in]     map_bl               Dofmap for cell for BL types
   subroutine bl_imp_code(nlayers,                            &
                          outer,                              &
                          theta_in_wth,                       &
@@ -1068,7 +1071,7 @@ contains
           , co2_emits, co2flux                                          &
     ! INOUT diagnostic info
           , STASHwork3, STASHwork9                                      &
-    ! SCM Diagnostics (dummy in full UM) & bl diags
+    ! SCM Diagnostics (dummy in full UM) & BL diags
           , nSCMDpkgs, L_SCMDiags, bl_diag, sf_diag                     &
     ! INOUT (Note ti_cat_sicat and ti_sicat are IN only if l_sice_multilayers=T)
           , TScrnDcl_SSI, TScrnDcl_surft, tStbTrans                     &
@@ -1293,7 +1296,7 @@ contains
           , co2_emits, co2flux                                          &
     ! INOUT diagnostic info
           , STASHwork3, STASHwork9                                      &
-    ! SCM Diagnostics (dummy in full UM) & bl diags
+    ! SCM Diagnostics (dummy in full UM) & BL diags
           , nSCMDpkgs, L_SCMDiags, bl_diag, sf_diag                     &
     ! INOUT (Note ti_cat_sicat and ti_sicat are IN only if l_sice_multilayers=T)
           , TScrnDcl_SSI, TScrnDcl_surft, tStbTrans                     &

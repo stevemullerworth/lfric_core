@@ -7,15 +7,17 @@
 !>
 module bl_exp_kernel_mod
 
-  use argument_mod,           only : arg_type, GH_FIELD, GH_READ, GH_WRITE, &
-                                     GH_READWRITE, CELLS, GH_INTEGER,       &
-                                     ANY_DISCONTINUOUS_SPACE_1,             &
-                                     ANY_DISCONTINUOUS_SPACE_2,             &
-                                     ANY_DISCONTINUOUS_SPACE_3,             &
-                                     ANY_DISCONTINUOUS_SPACE_4,             &
-                                     ANY_DISCONTINUOUS_SPACE_5,             &
-                                     ANY_DISCONTINUOUS_SPACE_6,             &
-                                     ANY_DISCONTINUOUS_SPACE_7,             &
+  use argument_mod,           only : arg_type,                  &
+                                     GH_FIELD, GH_INTEGER,      &
+                                     GH_READ, GH_WRITE,         &
+                                     GH_READWRITE, CELLS,       &
+                                     ANY_DISCONTINUOUS_SPACE_1, &
+                                     ANY_DISCONTINUOUS_SPACE_2, &
+                                     ANY_DISCONTINUOUS_SPACE_3, &
+                                     ANY_DISCONTINUOUS_SPACE_4, &
+                                     ANY_DISCONTINUOUS_SPACE_5, &
+                                     ANY_DISCONTINUOUS_SPACE_6, &
+                                     ANY_DISCONTINUOUS_SPACE_7, &
                                      ANY_DISCONTINUOUS_SPACE_8
   use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta
@@ -147,7 +149,7 @@ module bl_exp_kernel_mod
         /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass ::bl_exp_code
+    procedure, nopass :: bl_exp_code
   end type
 
   public bl_exp_code
@@ -176,7 +178,7 @@ contains
   !> @param[in]     height_wth           Height of theta space above surface
   !> @param[in]     shear                3D wind shear on wtheta points
   !> @param[in]     delta                Edge length on wtheta points
-  !> @param[in]     max_diff_smag        maximum diffusion coefficient allowed
+  !> @param[in]     max_diff_smag        Maximum diffusion coefficient allowed
   !> @param[in,out] zh_2d                Boundary layer depth
   !> @param[in,out] z0msea_2d            Roughness length
   !> @param[out]    ntml_2d              Number of turbulently mixed levels
@@ -258,8 +260,8 @@ contains
   !> @param[out]    soil_moist_avail     Available soil moisture for evaporation
   !> @param[out]    zh_nonloc            Depth of non-local BL scheme
   !> @param[out]    shallow_flag         Indicator of shallow convection
-  !> @param[out]    uw0_flux             'zonal' surface momentum flux
-  !> @param[out]    vw0 flux             'meridional' surface momentum flux
+  !> @param[out]    uw0_flux             'Zonal' surface momentum flux
+  !> @param[out]    vw0 flux             'Meridional' surface momentum flux
   !> @param[out]    lcl_height           Height of lifting condensation level
   !> @param[out]    parcel_top           Height of surface based parcel ascent
   !> @param[out]    level_parcel_top     Model level of parcel_top
@@ -270,13 +272,13 @@ contains
   !> @param[out]    bl_types             Diagnosed BL types
   !> @param[in]     ndf_wth              Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth             Number of unique DOFs for potential temperature space
-  !> @param[in]     map_wth              dofmap for the cell at the base of the column for potential temperature space
+  !> @param[in]     map_wth              Dofmap for the cell at the base of the column for potential temperature space
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs for density space
-  !> @param[in]     map_w3               dofmap for the cell at the base of the column for density space
+  !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
   !> @param[in]     ndf_2d               Number of DOFs per cell for 2D fields
   !> @param[in]     undf_2d              Number of unique DOFs for 2D fields
-  !> @param[in]     map_2d               dofmap for the cell at the base of the column for 2D fields
+  !> @param[in]     map_2d               Dofmap for the cell at the base of the column for 2D fields
   !> @param[in]     ndf_tile             Number of DOFs per cell for tiles
   !> @param[in]     undf_tile            Number of total DOFs for tiles
   !> @param[in]     map_tile             Dofmap for cell for surface tiles
@@ -291,13 +293,13 @@ contains
   !> @param[in]     map_snow             Dofmap for cell for snow
   !> @param[in]     ndf_surf             Number of DOFs per cell for surface variables
   !> @param[in]     undf_surf            Number of unique DOFs for surface variables
-  !> @param[in]     map_surf             dofmap for the cell at the base of the column for surface variables
+  !> @param[in]     map_surf             Dofmap for the cell at the base of the column for surface variables
   !> @param[in]     ndf_smtile           Number of DOFs per cell for soil levels and tiles
   !> @param[in]     undf_smtile          Number of total DOFs for soil levels and tiles
   !> @param[in]     map_smtile           Dofmap for cell for soil levels and tiles
-  !> @param[in]     ndf_bl               Number of DOFs per cell for bl types
-  !> @param[in]     undf_bl              Number of total DOFs for bl types
-  !> @param[in]     map_bl               Dofmap for cell for bl types
+  !> @param[in]     ndf_bl               Number of DOFs per cell for BL types
+  !> @param[in]     undf_bl              Number of total DOFs for BL types
+  !> @param[in]     map_bl               Dofmap for cell for BL types
   subroutine bl_exp_code(nlayers,                               &
                          theta_in_wth,                          &
                          rho_in_w3,                             &

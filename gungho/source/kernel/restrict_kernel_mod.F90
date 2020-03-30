@@ -12,20 +12,25 @@
 !!          contained in a coarse grid cell. Values are assumed to
 !!          be pointwise scalar values so no area weighting is used
 module restrict_kernel_mod
+
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, &
-                                   GH_FIELD,                 &
-                                   GH_READ, GH_WRITE, CELLS, &
-                                   ANY_SPACE_1, ANY_SPACE_2, &
+use argument_mod,            only: arg_type,                  &
+                                   GH_FIELD, CELLS,           &
+                                   GH_READ, GH_WRITE,         &
+                                   ANY_DISCONTINUOUS_SPACE_1, &
+                                   ANY_DISCONTINUOUS_SPACE_2, &
                                    GH_COARSE, GH_FINE
+
 implicit none
+
+private
 
 type, public, extends(kernel_type) :: restrict_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                                      &
-       arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1, mesh_arg=GH_COARSE),       &
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, mesh_arg=GH_FINE  )        &
+   type(arg_type) :: meta_args(2) = (/                                              &
+       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_COARSE), &
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_FINE  )  &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -42,7 +47,7 @@ contains
   !!                     cell
   !> @param[in] ncell_f_per_c Number of fine cells per coarse grid cell
   !> @param[in] ncell_f  Number of cells in the fine grid
-  !> @param[out] coarse Coarse grid field to compute
+  !> @param[in,out] coarse Coarse grid field to compute
   !> @param[in] fine Fine grid field to restrict
   !> @param[in] undf_c Total number of degrees of freedom on the coarse grid
   !> @param[in] dofmap_c Cell dofmap on the coarse grid
@@ -61,6 +66,7 @@ contains
                                   ndf,           &
                                   undf_f,        &
                                   dofmap_f)
+
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers

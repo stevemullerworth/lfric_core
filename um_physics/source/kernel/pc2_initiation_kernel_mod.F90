@@ -9,7 +9,7 @@ module pc2_initiation_kernel_mod
 
 use argument_mod, only: arg_type,                                &
                         GH_FIELD, GH_READ, GH_WRITE,             &
-                        GH_READWRITE, CELLS, ANY_SPACE_1
+                        GH_READWRITE, CELLS, ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only: WTHETA, W3
 
 use kernel_mod,   only: kernel_type
@@ -25,30 +25,30 @@ private
 
 type, public, extends(kernel_type) :: pc2_initiation_kernel_type
   private
-  type(arg_type) :: meta_args(23) = (/                &
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! mv_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! ml_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! mi_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! cfl_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! cff_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! bcf_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! theta_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! exner_wth
-       arg_type(GH_FIELD,   GH_READ,    W3),          & ! exner_w3
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! mv_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! ml_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! theta_n_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA),      & ! exner_n_wth
-       arg_type(GH_FIELD,   GH_READ,    ANY_SPACE_1), & ! zlcl_mixed
-       arg_type(GH_FIELD,   GH_READ,    ANY_SPACE_1), & ! r_cumulus
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dtheta_inc
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dqv_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dqcl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dqcf_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dcfl_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dcff_inc_wth
-       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),      & ! dbcf_inc_wth
-       arg_type(GH_FIELD,   GH_READ,    WTHETA)       & ! rh_crit_wth
+  type(arg_type) :: meta_args(23) = (/                              &
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mv_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! ml_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mi_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! cfl_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! cff_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! bcf_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! theta_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! exner_wth
+       arg_type(GH_FIELD,   GH_READ,    W3),                        & ! exner_w3
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! mv_n_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! ml_n_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! theta_n_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA),                    & ! exner_n_wth
+       arg_type(GH_FIELD,   GH_READ,    ANY_DISCONTINUOUS_SPACE_1), & ! zlcl_mixed
+       arg_type(GH_FIELD,   GH_READ,    ANY_DISCONTINUOUS_SPACE_1), & ! r_cumulus
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dtheta_inc
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqv_inc_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqcl_inc_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dqcf_inc_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dcfl_inc_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dcff_inc_wth
+       arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                    & ! dbcf_inc_wth
+       arg_type(GH_FIELD,   GH_READ,    WTHETA)                     & ! rh_crit_wth
        /)
    integer :: iterates_over = CELLS
 contains

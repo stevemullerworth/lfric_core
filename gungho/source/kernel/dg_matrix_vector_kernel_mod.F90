@@ -5,16 +5,18 @@
 !-----------------------------------------------------------------------------
 module dg_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type,              &
-                                GH_FIELD, GH_OPERATOR, &
-                                GH_READ, GH_WRITE,     &
-                                ANY_SPACE_1,           &
-                                CELLS
-  use constants_mod,     only : r_def
-  use fs_continuity_mod, only : W3
-  use kernel_mod,        only : kernel_type
+  use constants_mod, only : r_def, i_def
+  use kernel_mod,    only : kernel_type
+  use argument_mod,  only : arg_type,                  &
+                            GH_FIELD, GH_OPERATOR,     &
+                            GH_READ, GH_WRITE,         &
+                            ANY_SPACE_1,               &
+                            ANY_DISCONTINUOUS_SPACE_1, &
+                            CELLS
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -22,14 +24,14 @@ module dg_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: dg_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                  &
-        arg_type(GH_FIELD,    GH_WRITE, W3),             &
-        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),    &
-        arg_type(GH_OPERATOR, GH_READ,  W3, ANY_SPACE_1) &
+    type(arg_type) :: meta_args(3) = (/                                         &
+        arg_type(GH_FIELD,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),             &
+        arg_type(GH_FIELD,    GH_READ,  ANY_SPACE_1),                           &
+        arg_type(GH_OPERATOR, GH_READ,  ANY_DISCONTINUOUS_SPACE_1, ANY_SPACE_1) &
         /)
     integer :: iterates_over = CELLS
   contains
-    procedure, nopass ::dg_matrix_vector_code
+    procedure, nopass :: dg_matrix_vector_code
   end type
 
   !---------------------------------------------------------------------------
@@ -41,39 +43,39 @@ contains
 
 !> @brief Computes lhs = matrix*x for discontinuous function spaces
 !> @param[in] cell Horizontal cell index
-!! @param[in] nlayers Number of layers
-!! @param[in] ncell_3d Total number of cells
-!! @param[in] ndf1 Number of degrees of freedom per cell for the output field
-!! @param[in] undf1 Unique number of degrees of freedom  for the output field
-!! @param[in] map1 Dofmap for the cell at the base of the column for the output field
-!! @param[in] map2 Dofmap for the cell at the base of the column for the input field
-!! @param[in] ndf2 Number of degrees of freedom per cell for the input field
-!! @param[in] undf2 Unique number of degrees of freedom for the input field
-!! @param[in] x input data
-!> @param[inout] lhs Output lhs (A*x)
-!! @param[in] matrix Matrix values in LMA form
-subroutine dg_matrix_vector_code(cell,        &
-                                 nlayers,     &
-                                 lhs, x,      &
-                                 ncell_3d,    &
-                                 matrix,      &
+!> @param[in] nlayers Number of layers
+!> @param[in,out] lhs Output lhs (A*x)
+!> @param[in] x input data
+!> @param[in] ncell_3d Total number of cells
+!> @param[in] matrix Matrix values in LMA form
+!> @param[in] ndf1 Number of degrees of freedom per cell for the output field
+!> @param[in] undf1 Unique number of degrees of freedom  for the output field
+!> @param[in] map1 Dofmap for the cell at the base of the column for the output field
+!> @param[in] ndf2 Number of degrees of freedom per cell for the input field
+!> @param[in] undf2 Unique number of degrees of freedom for the input field
+!> @param[in] map2 Dofmap for the cell at the base of the column for the input field
+subroutine dg_matrix_vector_code(cell,              &
+                                 nlayers,           &
+                                 lhs, x,            &
+                                 ncell_3d,          &
+                                 matrix,            &
                                  ndf1, undf1, map1, &
                                  ndf2, undf2, map2)
 
   implicit none
 
-  !Arguments
-  integer,                   intent(in)    :: cell, nlayers, ncell_3d
-  integer,                   intent(in)    :: undf1, ndf1
-  integer,                   intent(in)    :: undf2, ndf2
-  integer, dimension(ndf1),  intent(in)    :: map1
-  integer, dimension(ndf2),  intent(in)    :: map2
+  ! Arguments
+  integer(kind=i_def),                   intent(in) :: cell, nlayers, ncell_3d
+  integer(kind=i_def),                   intent(in) :: undf1, ndf1
+  integer(kind=i_def),                   intent(in) :: undf2, ndf2
+  integer(kind=i_def), dimension(ndf1),  intent(in) :: map1
+  integer(kind=i_def), dimension(ndf2),  intent(in) :: map2
   real(kind=r_def), dimension(undf2),              intent(in)    :: x
   real(kind=r_def), dimension(undf1),              intent(inout) :: lhs
   real(kind=r_def), dimension(ndf1,ndf2,ncell_3d), intent(in)    :: matrix
 
-  !Internal variables
-  integer                           :: df, k, ik
+  ! Internal variables
+  integer(kind=i_def)               :: df, k, ik
   real(kind=r_def), dimension(ndf2) :: x_e
   real(kind=r_def), dimension(ndf1) :: lhs_e
 
@@ -87,6 +89,7 @@ subroutine dg_matrix_vector_code(cell,        &
        lhs(map1(df)+k) = lhs_e(df)
     end do
   end do
+
 end subroutine dg_matrix_vector_code
 
 end module dg_matrix_vector_kernel_mod

@@ -11,7 +11,7 @@ module orographic_drag_kernel_mod
   use argument_mod,               only: arg_type,                   &
                                         GH_FIELD, GH_READ, GH_READ, &
                                         GH_WRITE, CELLS,            &
-                                        ANY_SPACE_1
+                                        ANY_DISCONTINUOUS_SPACE_1
 
   use constants_mod,              only: r_def, r_um, i_def, i_um, pi
   use fs_continuity_mod,          only: W3, Wtheta
@@ -27,6 +27,8 @@ module orographic_drag_kernel_mod
 
   implicit none
 
+  private
+
   !---------------------------------------------------------------------------
   ! Public types
   !---------------------------------------------------------------------------
@@ -34,25 +36,23 @@ module orographic_drag_kernel_mod
   !>
   type, public, extends(kernel_type) :: orographic_drag_kernel_type
     private
-    type(arg_type) :: meta_args(16) = (/             &
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! du_blk, u wind increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! dv_blk, v wind increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! du_orog_gwd, u wind increment gwd
-        arg_type(GH_FIELD,   GH_WRITE, W3),          & ! dv_orog_gwd, v wind increment gwd
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),      & ! dtemp_blk, temperature increment blocking
-        arg_type(GH_FIELD,   GH_WRITE, Wtheta),      & ! dtemp_orog_gwd, temperature increment gwd
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! u1_in_w3, zonal wind
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! u2_in_w3, meridional wind
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! wetrho_in_w3, wet density in w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta),      & ! theta, theta in wtheta
-        ! These are currently in ANY_SPACE_1 but need to change to
-        ! DISCONTINOUS_SPACE_1 once LFRic ticket #1968 is on trunk
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! sd_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! grad_xx_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! grad_xy_orog
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), & ! grad_yy_orog
-        arg_type(GH_FIELD,   GH_READ,  W3),          & ! height_w3
-        arg_type(GH_FIELD,   GH_READ,  Wtheta)       & ! height_wtheta
+    type(arg_type) :: meta_args(16) = (/                           &
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_blk, u wind increment blocking
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_blk, v wind increment blocking
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! du_orog_gwd, u wind increment gwd
+        arg_type(GH_FIELD,   GH_WRITE, W3),                        & ! dv_orog_gwd, v wind increment gwd
+        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_blk, temperature increment blocking
+        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                    & ! dtemp_orog_gwd, temperature increment gwd
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u1_in_w3, zonal wind
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! u2_in_w3, meridional wind
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! wetrho_in_w3, wet density in w3
+        arg_type(GH_FIELD,   GH_READ,  Wtheta),                    & ! theta, theta in wtheta
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! sd_orog
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xx_orog
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_xy_orog
+        arg_type(GH_FIELD,   GH_READ,  ANY_DISCONTINUOUS_SPACE_1), & ! grad_yy_orog
+        arg_type(GH_FIELD,   GH_READ,  W3),                        & ! height_w3
+        arg_type(GH_FIELD,   GH_READ,  Wtheta)                     & ! height_wtheta
         /)
     integer :: iterates_over = CELLS
     contains

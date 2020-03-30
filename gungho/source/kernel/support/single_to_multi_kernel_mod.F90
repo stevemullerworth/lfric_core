@@ -11,8 +11,11 @@
 
 module single_to_multi_kernel_mod
 
-  use argument_mod,  only: arg_type, GH_FIELD, GH_INTEGER, GH_INC, GH_READ, &
-                           ANY_SPACE_1, ANY_SPACE_2, CELLS
+  use argument_mod,  only: arg_type, CELLS,           &
+                           GH_FIELD, GH_INTEGER,      &
+                           GH_READWRITE, GH_READ,     &
+                           ANY_DISCONTINUOUS_SPACE_1, &
+                           ANY_DISCONTINUOUS_SPACE_2
   use constants_mod, only: r_def, i_def
   use kernel_mod,    only: kernel_type
 
@@ -23,10 +26,10 @@ module single_to_multi_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: single_to_multi_kernel_type
       private
-      type(arg_type) :: meta_args(3) = (/               &
-          arg_type(GH_FIELD,   GH_INC,   ANY_SPACE_1),  & ! multi dim field
-          arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_2),  & ! single lev field
-          arg_type(GH_INTEGER, GH_READ               )  & ! dim to update
+      type(arg_type) :: meta_args(3) = (/                                &
+          arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! multi dim field
+          arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! single lev field
+          arg_type(GH_INTEGER, GH_READ               )                   & ! dim to update
           /)
       integer :: iterates_over = CELLS
   contains

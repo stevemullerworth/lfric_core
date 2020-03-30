@@ -9,12 +9,14 @@ module mphys_kernel_mod
 
 use argument_mod, only: arg_type,                     &
                         GH_FIELD, GH_READ, GH_WRITE,  &
-                        CELLS, ANY_SPACE_1
+                        CELLS, ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only: WTHETA, W3
 
 use kernel_mod,   only: kernel_type
 
 implicit none
+
+private
 
 !-------------------------------------------------------------------------------
 ! Public types
@@ -48,8 +50,8 @@ type, public, extends(kernel_type) :: mphys_kernel_type
        arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmi_wth
        arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmr_wth
        arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! dmg_wth
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),                  & ! ls_rain
-       arg_type(GH_FIELD,   GH_WRITE,   ANY_SPACE_1),                  & ! ls_snow
+       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),    & ! ls_rain
+       arg_type(GH_FIELD,   GH_WRITE,   ANY_DISCONTINUOUS_SPACE_1),    & ! ls_snow
        arg_type(GH_FIELD,   GH_WRITE,   WTHETA),                       & ! theta_inc
        arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcfl_wth
        arg_type(GH_FIELD,   GH_READ,    WTHETA),                       & ! dcff_wth
@@ -64,18 +66,18 @@ public mphys_code
 contains
 
 !> @brief Interface to the microphysics scheme
-!> @param[in]  nlayers
-!> @param[in]  mv_wth              vapour mass mixing ratio
-!> @param[in]  ml_wth              liquid cloud mass mixing ratio
-!> @param[in]  mi_wth              ice cloud mass mixing ratio
-!> @param[in]  mr_wth              rain mass mixing ratio
-!> @param[in]  mg_wth              graupel mass mixing ratio
-!> @param[in]  cf_wth              bulk cloud fraction
-!> @param[in]  cfl_wth             liquid cloud fraction
-!> @param[in]  cff_wth             ice cloud fraction
-!> @param[in]  u1_in_w3            'zonal' wind in density space
-!> @param[in]  u2_in_w3            'meridional' wind in density space
-!> @param[in]  w_phys              'vertical' wind in theta space
+!> @param[in]  nlayers             Number of layers
+!> @param[in]  mv_wth              Vapour mass mixing ratio
+!> @param[in]  ml_wth              Liquid cloud mass mixing ratio
+!> @param[in]  mi_wth              Ice cloud mass mixing ratio
+!> @param[in]  mr_wth              Rain mass mixing ratio
+!> @param[in]  mg_wth              Graupel mass mixing ratio
+!> @param[in]  cf_wth              Bulk cloud fraction
+!> @param[in]  cfl_wth             Liquid cloud fraction
+!> @param[in]  cff_wth             Ice cloud fraction
+!> @param[in]  u1_in_w3            'Zonal' wind in density space
+!> @param[in]  u2_in_w3            'Meridional' wind in density space
+!> @param[in]  w_phys              'Vertical' wind in theta space
 !> @param[in]  theta_in_wth        Potential temperature field
 !> @param[in]  exner_in_w3         Exner pressure field in density space
 !> @param[in]  exner_in_wth        Exner pressure in potential temperature space
@@ -84,17 +86,17 @@ contains
 !> @param[in]  height_wth          Height of potential temperature space levels
 !>                                  above surface
 !> @param[in]  cloud_drop_no_conc  Cloud Droplet Number Concentration
-!> @param[out] dmv_wth             increment to vapour mass mixing ratio
-!> @param[out] dml_wth             increment to liquid cloud mass mixing ratio
-!> @param[out] dmi_wth             increment to ice cloud mass mixing ratio
-!> @param[out] dmr_wth             increment to rain mass mixing ratio
-!> @param[out] dmg_wth             increment to graupel mass mixing ratio
-!> @param[out] ls_rain_2d          large scale rain from twod_fields
-!> @param[out] ls_snow_2d          large scale snow from twod_fields
-!> @param[out] theta_inc           increment to theta
-!> @param[inout] dcfl_wth          increment to liquid cloud fraction
-!> @param[inout] dcff_wth          increment to ice cloud fraction
-!> @param[inout] dbcf_wth          increment to bulk cloud fraction
+!> @param[out] dmv_wth             Increment to vapour mass mixing ratio
+!> @param[out] dml_wth             Increment to liquid cloud mass mixing ratio
+!> @param[out] dmi_wth             Increment to ice cloud mass mixing ratio
+!> @param[out] dmr_wth             Increment to rain mass mixing ratio
+!> @param[out] dmg_wth             Increment to graupel mass mixing ratio
+!> @param[out] ls_rain_2d          Large scale rain from twod_fields
+!> @param[out] ls_snow_2d          Large scale snow from twod_fields
+!> @param[out] theta_inc           Increment to theta
+!> @param[out] dcfl_wth            Increment to liquid cloud fraction
+!> @param[out] dcff_wth            Increment to ice cloud fraction
+!> @param[out] dbcf_wth            Increment to bulk cloud fraction
 !> @param[in]  ndf_wth             Number of degrees of freedom per cell for
 !>                                  potential temperature space
 !> @param[in]  undf_wth            Number unique of degrees of freedom for

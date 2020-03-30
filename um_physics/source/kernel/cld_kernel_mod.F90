@@ -9,7 +9,7 @@ module cld_kernel_mod
 
   use argument_mod,       only : arg_type,                        &
                                  GH_FIELD, GH_READ, GH_READWRITE, &
-                                 CELLS, GH_WRITE, ANY_SPACE_1
+                                 CELLS, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,      only : r_def, r_double, i_def, i_um, r_um
   use fs_continuity_mod,  only : W3, Wtheta
   use kernel_mod,         only : kernel_type
@@ -22,21 +22,21 @@ module cld_kernel_mod
   !>
   type, public, extends(kernel_type) :: cld_kernel_type
     private
-    type(arg_type) :: meta_args(14) = (/             &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,       W3),     &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,       WTHETA), &
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA), &
-        arg_type(GH_FIELD,   GH_WRITE,      WTHETA) &
+    type(arg_type) :: meta_args(14) = (/                                &
+        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READ,       W3),                        &
+        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READ,       WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READ,       ANY_DISCONTINUOUS_SPACE_1), &
+        arg_type(GH_FIELD,   GH_READ,       ANY_DISCONTINUOUS_SPACE_1), &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_READWRITE,  WTHETA),                    &
+        arg_type(GH_FIELD,   GH_WRITE,      WTHETA)                     &
         /)
     integer :: iterates_over = CELLS
   contains
@@ -54,7 +54,7 @@ contains
 !>          Here there is an interface to the Smith cloud scheme. Which is the
 !>          scheme described in UMDP 29.
 !> @param[in]     nlayers       Number of layers
-!> @param[in]     theta_in_wth  predicted theta in its native space
+!> @param[in]     theta_in_wth  Predicted theta in its native space
 !> @param[in]     exner_in_w3   Pressure in the w3 space
 !> @param[in]     exner_in_wth  Exner Pressure in the theta space
 !> @param[in]     rh_crit_wth   Critical Relative Humidity
@@ -67,7 +67,7 @@ contains
 !> @param[in,out] cf_ice        Ice cloud fraction
 !> @param[in,out] cf_liq        Liquid cloud fraction
 !> @param[in,out] cf_bulk       Bulk cloud fraction
-!> @param[out]    theta_inc     increment to theta
+!> @param[out]    theta_inc     Increment to theta
 !> @param[in]     ndf_wth       Number of degrees of freedom per cell for potential temperature space
 !> @param[in]     undf_wth      Number unique of degrees of freedom  for potential temperature space
 !> @param[in]     map_wth       Dofmap for the cell at the base of the column for potential temperature space
@@ -106,9 +106,9 @@ subroutine cld_code(nlayers,      &
     !---------------------------------------
     ! UM modules
     !---------------------------------------
-    ! structures holding diagnostic arrays - not used
+    ! Structures holding diagnostic arrays - not used
 
-    ! other modules containing stuff passed to CLD
+    ! Other modules containing stuff passed to CLD
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels, model_levels
     use planet_constants_mod, only: p_zero, kappa, cp
     use water_constants_mod, ONLY: lc

@@ -7,16 +7,18 @@
 !>
 module compute_latlon_kernel_mod
 
-  use argument_mod,         only: arg_type, func_type,                 &
-                                  GH_FIELD, GH_WRITE, GH_READ, GH_INC, &
-                                  ANY_SPACE_1, ANY_SPACE_9,            &
-                                  GH_BASIS,                            &
-                                  CELLS, GH_EVALUATOR
-  use constants_mod,        only: r_def
+  use argument_mod,         only: arg_type, func_type,         &
+                                  GH_FIELD, GH_WRITE, GH_READ, &
+                                  ANY_DISCONTINUOUS_SPACE_1,   &
+                                  ANY_SPACE_9, CELLS,          &
+                                  GH_BASIS, GH_EVALUATOR
+  use constants_mod,        only: r_def, i_def
   use kernel_mod,           only: kernel_type
   use coord_transform_mod,  only: xyz2ll
 
   implicit none
+
+  private
 
   !---------------------------------------------------------------------------
   ! Public types
@@ -25,10 +27,10 @@ module compute_latlon_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_latlon_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/               &
-        arg_type(GH_FIELD,   GH_WRITE,  ANY_SPACE_1), &
-        arg_type(GH_FIELD,   GH_WRITE,  ANY_SPACE_1), &
-        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)   &
+    type(arg_type) :: meta_args(3) = (/                            &
+        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+        arg_type(GH_FIELD,   GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_9)                &
         /)
     type(func_type) :: meta_funcs(1) = (/ &
         func_type(ANY_SPACE_9, GH_BASIS)  &
@@ -49,19 +51,19 @@ contains
 
 !> @brief Calculates the latitude and longitude fields from the x, y and z components
 !> @details Will only work at lowest order for now
-!! @param[in]    nlayers   The number of layers (always 1)
-!! @param[inout] latitude  Latitude field data
-!! @param[inout] longitude Longitude field data
-!! @param[in]    chi_1     X component of the coordinate
-!! @param[in]    chi_2     Y component of the coordinate
-!! @param[in]    chi_3     Z component of the coordinate
-!! @param[in]    ndf_x     Number of degrees of freedom per cell for height
-!! @param[in]    undf_x    Number of unique degrees of freedom for height
-!! @param[in]    map_x     Dofmap for the cell at the base of the column for height
-!! @param[in]    ndf_chi   The number of degrees of freedom per cell for chi
-!! @param[in]    undf_chi  The number of unique degrees of freedom for chi
-!! @param[in]    map_chi   Dofmap for the cell at the base of the column for chi
-!! @param[in]    basis_chi Basis functions evaluated at nodal points for height
+!> @param[in]     nlayers   The number of layers (always 1)
+!> @param[in,out] latitude  Latitude field data
+!> @param[in,out] longitude Longitude field data
+!> @param[in]     chi_1     X component of the coordinate
+!> @param[in]     chi_2     Y component of the coordinate
+!> @param[in]     chi_3     Z component of the coordinate
+!> @param[in]     ndf_x     Number of degrees of freedom per cell for height
+!> @param[in]     undf_x    Number of unique degrees of freedom for height
+!> @param[in]     map_x     Dofmap for the cell at the base of the column for height
+!> @param[in]     ndf_chi   The number of degrees of freedom per cell for chi
+!> @param[in]     undf_chi  The number of unique degrees of freedom for chi
+!> @param[in]     map_chi   Dofmap for the cell at the base of the column for chi
+!> @param[in]     basis_chi Basis functions evaluated at nodal points for height
 subroutine compute_latlon_code(nlayers,                         &
                                latitude, longitude,             &
                                chi_1, chi_2, chi_3,             &
@@ -69,24 +71,24 @@ subroutine compute_latlon_code(nlayers,                         &
                                ndf_chi, undf_chi, map_chi,      &
                                basis_chi                        &
                                )
+
   implicit none
 
-  !Arguments
-  integer, intent(in) :: nlayers
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: ndf_x, undf_x
+  integer(kind=i_def), intent(in) :: ndf_chi, undf_chi
 
-  integer, intent(in)                                :: ndf_x, undf_x
-  integer, intent(in)                                :: ndf_chi, undf_chi
   real(kind=r_def), dimension(undf_x), intent(inout) :: latitude, longitude
   real(kind=r_def), dimension(undf_chi), intent(in)  :: chi_1, chi_2, chi_3
 
-  integer, dimension(ndf_x), intent(in)                       :: map_x
-  integer, dimension(ndf_chi), intent(in)                     :: map_chi
-  real(kind=r_def), dimension(1, ndf_chi, ndf_x), intent(in)  :: basis_chi
+  integer(kind=i_def), dimension(ndf_x), intent(in)          :: map_x
+  integer(kind=i_def), dimension(ndf_chi), intent(in)        :: map_chi
+  real(kind=r_def), dimension(1, ndf_chi, ndf_x), intent(in) :: basis_chi
 
-  !Internal variables
-  integer          :: df_chi, df_x, k
-
-  real(kind=r_def) :: xyz(3), lat, lon
+  ! Internal variables
+  integer(kind=i_def) :: df_chi, df_x, k
+  real(kind=r_def)    :: xyz(3), lat, lon
 
   do k = 0, nlayers-1
     do df_x = 1, ndf_x

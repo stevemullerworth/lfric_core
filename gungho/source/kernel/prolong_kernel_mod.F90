@@ -11,20 +11,25 @@
 !!          be pointwise scalar values so no area weighting is used
 
 module prolong_kernel_mod
+
 use constants_mod,           only: i_def, r_def
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type,                 &
-                                   GH_FIELD,                 &
-                                   GH_READ, GH_INC, CELLS,   &
-                                   ANY_SPACE_1, ANY_SPACE_2, &
+use argument_mod,            only: arg_type,                  &
+                                   GH_FIELD, CELLS,           &
+                                   GH_READ, GH_READWRITE,     &
+                                   ANY_DISCONTINUOUS_SPACE_1, &
+                                   ANY_DISCONTINUOUS_SPACE_2, &
                                    GH_COARSE, GH_FINE
+
 implicit none
+
+private
 
 type, public, extends(kernel_type) :: prolong_kernel_type
    private
-   type(arg_type) :: meta_args(2) = (/                               &
-       arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1, mesh_arg=GH_FINE),   &
-       arg_type(GH_FIELD, GH_READ, ANY_SPACE_2, mesh_arg=GH_COARSE ) &
+   type(arg_type) :: meta_args(2) = (/                                                  &
+       arg_type(GH_FIELD, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1, mesh_arg=GH_FINE),   &
+       arg_type(GH_FIELD, GH_READ,      ANY_DISCONTINUOUS_SPACE_2, mesh_arg=GH_COARSE ) &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -60,7 +65,9 @@ contains
                                  dofmap_f,      &
                                  undf_c,        &
                                  dofmap_c)
+
     implicit none
+
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ncell_f_per_c
     integer(kind=i_def), dimension(ncell_f_per_c), intent(in) :: cell_map

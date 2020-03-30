@@ -7,16 +7,21 @@
 
 module lw_kernel_mod
 
-use argument_mod,      only : arg_type, &
-                              GH_FIELD, GH_INTEGER, GH_READ, GH_WRITE, &
-                              GH_READWRITE, GH_INC, CELLS, &
-                              ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3
+use argument_mod,      only : arg_type,                  &
+                              GH_FIELD, GH_INTEGER,      &
+                              GH_READ, GH_WRITE,         &
+                              GH_READWRITE, CELLS,       &
+                              ANY_DISCONTINUOUS_SPACE_1, &
+                              ANY_DISCONTINUOUS_SPACE_2, &
+                              ANY_DISCONTINUOUS_SPACE_3
 use fs_continuity_mod, only:  W3, Wtheta
 use constants_mod,     only : r_def, i_def, radians_to_degrees
 use kernel_mod,        only : kernel_type
 
 implicit none
+
 private
+
 public :: lw_kernel_type
 public :: lw_code
 
@@ -24,36 +29,36 @@ public :: lw_code
 ! Public types
 !-------------------------------------------------------------------------------
 ! The type declaration for the kernel.
-! Contains the metadata needed by the Psy layer.
+! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: lw_kernel_type
   private
-  type(arg_type) :: meta_args(26) = (/               &
-    arg_type(GH_FIELD,   GH_WRITE,     Wtheta),      & ! lw_heating_rate
-    arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1), & ! lw_down_surf
-    arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_2), & ! lw_up_tile
-    arg_type(GH_FIELD,   GH_READWRITE, Wtheta),      & ! lw_heating_rate_rts
-    arg_type(GH_FIELD,   GH_INC,       ANY_SPACE_1), & ! lw_down_surf_rts
-    arg_type(GH_FIELD,   GH_INC,       ANY_SPACE_2), & ! lw_up_tile_rts
-    arg_type(GH_FIELD,   GH_WRITE,     ANY_SPACE_1), & ! cloud_cover_rts
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! theta
-    arg_type(GH_FIELD,   GH_READ,      W3),          & ! theta_in_w3
-    arg_type(GH_FIELD,   GH_READ,      W3),          & ! exner
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! exner_in_wth
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! rho_in_wth
-    arg_type(GH_FIELD,   GH_READ,      W3),          & ! height_w3
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! height_wth
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! mv
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! mcl
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! mci
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! area_fraction
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! liquid_fraction
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),      & ! ice_fraction
-    arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2), & ! tile_fraction
-    arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_2), & ! tile_temperature
-    arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_3), & ! tile_lw_albedo
-    arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1), & ! latitude
-    arg_type(GH_FIELD,   GH_READ,      ANY_SPACE_1), & ! longitude
-    arg_type(GH_INTEGER, GH_READ                  )  & ! timestep
+  type(arg_type) :: meta_args(26) = (/                             &
+    arg_type(GH_FIELD,   GH_WRITE,     Wtheta),                    & ! lw_heating_rate
+    arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lw_down_surf
+    arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2), & ! lw_up_tile
+    arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                    & ! lw_heating_rate_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! lw_down_surf_rts
+    arg_type(GH_FIELD,   GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! lw_up_tile_rts
+    arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cloud_cover_rts
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! theta
+    arg_type(GH_FIELD,   GH_READ,      W3),                        & ! theta_in_w3
+    arg_type(GH_FIELD,   GH_READ,      W3),                        & ! exner
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! exner_in_wth
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! rho_in_wth
+    arg_type(GH_FIELD,   GH_READ,      W3),                        & ! height_w3
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! height_wth
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mv
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mcl
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mci
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! area_fraction
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! liquid_fraction
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! ice_fraction
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_lw_albedo
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! latitude
+    arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! longitude
+    arg_type(GH_INTEGER, GH_READ                                )  & ! timestep
     /)
   integer :: iterates_over = CELLS
 contains
@@ -75,9 +80,9 @@ contains
 !> @param[out]    cloud_cover_rts         Total cloud cover 2D field
 !> @param[in]     theta                   Potential temperature
 !> @param[in]     theta_in_w3             Potential temperature in density space
-!> @param[in]     exner                   exner pressure in density space
-!> @param[in]     exner_in_wth            exner pressure in wth space
-!> @param[in]     rho_in_wth              density in potential temperature space
+!> @param[in]     exner                   Exner pressure in density space
+!> @param[in]     exner_in_wth            Exner pressure in wth space
+!> @param[in]     rho_in_wth              Density in potential temperature space
 !> @param[in]     height_w3               Height of w3 levels above surface
 !> @param[in]     height_wth              Height of wth levels above surface
 !> @param[in]     mv                      Water vapour field
@@ -95,9 +100,9 @@ contains
 !> @param[in]     ndf_wth                 No. DOFs per cell for wth space
 !> @param[in]     undf_wth                No. unique of DOFs for wth space
 !> @param[in]     map_wth                 Dofmap for wth space column base cell
-!> @param[in]     ndf_2d                  No. of DOFs per cell for 2d space
-!> @param[in]     undf_2d                 No. unique of DOFs for 2d space
-!> @param[in]     map_2d                  Dofmap for 2d space column base cell
+!> @param[in]     ndf_2d                  No. of DOFs per cell for 2D space
+!> @param[in]     undf_2d                 No. unique of DOFs for 2D space
+!> @param[in]     map_2d                  Dofmap for 2D space column base cell
 !> @param[in]     ndf_tile                Number of DOFs per cell for tiles
 !> @param[in]     undf_tile               Number of total DOFs for tiles
 !> @param[in]     map_tile                Dofmap for tile space column base cell

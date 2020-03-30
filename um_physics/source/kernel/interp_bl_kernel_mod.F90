@@ -14,12 +14,14 @@ module interp_bl_kernel_mod
   use kernel_mod,               only: kernel_type
   use argument_mod,             only: arg_type, func_type,                 &
                                       GH_FIELD, GH_INC, GH_READ, CELLS,    &
-                                      ANY_SPACE_1
+                                      ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,            only: r_def, i_def
   use fs_continuity_mod,        only: W2, W3, WTHETA
   use kernel_mod,               only: kernel_type
 
   implicit none
+
+  private
 
   !----------------------------------------------------------------------------
   ! Public types
@@ -27,17 +29,17 @@ module interp_bl_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: interp_bl_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/            &
-         arg_type(GH_FIELD, GH_READ,  WTHETA),      &! rhokm_bl
-         arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1), &! rhokm_surf
-         arg_type(GH_FIELD, GH_READ,  WTHETA),      &! ngstress_bl
-         arg_type(GH_FIELD, GH_READ,  W3),          &! dtrdz_uv_bl
-         arg_type(GH_FIELD, GH_READ,  WTHETA),      &! rdz_uv_bl
-         arg_type(GH_FIELD, GH_INC,   W2),          &! rhokm_w2
-         arg_type(GH_FIELD, GH_INC,   W2),          &! rhokm_surf_w2
-         arg_type(GH_FIELD, GH_INC,   W2),          &! ngstress_w2
-         arg_type(GH_FIELD, GH_INC,   W2),          &! dtrdz_w2
-         arg_type(GH_FIELD, GH_INC,   W2)           &! rdz_w2
+    type(arg_type) :: meta_args(10) = (/                          &
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! rhokm_bl
+         arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &! rhokm_surf
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! ngstress_bl
+         arg_type(GH_FIELD, GH_READ,  W3),                        &! dtrdz_uv_bl
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                    &! rdz_uv_bl
+         arg_type(GH_FIELD, GH_INC,   W2),                        &! rhokm_w2
+         arg_type(GH_FIELD, GH_INC,   W2),                        &! rhokm_surf_w2
+         arg_type(GH_FIELD, GH_INC,   W2),                        &! ngstress_w2
+         arg_type(GH_FIELD, GH_INC,   W2),                        &! dtrdz_w2
+         arg_type(GH_FIELD, GH_INC,   W2)                         &! rdz_w2
          /)
     integer :: iterates_over = CELLS
   contains

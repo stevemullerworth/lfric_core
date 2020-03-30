@@ -7,16 +7,22 @@
 
 module rad_tile_kernel_mod
 
-use argument_mod,      only : arg_type, func_type, &
-                              GH_FIELD, GH_READ, GH_WRITE, GH_INC, &
-                              CELLS, ANY_SPACE_1, ANY_SPACE_2, &
-                              ANY_SPACE_3, ANY_SPACE_4, ANY_SPACE_5
+use argument_mod,      only : arg_type, func_type,       &
+                              GH_FIELD, GH_READ,         &
+                              GH_WRITE, GH_INC, CELLS,   &
+                              ANY_DISCONTINUOUS_SPACE_1, &
+                              ANY_DISCONTINUOUS_SPACE_2, &
+                              ANY_DISCONTINUOUS_SPACE_3, &
+                              ANY_DISCONTINUOUS_SPACE_4, &
+                              ANY_DISCONTINUOUS_SPACE_5
 use fs_continuity_mod, only:  W3
 use constants_mod,     only : r_def, i_def, r_um, i_um
 use kernel_mod,        only : kernel_type
 
 implicit none
+
 private
+
 public :: rad_tile_kernel_type
 public :: rad_tile_code
 
@@ -24,35 +30,35 @@ public :: rad_tile_code
 ! Public types
 !------------------------------------------------------------------------------
 ! The type declaration for the kernel.
-! Contains the metadata needed by the Psy layer.
+! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: rad_tile_kernel_type
   private
-  type(arg_type) :: meta_args(25) = (/            &
-       arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1), & ! tile_sw_direct_albedo
-       arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1), & ! tile_sw_diffuse_albedo
-       arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1), & ! tile_lw_albedo
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2), & ! tile_fraction
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_3), & ! leaf_area_index
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_3), & ! canopy_height
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! sd_orog
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! soil_albedo
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! soil_roughness
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! albedo_obs_sw
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! albedo_obs_vis
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! albedo_obs_nir
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2), & ! tile_temperature
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2), & ! tile_snow_mass
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2), & ! tile_snow_rgrain
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! snow_soot
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! chloro_sea
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_5), & ! sea_ice_thickness
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_5), & ! sea_ice_pond_frac
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_5), & ! sea_ice_pond_depth
-       arg_type(GH_FIELD, GH_READ,  W3),          & ! u1_in_w3
-       arg_type(GH_FIELD, GH_READ,  W3),          & ! u2_in_w3
-       arg_type(GH_FIELD, GH_READ,  W3),          & ! height_w3
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4), & ! z0msea
-       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_4)  & ! cos_zenith_angle
+  type(arg_type) :: meta_args(25) = (/                          &
+       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_direct_albedo
+       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_sw_diffuse_albedo
+       arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! tile_lw_albedo
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! leaf_area_index
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), & ! canopy_height
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! sd_orog
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_albedo
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! soil_roughness
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_sw
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_vis
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! albedo_obs_nir
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_temperature
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_mass
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_2), & ! tile_snow_rgrain
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! snow_soot
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! chloro_sea
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! sea_ice_thickness
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! sea_ice_pond_frac
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_5), & ! sea_ice_pond_depth
+       arg_type(GH_FIELD, GH_READ,  W3),                        & ! u1_in_w3
+       arg_type(GH_FIELD, GH_READ,  W3),                        & ! u2_in_w3
+       arg_type(GH_FIELD, GH_READ,  W3),                        & ! height_w3
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4), & ! z0msea
+       arg_type(GH_FIELD, GH_READ,  ANY_DISCONTINUOUS_SPACE_4)  & ! cos_zenith_angle
        /)
   integer :: iterates_over = CELLS
 contains

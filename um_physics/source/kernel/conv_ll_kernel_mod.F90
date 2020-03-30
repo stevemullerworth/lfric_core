@@ -9,7 +9,7 @@ module conv_ll_kernel_mod
 
   use argument_mod,           only : arg_type,                       &
                                      GH_FIELD, GH_READ, GH_WRITE,    &
-                                     CELLS, ANY_SPACE_1
+                                     CELLS, ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,          only : i_def, i_um, r_def, r_um
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
@@ -25,17 +25,17 @@ module conv_ll_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_ll_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/               &
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dt_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dmv_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dmcl_conv
-         arg_type(GH_FIELD, GH_WRITE, WTHETA),         & ! dcfl_conv
-         arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! theta_star
-         arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! m_v
-         arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! m_cl
-         arg_type(GH_FIELD, GH_READ,  WTHETA),         & ! exner_in_wth
-         arg_type(GH_FIELD, GH_READ,  W3),             & ! exner_in_w3
-         arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)     & ! conv_rain
+    type(arg_type) :: meta_args(10) = (/                             &
+         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dt_conv
+         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dmv_conv
+         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dmcl_conv
+         arg_type(GH_FIELD, GH_WRITE, WTHETA),                       & ! dcfl_conv
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! theta_star
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! m_v
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! m_cl
+         arg_type(GH_FIELD, GH_READ,  WTHETA),                       & ! exner_in_wth
+         arg_type(GH_FIELD, GH_READ,  W3),                           & ! exner_in_w3
+         arg_type(GH_FIELD, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)     & ! conv_rain
         /)
     integer :: iterates_over = CELLS
   contains
