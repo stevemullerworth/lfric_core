@@ -29,10 +29,15 @@ module solver_miniapp_alg_mod
                                              conjugate_gradient_type,        &
                                              bicgstab_type,                  &
                                              gmres_type,                     &
-                                             jacobi_type
+                                             jacobi_type,                    &
+                                             gcr_type,                       &
+                                             fgmres_type,                    &
+                                             precondition_only_type
   use solver_config_mod,              only : method, tolerance, maximum_iterations, preconditioner, &
                                              method, method_cg, method_bicgstab, &
-                                             method_gmres, method_jacobi, &
+                                             method_gmres, method_jacobi,        &
+                                             method_gcr, method_fgmres,          &
+                                             method_prec_only, diagnostic_norm,  &
                                              preconditioner_diagonal, &
                                              gcrk
 
@@ -148,6 +153,37 @@ contains
        class default
          ! Catch type error
           call log_event("solver_miniapp_alg: solver type failure: Should be Jacobi",LOG_LEVEL_ERROR)
+       end select
+    case( method_gcr )
+       call log_event("setting solver to GCR", LOG_LEVEL_INFO)
+       allocate( gcr_type :: solver )
+       select type( solver )
+       type is ( gcr_type )
+          solver = gcr_type( op, prec, gcrk, tolerance, tolerance, &
+                             maximum_iterations )
+       class default
+          ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be GCR",LOG_LEVEL_ERROR)
+       end select
+    case( method_fgmres )
+       call log_event("setting solver to FGMRES", LOG_LEVEL_INFO )
+       allocate( fgmres_type :: solver )
+       select type( solver )
+       type is ( fgmres_type )
+          solver = fgmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
+       end select
+    case( method_prec_only )
+       call log_event("setting solver to precondition only", LOG_LEVEL_INFO )
+       allocate( precondition_only_type :: solver )
+       select type( solver )
+       type is ( precondition_only_type )
+          solver = precondition_only_type( op, prec, tolerance, tolerance, diagnostic_norm )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
        end select
     case default
        write(log_scratch_space,'(A, I0)') "solver_miniapp_alg: solver choice not supported, exiting: ", method

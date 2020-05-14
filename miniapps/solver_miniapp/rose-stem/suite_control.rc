@@ -30,7 +30,7 @@
 {%- set mesh_build      = "fast-debug" %}
 {%- set MAXRUNAHEAD     = 1 %}
 
-{%- set application_configurations = { 'solver_miniapp' : ['cg','bicgstab','gmres','jacobi','default'] } %}
+{%- set application_configurations = { 'solver_miniapp' : ['cg','bicgstab','gmres','jacobi','gcr','fgmres','prec_only','default'] } %}
 
 {%- set canned_configurations  = ['solver_miniapp'] %}
 
@@ -44,11 +44,17 @@
     'run_application("solver_miniapp", "bicgstab",
                      resolutions=[("C24", 600.0)],
                      run_with_compilers='~TARGET_SOLVER_COMPILER~')',
+    'run_application("solver_miniapp", "gcr", resolutions=[("C24", 600.0)],
+                     run_with_compilers='~TARGET_GMRES_COMPILER~')',		    
     'run_application("solver_miniapp", "jacobi",
                      resolutions=[["C24", 600.0]],
                      run_with_compilers='~TARGET_SOLVER_COMPILER~')',
     'run_application("solver_miniapp", "gmres", resolutions=[["C24", 600.0]],
-                     run_with_compilers='~TARGET_GMRES_COMPILER~')' ],
+                     run_with_compilers='~TARGET_GMRES_COMPILER~')', 
+    'run_application("solver_miniapp", "fgmres", resolutions=[["C24", 600.0]],
+                     run_with_compilers='~TARGET_GMRES_COMPILER~')',
+    'run_application("solver_miniapp", "prec_only", resolutions=[["C24", 600.0]],
+                     run_with_compilers='~TARGET_SOLVER_COMPILER~')' ],		     
 'nightly': [
     'null_task_graph()' ] } %}
 
