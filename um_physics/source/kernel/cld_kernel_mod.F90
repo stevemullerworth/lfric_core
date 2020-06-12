@@ -143,6 +143,8 @@ subroutine cld_code(nlayers,      &
     ! Local variables for the kernel
     integer (i_um):: k
 
+    real(r_def) :: dmv1
+
     integer (i_um):: rhc_row_length, rhc_rows
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::        &
@@ -226,7 +228,8 @@ subroutine cld_code(nlayers,      &
 
     ! update main model prognostics
     !-----------------------------------------------------------------------
-
+    ! Save old value of m_v at level 1 for level 0 increment
+    dmv1 = m_v(map_wth(1) + 1)
     do k = 1, nlayers
       ! potential temperature increment on theta levels
       theta_inc(map_wth(1) + k) = tl(1,1,k)/exner_in_wth(map_wth(1) + k) -  &
@@ -242,7 +245,7 @@ subroutine cld_code(nlayers,      &
       cf_area(map_wth(1) + k) = area_cloud_fraction(1,1,k)
     end do
     theta_inc(map_wth(1) + 0) = theta_inc(map_wth(1) + 1)
-    m_v(map_wth(1) + 0)  = m_v(map_wth(1) + 1)
+    m_v(map_wth(1) + 0)  = m_v(map_wth(1) + 0) + m_v(map_wth(1) + 1) - dmv1
     m_cl(map_wth(1) + 0) = m_cl(map_wth(1) + 1)
     cf_bulk(map_wth(1) + 0) = cf_bulk(map_wth(1) + 1)
     cf_liq(map_wth(1) + 0) = cf_liq(map_wth(1) + 1)

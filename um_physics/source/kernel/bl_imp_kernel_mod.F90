@@ -23,6 +23,11 @@ module bl_imp_kernel_mod
   use fs_continuity_mod,      only : W3, Wtheta, W2
   use kernel_mod,             only : kernel_type
   use timestepping_config_mod, only: outer_iterations
+  use physics_config_mod,     only : lowest_level,          &
+                                     lowest_level_constant, &
+                                     lowest_level_gradient, &
+                                     lowest_level_flux
+  use planet_config_mod,      only : cp
 
   implicit none
 
@@ -35,7 +40,7 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(82) = (/                              &
+    type(arg_type) :: meta_args(81) = (/                              &
         arg_type(GH_INTEGER, GH_READ),                                &! outer
         arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! theta_in_wth
         arg_type(GH_FIELD,   GH_READ,      W3),                       &! wetrho_in_w3
@@ -74,7 +79,6 @@ module bl_imp_kernel_mod
         arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_2),&! total_snowmelt (kg m-2 s-1)
         arg_type(GH_FIELD,   GH_WRITE,     WTHETA),                   &! dtheta_bl
         arg_type(GH_FIELD,   GH_INC,       W2),                       &! du_bl_w2
-        arg_type(GH_FIELD,   GH_WRITE,     WTHETA),                   &! dmv_bl
         arg_type(GH_FIELD,   GH_READ,      WTHETA),                   &! dt_conv
         arg_type(GH_FIELD,   GH_READ,      W2),                       &! du_conv_w2
         arg_type(GH_FIELD,   GH_READWRITE, WTHETA),                   &! m_v
@@ -172,7 +176,6 @@ contains
   !> @param[out]    total_snowmelt       Surface plus canopy snowmelt rate
   !> @param[out]    dtheta_bl            BL theta increment
   !> @param[in,out] du_bl_w2             BL wind increment
-  !> @param[out]    dmv_bl               BL vapour increment
   !> @param[in]     dt_conv              Convection temperature increment
   !> @param[in]     du_conv_w2           Convection wind increment
   !> @param[in,out] m_v                  Vapour mixing ration after advection
@@ -282,7 +285,6 @@ contains
                          total_snowmelt,                     &
                          dtheta_bl,                          &
                          du_bl_w2,                           &
-                         dmv_bl,                             &
                          dt_conv,                            &
                          du_conv_w2,                         &
                          m_v,                                &
@@ -408,7 +410,7 @@ contains
     integer(kind=i_def), intent(in) :: map_bl(ndf_bl)
 
     real(kind=r_def), dimension(undf_w2),  intent(inout):: du_bl_w2
-    real(kind=r_def), dimension(undf_wth), intent(out)  :: dtheta_bl, dmv_bl
+    real(kind=r_def), dimension(undf_wth), intent(out)  :: dtheta_bl
     real(kind=r_def), dimension(undf_wth), intent(inout):: m_v, m_cl, m_ci,    &
                                                            cf_area, cf_ice,    &
                                                            cf_liq, cf_bulk
@@ -1345,8 +1347,6 @@ contains
     ! update main model prognostics
     !-----------------------------------------------------------------------
     do k = 1, nlayers
-      ! diagnostic increments
-      dmv_bl(map_wth(1)+k) = q_latest(1,1,k) - m_v(map_wth(1) + k)
       ! potential temperature increment on theta levels
       dtheta_bl(map_wth(1) + k) = t_latest(1,1,k)                       &
                                    / exner_theta_levels(1,1,k)          &
@@ -1362,12 +1362,34 @@ contains
       du_bl_w2(map_w2(4) + k - 1) = r_v(1,1,k)                          &
          - (u_physics_star(map_w2(4) + k-1) - u_physics(map_w2(4) + k-1))
     end do
-    ! copy down lowest level to surface as done in UM
-    dmv_bl(map_wth(1)+0) = dmv_bl(map_wth(1)+1)
-    dtheta_bl(map_wth(1) + 0) = dtheta_bl(map_wth(1) + 1)
-    m_v(map_wth(1) + 0)  = m_v(map_wth(1) + 1)
-    m_cl(map_wth(1) + 0) = m_cl(map_wth(1) + 1)
-    m_ci(map_wth(1) + 0) = m_ci(map_wth(1) + 1)
+
+    ! Update lowest-level values
+    select case(lowest_level)
+      case(lowest_level_constant)
+        dtheta_bl(map_wth(1)) = t_latest(1,1,1) / exner_theta_levels(1,1,1)   &
+                              - theta_star(map_wth(1))
+        m_v(map_wth(1))  = m_v(map_wth(1) + 1)
+
+      case(lowest_level_gradient)
+        dtheta_bl(map_wth(1)) = t_latest(1,1,1) / exner_theta_levels(1,1,1)   &
+                              - z_theta(1,1,1) * (                            &
+                                t_latest(1,1,2) / exner_theta_levels(1,1,2)   &
+                              - t_latest(1,1,1) / exner_theta_levels(1,1,1) ) &
+                              / (z_theta(1,1,2) - z_theta(1,1,1))             &
+                              - theta_star(map_wth(1))
+        m_v(map_wth(1))  = m_v(map_wth(1) + 1)                                &
+                         - z_theta(1,1,1) * (                                 &
+                           m_v(map_wth(1) + 2) - m_v(map_wth(1) + 1) )        &
+                         / (z_theta(1,1,2) - z_theta(1,1,1))
+      case(lowest_level_flux)
+        dtheta_bl(map_wth(1)) = t_latest(1,1,1) / exner_theta_levels(1,1,1)   &
+                              + ftl(1,1,1) / (cp * rhokh(1,1,1))              &
+                              - theta_star(map_wth(1))
+        m_v(map_wth(1))  = m_v(map_wth(1) + 1)                                &
+                         + fqw(1,1,1) / rhokh(1,1,1)
+    end select
+    m_cl(map_wth(1)) = m_cl(map_wth(1) + 1)
+    m_ci(map_wth(1)) = m_ci(map_wth(1) + 1)
 
     ! update cloud fractions only if using cloud scheme
     if ( cloud == cloud_um ) then

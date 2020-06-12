@@ -511,7 +511,7 @@ end if
 
   end do ! k (model_levels)
 
-  ! Copy compulsory prognostic variables from level 1 to level 0
+  ! Increment level 0 the same as level 1
   !  (as done in the UM)
   theta_inc(map_wth(1) + 0) = theta_inc(map_wth(1) + 1)
   dmv_wth(map_wth(1) + 0)   = dmv_wth(map_wth(1) + 1)
@@ -526,16 +526,16 @@ end if
     do k = 1, model_levels
       dmr_wth( map_wth(1) + k) = qrain_work(1,1,k) - mr_wth( map_wth(1) + k )
     end do
-    ! Update level 0 as the same as level 1 (as per UM)
-    dmr_wth(map_wth(1) + 0) = dmr_wth(map_wth(1) + 1)
+    ! Update level 0 to be the same as level 1 (as per UM)
+    dmr_wth(map_wth(1) + 0) = qrain_work(1,1,1) - mr_wth(map_wth(1) + 0)
   end if
 
   if (l_mcr_qgraup) then
     do k = 1, model_levels
       dmg_wth( map_wth(1) + k) = qgraup_work(1,1,k) - mg_wth( map_wth(1) + k )
     end do
-    ! Update level 0 as the same as level 1 (as per UM)
-    dmg_wth(map_wth(1) + 0) = dmg_wth(map_wth(1) + 1)
+    ! Update level 0 to be the same as level 1 (as per UM)
+    dmg_wth(map_wth(1) + 0) = qgraup_work(1,1,1) - mg_wth(map_wth(1) + 0)
   end if
 
   ! Cloud fraction increments

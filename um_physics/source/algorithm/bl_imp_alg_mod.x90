@@ -304,6 +304,9 @@ contains
                                       rhokm_w2, rhokm_surf_w2, ngstress_w2,  &
                                       dtrdz_w2, rdz_w2),                     &
 
+                ! Save vapour value for diagnostic increment
+                a_times_X(dmv_bl, -1.0_r_def, mr(imr_v)),                    &
+
     ! Call the scheme
                 bl_imp_kernel_type( outer, theta, wetrho_in_w3,                &
                            wetrho_in_wth, exner, exner_in_wth,                 &
@@ -319,7 +322,7 @@ contains
                            sw_up_tile, sw_down_surf, lw_down_surf,             &
                            snow_sublimation, surf_heat_flux, canopy_evap,      &
                            water_extraction, total_snowmelt,                   &
-                           dtheta_bl, du_bl, dmv_bl, dt_conv, du_conv_w2,      &
+                           dtheta_bl, du_bl, dt_conv, du_conv_w2,              &
                            mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
                            cf_area, cf_ice, cf_liq, cf_bulk, rh_crit,          &
                            rhokm_w2, rhokm_surf_w2, rhokh_bl, ngstress_w2,     &
@@ -334,7 +337,10 @@ contains
                            soil_moist_avail, zh_nonloc, zh, bl_types),         &
 
     ! Map the wind back into dynamics quantities
-                inc_X_times_Y(du_bl, dA) )
+                inc_X_times_Y(du_bl, dA),                                    &
+
+    ! Calculate diagnostic vapour increment
+                inc_X_plus_Y(dmv_bl, mr(imr_v)) )
 
     ! Output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then

@@ -993,6 +993,14 @@ contains
     dcff_conv(map_wth(1) + 0) = dcff_conv(map_wth(1) + 1)
     dbcf_conv(map_wth(1) + 0) = dbcf_conv(map_wth(1) + 1)
 
+    ! Set level 0 increment such that theta increment will equal level 1
+    dt_conv (map_wth(1) + 0) = dt_conv  (map_wth(1) + 1)    &
+                             * exner_in_wth(map_wth(1) + 0) &
+                             / exner_in_wth(map_wth(1) + 1)
+    dmv_conv (map_wth(1) + 0) = dmv_conv (map_wth(1) + 1)
+    dmcl_conv(map_wth(1) + 0) = dmcl_conv(map_wth(1) + 1)
+    dmcf_conv(map_wth(1) + 0) = dmcf_conv(map_wth(1) + 1)
+
     ! Store convective downdraught mass fluxes at cloud base
     ! if required for surface exchange.
     if (isrfexcnvgust == ip_srfexwithcnv) then

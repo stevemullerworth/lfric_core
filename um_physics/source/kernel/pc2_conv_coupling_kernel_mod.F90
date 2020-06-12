@@ -233,7 +233,10 @@ subroutine pc2_conv_coupling_code( nlayers,                                    &
       dbcf_conv_wth(map_wth(1) + k) = dbcf_conv_wth(map_wth(1) + k) + bcf_incr  (1,1,k)
     end do
 
-    dt_conv_wth  (map_wth(1) + 0) = dt_conv_wth  (map_wth(1) + 1)
+    ! Set level 0 increment such that theta increment will equal level 1
+    dt_conv_wth  (map_wth(1) + 0) = dt_conv_wth  (map_wth(1) + 1) &
+                                  * exner_wth(map_wth(1) + 0)     &
+                                  / exner_wth(map_wth(1) + 1)
     dmv_conv_wth (map_wth(1) + 0) = dmv_conv_wth (map_wth(1) + 1)
     dmcl_conv_wth(map_wth(1) + 0) = dmcl_conv_wth(map_wth(1) + 1)
     dmcf_conv_wth(map_wth(1) + 0) = dmcf_conv_wth(map_wth(1) + 1)

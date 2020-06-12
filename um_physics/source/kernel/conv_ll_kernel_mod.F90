@@ -172,8 +172,8 @@ subroutine conv_ll_code(nlayers,      &
       dmcl_conv(map_wth(1) + k) = qcl_inc(1,1,k)
       dcfl_conv(map_wth(1) + k) = cf_liquid_inc(1,1,k)
      end do
-    ! Set lowest level value
-    dt_conv(map_wth(1)) = dt_conv(map_wth(1) + 1)
+    ! Set level 0 increment such that theta increment will equal level 1
+    dt_conv(map_wth(1)) = theta_inc(1,1,1)*exner_in_wth(map_wth(1))
     dmv_conv(map_wth(1)) = dmv_conv(map_wth(1) + 1)
     dmcl_conv(map_wth(1)) = dmcl_conv(map_wth(1) + 1)
     dcfl_conv(map_wth(1)) = dcfl_conv(map_wth(1) + 1)

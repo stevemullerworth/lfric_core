@@ -414,8 +414,10 @@ subroutine sw_code(nlayers,                          &
       flux_down_blue_surf    = sw_down_blue_surf_rts(map_2d(1):map_2d(1)),     &
       heating_rate_1d        = sw_heating_rate_rts(wth_1:wth_nlayers))
 
-    ! Copy lowest level to surface
-    sw_heating_rate_rts(map_wth(1)) = sw_heating_rate_rts(map_wth(1) + 1)
+    ! Set level 0 increment such that theta increment will equal level 1
+    sw_heating_rate_rts(map_wth(1)) = sw_heating_rate_rts(map_wth(1) + 1) &
+                                    * exner_in_wth(map_wth(1))            &
+                                    / exner_in_wth(map_wth(1) + 1)
 
     ! Set surface fluxes
     sw_down_surf_rts(map_2d(1)) = sw_down(0)
@@ -480,8 +482,10 @@ subroutine sw_code(nlayers,                          &
       flux_direct_blue_surf_mts = sw_direct_blue_surf(map_2d(1):map_2d(1)),    &
       flux_down_blue_surf_mts   = sw_down_blue_surf(map_2d(1):map_2d(1)))
 
-    ! Copy lowest level to surface
-    sw_heating_rate(map_wth(1)) = sw_heating_rate(map_wth(1) + 1)
+    ! Set level 0 increment such that theta increment will equal level 1
+    sw_heating_rate(map_wth(1)) = sw_heating_rate(map_wth(1) + 1) &
+                                * exner_in_wth(map_wth(1))        &
+                                / exner_in_wth(map_wth(1) + 1)
 
     ! Set tiled fluxes
     do i_tile = 1, n_surf_tile

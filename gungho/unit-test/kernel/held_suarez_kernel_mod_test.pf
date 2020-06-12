@@ -23,12 +23,13 @@ module held_suarez_kernel_mod_test
                                             feign_planet_config, &
                                             feign_timestepping_config, &
                                             feign_physics_config
-  use physics_config_mod,            only : radiation_placement_slow,    &
-                                            blayer_placement_fast,       &
-                                            convection_placement_fast,   &
-                                            microphysics_placement_slow, &
-                                            spectral_gwd_placement_slow, &
-                                            orographic_drag_placement_slow
+  use physics_config_mod,            only : radiation_placement_slow,       &
+                                            blayer_placement_fast,          &
+                                            convection_placement_fast,      &
+                                            microphysics_placement_slow,    &
+                                            spectral_gwd_placement_slow,    &
+                                            orographic_drag_placement_slow, &
+                                            lowest_level_gradient
   use pFUnit_Mod
   use quadrature_xyoz_mod,           only: quadrature_xyoz_type, &
                                            quadrature_xyoz_proxy_type
@@ -254,6 +255,7 @@ contains
         blayer_placement       = blayer_placement_fast,             &
         radiation_placement    = radiation_placement_slow,          &
         convection_placement   = convection_placement_fast,         &
+        lowest_level           = lowest_level_gradient,             &
         microphysics_placement = microphysics_placement_slow,       &
         spectral_gwd_placement = spectral_gwd_placement_slow,       &
         orographic_drag_placement = orographic_drag_placement_slow, &

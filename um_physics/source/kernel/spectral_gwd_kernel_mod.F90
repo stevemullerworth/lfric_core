@@ -235,7 +235,10 @@ contains
 
     end do   ! k
 
-    dtemp_spectral_gwd(map_wth(1) + 0) = real(dtemp_on_t(1,1,1), r_def)
+    ! Set level 0 increment such that theta increment will equal level 1
+    dtemp_spectral_gwd(map_wth(1) + 0) = real(dtemp_on_t(1,1,1), r_def) &
+                                       * exner_in_wth(map_wth(1) + 0)   &
+                                       / exner_in_wth(map_wth(1) + 1)
 
   end subroutine spectral_gwd_code
 

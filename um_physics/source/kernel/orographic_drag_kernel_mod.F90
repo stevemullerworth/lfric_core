@@ -182,7 +182,7 @@ contains
                     nsq,       & ! moist Brunt-Vaisala frequency
                     nsq_dry,   & ! dry Brunt-Vaisala frequency
                     nsq_unsat, & ! unsaturated moist Brunt-Vaisala frequency
-                    nsq_sat,   & ! unsaturated moist Brunt-Vaisala frequency
+                    nsq_sat,   & ! saturated moist Brunt-Vaisala frequency
                     dzcond       ! Ascent to Lifting Condensation Level
 
     logical, dimension(seg_len, nlayers) :: l_lapse ! logical array
@@ -367,9 +367,13 @@ contains
       dtemp_orog_gwd(map_wth(1) + k) = real(dtemp_dt_orog_gwd(1,k)*timestep, r_def)
     end do ! k
 
-    ! 0th theta level values are set to 1st level values
-    dtemp_blk(map_wth(1) + 0)      = real(dtemp_dt_blk(1,1)*timestep, r_def)
-    dtemp_orog_gwd(map_wth(1) + 0) = real(dtemp_dt_orog_gwd(1,1)*timestep, r_def)
+    ! Set level 0 increment such that theta increment will equal level 1
+    dtemp_blk(map_wth(1) + 0)      = real(dtemp_dt_blk(1,1)*timestep, r_def)   &
+                                   * exner_in_wth(map_wth(1) + 0)              &
+                                   / exner_in_wth(map_wth(1) + 1)
+    dtemp_orog_gwd(map_wth(1) + 0) = real(dtemp_dt_orog_gwd(1,1)*timestep, r_def)&
+                                   * exner_in_wth(map_wth(1) + 0)                &
+                                   / exner_in_wth(map_wth(1) + 1)
 
   end subroutine orographic_drag_kernel_code
 
