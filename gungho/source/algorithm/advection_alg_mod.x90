@@ -148,11 +148,10 @@ contains
 
   ! Advect density field
   call log_event( "Advecting density...", LOG_LEVEL_INFO)
-  call advect_field(mass_flux, state(igh_d), advecting_wind, &
-                    scheme, wind_n, wind_np1, .true., dt, .false.)
-
   if ( scheme == scheme_method_of_lines ) then
     ! Reconstruct the advection increment from the mass flux
+    call advect_field(mass_flux, state(igh_d), advecting_wind, &
+                      scheme, wind_n, wind_np1, .true., dt, .false.)
     mm_w3_inv => get_mass_matrix(w3inv_id)
     div       => get_div()
     call invoke( setval_c(r_rho, 0.0_r_def),                       &
@@ -162,7 +161,8 @@ contains
                                               r_rho, mm_w3_inv) )
   else
     ! Cosmic computes the advection increment instead of the mass flux
-    call invoke( setval_X(advection(igh_d), mass_flux) )
+    call advect_field(advection(igh_d), state(igh_d), advecting_wind, &
+                      scheme, wind_n, wind_np1, .true., dt, .false.)
   end if
 
   ! Advect potential temperature field
