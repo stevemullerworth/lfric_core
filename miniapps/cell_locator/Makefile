@@ -12,7 +12,9 @@ PROFILE ?= fast-debug
 # Will set MINT_LIBRARIES, VTK_DIR, VTK_LIBRARIES,
 MINT_LIBRARIES := mint
 
-VTK_VERSION := 8.1
+# Infer the VTK version. Has to be 8.x.y or 9.x.y
+VTK_VERSION := $(subst .dylib,,$(subst .s,,$(subst .so,,$(subst $(VTK_DIR)/lib/libvtkIOCore-,,$(shell ls $(VTK_DIR)/lib/libvtkIOCore-[89].?.?.*)))))
+
 VTK_LIBRARIES := \
         vtkIOCore-$(VTK_VERSION) \
         vtkIOLegacy-$(VTK_VERSION) \
@@ -24,6 +26,11 @@ VTK_LIBRARIES := \
         vtkCommonSystem-$(VTK_VERSION) \
         vtkCommonCore-$(VTK_VERSION) \
         vtksys-$(VTK_VERSION) vtkzlib-$(VTK_VERSION) vtklz4-$(VTK_VERSION)
+
+# Add libvtkzlib if it is present (some builds require it)
+ifneq ("$(wildcard $($(VTK_DIR)/lib/libvtkzlib-$(VTK_VERSION).*))","")
+    VTK_LIBRARIES := $(VTK_LIBRARIES) vtkzlib-$(VTK_VERSION)
+endif
 
 # Find the MINT modules
 FFLAGS := $(FFLAGS) -I$(MINT_DIR)/mod

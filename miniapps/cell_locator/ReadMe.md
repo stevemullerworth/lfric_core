@@ -27,11 +27,13 @@ respectively.
 MINT relies on the VTK API for fast cell search in an unstructured grid. 
 
 ```
-wget https://www.vtk.org/files/release/8.1/VTK-8.1.1.tar.gz
-tar xf VTK-8.1.1.tar.gz
-cd VTK-8.1.1
-CXX=mpicxx CC=mpicc FC=mpif90 VTK_DIR=$INSTALL_DIR/lib/cmake/vtk-8.1 cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR .
-make 
+wget https://www.vtk.org/files/release/8.2/VTK-8.2.0.tar.gz
+tar xf VTK-8.2.0.tar.gz
+cd VTK-8.2.0
+mkdir build
+cd build
+CXX=mpicxx CC=mpicc FC=mpif90 VTK_DIR=$INSTALL_DIR/lib/cmake/vtk-8.2 cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR ..
+make -j 4 
 make install
 ```
 Note 1: On Mac OS X with the GNU 6.4 MPI compilers, I had to use CC=cc
@@ -52,13 +54,13 @@ cmake -DBUILD_SHARED_LIBS=OFF \
 -DModule_vtkIOCore:BOOL=ON -DModule_vtkIOLegacy:BOOL=ON \
 -DModule_vtkImagingCore:BOOL=ON \
 -DModule_vtkCommonSystem:BOOL=ON -DModule_vtksys:BOOL=ON \
--DModule_vtkCommonMisc:BOOL=ON .
+-DModule_vtkCommonMisc:BOOL=ON ..
 ```
 
 ### How to build MINT
 
 ```
-wget https://github.com/pletzer/mint/releases/download/v1.0.0/mint-v1.0.0.tar.gz
+git clone https://github.com/pletzer/mint
 cd mint
 CXX=mpicxx CC=mpicc FC=mpif90 cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR .
 make
@@ -93,7 +95,7 @@ cd example
 ### Serial run
 
 ```
-../bin/cell_locator cell_locator_configuration.nml
+../bin/cell_locator configuration.nml
 ```
 will store interpolation results in file cell_ids.nc:
 ```
@@ -139,7 +141,7 @@ uses a zero based counting.
 ### Parallel run
 
 ```
-mpiexec -n 6 ../bin/cell_locator cell_locator_configuration.nml
+mpiexec -n 6 ../bin/cell_locator configuration.nml
 ```
 
 When running in MPI using a number of tasks that is a multiple of 6, each MPI process will be the owner of a subset of the grid. 
