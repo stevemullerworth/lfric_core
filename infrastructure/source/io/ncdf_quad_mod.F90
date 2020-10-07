@@ -236,7 +236,7 @@ subroutine define_dimensions(self)
   character(*), parameter :: routine = 'define_dimensions'
   character(str_long) :: cmess
   character(str_long) :: dim_name
-  character(str_long) :: target_mesh_name
+  character(nf90_max_name) :: target_mesh_name
 
   type(global_mesh_map_type), pointer :: global_mesh_map => null()
 
