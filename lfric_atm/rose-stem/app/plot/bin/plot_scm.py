@@ -23,7 +23,7 @@ def do_plot(datapath, plotfield, plotpath='.'):
     lfric = lfric[:, :, 0]
 
     plt.figure(figsize=(15, 10))
-    for n, time in enumerate([0, 10, 20, 30, 40, 47]):
+    for n, time in enumerate([0, 9, 18, 27, 36, 45]):
         plt.subplot(2, 3, n+1)
         try:
            # first try wtheta fields
@@ -56,3 +56,4 @@ if __name__ == "__main__":
     do_plot(datapath, 'm_cl',  plotpath)
     do_plot(datapath, 'm_ci',  plotpath)
     do_plot(datapath, 'u1',    plotpath)
+    do_plot(datapath, 'cloud_fraction_rts', plotpath)

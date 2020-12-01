@@ -216,7 +216,8 @@ contains
       select case (c_aerosol)
 
       case(c_aerosol_glomap_mode_climatology)
-        ! Only the 2nd indirect effect is currently implemented in LFRic
+        ! l_glomap_clim_aie1 is not used in LFRic. The 1st indirect effect is
+        ! controlled through the radiation namelist: droplet_effective_radius
         l_glomap_clim_aie2 = .true.
         ! Set up the correct mode and components for GLOMAP-mode:
         ! 5 mode with SU SS OC BC components

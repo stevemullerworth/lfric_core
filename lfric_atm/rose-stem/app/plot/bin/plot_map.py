@@ -27,6 +27,9 @@ m_cl            = ['m_cl',            0,    5e-5]
 m_ci            = ['m_ci',            0,    1e-4]
 u1              = ['u1',              -15,  15]
 sw_heating_rate = ['sw_heating_rate', 0,    7e-5]
+cloud_cover_rts = ['cloud_cover_rts', 0, 1]
+cloud_fraction_rts = ['cloud_fraction_rts', 0, 1]
+cloud_droplet_re_rts = ['cloud_droplet_re_rts', 0, 20e-6]
 
 
 def load_cube_by_varname(filename, var):
@@ -55,29 +58,33 @@ def gen_markersize(n_points):
     # Now derive the value (don't return a value less than 1)
     return max(round(exponential(c_value, *pcoeffs)), 1)
 
-def do_plot(datapath, plotfield, plotpath='.'):
+def do_plot(datapath, plotfield, plotpath='.', plotlevel=0):
     ''' Do the plotting using data from datapath. Send output to plotpath '''
 
     lfric = load_cube_by_varname(datapath, plotfield[varname])
-    lfric = lfric[-1, 0]
+    if lfric.ndim == 2:
+        lfric = lfric[-1]
+    else:
+        lfric = lfric[-1, plotlevel]
 
     # Get the x and y co-ordinates
     x_coord = np.around(lfric.coord('longitude').points, decimals=5)
     y_coord = np.around(lfric.coord('latitude').points,  decimals=5)
 
     # Save the min and max of the data
-    field_min = np.around(np.min(lfric.data), decimals=5)
-    field_max = np.around(np.max(lfric.data), decimals=5)
+    field_min = np.around(np.min(lfric.data), decimals=7)
+    field_max = np.around(np.max(lfric.data), decimals=7)
 
     # Set up the colourbar
     plt.set_cmap(plt.cm.RdYlBu_r)
 
     plt.figure(figsize=(8, 5))
     markersize = gen_markersize(lfric.data.shape[0])
-    plt.scatter(x_coord, y_coord, c = lfric.data,
+    plot = plt.scatter(x_coord, y_coord, c = lfric.data,
                 edgecolor = "none", s = markersize,
                 vmin = plotfield[colbar_min],
                 vmax = plotfield[colbar_max])
+    plt.colorbar(plot,orientation='vertical')
 
     plt.title(plotfield[varname]+', min = '+str(field_min)
                                 +', max = '+str(field_max) )
@@ -101,3 +108,6 @@ if __name__ == "__main__":
     do_plot(datapath, m_ci,            plotpath)
     do_plot(datapath, u1,              plotpath)
     do_plot(datapath, sw_heating_rate, plotpath)
+    do_plot(datapath, cloud_cover_rts, plotpath)
+    do_plot(datapath, cloud_fraction_rts, plotpath, plotlevel=17)
+    do_plot(datapath, cloud_droplet_re_rts, plotpath, plotlevel=17)

@@ -220,10 +220,9 @@ contains
     !--------------------------------------------------------------------
     ! Glomap mode aerosol climatologies
     !--------------------------------------------------------------------
-    ! Will need to become (microphysics_um .or. radiation_socrates)
-    ! when 1st indirect effect is added
     if ( ( aerosol == aerosol_um ) .and.                                  &
-         ( microphysics == microphysics_um ) ) then
+         ( microphysics == microphysics_um .or.                           &
+           radiation == radiation_socrates ) ) then
       if ( c_aerosol == c_aerosol_glomap_mode_climatology ) then
         call glomap_aerosol_alg ( aerosol_fields,                         &
                                   theta,                                  &
@@ -275,6 +274,8 @@ contains
                           derived_fields,         &
                           radiation_fields,       &
                           cloud_fields,           &
+                          convection_fields,      &
+                          aerosol_fields,         &
                           surface_fields,         &
                           height_w3,              &
                           height_wth,             &

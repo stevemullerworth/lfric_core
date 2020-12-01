@@ -6,7 +6,7 @@ export extract=extract
 export jules_rev=um11.7
 export jules_sources=
 export keys_atmos_extra=LFRIC=lfric
-export socrates_rev=um11.7
+export socrates_rev=um11.8
 export socrates_sources=
 export steplist="extract preprocess-atmos preprocess-recon"
 export um_rev=vn11.7

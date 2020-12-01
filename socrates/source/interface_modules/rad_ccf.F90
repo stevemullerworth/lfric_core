@@ -14,12 +14,13 @@ module rad_ccf
   use lfric_atm_conversions_mod,         only: lfric_seconds_per_day &
                                                   => seconds_per_day
   use lfric_atm_rel_mol_mass_mod,        only: relative_molecular_mass_dry_air
+  use driver_water_constants_mod,        only: density_h2o
   use realtype_rd,                       only: RealK
 
   implicit none
   private
   public :: k_boltzmann, n_avogadro, stefan_boltzmann, pi, seconds_per_day, &
-            mol_weight_air, n2_mass_frac, repsilon
+            mol_weight_air, n2_mass_frac, repsilon, rho_water
   public :: set_socrates_constants
 
   real(RealK), parameter :: k_boltzmann  = real(boltzmann, RealK)
@@ -27,6 +28,7 @@ module rad_ccf
   real(RealK), parameter :: stefan_boltzmann &
                                          = real(lfric_stefan_boltzmann, RealK)
   real(RealK), parameter :: pi           = real(lfric_pi, RealK)
+  real(RealK), parameter :: rho_water    = real(density_h2o, RealK)
   real(RealK), parameter :: seconds_per_day &
                               = real(lfric_seconds_per_day, RealK)
   real(RealK), parameter :: mol_weight_air &

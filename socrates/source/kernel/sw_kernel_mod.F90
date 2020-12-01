@@ -15,7 +15,7 @@ use argument_mod,      only : arg_type,                  &
                               ANY_DISCONTINUOUS_SPACE_2, &
                               ANY_DISCONTINUOUS_SPACE_3
 use fs_continuity_mod, only:  W3, Wtheta
-use constants_mod,     only : r_def, i_def, radians_to_degrees
+use constants_mod,     only : r_def, i_def
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -32,7 +32,7 @@ public :: sw_code
 ! Contains the metadata needed by the PSy layer.
 type, extends(kernel_type) :: sw_kernel_type
   private
-  type(arg_type) :: meta_args(38) = (/                             &
+  type(arg_type) :: meta_args(41) = (/                             &
     arg_type(GH_FIELD,   GH_WRITE,     Wtheta),                    & ! sw_heating_rate
     arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_down_surf
     arg_type(GH_FIELD,   GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! sw_direct_surf
@@ -58,13 +58,16 @@ type, extends(kernel_type) :: sw_kernel_type
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle_rts
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction_rts
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_1), & ! stellar_irradiance_rts
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! ozone
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mv
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mcl
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! mci
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! area_fraction
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! liquid_fraction
     arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! ice_fraction
-    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! ozone
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! cca
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! ccw
+    arg_type(GH_FIELD,   GH_READ,      Wtheta),                    & ! cloud_drop_no_conc
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_2), & ! tile_fraction
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_sw_direct_albedo
     arg_type(GH_FIELD,   GH_READ,      ANY_DISCONTINUOUS_SPACE_3), & ! tile_sw_diffuse_albedo
@@ -108,13 +111,16 @@ contains
 ! @param[in]    cos_zenith_angle_rts    Cosine of the stellar zenith angle
 ! @param[in]    lit_fraction_rts        Lit fraction of the timestep
 ! @param[in]    stellar_irradiance_rts  Stellar irradaince at the planet
+! @param[in]    ozone                   Ozone field
 ! @param[in]    mv                      Water vapour field
 ! @param[in]    mcl                     Cloud liquid field
 ! @param[in]    mci                     Cloud ice field
 ! @param[in]    area_fraction           Total cloud area fraction field
 ! @param[in]    liquid_fraction         Liquid cloud fraction field
 ! @param[in]    ice_fraction            Ice cloud fraction field
-! @param[in]    ozone                   Ozone field
+! @param[in]    cca                     Convective cloud amount (fraction)
+! @param[in]    ccw                     Convective cloud water (kg/kg) (can be ice or liquid)
+! @param[in]    cloud_drop_no_conc      Cloud Droplet Number Concentration
 ! @param[in]    tile_fraction           Surface tile fractions
 ! @param[in]    tile_sw_direct_albedo   SW direct tile albedos
 ! @param[in]    tile_sw_diffuse_albedo  SW diffuse tile albedos
@@ -162,13 +168,15 @@ subroutine sw_code(nlayers,                          &
                    cos_zenith_angle_rts,             &
                    lit_fraction_rts,                 &
                    stellar_irradiance_rts,           &
+                   ozone,                            &
                    mv,                               &
                    mcl,                              &
                    mci,                              &
                    area_fraction,                    &
                    liquid_fraction,                  &
                    ice_fraction,                     &
-                   ozone,                            &
+                   cca, ccw,                         &
+                   cloud_drop_no_conc,               &
                    tile_fraction,                    &
                    tile_sw_direct_albedo,            &
                    tile_sw_diffuse_albedo,           &
@@ -185,30 +193,13 @@ subroutine sw_code(nlayers,                          &
   use radiation_config_mod, only: n_radstep,                  &
     l_planet_grey_surface, planet_albedo, l_rayleigh_sw,      &
     i_cloud_ice_type_sw, i_cloud_liq_type_sw,                 &
-    cloud_representation, cloud_overlap, cloud_inhomogeneity, &
-    cloud_representation_no_cloud,                            &
-    cloud_representation_liquid_and_ice,                      &
-    cloud_representation_conv_strat_liq_ice,                  &
-    cloud_overlap_maximum_random,                             &
-    cloud_overlap_random,                                     &
-    cloud_overlap_exponential_random,                         &
-    cloud_inhomogeneity_homogeneous,                          &
-    cloud_inhomogeneity_scaling,                              &
-    cloud_inhomogeneity_mcica,                                &
-    cloud_inhomogeneity_cairns,                               &
     cloud_horizontal_rsd, cloud_vertical_decorr
   use set_thermodynamic_mod, only: set_thermodynamic
-  use set_cloud_top_mod, only: set_cloud_top
+  use set_cloud_field_mod, only: set_cloud_field
   use jules_control_init_mod, only: n_surf_tile
   use socrates_init_mod, only: n_sw_band
-  use socrates_runes, only: runes, ip_source_illuminate,                    &
-    ip_cloud_representation_off, ip_cloud_representation_ice_water,         &
-    ip_cloud_representation_csiw, ip_overlap_max_random, ip_overlap_random, &
-    ip_overlap_exponential_random, ip_inhom_homogeneous, ip_inhom_scaling,  &
-    ip_inhom_mcica, ip_inhom_cairns
+  use socrates_runes, only: runes, ip_source_illuminate
   use socrates_bones, only: bones
-  use xios, only: xios_date, xios_get_current_date, &
-    xios_date_get_day_of_year, xios_date_get_second_of_day
 
   implicit none
 
@@ -238,8 +229,8 @@ subroutine sw_code(nlayers,                          &
 
   real(r_def), dimension(undf_w3),   intent(in) :: exner, height_w3
   real(r_def), dimension(undf_wth),  intent(in) :: theta, exner_in_wth, &
-    rho_in_wth, height_wth, mv, mcl, mci, &
-    area_fraction, liquid_fraction, ice_fraction, ozone
+    rho_in_wth, height_wth, ozone, mv, mcl, mci, &
+    area_fraction, liquid_fraction, ice_fraction, cca, ccw, cloud_drop_no_conc
   real(r_def), dimension(undf_2d), intent(in) :: &
     cos_zenith_angle, lit_fraction, &
     cos_zenith_angle_rts, lit_fraction_rts, stellar_irradiance_rts
@@ -249,27 +240,24 @@ subroutine sw_code(nlayers,                          &
   real(r_def), dimension(undf_2d), intent(in) :: latitude, longitude
 
   ! Local variables for the kernel
-  type(xios_date) :: datetime
   integer(i_def), parameter :: n_profile = 1
-  integer(i_def) :: i_cloud_representation, i_overlap, i_inhom
+  integer(i_def) :: i_cloud_representation, i_overlap, i_inhom, i_drop_re
   integer(i_def) :: rand_seed(n_profile)
   integer(i_def) :: k, n_cloud_layer
   integer(i_def) :: df_rtile, i_tile, i_band
   integer(i_def) :: wth_1, wth_nlayers
-  real(r_def), dimension(nlayers) :: &
+  real(r_def), dimension(nlayers) :: layer_heat_capacity
     ! Heat capacity for each layer
-    layer_heat_capacity,             &
+  real(r_def), dimension(nlayers) :: p_layer, t_layer
     ! Layer pressure and temperature
-    p_layer, t_layer,                &
+  real(r_def), dimension(nlayers) :: d_mass
     ! Mass of layer per square metre
-    d_mass,                          &
-    ! Effective radius of droplets
-    liq_dim
+  real(r_def), dimension(nlayers) :: cloud_frac, liq_dim
+    ! Large-scale cloud fields
+  real(r_def), dimension(nlayers) :: conv_frac, &
+    liq_conv_frac, ice_conv_frac, liq_conv_mmr, ice_conv_mmr, liq_conv_dim
+    ! Convective cloud fields
   real(r_def), dimension(0:nlayers) :: sw_direct, sw_down, sw_up
-  real(r_def), parameter :: dl = 100.0_r_def
-    ! Number of unique seeds per degree of latitude / longitude (for MCICA).
-    ! 100 per degree equates to approximately a 1km square area of the
-    ! globe (for the Earth).
 
   ! Tiled surface fields
   real(r_def) :: frac_tile(n_profile, n_surf_tile)
@@ -288,58 +276,6 @@ subroutine sw_code(nlayers,                          &
   if (mod(timestep-1_i_def, n_radstep) == 0) then
     ! Radiation time-step: full calculation of radiative fluxes
 
-    ! Properties of clouds
-    select case (cloud_representation)
-    case (cloud_representation_no_cloud)
-      i_cloud_representation = ip_cloud_representation_off
-    case (cloud_representation_liquid_and_ice)
-      i_cloud_representation = ip_cloud_representation_ice_water
-    case (cloud_representation_conv_strat_liq_ice)
-      i_cloud_representation = ip_cloud_representation_csiw
-    case default
-      i_cloud_representation = ip_cloud_representation_off
-    end select
-    select case (cloud_overlap)
-    case (cloud_overlap_maximum_random)
-      i_overlap = ip_overlap_max_random
-    case (cloud_overlap_random)
-      i_overlap = ip_overlap_random
-    case (cloud_overlap_exponential_random)
-      i_overlap = ip_overlap_exponential_random
-    case default
-      i_overlap = ip_overlap_max_random
-    end select
-    select case (cloud_inhomogeneity)
-    case (cloud_inhomogeneity_homogeneous)
-      i_inhom = ip_inhom_homogeneous
-    case (cloud_inhomogeneity_scaling)
-      i_inhom = ip_inhom_scaling
-    case (cloud_inhomogeneity_mcica)
-      i_inhom = ip_inhom_mcica
-      call xios_get_current_date(datetime)
-      ! Generate a unique seed for each gridpoint (actually for each area of
-      ! the globe with a size defined by dl) at the given time in seconds.
-      rand_seed &
-        = int((latitude(map_2d(1))*radians_to_degrees + 90.0_r_def)*dl, i_def) &
-        + int(longitude(map_2d(1))*radians_to_degrees*dl, i_def)*180_i_def*dl &
-        + ((abs(int(datetime%year, i_def)-2000_i_def)*366_i_def) &
-        + int(xios_date_get_day_of_year(datetime), i_def))*86400_i_def &
-        + int(xios_date_get_second_of_day(datetime), i_def)
-    case (cloud_inhomogeneity_cairns)
-      i_inhom = ip_inhom_cairns
-    case default
-      i_inhom = ip_inhom_homogeneous
-    end select
-
-    ! Hardwire droplet effective radius for now
-    do k=1, nlayers
-      liq_dim(k) = 7.0e-6_r_def
-    end do
-
-    ! Use the highest cloud layer for the number of cloud layers
-    call set_cloud_top(nlayers, &
-      area_fraction(map_wth(1):map_wth(1)+nlayers), n_cloud_layer)
-
     ! Set up pressures, temperatures, masses and heat capacities
     call set_thermodynamic(nlayers,                &
       exner(map_w3(1):map_w3(1)+nlayers-1),        &
@@ -349,6 +285,15 @@ subroutine sw_code(nlayers,                          &
       height_w3(map_w3(1):map_w3(1)+nlayers-1),    &
       height_wth(map_wth(1):map_wth(1)+nlayers),   &
       p_layer, t_layer, d_mass, layer_heat_capacity)
+
+    ! Set up cloud fields for radiation
+    call set_cloud_field(nlayers, n_profile, &
+      area_fraction(wth_1:wth_nlayers), &
+      cca(wth_1:wth_nlayers), ccw(wth_1:wth_nlayers), t_layer, &
+      latitude(map_2d(1):map_2d(1)), longitude(map_2d(1):map_2d(1)), &
+      i_cloud_representation, i_overlap, i_inhom, i_drop_re, &
+      rand_seed, n_cloud_layer, cloud_frac, liq_dim, conv_frac, &
+      liq_conv_frac, ice_conv_frac, liq_conv_mmr, ice_conv_mmr, liq_conv_dim)
 
     ! Tile fractions
     do i_tile = 1, n_surf_tile
@@ -391,14 +336,23 @@ subroutine sw_code(nlayers,                          &
       frac_tile              = frac_tile,                                      &
       albedo_diff_tile       = albedo_diff_tile,                               &
       albedo_dir_tile        = albedo_dir_tile,                                &
-      cloud_frac_1d          = area_fraction(wth_1:wth_nlayers),               &
+      cloud_frac_1d          = cloud_frac,                                     &
       liq_frac_1d            = liquid_fraction(wth_1:wth_nlayers),             &
       ice_frac_1d            = ice_fraction(wth_1:wth_nlayers),                &
       liq_mmr_1d             = mcl(wth_1:wth_nlayers),                         &
       ice_mmr_1d             = mci(wth_1:wth_nlayers),                         &
       liq_dim_1d             = liq_dim,                                        &
+      liq_nc_1d              = cloud_drop_no_conc(wth_1:wth_nlayers),          &
+      conv_frac_1d           = conv_frac,                                      &
+      liq_conv_frac_1d       = liq_conv_frac,                                  &
+      ice_conv_frac_1d       = ice_conv_frac,                                  &
+      liq_conv_mmr_1d        = liq_conv_mmr,                                   &
+      ice_conv_mmr_1d        = ice_conv_mmr,                                   &
+      liq_conv_dim_1d        = liq_conv_dim,                                   &
+      liq_conv_nc_1d         = cloud_drop_no_conc(wth_1:wth_nlayers),          &
       cloud_horizontal_rsd   = cloud_horizontal_rsd,                           &
       cloud_vertical_decorr  = cloud_vertical_decorr,                          &
+      conv_vertical_decorr   = cloud_vertical_decorr,                          &
       rand_seed              = rand_seed,                                      &
       layer_heat_capacity_1d = layer_heat_capacity,                            &
       l_rayleigh             = l_rayleigh_sw,                                  &
@@ -406,8 +360,11 @@ subroutine sw_code(nlayers,                          &
       i_cloud_representation = i_cloud_representation,                         &
       i_overlap              = i_overlap,                                      &
       i_inhom                = i_inhom,                                        &
+      i_drop_re              = i_drop_re,                                      &
       i_st_water             = i_cloud_liq_type_sw,                            &
       i_st_ice               = i_cloud_ice_type_sw,                            &
+      i_cnv_water            = i_cloud_liq_type_sw,                            &
+      i_cnv_ice              = i_cloud_ice_type_sw,                            &
       l_invert               = .true.,                                         &
       flux_direct_1d         = sw_direct,                                      &
       flux_down_1d           = sw_down,                                        &

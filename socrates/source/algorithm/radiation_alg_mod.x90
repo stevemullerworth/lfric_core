@@ -44,6 +44,8 @@ contains
 ! @param[in]     derived_fields         Derived fields
 ! @param[in,out] radiation_fields       Fields for radiation scheme
 ! @param[in]     cloud_fields           Fields for cloud scheme
+! @param[in]     convection_fields      Fields for convection scheme
+! @param[in]     aerosol_fields         Fields for aerosol scheme
 ! @param[in]     surface_fields         Fields for surface scheme
 ! @param[in]     height_w3              Height of w3 levels above surface
 ! @param[in]     height_wth             Height of wth levels above surface
@@ -53,8 +55,10 @@ contains
 ! @param[in]     tile_lw_albedo         Tile LW albedos (1 - emissivity)
 
 subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
-                         derived_fields, radiation_fields, cloud_fields,  &
-                         surface_fields, height_w3, height_wth, timestep, &
+                         derived_fields, radiation_fields,                &
+                         cloud_fields, convection_fields,                 &
+                         aerosol_fields, surface_fields,                  &
+                         height_w3, height_wth, timestep,                 &
                          tile_sw_direct_albedo, tile_sw_diffuse_albedo,   &
                          tile_lw_albedo)
 
@@ -69,6 +73,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   type( field_collection_type ), intent(in) :: derived_fields
   type( field_collection_type ), intent(inout) :: radiation_fields
   type( field_collection_type ), intent(in) :: cloud_fields
+  type( field_collection_type ), intent(in) :: convection_fields
+  type( field_collection_type ), intent(in) :: aerosol_fields
   type( field_collection_type ), intent(in) :: surface_fields
   integer, intent(in) :: timestep
 
@@ -85,6 +91,9 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   type( field_type ), pointer :: area_fraction       => null()
   type( field_type ), pointer :: liquid_fraction     => null()
   type( field_type ), pointer :: ice_fraction        => null()
+  type( field_type ), pointer :: cca                 => null()
+  type( field_type ), pointer :: ccw                 => null()
+  type( field_type ), pointer :: cloud_drop_no_conc  => null()
 
   type( field_type ), pointer :: cos_zenith_angle    => null()
   type( field_type ), pointer :: lit_fraction        => null()
@@ -98,7 +107,6 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   type( field_type ), pointer :: sw_up_blue_tile     => null()
   type( field_type ), pointer :: sw_heating_rate     => null()
   type( field_type ), pointer :: lw_heating_rate     => null()
-  type( field_type ), pointer :: ozone               => null()
 
   type( field_type ), pointer :: lw_down_surf_rts        => null()
   type( field_type ), pointer :: sw_down_surf_rts        => null()
@@ -114,11 +122,14 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   type( field_type ), pointer :: lit_fraction_rts        => null()
   type( field_type ), pointer :: stellar_irradiance_rts  => null()
 
+  type( field_type ), pointer :: ozone               => null()
+
   type( field_type ), pointer :: latitude            => null()
   type( field_type ), pointer :: longitude           => null()
 
   ! Local diagnostic fields
-  type( field_type ) :: cloud_cover_rts, tmp_diag
+  type( field_type ) :: cloud_cover_rts, cloud_fraction_rts, &
+                        cloud_droplet_re_rts, tmp_diag
   type(function_space_type), pointer  :: tmp_space => null()
   procedure(write_interface), pointer :: write_diag_behaviour => null()
 
@@ -140,7 +151,6 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   sw_direct_blue_surf => radiation_fields%get_field('sw_direct_blue_surf')
   sw_heating_rate     => radiation_fields%get_field('sw_heating_rate')
   lw_heating_rate     => radiation_fields%get_field('lw_heating_rate')
-  ozone               => radiation_fields%get_field('ozone')
 
   lw_down_surf_rts        => radiation_fields%get_field('lw_down_surf_rts')
   sw_down_surf_rts        => radiation_fields%get_field('sw_down_surf_rts')
@@ -156,6 +166,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   lit_fraction_rts        => radiation_fields%get_field('lit_fraction_rts')
   stellar_irradiance_rts  => radiation_fields%get_field('stellar_irradiance_rts')
 
+  ozone               => radiation_fields%get_field('ozone')
+
   exner_in_wth        => derived_fields%get_field('exner_in_wth')
   rho_in_wth          => derived_fields%get_field('rho_in_wth')
   theta_in_w3         => derived_fields%get_field('theta_in_w3')
@@ -164,11 +176,20 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   liquid_fraction     => cloud_fields%get_field('liquid_fraction')
   ice_fraction        => cloud_fields%get_field('ice_fraction')
 
+  cca                 => convection_fields%get_field('cca')
+  ccw                 => convection_fields%get_field('ccw')
+
+  cloud_drop_no_conc  => aerosol_fields%get_field('cloud_drop_no_conc')
+
   latitude  => get_latitude()
   longitude => get_longitude()
 
   ! Local 2D diagnostic fields
   call lw_down_surf%copy_field_properties(cloud_cover_rts)
+
+  ! Local 3D diagnostic fields
+  call lw_heating_rate%copy_field_properties(cloud_fraction_rts)
+  call lw_heating_rate%copy_field_properties(cloud_droplet_re_rts)
 
   if ( subroutine_timers ) call timer("sw_radiation")
   call invoke( sw_kernel_type(                                              &
@@ -183,8 +204,10 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
                  cos_zenith_angle, lit_fraction,                            &
                  cos_zenith_angle_rts, lit_fraction_rts,                    &
                  stellar_irradiance_rts,                                    &
+                 ozone,                                                     &
                  mr(imr_v), mr(imr_cl), mr(imr_ci),                         &
-                 area_fraction, liquid_fraction, ice_fraction, ozone,       &
+                 area_fraction, liquid_fraction, ice_fraction,              &
+                 cca, ccw, cloud_drop_no_conc,                              &
                  tile_fraction,                                             &
                  tile_sw_direct_albedo, tile_sw_diffuse_albedo,             &
                  latitude, longitude, timestep ) )
@@ -193,11 +216,13 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   call invoke( lw_kernel_type(                                              &
                  lw_heating_rate, lw_down_surf, lw_up_tile,                 &
                  lw_heating_rate_rts, lw_down_surf_rts, lw_up_tile_rts,     &
-                 cloud_cover_rts,                                           &
+                 cloud_cover_rts, cloud_fraction_rts, cloud_droplet_re_rts, &
                  theta, theta_in_w3, exner, exner_in_wth, rho_in_wth,       &
                  height_w3, height_wth,                                     &
+                 ozone,                                                     &
                  mr(imr_v), mr(imr_cl), mr(imr_ci),                         &
-                 area_fraction, liquid_fraction, ice_fraction, ozone,       &
+                 area_fraction, liquid_fraction, ice_fraction,              &
+                 cca, ccw, cloud_drop_no_conc,                              &
                  tile_fraction, tile_temperature,                           &
                  tile_lw_albedo,                                            &
                  latitude, longitude, timestep ) )
@@ -235,6 +260,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
     call stellar_irradiance_rts%write_field('stellar_irradiance_rts')
 
     call cloud_cover_rts%write_field('cloud_cover_rts')
+    call cloud_fraction_rts%write_field('cloud_fraction_rts')
+    call cloud_droplet_re_rts%write_field('cloud_droplet_re_rts')
 
     ! Make a 2D multi-data field for temporary diagnostic output
     ! This can be removed when the fields themselves are made multi-data
