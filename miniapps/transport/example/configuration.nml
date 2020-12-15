@@ -87,6 +87,7 @@ theta_splitting='none',
 cfl_mol_1d_stab=1.0,
 cfl_mol_1d_stab=1.0,
 cfl_mol_3d_stab=0.5
+upwind_direction_from_w_at_wtheta = .true.,
 /
 &planet
 cp=1005.0

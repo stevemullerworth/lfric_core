@@ -263,6 +263,7 @@ operators='fv',
 scheme='method_of_lines',
 rho_splitting='none',
 theta_splitting='none',
+upwind_direction_from_w_at_wtheta=.true.,
 /
 &well_mixed_gases
 cfc113_mix_ratio=4.826e-10,

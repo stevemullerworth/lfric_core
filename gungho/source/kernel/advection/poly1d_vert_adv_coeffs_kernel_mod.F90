@@ -6,12 +6,12 @@
 !
 !-------------------------------------------------------------------------------
 !> @brief Compute the coefficients for reconstructing a
-!>        a  1D vertical upwind polynomial representation of a tracer field on the
-!>        faces of a cell
-!> @details Compute the coefficients of the flux of a tracer density field using a high order
-!>          1D polynomial fit to the integrated tracer values over a given stencil.
+!>        1D vertical upwind polynomial representation of a tracer field on the
+!>        centres of a cell
+!> @details Compute the coefficients to reconstruct a tracer field using a high order
+!>          1D polynomial fit to the values of the tracer over a given stencil.
 !>          The stencil used for the polynomial is centred on the upwind cell for each edge
-!>          A symmetric polynomial is used containing all monomials up to the
+!>          A polynomial is used containing all monomials up to the
 !>          desired order, i.e. order = 2: 1 + x + x^2
 !>          This is exactly fitted over all cells in the stencil
 !>          The methodology is inspired by that of Thuburn et.al GMD 2014 for
@@ -37,9 +37,8 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_vert_adv_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                  &
+  type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_FIELD,   GH_WRITE, Wtheta),                         &
-       arg_type(GH_FIELD,   GH_READ,  Wtheta),                         &
        arg_type(GH_FIELD*3, GH_READ,  ANY_SPACE_1),                    &
        arg_type(GH_INTEGER, GH_READ),                                  &
        arg_type(GH_INTEGER, GH_READ)                                   &
@@ -64,8 +63,6 @@ contains
 !>@param[in] nlayers Number of vertical layers
 !>@param[out] coeff Array of fields to store the coefficients for the polynomial
 !!                  reconstruction
-!>@param[in]  mdwt Mass matrix diagonal for the W3 space, this is used to give
-!!                 the cell volume
 !>@param[in] chi1 1st component of the physical coordinate field
 !>@param[in] chi2 2nd component of the physical coordinate field
 !>@param[in] chi3 3rd component of the physical coordinate field
@@ -82,7 +79,6 @@ contains
 !!                    array)
 subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
                                        coeff,                     &
-                                       mdwt,                      &
                                        chi1, chi2, chi3,          &
                                        ndf_wt,                    &
                                        undf_wt,                   &
@@ -109,22 +105,25 @@ subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
   integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
   integer(kind=i_def), dimension(ndf_wx), intent(in) :: map_wx
 
-  real(kind=r_def), dimension(undf_wt), intent(in) :: mdwt
   real(kind=r_def), dimension(undf_wx), intent(in) :: chi1, chi2, chi3
 
-  real(kind=r_def), dimension(global_order+2, nfaces_v, undf_wt), intent(out) :: coeff
+  real(kind=r_def), dimension(global_order+1, nfaces_v, undf_wt), intent(out) :: coeff
 
   real(kind=r_def), dimension(1,ndf_wx,ndf_wt), intent(in) :: basis_wx
 
   ! Local variables
-  integer(kind=i_def) :: k, ijk, df, stencil, nmonomial, qp, &
-                         m, face, order, kx, spherical, planar
+  integer(kind=i_def) :: k, kk, ijk, df, stencil, nmonomial, qp, &
+                         m, direction, order, kx, spherical, planar, &
+                         boundary_offset, vertical_order
   integer(kind=i_def), allocatable, dimension(:,:)         :: smap
-  real(kind=r_def)                                         :: xx, fn, z0, zq, dz
+  real(kind=r_def)                                         :: xx, fn, z0, zq
   real(kind=r_def),              dimension(3)              :: x0, xq
-  real(kind=r_def), allocatable, dimension(:,:)            :: int_monomial, inv_int_monomial
-  real(kind=r_def), allocatable, dimension(:)              :: beta, delta, monomial
-  real(kind=r_def),              dimension(global_order+2) :: area
+  real(kind=r_def), allocatable, dimension(:,:)            :: monomial_matrix, &
+                                                              inv_monomial_matrix
+  real(kind=r_def)                                         :: basis_at_w3
+
+  ! Ensure that we reduce the order if there are only a few layers
+  vertical_order = min(global_order, nlayers-1)
 
   if ( geometry == geometry_spherical ) then
     spherical = 1.0_r_def
@@ -134,67 +133,63 @@ subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
     planar    = 1.0_r_def
   end if
 
-  ! Compute the offset map for all even orders up to order
-  ! The + 3 comes from the minimum number of cells needed
-  ! (central cell and the neighbours either side)
-  allocate( smap(global_order+3,0:global_order/2) )
+  ! Compute the offset map for all orders up to order
+  allocate( smap(global_order+1,0:global_order) )
   smap(:,:) = 0
-  do m = 0,global_order,2
-    do stencil = 1,m+3
-      smap(stencil,m/2) = - 1 - m/2 + (stencil-1)
+  do m = 0,global_order
+    do stencil = 1,m+1
+      smap(stencil,m) = - m/2 + (stencil-1)
     end do
   end do
 
   ! Step 1: Build monomials over all cells in advection stencils
 
-  ! Loop over layers (ignoring first and last points)
-  layer_loop: do k = 1, nlayers-1
+  ! Loop over layers
+  layer_loop: do k = 0, nlayers-1
 
-    ! Compute local order, this is at most global_order but reduces near the
-    ! top and bottom boundary
-    order = min(global_order, min(2*(k-1), 2*(nlayers-1-k)))
-
-    ! Number of monomials to use (all polynomials up to total degree of order+1)
-    nmonomial = (order + 2)
-    allocate( int_monomial(nmonomial, nmonomial),  &
-              inv_int_monomial(nmonomial, nmonomial), &
-              beta(nmonomial), delta(nmonomial), monomial(nmonomial) )
-
-    ! Position vector of bottom of this cell
+   ! Position vector in the centre of this cell
     x0 = 0.0_r_def
     do df = 1, ndf_wx
       ijk = map_wx( df ) + k
-      x0(:) = x0(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,1)
+      basis_at_w3 = 0.5_r_def*(basis_wx(1,df,1) + basis_wx(1,df,2))
+      x0(:) = x0(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_at_w3
     end do
     z0 = sqrt(x0(1)**2 + x0(2)**2 + x0(3)**2)*spherical + x0(3)*planar
-
-    ! Position vector of bottom of this cell
-    xq = 0.0_r_def
-    do df = 1, ndf_wx
-      ijk = map_wx( df ) + k
-      xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,2)
-    end do
-    zq = sqrt(xq(1)**2 + xq(2)**2 + xq(3)**2)*spherical + xq(3)*planar
-
-    ! Length of cell to normalise distances by
-    dz = zq - z0
 
     ! Compute the coefficients of each point in the stencil for
     ! each cell when this is the upwind point
     ! Loop over both posivie and negative directions
-    face_loop: do face = 0,1
-      int_monomial = 0.0_r_def
+    direction_loop: do direction = 0,1
+
+      ! Compute local order, this is at most vertical_order but reduces near the
+      ! top and bottom boundary
+      order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
+
+      ! For the boundary points reduce to centred linear interpolation
+      if ( ( k == 0           .and. direction == 0) .or. &
+           ( k == nlayers - 1 .and. direction == 1) ) order = 1
+
+      ! Number of monomials to use (all polynomials up to total degree of order+1)
+      nmonomial = (order + 1)
+      allocate( monomial_matrix(nmonomial, nmonomial),  &
+                inv_monomial_matrix(nmonomial, nmonomial) )
+
+      ! Offset term to make sure we use the right indices at the top
+      ! boundary
+      boundary_offset = 0
+      if ( k == nlayers - 1 .and. direction == 1)  boundary_offset = -1
+      monomial_matrix = 0.0_r_def
 
       ! Loop over all cells in the stencil
-      stencil_loop: do stencil = 1, order+2
-        area(stencil) = mdwt(map_wt( 1 ) + k + smap(stencil+face,order/2) )
+      stencil_loop: do stencil = 1, order+1
+        kk = k + smap(stencil,order) + direction + boundary_offset
         ! If k + smap(stencil,order/2) == nlayers we need to make sure we use
         ! coordinate evaluated in cell k = nlayers-1 but with zp=1
-        if ( k + smap(stencil+face,order/2) == nlayers ) then
+        if ( kk == nlayers ) then
           kx = nlayers-1
           qp = 2
         else
-          kx = k + smap(stencil+face,order/2)
+          kx = kk
           qp = 1
         end if
         ! Evaluate coordinate at theta point of this cell
@@ -207,42 +202,42 @@ subroutine poly1d_vert_adv_coeffs_code(nlayers,                   &
 
         ! Second: Compute the local coordinate of each quadrature point from the
         !         physical coordinate
-        xx = (zq - z0)/dz
+        xx = (zq - z0)
 
         ! Third: Compute each needed monomial in terms of the local coordinate
         !        on each quadrature point
         ! Loop over monomials
         do m = 1, nmonomial
           fn = xx**(m-1)
-          int_monomial(stencil,m) = int_monomial(stencil,m) + fn*area(stencil)
+          monomial_matrix(stencil,m) = monomial_matrix(stencil,m) + fn
         end do
       end do stencil_loop
 
       ! Manipulate the integrals of monomials,
-      call matrix_invert(int_monomial,inv_int_monomial,nmonomial)
+      call matrix_invert(monomial_matrix,inv_monomial_matrix,nmonomial)
 
       ! Initialise polynomial coeffficients to zero
-      coeff(:,face+1,map_wt(1)+k) = 0.0_r_def
+      coeff(:,direction+1,map_wt(1)+k) = 0.0_r_def
 
-      ! Evaluate derivative of polynomial at this theta point
-      xx = 0.0_r_def
-      monomial(1) = 0.0_r_def
-      do stencil = 2, order+2
-        monomial(stencil) = real(stencil-1_i_def,r_def)*xx**(stencil-2)
+      ! Evaluate the polynomial at Wtheta point which is the origin of our local
+      ! coordinate system (x=0),
+      ! The process for doing this would be to compute momonmial(j) = x^(j-1)
+      ! then compute coefficients as:
+      ! C_i = dot_product(monomial, inv_monomial_matrix * delta)
+      ! with delta_i = 1, delta_j = 0, j /= i
+      !
+      ! but since x = 0, we have monomial(:) = (1,0,..,0)
+      ! and so the above is simplified to
+      ! C_i = inv_monomial_matrix(1,i)
+      do stencil = 1, order+1
+        coeff(stencil,direction+1,map_wt(1)+k) = inv_monomial_matrix(1,stencil)
       end do
-      do stencil = 1, order+2
-        delta(:) = 0.0_r_def
-        delta(stencil) = 1.0_r_def
-        beta = matmul(inv_int_monomial,delta)
-        coeff(stencil,face+1,map_wt(1)+k) = dot_product(monomial,beta)*area(stencil)
-      end do
-    end do face_loop
-    deallocate( int_monomial, inv_int_monomial, beta, delta, monomial )
+      deallocate( monomial_matrix, inv_monomial_matrix )
+    end do direction_loop
   end do layer_loop
-  ! Enforce zero flux boundary coeffs
-  coeff(:,:,map_wt(1) )             = 0.0_r_def
+  ! Coeffecients are really for W3 points, but we are using a Wtheta field
+  ! which contains an extra point so just set those to be zero
   coeff(:,:,map_wt(2) + nlayers-1 ) = 0.0_r_def
-
   deallocate( smap )
 
 end subroutine poly1d_vert_adv_coeffs_code

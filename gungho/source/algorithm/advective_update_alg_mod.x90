@@ -104,7 +104,7 @@ contains
     type( field_type )                     :: wt_field
     class(reference_element_type), pointer :: reference_element => null()
     type(mesh_type),               pointer :: mesh => null()
-    integer(i_def)                         :: face_quad_order
+    integer(i_def)                         :: edge_quad_order
     integer(i_def)                         :: nqp_xy, nqp_z, nqp_xyz
 
     if ( operators == operators_fv ) then
@@ -154,9 +154,9 @@ contains
         chi_xyz => get_coordinates_xyz()
         nqp_xyz = fv_advective_order+1
         if ( oned_reconstruction ) then
-          face_quad_order = 1
+          edge_quad_order = 1
         else
-          face_quad_order = fv_advective_order+1
+          edge_quad_order = fv_advective_order+1
         end if
 
         ! Compute advective coefficients
@@ -169,7 +169,7 @@ contains
         qr = quadrature_xyoz_type(nqp_xy, nqp_xy, nqp_z, &
                                   gauss_lobatto_quadrature)
         ! Edge based quadrature rule on horizontal edges
-        nqp_xyz = face_quad_order
+        nqp_xyz = edge_quad_order
         qre = quadrature_edge_type(nqp_xyz, .true., .false.,           &
                                    reference_element, gaussian_quadrature)
 
@@ -188,13 +188,13 @@ contains
         end if
         ! Vertical advective coeffs
         call log_event( "Gungho: computing vertical advective coeffs", LOG_LEVEL_INFO )
-        allocate( vert_adv_coeffs(fv_advective_order+2, nfaces_re_v) )
+        allocate( vert_adv_coeffs(fv_advective_order+1, nfaces_re_v) )
         do direction = 1, nfaces_re_v
-          do polynomial = 1, fv_advective_order+2
+          do polynomial = 1, fv_advective_order+1
             call vert_adv_coeffs(polynomial, direction)%initialise( vector_space = wt_fs )
           end do
         end do
-        call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, md_wt, chi_xyz, &
+        call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_xyz, &
                                             fv_advective_order, nfaces_re_v )
         if ( consistent_metric ) then
           call advective_av_chi3%initialise(vector_space = w1_fs )

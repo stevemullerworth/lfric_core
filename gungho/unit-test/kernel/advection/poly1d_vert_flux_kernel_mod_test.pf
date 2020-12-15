@@ -82,7 +82,7 @@ contains
     basis_w2(3,6,6) = 1.0_r_def
 
     do k = 1,nlayers
-      density(k) = real(k,r_def)
+      density(k) = real(k,r_def) - 0.5_r_def
     end do
 
     ! Quadratic fit for most of the domain
@@ -92,9 +92,11 @@ contains
     coeff(1,2,:) = -1.0_r_def/6.0_r_def
     coeff(2,2,:) =  5.0_r_def/6.0_r_def
     coeff(3,2,:) =  2.0_r_def/6.0_r_def
-    ! Constant fit for lowest level
-    coeff(1,1,1) =  1.0_r_def
-    coeff(1,2,1) =  1.0_r_def
+    ! Linear fit on bounadaries
+    coeff(1:2,:,1)       =  0.5_r_def
+    coeff(3,:,1)         =  0.0_r_def
+    coeff(1:2,:,nlayers) =  0.5_r_def
+    coeff(3,:,nlayers)   =  0.0_r_def
 
     call poly1d_vert_flux_code( nlayers,              &
                                 flux,                 &
@@ -113,7 +115,7 @@ contains
                                 outward_normals_to_vertical_faces )
     answer = 1.0_r_def
     @assertEqual(answer, flux(map_w2(5)+1) , tol)
-    answer = 2.5_r_def
+    answer = 2.0_r_def
     @assertEqual(answer, flux(map_w2(5)+2) , tol)
 
   end subroutine test_all

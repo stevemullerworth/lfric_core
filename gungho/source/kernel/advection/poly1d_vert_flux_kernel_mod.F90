@@ -124,13 +124,16 @@ subroutine poly1d_vert_flux_code( nlayers,              &
 
   ! Internal variables
   integer(kind=i_def)            :: k, df, ij, p, stencil, order, id, &
-                                    m, ijkp
+                                    m, ijkp, boundary_offset, vertical_order
   integer(kind=i_def)            :: vert_offset
   real(kind=r_def)               :: direction
   real(kind=r_def), dimension(2) :: v_dot_n
   real(kind=r_def)               :: polynomial_density
 
   integer(kind=i_def), allocatable, dimension(:,:) :: smap
+
+  ! Ensure that we reduce the order if there are only a few layers
+  vertical_order = min(global_order, nlayers-1)
 
   ! TODO: Set the offset for vertical faces for the reference cube. This should
   ! not be hardcoded as it depends on element type (cube vs prism). Instead it
@@ -139,11 +142,11 @@ subroutine poly1d_vert_flux_code( nlayers,              &
   vert_offset = 4_i_def
 
   ! Compute the offset map for all even orders up to order
-  allocate( smap(global_order+1,0:global_order/2) )
+  allocate( smap(global_order+1,0:global_order) )
   smap(:,:) = 0
-  do m = 0,global_order,2
+  do m = 0,global_order
     do stencil = 1,m+1
-      smap(stencil,m/2) = - m/2 + (stencil-1)
+      smap(stencil,m) = - m/2 + (stencil-1)
     end do
   end do
 
@@ -156,15 +159,23 @@ subroutine poly1d_vert_flux_code( nlayers,              &
 
   ! Vertical flux computation
   do k = 0, nlayers - 1
-    order = min(global_order, min(2*k, 2*(nlayers-1 - k)))
+    order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
+
+    boundary_offset = 0
+    if ( order > 0 ) then
+      if ( k == 0 )           boundary_offset =  1
+      if ( k == nlayers - 1 ) boundary_offset = -1
+    end if
+
     do id = 1,nfaces_re_v
-       df = id + vert_offset
+
+      df = id + vert_offset
       ! Check if this is the upwind cell
       direction = wind(map_w2(df) + k )*v_dot_n(id)
       if ( direction >= 0.0_r_def ) then
         polynomial_density = 0.0_r_def
         do p = 1,order+1
-          ijkp = ij + k + smap(p,order/2)
+          ijkp = ij + k + smap(p,order) + boundary_offset
           polynomial_density = polynomial_density &
                              + density( ijkp )*coeff( p, id, ij+k )
         end do
@@ -176,8 +187,37 @@ subroutine poly1d_vert_flux_code( nlayers,              &
   ! Boundary conditions
   ! When computing a flux the wind = 0 so flux is zero
   ! For averaging the wind = +/-1 so the resulting average is non-zero
-  flux(map_w2(5))           = wind(map_w2(5))          *density(map_w3(1))
-  flux(map_w2(6)+nlayers-1) = wind(map_w2(6)+nlayers-1)*density(map_w3(1)+nlayers-1)
+  ! Make sure we always compute the boundary values
+  order = min(vertical_order, 2)
+
+
+  ! The boundary values only have a cell on one side of them so the
+  ! reconstruction above may not have performed. Therefore we ensure
+  ! that the values at the boundaries are computed
+
+  k = 0
+  id = 1
+  boundary_offset = 1
+  df = id + vert_offset
+  polynomial_density = 0.0_r_def
+  do p = 1,order+1
+    ijkp = ij + k + smap(p,order) + boundary_offset
+    polynomial_density = polynomial_density &
+                       + density( ijkp )*coeff( p, id, ij+k )
+  end do
+  flux(map_w2(df) + k ) = wind(map_w2(df) + k)*polynomial_density
+
+  k = nlayers-1
+  id = 2
+  boundary_offset =  -1
+  df = id + vert_offset
+  polynomial_density = 0.0_r_def
+  do p = 1,order+1
+    ijkp = ij + k + smap(p,order) + boundary_offset
+    polynomial_density = polynomial_density &
+                       + density( ijkp )*coeff( p, id, ij+k )
+  end do
+  flux(map_w2(df) + k ) = wind(map_w2(df) + k)*polynomial_density
 
   deallocate( smap )
 

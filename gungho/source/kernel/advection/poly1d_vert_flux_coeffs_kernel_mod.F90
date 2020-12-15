@@ -24,7 +24,8 @@ use argument_mod,      only : arg_type, func_type,  &
                               GH_WRITE, GH_READ,    &
                               ANY_SPACE_1,          &
                               GH_BASIS, CELLS,      &
-                              GH_QUADRATURE_XYoZ, GH_QUADRATURE_face
+                              GH_QUADRATURE_XYoZ,   &
+                              GH_QUADRATURE_face
 use constants_mod,     only : r_def, i_def, EPS
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
@@ -137,13 +138,17 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
 
   ! Local variables
   integer(kind=i_def) :: k, ijk, df, qv0, qh0, stencil, nmonomial, qp, &
-                         m, face, order
+                         m, face, order, boundary_offset, offset, &
+                         vertical_order
   integer(kind=i_def), allocatable, dimension(:,:)         :: smap
   real(kind=r_def)                                         :: xx, fn, z0, zq, spherical, planar
   real(kind=r_def),              dimension(3)              :: x0, xq
   real(kind=r_def), allocatable, dimension(:,:)            :: int_monomial, inv_int_monomial
   real(kind=r_def), allocatable, dimension(:)              :: beta, delta, monomial
   real(kind=r_def),              dimension(global_order+1) :: area
+
+  ! Ensure that we reduce the order if there are only a few layers
+  vertical_order = min(global_order, nlayers-1)
 
   if ( geometry == geometry_spherical ) then
     spherical = 1.0_r_def
@@ -153,12 +158,12 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
     planar    = 1.0_r_def
   end if
 
-  ! Compute the offset map for all even orders up to order
-  allocate( smap(global_order+1,0:global_order/2) )
+  ! Compute the offset map for all orders up to order
+  allocate( smap(global_order+1,0:global_order) )
   smap(:,:) = 0
-  do m = 0,global_order,2
+  do m = 0,global_order
     do stencil = 1,m+1
-      smap(stencil,m/2) = - m/2 + (stencil-1)
+      smap(stencil,m) = - m/2 + (stencil-1)
     end do
   end do
 
@@ -175,15 +180,6 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
 
   ! Loop over all layers
   layer_loop: do k = 0, nlayers-1
-    ! Compute local order, this is at most global_order but reduces near the
-    ! top and bottom boundary
-    order = min(global_order, min(2*k, 2*(nlayers-1 - k)))
-
-    ! Number of monomials to use (all polynomials up to total degree of order)
-    nmonomial = (order + 1)
-    allocate( int_monomial(nmonomial, nmonomial),  &
-              inv_int_monomial(nmonomial, nmonomial), &
-              beta(nmonomial), delta(nmonomial), monomial(nmonomial) )
 
     ! Position vector of centre of this cell
     x0 = 0.0_r_def
@@ -193,20 +189,41 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
     end do
     z0 = sqrt(x0(1)**2 + x0(2)**2 + x0(3)**2)*spherical + x0(3)*planar
 
+    ! Compute local order, this is at most vertical_order but reduces near the
+    ! top and bottom boundary
+    order = min(vertical_order, min(2*(k+1), 2*(nlayers-1 - (k-1))))
+
+    ! Number of monomials to use (all polynomials up to total degree of order)
+    nmonomial = (order + 1)
+    allocate( int_monomial(nmonomial, nmonomial),  &
+              inv_int_monomial(nmonomial, nmonomial), &
+              beta(nmonomial), delta(nmonomial), monomial(nmonomial) )
+
+    ! Offset for boundary computations when we move from being upwinded
+    ! to downwinded or extrapolated reconstructions
+    boundary_offset = 0
+    if ( order > 0 ) then
+      if ( k == 0 )           boundary_offset =  1
+      if ( k == nlayers - 1 ) boundary_offset = -1
+    end if
+
     ! Compute the coefficients of each cell in the stencil for
     ! each edge when this is the upwind cell
     face_loop: do face = 1,2
+
       int_monomial = 0.0_r_def
 
       ! Loop over all cells in the stencil
       stencil_loop: do stencil = 1, order+1
-        area(stencil) = mdw3(map_w3( 1 ) + k + smap(stencil,order/2) )
+        offset = smap(stencil,order) + boundary_offset
+        area(stencil) = mdw3(map_w3( 1 ) + k + offset)
+
         ! Integrate monomials over this cell
         quadrature_loop: do qp = 1, nqp_v
           ! First: Compute physical coordinate of each quadrature point
           xq = 0.0_r_def
           do df = 1, ndf_wx
-            ijk = map_wx( df ) + k + smap(stencil,order/2)
+            ijk = map_wx( df ) + k + offset
             xq(:) = xq(:) + (/ chi1(ijk), chi2(ijk), chi3(ijk) /)*basis_wx(1,df,qh0,qp)
           end do
           zq = sqrt(xq(1)**2 + xq(2)**2 + xq(3)**2)*spherical + xq(3)*planar
@@ -260,9 +277,6 @@ subroutine poly1d_vert_flux_coeffs_code(nlayers,                    &
     end do face_loop
     deallocate( int_monomial, inv_int_monomial, beta, delta, monomial )
   end do layer_loop
-  ! Enforce zero flux boundary coeffs
-  coeff(:,1,map_w3(1) )             = 0.0_r_def
-  coeff(:,2,map_w3(1) + nlayers-1 ) = 0.0_r_def
 
   deallocate( smap )
 

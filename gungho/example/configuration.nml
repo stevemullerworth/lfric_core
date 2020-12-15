@@ -204,6 +204,7 @@
   oned_reconstruction = .false.
   rho_splitting = 'none'
   theta_splitting = 'none'
+  upwind_direction_from_w_at_wtheta = .true.
 /
 
 &partitioning

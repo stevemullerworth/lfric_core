@@ -14,14 +14,16 @@ module poly1d_vert_adv_coeffs_kernel_mod_test
   implicit none
 
   private
-  public :: test_all
+  public :: test_uniform_mesh
+  public :: test_stretched_mesh
 
   @TestCase
   type, extends(MPITestCase), public :: poly1d_vert_adv_coeffs_test_type
     private
   contains
     procedure setUp
-    procedure test_all
+    procedure test_uniform_mesh
+    procedure test_stretched_mesh
     procedure tearDown
   end type poly1d_vert_adv_coeffs_test_type
 
@@ -29,9 +31,14 @@ contains
 
   subroutine setUp( this )
     use feign_config_mod,     only : feign_base_mesh_config, &
-                                     feign_planet_config
+                                     feign_planet_config, &
+                                     feign_transport_config
     use base_mesh_config_mod, only : geometry_planar, &
                                      partitioner_planar
+    use transport_config_mod, only : scheme_method_of_lines, &
+                                     operators_fv, &
+                                     rho_splitting_none, &
+                                     theta_splitting_none
     implicit none
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
@@ -46,23 +53,36 @@ contains
                                  geometry=geometry_planar,            &
                                  partitioner=partitioner_planar,      &
                                  fplane=.false., f_lat_deg=0.0_r_def )
-
+    call feign_transport_config( scheme = scheme_method_of_lines, &
+                                 operators = operators_fv, &
+                                 fv_flux_order = 2, &
+                                 fv_advective_order = 2, &
+                                 consistent_metric  = .false., &
+                                 enforce_monotonicity = .false., &
+                                 oned_reconstruction = .false., &
+                                 rho_splitting = rho_splitting_none, &
+                                 theta_splitting = theta_splitting_none, &
+                                 cfl_mol_1d_stab = 1.0_r_def, &
+                                 cfl_mol_2d_stab = 1.0_r_def, &
+                                 cfl_mol_3d_stab = 1.0_r_def, &
+                                 upwind_direction_from_w_at_wtheta = .true. )
   end subroutine setUp
 
   @Test( npes=[1] )
-  subroutine test_all( this )
+  subroutine test_uniform_mesh( this )
 
     use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
+    use poly1d_vert_adv_kernel_mod,        only: poly1d_vert_adv_code
     implicit none
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
     real(r_def), parameter    :: tol = 1.0e-12_r_def
-    real(r_def), dimension(4) :: answer
+    real(r_def), dimension(3) :: answer
 
     integer(i_def), parameter :: nfaces_v = 2
 
-    integer(i_def), parameter :: nlayers = 5
+    integer(i_def), parameter :: nlayers = 9
     integer(i_def), parameter :: ndf_wt = 2
     integer(i_def), parameter :: ndf_wx = 8
     integer(i_def), parameter :: undf_wt = nlayers+1
@@ -71,25 +91,23 @@ contains
     integer(i_def), dimension(ndf_wt) :: map_wt
     integer(i_def), dimension(ndf_wx) :: map_wx
 
-    real(r_def), dimension(global_order+2,2,undf_wt) :: coeff
+    real(r_def), dimension(global_order+1,2,undf_wt) :: coeff
     real(r_def), dimension(undf_wt) :: mdwt
     real(r_def), dimension(undf_wx) :: x, y, z
 
     real(r_def), dimension(1,ndf_wx,ndf_wt)     :: basis_wx
 
     real(r_def), parameter :: dx = 2.0_r_def
-    real(r_def), parameter :: dy = 1.0_r_def
-    real(r_def), parameter :: dz = 3.0_r_def
+    real(r_def), parameter :: dy = 1.7_r_def
+    real(r_def)            :: dz = 3.0_r_def
 
-    integer(i_def) :: k, df
+    integer(i_def) :: i, k, df
 
     map_wt(:) = (/ 1, 2 /)
 
     do df = 1,ndf_wx
       map_wx(df) = 1 + (df-1)*nlayers
     end do
-
-    mdwt(:) = dx*dy*dz
 
     x(:) = 0.0_r_def
     y(:) = 0.0_r_def
@@ -117,7 +135,6 @@ contains
 
     call poly1d_vert_adv_coeffs_code(nlayers,                   &
                                      coeff,                     &
-                                     mdwt,                      &
                                      x, y, z,                   &
                                      ndf_wt,                    &
                                      undf_wt,                   &
@@ -129,15 +146,149 @@ contains
                                      global_order,              &
                                      nfaces_v)
 
-    answer = (/ 1.0_r_def, -6.0_r_def, 3.0_r_def, 2.0_r_def /)/6.0_r_def
+    answer = (/ -1.0_r_def, 6.0_r_def, 3.0_r_def /)/8.0_r_def
     @assertEqual(answer, coeff(:,1,3), tol)
-    answer = (/-2.0_r_def, -3.0_r_def, 6.0_r_def, -1.0_r_def /)/6.0_r_def
+    answer = (/ 3.0_r_def, 6.0_r_def, -1.0_r_def /)/8.0_r_def
     @assertEqual(answer, coeff(:,2,3), tol)
 
-    answer(1:2) = (/ -1.0_r_def, 1.0_r_def /)
-    @assertEqual(answer(1:2), coeff(1:2,1,2), tol)
-    @assertEqual(answer(1:2), coeff(1:2,2,nlayers), tol)
-  end subroutine test_all
+  end subroutine test_uniform_mesh
+
+  @Test( npes=[1] )
+  subroutine test_stretched_mesh( this )
+
+    use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
+    use poly1d_vert_adv_kernel_mod,        only: poly1d_vert_adv_code
+    implicit none
+
+    class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
+
+    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def), dimension(3) :: answer
+
+    integer(i_def), parameter :: nfaces_v = 2
+
+    integer(i_def), parameter :: nlayers = 9
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: undf_wt = nlayers+1
+    integer(i_def), parameter :: undf_wx = ndf_wx*nlayers
+    integer(i_def), parameter :: global_order = 2
+    integer(i_def), dimension(ndf_wt) :: map_wt
+    integer(i_def), dimension(ndf_wx) :: map_wx
+
+    real(r_def), dimension(global_order+1,2,undf_wt) :: coeff
+    real(r_def), dimension(undf_wt) :: mdwt
+    real(r_def), dimension(undf_wx) :: x, y, z
+
+    real(r_def), dimension(1,ndf_wx,ndf_wt)     :: basis_wx
+
+    real(r_def), parameter :: dx = 2.0_r_def
+    real(r_def), parameter :: dy = 1.7_r_def
+    real(r_def)            :: dz = 3.0_r_def
+
+    integer(i_def) :: i, k, df
+
+    integer(i_def), parameter :: ndf_w2 = 6
+    integer(i_def), parameter :: undf_w2 = 4*nlayers + 2*(nlayers+1)
+    integer(i_def), dimension(ndf_w2)  :: map_w2
+    real(r_def),    dimension(undf_wt) :: flux
+    real(r_def),    dimension(undf_w2) :: wind
+    real(r_def),    dimension(undf_wt) :: density
+    real(r_def),    dimension(undf_wt) :: ddensitydz
+    real(r_def)                        :: ddz
+    integer(i_def)                     :: power = 1
+    real(r_def)                        :: stretch = 1.5_r_def
+
+    map_wt(:) = (/ 1, 2 /)
+
+    do df = 1,ndf_wx
+      map_wx(df) = 1 + (df-1)*nlayers
+    end do
+
+    basis_wx(:,:,:) = 0.0_r_def
+    do df = 1,4
+      basis_wx(1,df,1) = 0.25_r_def
+      basis_wx(1,4+df,2) = 0.25_r_def
+    end do
+
+    ! Test reconstruciton on a stretched grid
+    coeff = 0.0_r_def
+    mdwt = 0.0_r_def
+    x(:) = 0.0_r_def
+    y(:) = 0.0_r_def
+    z(:) = 0.0_r_def
+    dz = 2.3_r_def
+    do k = 0,nlayers-1
+      x(map_wx(2)+k) = dx
+      x(map_wx(4)+k) = dx
+      y(map_wx(3)+k) = dy
+      y(map_wx(4)+k) = dy
+      dz = dz * stretch
+      do df = 1,4
+        x(map_wx(4+df)+k) = x(map_wx(df)+k)
+        y(map_wx(4+df)+k) = y(map_wx(df)+k)
+        if ( k == 0 ) then
+          z(map_wx(df)+k) = 0.0_r_def
+        else
+          z(map_wx(df)+k) = z(map_wx(4+df)+k-1)
+        end if
+        z(map_wx(4+df)+k) = z(map_wx(df)+k) + dz
+      end do
+      mdwt(map_wt(1)+k) = mdwt(map_wt(1)+k) + 0.5_r_def*dx*dy*dz
+      mdwt(map_wt(2)+k) = mdwt(map_wt(2)+k) + 0.5_r_def*dx*dy*dz
+
+      density(1+k)    = z(map_wx(1)+k)**power
+      ddensitydz(1+k) = real(power,r_def)*z(map_wx(1)+k)**(power-1)
+
+   end do
+   density(nlayers+1)    = z(map_wx(5)+nlayers-1)**power
+   ddensitydz(nlayers+1) = real(power,r_def)*z(map_wx(5)+nlayers-1)**(power-1)
+
+    ! Compute the coeffs for the stretched mesh
+    call poly1d_vert_adv_coeffs_code(nlayers,                   &
+                                     coeff,                     &
+                                     x, y, z,                   &
+                                     ndf_wt,                    &
+                                     undf_wt,                   &
+                                     map_wt,                    &
+                                     ndf_wx,                    &
+                                     undf_wx,                   &
+                                     map_wx,                    &
+                                     basis_wx,                  &
+                                     global_order,              &
+                                     nfaces_v)
+
+    ! compute the reconstruction
+    do df = 1,4
+      map_w2(df) = 1 + (df-1)*nlayers
+    end do
+    map_w2(5) = 1 + 4*nlayers
+    map_w2(6) = map_w2(5) + 1
+
+    do i = 0,1
+      wind = (-1.0_r_def + 2.0_r_def*real(i,r_def))*dx*dy
+      flux = 0.0_r_def
+
+      call poly1d_vert_adv_code( nlayers,              &
+                                 flux,                 &
+                                 wind,                 &
+                                 density,              &
+                                 coeff,                &
+                                 ndf_wt,               &
+                                 undf_wt,              &
+                                 map_wt,               &
+                                 ndf_w2,               &
+                                 undf_w2,              &
+                                 map_w2,               &
+                                 global_order,         &
+                                 nfaces_v )
+      do k = 1,nlayers-1
+        ddz = flux(map_wt(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2(5))
+        @assertEqual(ddensitydz(map_wt(1)+k), ddz, tol)
+      end do
+    end do
+
+  end subroutine test_stretched_mesh
 
   subroutine tearDown( this )
     implicit none

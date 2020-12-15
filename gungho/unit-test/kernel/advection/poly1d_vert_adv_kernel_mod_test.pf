@@ -9,6 +9,8 @@ module poly1d_vert_adv_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use pFUnit_Mod
+  use yaxt,          only : xt_initialize, xt_finalize
+  use mpi_mod,       only : store_comm, clear_comm
 
   implicit none
 
@@ -16,19 +18,71 @@ module poly1d_vert_adv_kernel_mod_test
   public :: test_all
 
   @TestCase
-  type, extends(TestCase), public :: poly1d_vert_adv_test_type
+  type, extends(MPITestCase), public :: poly1d_vert_adv_test_type
     private
   contains
+    procedure setUp
+    procedure tearDown
     procedure test_all
   end type poly1d_vert_adv_test_type
 
 contains
 
-  @Test
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,     only: feign_transport_config
+    use transport_config_mod, only: scheme_method_of_lines, &
+                                    operators_fv, &
+                                    rho_splitting_none, &
+                                    theta_splitting_none
+    implicit none
+
+    class(poly1d_vert_adv_test_type), intent(inout) :: this
+
+    ! Initialise YAXT
+    call xt_initialize(this%getMpiCommunicator())
+    !Store the MPI communicator for later use
+    call store_comm(this%getMpiCommunicator())
+
+    call feign_transport_config( scheme = scheme_method_of_lines, &
+                                 operators = operators_fv, &
+                                 fv_flux_order = 2, &
+                                 fv_advective_order = 2, &
+                                 consistent_metric  = .false., &
+                                 enforce_monotonicity = .false., &
+                                 oned_reconstruction = .false., &
+                                 rho_splitting = rho_splitting_none, &
+                                 theta_splitting = theta_splitting_none, &
+                                 cfl_mol_1d_stab = 1.0_r_def, &
+                                 cfl_mol_2d_stab = 1.0_r_def, &
+                                 cfl_mol_3d_stab = 1.0_r_def, &
+                                 upwind_direction_from_w_at_wtheta = .true. )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(poly1d_vert_adv_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+    ! Finalise YAXT
+    call xt_finalize()
+    ! Clear the stored MPI communicator
+    call clear_comm()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test( npes=[1] )
   subroutine test_all( this )
-
     use poly1d_vert_adv_kernel_mod, only: poly1d_vert_adv_code
-
     implicit none
 
     class(poly1d_vert_adv_test_type), intent(inout) :: this
@@ -50,9 +104,10 @@ contains
     real(r_def), dimension(undf_wt)           :: flux
     real(r_def), dimension(undf_w2)           :: wind
     real(r_def), dimension(undf_wt)           :: density
-    real(r_def), dimension(order+2,2,undf_wt) :: coeff
+    real(r_def), dimension(order+1,2,undf_wt) :: coeff
 
     integer(i_def) :: df, k
+
 
     map_wt(:) = (/ 1, 2 /)
     do df = 1,4
@@ -67,10 +122,9 @@ contains
       density(k) = real(k,r_def)
     end do
 
-    coeff(1,:,:) = -2.0_r_def/6.0_r_def
-    coeff(2,:,:) = -3.0_r_def/6.0_r_def
-    coeff(3,:,:) =  6.0_r_def/6.0_r_def
-    coeff(4,:,:) = -1.0_r_def/6.0_r_def
+    coeff(1,:,:) =  3.0_r_def/8.0_r_def
+    coeff(2,:,:) =  6.0_r_def/8.0_r_def
+    coeff(3,:,:) = -1.0_r_def/8.0_r_def
 
     flux = 0.0_r_def
 

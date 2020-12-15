@@ -469,7 +469,7 @@ contains
           call vert_adv_coeffs(polynomial,direction)%initialise( vector_space = theta_fs )
         end do
       end do
-      call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, md_wt, chi_xyz, &
+      call invoke_poly1d_vert_adv_coeffs( vert_adv_coeffs, chi_xyz, &
                                           fv_advective_order, nfaces_v )
 
       if ( consistent_metric ) then
