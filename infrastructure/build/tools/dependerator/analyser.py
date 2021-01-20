@@ -19,12 +19,11 @@
 Examine Fortran source and build dependency information for use by "make".
 '''
 
-from __future__ import absolute_import, print_function
-
 from abc import ABCMeta, abstractmethod
 import logging
 import os
 import os.path
+from pathlib import Path
 import re
 import shutil
 import subprocess
@@ -63,13 +62,13 @@ class NamelistDescriptionAnalyser(Analyser):
     # Arguments:
     #   sourceFilename - File object to scan.
     #
-    def analyse( self, sourceFilename ):
-        if not sourceFilename.endswith( '.nld' ):
+    def analyse( self, sourceFilename: Path ):
+        if not sourceFilename.suffix == '.nld':
             raise Exception( 'File doesn''t look like a namelist description' \
 
                              + ' file: ' + sourceFilename )
 
-        logging.getLogger(__name__).info('  Scanning ' + sourceFilename)
+        logging.getLogger(__name__).info('  Scanning ' + str(sourceFilename))
 
         self._database.removeFile( sourceFilename )
 
@@ -149,12 +148,13 @@ class FortranAnalyser(Analyser):
   #   preprocessMacros(dict) - Macro name is the key. Value may be None for
   #                            empty macros.
   #
-  def analyse( self, sourceFilename, preprocessMacros=None ):
+  def analyse( self, sourceFilename: Path, preprocessMacros=None ):
     logger = logging.getLogger(__name__)
     # Perform any necessary preprocessing
     #
-    if sourceFilename.endswith( '.F90' ):
-      logging.getLogger(__name__).info('  Preprocessing ' + sourceFilename)
+    if sourceFilename.suffix == '.F90':
+      logging.getLogger(__name__).info('  Preprocessing '
+                                       + str(sourceFilename))
       preprocessCommand = self._fpp
       if preprocessMacros:
         for name, macro in preprocessMacros.items():
@@ -175,7 +175,7 @@ class FortranAnalyser(Analyser):
       if preprocessor.returncode:
         raise subprocess.CalledProcessError( preprocessor.returncode,
                                              " ".join( preprocessCommand ) )
-    elif sourceFilename.endswith( '.f90' ):
+    elif sourceFilename.suffix == '.f90':
       start_time = time()
       with open( sourceFilename, 'rt' ) as sourceFile:
         processed_source = sourceFile.read()
@@ -280,7 +280,7 @@ class FortranAnalyser(Analyser):
 
     # Scan file for dependencies.
     #
-    logger.info('  Scanning ' + sourceFilename)
+    logger.info('  Scanning ' + str(sourceFilename))
     self._database.removeFile( sourceFilename )
 
     program_unit = None

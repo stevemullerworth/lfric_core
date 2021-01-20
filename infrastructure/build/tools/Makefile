@@ -9,4 +9,4 @@ export ROOT_DIR   ?= ../../..
 .PHONY: test
 test: export PYTHONPATH := ${PYTHONPATH}:./diagnostics_metadata_reconfigurator/src
 test:
-	python -m unittest discover -p '*test.py' --verbose
+	python -m pytest

@@ -277,11 +277,7 @@
                                                           'setup.reveal') ) }}
                    """
       script = rose task-run --app-key=unit_test_build_tools
-
 {{ directives(PRIMARY_TARGET, 'build') }}
-
-    [[[job]]]
-        execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%- endif %}
 
 ##############################################################################

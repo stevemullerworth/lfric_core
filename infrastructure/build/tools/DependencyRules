@@ -97,8 +97,9 @@ if __name__ == '__main__':
                     modulename = replaceExtension( filename, 'mod' )
                     prerequisites = potentialPrerequisites
 
+                prereq_strings = [str(prereq) for prereq in prerequisites]
                 print( '{} {} : {}'.format( filename, modulename, \
-                                        ' '.join( prerequisites ) ), \
+                                        ' '.join(prereq_strings) ), \
                     file=listFile )
     except:
         os.unlink( args.output )

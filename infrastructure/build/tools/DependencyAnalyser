@@ -15,11 +15,10 @@ file "use"s.
 This snippet may then be "include"ed into other make files.
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import logging
 import os
+from pathlib import Path
 import sys
 
 from dependerator import __version__
@@ -79,4 +78,4 @@ if __name__ == '__main__':
   if args.source.endswith( '.nld' ):
     namelistAnalyser.analyse( args.source )
   else:
-    fortranAnalyser.analyse( args.source, macroDictionary )
+    fortranAnalyser.analyse(Path(args.source), macroDictionary)

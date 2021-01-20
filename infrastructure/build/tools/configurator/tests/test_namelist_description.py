@@ -5,47 +5,28 @@
 # For further details please refer to the file LICENCE.original which you
 # should have received as part of this distribution.
 ##############################################################################
-
-from __future__ import absolute_import
-import unittest
 import io
 import random
 import os
-import tempfile
-
+from pathlib import Path
+import pytest
 from subprocess import Popen
+from textwrap import dedent
 
 import configurator.namelistdescription as description
 
 PICKER_EXE = 'rose_picker'
 
 
-###############################################################################
-class NamelistMetaTest(unittest.TestCase):
-
-    def setUp(self):
-        self.maxDiff = None
-
-
-###############################################################################
-    def tearDown(self):
-
-        pass
-
-
-###############################################################################
+class TestNamelistMeta():
     def test_module_write_empty(self):
-
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('test')
-        self.assertRaises(description.NamelistDescriptionException,
-                          uut.write_module, output_file)
+        with pytest.raises(description.NamelistDescriptionException):
+            uut.write_module(output_file)
 
-
-###############################################################################
     def test_module_write_one_of_each(self):
-
         expected_source = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
@@ -404,12 +385,9 @@ end module test_config_mod
         output_file = io.StringIO()
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert expected_source + '\n' == output_file.getvalue()
 
-    ###########################################################################
-    def test_module_write_growing(self):
-        first_expected_source = '''
+    _FIRST_EXPECTED_GROWING_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -550,9 +528,9 @@ contains
 
 
 end module test_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
-        second_expected_source = '''
+    _SECOND_EXPECTED_GROWING_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -702,27 +680,24 @@ contains
 
 
 end module test_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
+    def test_module_write_growing(self):
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('test')
         uut.add_value('foo', 'integer')
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(first_expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() == self._FIRST_EXPECTED_GROWING_SOURCE
 
         output_file = io.StringIO()
         uut.add_value('bar', 'real', 'default')
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(second_expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() == self._SECOND_EXPECTED_GROWING_SOURCE
 
-    ##########################################################################
-    def test_enumeration_only(self):
-        expected_source = '''
+    _EXPECTED_ENUM_ONLY_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -962,21 +937,18 @@ contains
 
 
 end module enum_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
+    def test_enumeration_only(self):
         random.seed(1)
         uut = description.NamelistDescription('enum')
         uut.add_enumeration('value', enumerators=['one', 'two', 'three'])
         output_file = io.StringIO()
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() == self._EXPECTED_ENUM_ONLY_SOURCE
 
-    ###########################################################################
-    def test_more_than_one_enumeration(self):
-
-        expected_source = '''
+    _EXPECTED_TWO_ENUM_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1316,8 +1288,9 @@ contains
 
 
 end module twoenum_config_mod
-                       '''.strip()
+                       '''.strip() + '\n'
 
+    def test_more_than_one_enumeration(self):
         random.seed(1)
         uut = description.NamelistDescription('twoenum')
         uut.add_enumeration('first', enumerators=['one', 'two', 'three'])
@@ -1325,12 +1298,9 @@ end module twoenum_config_mod
         output_file = io.StringIO()
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(output_file.getvalue(),
-                                  expected_source + '\n')
+        assert output_file.getvalue() == self._EXPECTED_TWO_ENUM_SOURCE
 
-    ###########################################################################
-    def test_module_write_computed(self):
-        expected_source = '''
+    _EXPECTED_MODULE_WRITE_COMPUTED_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1492,8 +1462,9 @@ contains
 
 
 end module teapot_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
+    def test_module_write_computed(self):
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('teapot')
@@ -1507,12 +1478,10 @@ end module teapot_config_mod
                              'namelist:fridge=milk'])
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() \
+            == self._EXPECTED_MODULE_WRITE_COMPUTED_SOURCE
 
-    ###########################################################################
-    def test_module_write_constant(self):
-        expected_source = '''
+    _EXPECTED_MODULE_WRITE_CONSTANT_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1657,8 +1626,9 @@ contains
 
 
 end module cheese_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
+    def test_module_write_constant(self):
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('cheese')
@@ -1668,12 +1638,10 @@ end module cheese_config_mod
                          calculation=['fred * FUDGE'])
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() \
+            == self._EXPECTED_MODULE_WRITE_CONSTANT_SOURCE
 
-    ###########################################################################
-    def test_module_write_array(self):
-        expected_source = '''
+    _EXPECTED_MODULE_WRITE_ARRAY_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -1898,8 +1866,9 @@ contains
 
 
 end module aerial_config_mod
-        '''.strip()
+        '''.strip() + '\n'
 
+    def test_module_write_array(self):
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('aerial')
@@ -1911,25 +1880,11 @@ end module aerial_config_mod
         uut.add_value('unknown', 'integer', bounds=[':'])
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() \
+            == self._EXPECTED_MODULE_WRITE_ARRAY_SOURCE
 
 
-##############################################################################
-class NamelistConfigDescriptionTest(unittest.TestCase):
-    ##########################################################################
-    def setUp(self):
-        self.nml_config_file = None
-
-    ##########################################################################
-    def tearDown(self):
-        if self.nml_config_file:
-            os.remove(self.nml_config_file)
-
-        if os.path.isfile('config_namelists.txt'):
-            os.remove('config_namelists.txt')
-
-    ##########################################################################
+class TestNamelistConfigDescription():
     @staticmethod
     def _compile_dictionary(namelists):
 
@@ -1960,82 +1915,64 @@ class NamelistConfigDescriptionTest(unittest.TestCase):
 
         return dictionary
 
-    ##########################################################################
-    def test_parser_good_file(self):
+    def test_parser_good_file(self, tmp_path: Path):
+        input_file = tmp_path / 'test.ini'
+        input_file.write_text(dedent('''
+            [namelist:fred]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:fred]
+            [namelist:fred=first_thing]
+            type=character
 
-[namelist:fred=first_thing]
-type=character
+            [namelist:fred=second]
+            type=integer
 
-[namelist:fred=second]
-type=integer
+            [namelist:fred=filename]
+            type=character
+            !string_length=filename
 
-[namelist:fred=filename]
-type=character
-!string_length=filename
+            [namelist:fred=choices]
+            !enumeration=true
+            values=foo, bar, baz, qux
+            '''))
 
-[namelist:fred=choices]
-!enumeration=true
-values=foo, bar, baz, qux
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, input_file]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
-        result = self._compile_dictionary(
-            uut.process_config(self.nml_config_file))
+        result = self._compile_dictionary(uut.process_config(json_file))
 
-        self.assertEqual({'fred':
-                          {'choices':     ['integer', 'i_native',
-                                           'foo', 'bar', 'baz', 'qux'],
-                           'filename':    ['character', 'str_max_filename'],
-                           'first_thing': ['character', 'str_def'],
-                           'second':      ['integer', 'i_def']}},
-                         result)
+        assert {'fred': {'choices':     ['integer', 'i_native',
+                                         'foo', 'bar', 'baz', 'qux'],
+                         'filename':    ['character', 'str_max_filename'],
+                         'first_thing': ['character', 'str_def'],
+                         'second':      ['integer', 'i_def']}} == result
 
-    ##########################################################################
-    def test_only_enumeration(self):
+    def test_only_enumeration(self, tmp_path: Path):
+        input_file = tmp_path / 'input.ini'
+        input_file.write_text(dedent('''
+            [namelist:barney]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:barney]
+            [namelist:barney=stuff]
+            !enumeration=true
+            values=one, two, three
+            '''))
 
-[namelist:barney=stuff]
-!enumeration=true
-values=one, two, three
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, str(input_file)]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
-        result = self._compile_dictionary(
-            uut.process_config(self.nml_config_file))
+        result = self._compile_dictionary(uut.process_config(json_file))
 
-        self.assertEqual({'barney': {'stuff': ['integer', 'i_native',
-                                               'one', 'two', 'three']}},
-                         result)
+        assert {'barney': {'stuff': ['integer', 'i_native',
+                                     'one', 'two', 'three']}} == result
 
-
-    ##########################################################################
-    def test_non_randomized_enumerations(self):
-        expected_source = '''
+    _EXPECTED_NON_RANDOM_ENUMERATOR_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -2275,200 +2212,164 @@ contains
 
 
 end module telly_config_mod
-        '''.strip()
+    '''.strip() + '\n'
 
+    def test_non_randomized_enumerations(self):
         output_file = io.StringIO()
 
         uut = description.NamelistDescription('telly', fix_enum=True)
         uut.add_enumeration('tubbies', enumerators=['lala', 'po', 'inky'])
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() \
+            == self._EXPECTED_NON_RANDOM_ENUMERATOR_SOURCE
 
-    ##########################################################################
-    def test_non_enumeration_no_type(self):
+    def test_non_enumeration_no_type(self, tmp_path: Path):
+        input_file = tmp_path / 'test.init'
+        input_file.write_text(dedent('''
+            [namelist:barney]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:barney]
+            [namelist:barney=stuff]
+            values=one, two, three
+            '''))
 
-[namelist:barney=stuff]
-values=one, two, three
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, input_file]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
-        self.assertRaises(description.NamelistDescriptionException,
-                          uut.process_config, self.nml_config_file)
+        with pytest.raises(description.NamelistDescriptionException):
+            uut.process_config(json_file)
 
-    ##########################################################################
-    def test_no_member_type(self):
+    def test_no_member_type(self, tmp_path: Path):
+        input_file = tmp_path / 'input.init'
+        input_file.write_text(dedent('''
+            [namelist:santa]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:santa]
+            [namelist:santa=elf]
+            length=:
+            '''))
 
-[namelist:santa=elf]
-length=:
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, str(input_file)]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
-        self.assertRaises(description.NamelistDescriptionException,
-                          uut.process_config, self.nml_config_file)
+        with pytest.raises(description.NamelistDescriptionException):
+            uut.process_config(json_file)
 
-    ##########################################################################
-    def test_computed_fields(self):
+    def test_computed_fields(self, tmp_path: Path):
+        input_file = tmp_path / 'input.ini'
+        input_file.write_text(dedent('''
+            [namelist:teapot]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:teapot]
+            [namelist:teapot=foo]
+            type=real
 
-[namelist:teapot=foo]
-type=real
+            [namelist:teapot=fum]
+            type=real
 
-[namelist:teapot=fum]
-type=real
+            [!namelist:teapot=bar]
+            type=real
+            expression=namelist:teapot=foo ** 2
 
-[!namelist:teapot=bar]
-type=real
-expression=namelist:teapot=foo ** 2
+            [!namelist:teapot=baz]
+            type=real
+            expression=source:constants_mod=PI * foo
 
-[!namelist:teapot=baz]
-type=real
-expression=source:constants_mod=PI * foo
+            [!namelist:teapot=dosh]
+            type=real
+            expression=namelist:fridge=milk + (namelist:teapot=foo ** 2) - (source:constants_mod=PI * namelist:teapot=fum)
+            '''))
 
-[!namelist:teapot=dosh]
-type=real
-expression=namelist:fridge=milk + (namelist:teapot=foo ** 2) - (source:constants_mod=PI * namelist:teapot=fum)
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, input_file]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
-        result = self._compile_dictionary(
-            uut.process_config(self.nml_config_file))
+        result = self._compile_dictionary(uut.process_config(json_file))
 
-        self.assertEqual({'teapot':
-                          {'foo': ['real', 'r_def'],
+        assert {'teapot': {'foo': ['real', 'r_def'],
                            'fum': ['real', 'r_def'],
                            'bar': ['real', 'r_def', 'foo ** 2'],
                            'baz': ['real', 'r_def', 'PI * foo'],
                            'dosh': ['real', 'r_def',
-                                    'milk + (foo ** 2) - (PI * fum)']}},
-                         result)
+                                    'milk + (foo ** 2) - (PI * fum)']}} \
+            == result
 
 
-##########################################################################
-    def test_constant_in_computed(self):
+    def test_constant_in_computed(self, tmp_path: Path):
+        input_file = tmp_path / 'input.ini'
+        input_file.write_text(dedent('''
+            [namelist:cheese]
 
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:cheese]
+            [namelist:cheese=fred]
+            type=real
 
-[namelist:cheese=fred]
-type=real
+            [!namelist:cheese=wilma]
+            type=real
+            expression=fred * source:constants_mod=FUDGE
+            '''))
 
-[!namelist:cheese=wilma]
-type=real
-expression=fred * source:constants_mod=FUDGE
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
+        picker_command = [PICKER_EXE, str(input_file)]
+        out = Popen(picker_command, cwd=input_file.parent)
         out.wait()
 
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
+        json_file = input_file.with_suffix('.json')
+
+        uut = description.NamelistConfigDescription()
+        result = self._compile_dictionary(uut.process_config(json_file))
+
+        assert {'cheese': {'fred':  ['real', 'r_def'],
+                'wilma': ['real', 'r_def', 'fred * FUDGE']}} == result
+
+    def test_array_fields(self, tmp_path: Path):
+        input_file = tmp_path / 'input.ini'
+        input_file.write_text(dedent('''
+            [namelist:aerial]
+
+            [namelist:aerial=fred]
+            type=real
+
+            [namelist:aerial=wilma]
+            type=real
+            length=:
+            !bounds=source:constants_mod=FUDGE
+
+            [namelist:aerial=betty]
+            type=logical
+            length=:
+            !bounds=fred
+
+            [namelist:aerial=dino]
+            type=integer
+            length=:
+            !bounds=namelist:sugar=TABLET
+
+            [namelist:aerial=bambam]
+            type=integer
+            length=:
+            '''))
+
+        picker_command = [PICKER_EXE, str(input_file)]
+        out = Popen(picker_command, cwd=input_file.parent)
+        out.wait()
+
+        json_file = input_file.with_suffix('.json')
 
         uut = description.NamelistConfigDescription()
         result = self._compile_dictionary(
-            uut.process_config(self.nml_config_file))
+            uut.process_config(json_file))
 
-        self.assertEqual(
-            {'cheese': {'fred':  ['real', 'r_def'],
-                        'wilma': ['real', 'r_def', 'fred * FUDGE']}},
-            result)
-
-
-##########################################################################
-    def test_array_fields(self):
-
-        input_file = tempfile.NamedTemporaryFile(mode='w+t')
-        input_file.write('''
-[namelist:aerial]
-
-[namelist:aerial=fred]
-type=real
-
-[namelist:aerial=wilma]
-type=real
-length=:
-!bounds=source:constants_mod=FUDGE
-
-[namelist:aerial=betty]
-type=logical
-length=:
-!bounds=fred
-
-[namelist:aerial=dino]
-type=integer
-length=:
-!bounds=namelist:sugar=TABLET
-
-[namelist:aerial=bambam]
-type=integer
-length=:
-''')
-        input_file.seek(0)
-
-        picker_command = "{} {}".format(PICKER_EXE, input_file.name)
-        out = Popen(picker_command, shell=True)
-        out.wait()
-
-        self.nml_config_file = \
-            '{}.json'.format(os.path.basename(input_file.name))
-        input_file.close()
-
-        uut = description.NamelistConfigDescription()
-        result = self._compile_dictionary(
-            uut.process_config(self.nml_config_file))
-
-        self.assertEqual(
+        assert result == \
             {'aerial': {'bambam': ['integer', 'i_def', '(:)'],
                         'betty':  ['logical', 'l_def', '(fred)'],
                         'fred':   ['real', 'r_def'],
                         'wilma':  ['real', 'r_def', '(FUDGE)'],
-                        'dino':   ['integer', 'i_def', '(TABLET)']}},
-            result)
-
-
-##############################################################################
-if __name__ == '__main__':
-    unittest.main()
+                        'dino':   ['integer', 'i_def', '(TABLET)']}}

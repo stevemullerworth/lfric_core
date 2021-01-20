@@ -5,24 +5,13 @@
 # For further details please refer to the file LICENCE.original which you
 # should have received as part of this distribution.
 ##############################################################################
-
-from __future__ import absolute_import
-import unittest
 import io
 
 import configurator.configurationloader as loader
 
 
-###############################################################################
-class LoaderTest(unittest.TestCase):
-    def setUp(self):
-        self.maxDiff = None
-
-
-###############################################################################
-    def test_empty(self):
-
-        expected_source = '''
+class TestLoader():
+    _EXPECTED_EMPTY_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -227,19 +216,16 @@ contains
     return
   end subroutine final_configuration
 
-end module empty_mod
-        '''.strip()
+end module empty_mod'''.strip() + '\n'
 
+    def test_empty(self):
         output_file = io.StringIO()
         uut = loader.ConfigurationLoader('empty_mod')
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() == self._EXPECTED_EMPTY_SOURCE
 
-    ###########################################################################
-    def test_with_content(self):
-        expected_source = '''
+    _EXPECTED_WITH_SOURCE = '''
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -466,13 +452,12 @@ contains
     return
   end subroutine final_configuration
 
-end module content_mod
-        '''.strip()
+end module content_mod'''.strip() + '\n'
 
+    def test_with_content(self):
         output_file = io.StringIO()
         uut = loader.ConfigurationLoader('content_mod')
         uut.add_namelist('foo')
         uut.write_module(output_file)
 
-        self.assertMultiLineEqual(expected_source + '\n',
-                                  output_file.getvalue())
+        assert output_file.getvalue() == self._EXPECTED_WITH_SOURCE

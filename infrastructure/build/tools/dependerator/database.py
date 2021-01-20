@@ -8,10 +8,9 @@
 # Manages a database of dependency information.
 #
 
-from __future__ import absolute_import, print_function
-
 from abc import ABCMeta, abstractmethod
 import logging
+from pathlib import Path
 import sqlite3
 import six
 from time import time
@@ -61,12 +60,12 @@ class SQLiteDatabase(_Database):
     # Arguments:
     #   filename - The filename of the database.
     #
-    def __init__( self, filename ):
+    def __init__( self, filename: Path ):
         super(SQLiteDatabase, self).__init__()
 
         start_time = time()
-        self._database = sqlite3.connect( filename, timeout=5.0 )
-        self._database.row_factory     = sqlite3.Row
+        self._database = sqlite3.connect(str(filename), timeout=5.0)
+        self._database.row_factory = sqlite3.Row
         message = 'Time to initialise database: {0}'
         logging.getLogger(__name__).debug(message.format(time() - start_time))
 
@@ -182,14 +181,14 @@ class FileDependencies(object):
         for row in result:
             if row['file'] != lastFile:
                 if prerequisites:
-                    yield lastFile, prerequisites
+                    yield Path(lastFile), prerequisites
                 lastFile = row['file']
                 prerequisites = []
 
-            prerequisites.append( row['prerequisite'] )
+            prerequisites.append( Path(row['prerequisite']) )
 
         if prerequisites:
-            yield lastFile, prerequisites
+            yield Path(lastFile), prerequisites
 
 ###############################################################################
 # Fortran dependencies.
@@ -302,7 +301,7 @@ class FortranDependencies(object):
     def get_program_units( self ):
       query = 'SELECT * FROM fortran_program_unit'
       rows = self._database.query( query )
-      return [(row['unit'], row['file']) for row in rows]
+      return [(row['unit'], Path(row['file'])) for row in rows]
 
     ###########################################################################
     # Add a compile dependency to the database.
@@ -371,7 +370,7 @@ class FortranDependencies(object):
         if len( unit_rows ) == 0:
           message = 'Program unit "{}" requires "{}" but it was not found in the database'
           raise DatabaseException( message.format( unit, prerequisite ) )
-        yield programUnit, programUnitFilename, prerequisite, unit_rows[0]['file']
+        yield programUnit, Path(programUnitFilename), prerequisite, Path(unit_rows[0]['file'])
 
     ###########################################################################
     # Gets all program unit dependencies from database for compilation.
@@ -399,4 +398,4 @@ class FortranDependencies(object):
         rows = self._database.query( query )
 
         for unit, unit_file, prerequisite, prerequisite_file in rows:
-            yield unit, unit_file, prerequisite, prerequisite_file
+            yield unit, Path(unit_file), prerequisite, Path(prerequisite_file)
