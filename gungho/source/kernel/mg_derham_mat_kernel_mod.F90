@@ -150,8 +150,7 @@ subroutine mg_derham_mat_code(cell, nlayers,                      &
   real(kind=r_def), dimension(ndf_chi)         :: chi1_e, chi2_e, chi3_e
   real(kind=r_def)                             :: integrand
   real(kind=r_def)                             :: dj
-  real(kind=r_def), dimension(3,3)             :: jac, jac_inv
-  real(kind=r_def), dimension(3,3)             :: jac_t
+  real(kind=r_def), dimension(3,3)             :: jac
   real(kind=r_def), dimension(3)               :: jac_v
   real(kind=r_def)                             :: wt
 
@@ -181,9 +180,6 @@ subroutine mg_derham_mat_code(cell, nlayers,                      &
                                               ipanel, basis_chi(:,:,qp1,qp2),  &
                                               diff_basis_chi(:,:,qp1,qp2),     &
                                               jac, dj)
-
-           jac_inv = pointwise_coordinate_jacobian_inverse(jac,dj)
-           jac_t = transpose(jac_inv)
            wt = wqp_h(qp1)*wqp_v(qp2)
 
            ! W2 mass matrix

@@ -106,7 +106,7 @@ subroutine rtheta_code(nlayers,                                                 
   real(kind=r_def), dimension(ndf_wtheta)      :: rtheta_e, theta_e
   real(kind=r_def), dimension(ndf_w2)          :: u_e
   real(kind=r_def) :: u_at_quad(3)
-  real(kind=r_def) :: theta_at_quad, grad_theta_at_quad(3), div_u_at_quad
+  real(kind=r_def) :: theta_at_quad, div_u_at_quad
   real(kind=r_def) :: gamma_wtheta, grad_gamma_wtheta(3)
 
   do k = 0, nlayers-1
@@ -135,12 +135,6 @@ subroutine rtheta_code(nlayers,                                                 
         theta_at_quad = 0.0_r_def
         do df = 1, ndf_wtheta
           theta_at_quad   = theta_at_quad + theta_e(df)*wtheta_basis(1,df,qp1,qp2)
-        end do
-
-        grad_theta_at_quad(:) = 0.0_r_def
-        do df = 1, ndf_wtheta
-          grad_theta_at_quad(:) = grad_theta_at_quad(:) &
-                                + theta_e(df)*wtheta_diff_basis(:,df,qp1,qp2)
         end do
 
         do df = 1, ndf_wtheta
