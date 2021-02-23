@@ -9,7 +9,7 @@
 !> to the terminal. For parallel execution, the logging information will
 !> be sent to files - one for each MPI task.
 !>
-!> @todo  At some point the serial version of Dynamo should also log to a file,
+!> @todo  At some point the serial version of a model should also log to a file,
 !>        but for now it is easier for developers if the code logs to stdout.
 
 
@@ -17,6 +17,7 @@ module log_mod
 
   use constants_mod, only : str_long, str_max_filename
   use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
+  use lfric_abort_mod, only : parallel_abort
 
   implicit none
 
@@ -153,7 +154,7 @@ contains
       open(unit=log_unit_number, file=logfilename, status='unknown', iostat=ios)
       if ( ios /= 0 )then
         write(error_unit,"('Cannot open logging file. iostat = ',i0)")ios
-        stop EXIT_CODE_ON_ERROR
+        call abort_model()
       end if
       call log_event('LFRic Logging System Version 1.0',LOG_LEVEL_ALWAYS)
     else
@@ -170,7 +171,7 @@ contains
       close(unit=log_unit_number,iostat=ios)
       if ( ios /= 0 )then
         write(error_unit,"('Cannot close logging file. iostat = ',i0)")ios
-        stop EXIT_CODE_ON_ERROR
+        call abort_model()
       end if
     end if
   end subroutine finalise_logging
@@ -240,11 +241,41 @@ contains
 
       ! If the severity level of the event is serious enough, stop the code.
       if ( abort_run ) then
-        stop EXIT_CODE_ON_ERROR
+        call abort_model()
       end if
 
     end if
 
   end subroutine log_event
+
+  ! @brief   Close output unit and stop the model
+
+  subroutine abort_model()
+
+    implicit none
+
+    integer             :: ios
+    logical             :: file_opened
+
+    if ( is_parallel ) then
+      ! Close the parallel output files if opened
+      inquire( unit = log_unit_number, opened = file_opened )
+      if ( file_opened ) then
+        flush( log_unit_number )
+        close( unit = log_unit_number , iostat = ios )
+        if ( ios /= 0 )then
+          write(error_unit,"('Cannot close logging file. iostat = ',i0)")ios
+        end if
+      end if
+      ! Abort parallel applications
+      call parallel_abort( EXIT_CODE_ON_ERROR )
+
+    else
+      ! Stop serial applications
+      stop EXIT_CODE_ON_ERROR
+
+    end if
+
+  end subroutine abort_model
 
 end module log_mod

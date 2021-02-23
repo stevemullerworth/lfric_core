@@ -229,10 +229,6 @@ class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
     '''
     Caches log files for future retrieval.
 
-    This should only be attempted if the executable completed normally.
-    i.e. It completed of its own volition, not as the result of a signal.
-         An error condition is "normal" in these terms.
-
     When running on a single processor all log messages are written to stdout
     and no log file is generated. Therefore, only attempt to cache the log file
     if the number processes is greater than one.
@@ -240,10 +236,10 @@ class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
     Some filing systems (Lustre for instance) suffer a lag between a file
     being closed and it becoming visible for reading. To try and mitigate
     this a number of attempts will be made to open the file with a sleep
-    period between them. It is only after these attempts are exhausted will
+    period between them. Only after these attempts are exhausted will
     the file be reported missing.
     '''
-    if return_code < 128 and self._processes > 1:
+    if self._processes > 1:
       for number in range(0, self._processes):
         width = int( math.floor( math.log10( self._processes ) ) ) + 1
         filenameFormat = 'PET{{number:0{width}d}}.{{name}}'

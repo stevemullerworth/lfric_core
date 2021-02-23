@@ -91,9 +91,9 @@ class log_mod_error_parallel_test( LFRicLoggingTest ):
     if returncode == 0:
       raise TestFailed( 'Logging an error did not cause termination to end' )
 
-    if out != '' or err != '':
-      message = 'Expected no output on standard out or standard error:\n' \
-                 + 'Standard out: {out}\nStandard error: {err}'
+    if out != '':
+      message = 'Expected no output on standard out:\n' \
+                 + 'Standard out: {out}'
       raise TestFailed( message.format( out=out, err=err ) )
 
     # We remove the first line as it will be a spin-up message.

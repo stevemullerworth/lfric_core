@@ -27,9 +27,21 @@ program log_mod_error_test
   local_rank  = get_comm_rank()
   call initialise_logging(local_rank, total_ranks, 'log_mod_error_test')
 
-  ! Everything else is here purely to support the testing of this line:
-  !
-  call log_event( 'An error was logged.', LOG_LEVEL_ERROR )
+  ! Testing an error occurring on rank 0 of a parallel
+  ! application. The choice of rank needs to be consistent with the
+  ! matching Python routine which should query the output from the
+  ! first rank: the PET0* file.
+
+  ! Note that we initiate the error on the first rank only. Initiating
+  ! an error on all ranks will sometimes result in the first rank
+  ! being killed off by the error report in another rank before it has
+  ! processed the error. If the first rank is prevented from reporting
+  ! an error, the test of the output will fail to find the expected
+  ! error message.
+
+  if (local_rank == 0) then
+    call log_event( 'An error was logged.', LOG_LEVEL_ERROR )
+  end if
 
   ! Finalise mpi and release the communicator
   call finalise_comm()
