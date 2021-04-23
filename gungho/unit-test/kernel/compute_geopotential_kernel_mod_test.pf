@@ -95,7 +95,6 @@ contains
                                   dry_static_adjust=.false.,               &
                                   exner_from_eos=.false.,                  &
                                   dlayer_on = .true.,                      &
-                                  set_hydrostatic_init = .false.,          &
                                   init_exner_bt        = .true.,           &
                                   si_momentum_equation = .true.,           &
                                   vector_invariant=.true.,                 &

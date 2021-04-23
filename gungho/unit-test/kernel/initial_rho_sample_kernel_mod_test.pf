@@ -75,8 +75,7 @@ contains
                                        r1=0.0_r_def, x1=0.0_r_def,  &
                                        y1=0.0_r_def, z1=0.0_r_def,  &
                                        r2=0.0_r_def, x2=0.0_r_def,  &
-                                       y2=0.0_r_def, z2=0.0_r_def,  &
-                                       sample_init_rho=.false.)
+                                       y2=0.0_r_def, z2=0.0_r_def)
     call feign_idealised_config( test=test_constant_field )
 
   end subroutine setUp

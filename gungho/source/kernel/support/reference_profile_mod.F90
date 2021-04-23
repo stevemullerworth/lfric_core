@@ -30,6 +30,7 @@ use idealised_config_mod,           only : test_cold_bubble_x,    &
                                            test_warm_bubble_3d,   &
                                            test_yz_cosine_hill,   &
                                            test_shallow_conv
+use initial_pressure_config_mod,    only : surface_pressure
 use initial_temperature_config_mod, only : bvf_square, theta_surf
 use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
                                            kappa, p_zero
@@ -61,9 +62,11 @@ real(kind=r_def),    intent(in)           :: x(3)
 integer(kind=i_def), intent(in)           :: itest_option
 real(kind=r_def),    intent(out)          :: exner_s, rho_s, theta_s
 
-real(kind=r_def), parameter :: exner_surf     = 1.0_r_def
 real(kind=r_def), parameter :: lapse_rate     = 0.0065_r_def
 real(kind=r_def)            :: nsq_over_g, z, u_s(3), lat, lon, r, t, p
+real(kind=r_def)            :: exner_surf
+
+exner_surf = (surface_pressure / p_zero) ** kappa
 
 if ( geometry == geometry_spherical .and. &
      topology == topology_fully_periodic ) then  ! SPHERICAL DOMAIN
@@ -96,7 +99,6 @@ else                     ! PLANAR DOMAIN
   ! Calculate theta and exner for each biperiodic test
   select case( itest_option )
     case( test_gravity_wave, &
-          test_held_suarez,  &
           test_isot_atm )
       nsq_over_g = bvf_square/gravity
       theta_s = theta_surf * exp ( nsq_over_g * z )

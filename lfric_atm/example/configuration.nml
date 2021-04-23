@@ -81,7 +81,6 @@ exner_from_eos=.true.,
 init_exner_bt=.true.,
 moisture_conservation=.true.,
 rotating=.true.,
-set_hydrostatic_init=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
 transport_only=.false.,
@@ -116,6 +115,10 @@ y1=0.0,
 y2=0.0,
 z1=0.0,
 z2=0.0,
+/
+&initial_pressure
+method='balanced'
+surface_pressure=1000.0e2
 /
 &initial_temperature
 bvf_square=0.0001,

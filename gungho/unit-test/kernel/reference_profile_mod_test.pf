@@ -38,6 +38,8 @@ module reference_profile_mod_test
   real(r_def), parameter :: theta_surf = 300.0_r_def
   real(r_def), parameter :: pert_width_scaling = 1.0_r_def
 
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -51,7 +53,11 @@ contains
     use feign_config_mod,          only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config, &
                                           feign_planet_config,              &
-                                          feign_finite_element_config
+                                          feign_finite_element_config,      &
+                                          feign_initial_pressure_config
+
+    use initial_pressure_config_mod,                      &
+                                   only : method_balanced
 
     implicit none
 
@@ -72,6 +78,9 @@ contains
     call feign_initial_temperature_config( bvf_square=bvf_square, &
                                            theta_surf=theta_surf, &
                                            pert_width_scaling=pert_width_scaling  )
+
+    call feign_initial_pressure_config( method = method_balanced,             &
+                                        surface_pressure = surface_pressure )
 
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &

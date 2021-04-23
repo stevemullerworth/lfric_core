@@ -15,6 +15,7 @@
 module generate_global_gw_fields_mod
 
 use constants_mod,                  only : r_def, pi
+use initial_pressure_config_mod,    only : surface_pressure
 use initial_temperature_config_mod, only : bvf_square, &
                                            pert_width_scaling
 use planet_config_mod,              only : gravity, &
@@ -61,7 +62,7 @@ implicit none
   real(kind=r_def) :: p_equator
   real(kind=r_def) :: u00
 
-  p_equator = p_zero
+  p_equator = surface_pressure
 
 ! Calculate bigG
   bigG = gravity**2/(bvf_square*Cp)

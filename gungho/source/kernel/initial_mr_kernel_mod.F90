@@ -20,8 +20,8 @@ module initial_mr_kernel_mod
     use constants_mod,                 only: r_def, i_def
     use kernel_mod,                    only: kernel_type
     use planet_config_mod,             only: p_zero, Rd, kappa
-    use formulation_config_mod,        only: set_hydrostatic_init
     use section_choice_config_mod,     only: cloud, cloud_um
+    use initial_pressure_config_mod,   only: method, method_balanced
 
     !physics routines
     use physics_common_mod, only: qsaturation
@@ -102,7 +102,7 @@ contains
         real(kind=r_def)                    :: theta_at_dof, rho_at_dof, pressure_at_dof, &
                                                exner_at_dof, temperature_at_dof
         ! compute the pointwise mr profile
-        if (set_hydrostatic_init) then
+        if (method == method_balanced) then
 
           do k = 0, nlayers - 1
 

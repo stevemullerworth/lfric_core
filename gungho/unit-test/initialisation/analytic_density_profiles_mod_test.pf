@@ -30,12 +30,17 @@ module analytic_density_profiles_mod_test
     procedure hadley_like_dcmip_test
   end type analytic_density_profiles_test_type
 
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   subroutine setUp( this )
 
     use feign_config_mod,          only : feign_initial_density_config,   &
+                                          feign_initial_pressure_config,  &
                                           feign_planet_config
+
+    use initial_pressure_config_mod,  only : method_balanced
 
     implicit none
 
@@ -56,8 +61,10 @@ contains
                                        r1=1.0_r_def, x1=2.0_r_def,      &
                                        y1=3.0_r_def, z1=4.0_r_def,      &
                                        r2=1.0_r_def, x2=0.0_r_def,      &
-                                       y2=0.0_r_def, z2=0.0_r_def,      &
-                                       sample_init_rho=.false. )
+                                       y2=0.0_r_def, z2=0.0_r_def )
+
+    call feign_initial_pressure_config ( method           = method_balanced,   &
+                                         surface_pressure = surface_pressure )
 
   end subroutine setUp
 

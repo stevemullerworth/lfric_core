@@ -38,6 +38,9 @@ module analytic_temperature_profiles_mod_test
   real(r_def), parameter :: bvf_square = 0.0001_r_def
   real(r_def), parameter :: theta_surf = 300.0_r_def
   real(r_def), parameter :: pert_width_scaling = 1.0_r_def
+
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -48,7 +51,11 @@ contains
                                         feign_initial_temperature_config, &
                                         feign_idealised_config,           &
                                         feign_initial_wind_config,        &
-                                        feign_initial_density_config
+                                        feign_initial_density_config,     &
+                                        feign_initial_pressure_config
+
+    use initial_pressure_config_mod,  only : method_balanced
+
     use initial_wind_config_mod, only : profile_none
 
     use base_mesh_config_mod, only : geometry_planar,    &
@@ -68,6 +75,10 @@ contains
     call feign_initial_temperature_config( bvf_square=bvf_square, &
                                            theta_surf=theta_surf, &
                                            pert_width_scaling=pert_width_scaling )
+
+    call feign_initial_pressure_config( method = method_balanced,             &
+                                        surface_pressure = surface_pressure )
+
     call feign_idealised_config( test=test_cold_bubble_x )
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
@@ -91,8 +102,7 @@ contains
                                     wavelength=1.0_r_def,       &
                                     wind_time_period=0.0_r_def, &
                                     smp_init_wind=.false. )
-    call feign_initial_density_config( sample_init_rho = .false.,                      &
-                                       tracer_max = 1.0_r_def,                         &
+    call feign_initial_density_config( tracer_max = 1.0_r_def,                         &
                                        tracer_background = 1.0_r_def,                  &
                                        r1 = 0.1_r_def, x1 = 0.0_r_def, y1 = 0.0_r_def, z1=0.0_r_def, &
                                        r2 = 0.1_r_def, x2 = 0.0_r_def, y2 = 0.0_r_def, z2=0.0_r_def )

@@ -37,17 +37,18 @@ module analytic_orography_field_cartesian_mod_test
     procedure     :: test_analytic_orography_field_cartesian
   end type analytic_orography_field_cartesian_test_type
 
-  character(str_def), parameter   :: mesh_name     = 'unit_test'
-  character(len=str_max_filename) :: filename      = "data/mesh_BiP40x40-5x5.nc"
-  real(r_def),        parameter   :: domain_bottom = 0.0_r_def
-  real(r_def),        parameter   :: domain_top    = 10000.0_r_def
-  integer(i_def),     parameter   :: npanels       = 1_i_def
-  integer(i_def),     parameter   :: nlayers       = 10_i_def
-  integer(i_def),     parameter   :: element_order = 0_i_def
-  integer(i_def),     parameter   :: total_ranks   = 1_i_def
-  integer(i_def),     parameter   :: local_rank    = 0_i_def
-  integer(i_def),     parameter   :: xproc         = 1_i_def
-  integer(i_def),     parameter   :: yproc         = 1_i_def
+  character(str_def), parameter   :: mesh_name        = 'unit_test'
+  character(len=str_max_filename) :: filename         = "data/mesh_BiP40x40-5x5.nc"
+  real(r_def),        parameter   :: domain_bottom    = 0.0_r_def
+  real(r_def),        parameter   :: domain_top       = 10000.0_r_def
+  real(r_def),        parameter   :: surface_pressure = 1000.0e2_r_def
+  integer(i_def),     parameter   :: npanels          = 1_i_def
+  integer(i_def),     parameter   :: nlayers          = 10_i_def
+  integer(i_def),     parameter   :: element_order    = 0_i_def
+  integer(i_def),     parameter   :: total_ranks      = 1_i_def
+  integer(i_def),     parameter   :: local_rank       = 0_i_def
+  integer(i_def),     parameter   :: xproc            = 1_i_def
+  integer(i_def),     parameter   :: yproc            = 1_i_def
 
 contains
 
@@ -60,14 +61,17 @@ contains
                                               topology_fully_periodic
     use finite_element_config_mod,     only : cellshape_quadrilateral, &
                                               spherical_coord_system_xyz
-    use feign_config_mod,              only : feign_finite_element_config, &
-                                              feign_base_mesh_config,   &
-                                              feign_domain_size_config, &
-                                              feign_extrusion_config,   &
+    use feign_config_mod,              only : feign_finite_element_config,   &
+                                              feign_base_mesh_config,        &
+                                              feign_domain_size_config,      &
+                                              feign_extrusion_config,        &
+                                              feign_initial_pressure_config, &
                                               feign_orography_schar_cartesian_config
-    use orography_schar_cartesian_config_mod, only : &
-                                       direction_x
-    use extrusion_config_mod,    only : method_uniform, stretching_method_linear
+    use orography_schar_cartesian_config_mod, &
+                                       only : direction_x
+    use extrusion_config_mod,          only : method_uniform, stretching_method_linear
+
+    use initial_pressure_config_mod,   only : method_balanced
 
     implicit none
 
@@ -107,6 +111,9 @@ contains
                                       spherical_coord_order = 0,         &
                                       spherical_coord_system=spherical_coord_system_xyz, &
                                       vorticity_in_w1=.false. )
+
+    call feign_initial_pressure_config( method = method_balanced,             &
+                                        surface_pressure = surface_pressure )
 
     ! Set Schar Cartesian configuration
     this%mountain_height = 250.0_r_def

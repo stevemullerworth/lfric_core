@@ -22,7 +22,7 @@ module transport_init_fields_alg_mod
   use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
   use initial_rho_sample_kernel_mod,     only: initial_rho_sample_kernel_type
   use set_rho_kernel_mod,                only: set_rho_kernel_type
-  use initial_density_config_mod,        only: sample_init_rho
+  use initial_pressure_config_mod,       only: method, method_sampled
 
   implicit none
 
@@ -82,7 +82,7 @@ subroutine transport_init_fields_alg( wind_n,    &
                  setval_c( dep_pts_z, 1.0_r_def ), &
                  setval_c( divergence, 1.0_r_def) )
 
-    if ( sample_init_rho ) then
+    if ( method == method_sampled ) then
       call invoke( initial_rho_sample_kernel_type( density, chi_xyz, initial_time ), &
                    initial_rho_sample_kernel_type( theta  , chi_xyz, initial_time )  )
      else

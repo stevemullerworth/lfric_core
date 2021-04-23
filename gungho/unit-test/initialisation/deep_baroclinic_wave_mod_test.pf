@@ -35,15 +35,21 @@ module deep_baroclinic_wave_mod_test
   real(r_def), parameter :: cp       = 1000.0_r_def
   real(r_def), parameter :: scaling  = 1.0_r_def
 
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,        only : feign_base_mesh_config,       &
-                                        feign_planet_config,          &
-                                        feign_initial_wind_config,    &
+    use feign_config_mod,        only : feign_base_mesh_config,        &
+                                        feign_planet_config,           &
+                                        feign_initial_pressure_config, &
+                                        feign_initial_wind_config,     &
                                         feign_formulation_config
+
+    use initial_pressure_config_mod,  only : method_balanced
+
     use initial_wind_config_mod, only : profile_deep_baroclinic_steady
 
     use base_mesh_config_mod, only : geometry_spherical,      &
@@ -82,6 +88,10 @@ contains
                wind_time_period = 0.0_r_def,                          &
                smp_init_wind = .false. )
 
+    call feign_initial_pressure_config               &
+             ( method           = method_balanced,   &
+               surface_pressure = surface_pressure )
+
     call feign_formulation_config(transport_only=.false., rotating=.true., &
                                   l_multigrid=.false.,                     &
                                   use_moisture=.false.,                    &
@@ -90,7 +100,6 @@ contains
                                   dry_static_adjust=.false.,               &
                                   exner_from_eos=.false.,                  &
                                   dlayer_on = .false.,                     &
-                                  set_hydrostatic_init = .false.,          &
                                   init_exner_bt        = .true.,           &
                                   si_momentum_equation=.true.,             &
                                   vector_invariant=.true.,                 &

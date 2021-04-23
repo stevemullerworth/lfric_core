@@ -56,6 +56,8 @@ module agnesi_orography_spherical_mod_test
   real(r_def), parameter :: cp       = 1000.0_r_def
   real(r_def), parameter :: scaling  = 125.0_r_def
 
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -66,13 +68,16 @@ contains
     use base_mesh_config_mod,           only : geometry_spherical,      &
                                                partitioner_cubedsphere, &
                                                topology_fully_periodic
-    use feign_config_mod,               only :                  &
-                                        feign_base_mesh_config, &
-                                        feign_planet_config,    &
+    use feign_config_mod,               only :                         &
+                                        feign_base_mesh_config,        &
+                                        feign_planet_config,           &
+                                        feign_initial_pressure_config, &
                                         feign_orography_agnesi_spherical_config
     use orography_agnesi_spherical_config_mod, only :              &
                                         lambda_centre, phi_centre, &
                                         lambda_focus, phi_focus
+
+    use initial_pressure_config_mod,    only : method_balanced
 
     implicit none
 
@@ -101,6 +106,9 @@ contains
                               cp             = cp,      &
                               p_zero         = p_zero,  &
                               scaling_factor = scaling )
+
+    call feign_initial_pressure_config( method           = method_balanced,   &
+                                        surface_pressure = surface_pressure )
 
     ! Set Witch-of-Agnesi spherical configuration
     this%mountain_height   = 100.0_r_def

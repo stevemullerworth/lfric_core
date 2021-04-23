@@ -106,13 +106,14 @@ contains
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega,  &
                               rd=rd, cp=cp, p_zero=p_zero,                  &
                               scaling_factor=scaling )
+
     call feign_initial_density_config( tracer_background=0.0_r_def,         &
                                        tracer_max=1.0_r_def,                &
                                        r1=0.0_r_def, x1=0.0_r_def,          &
                                        y1=0.0_r_def, z1=0.0_r_def,          &
                                        r2=0.0_r_def, x2=0.0_r_def,          &
-                                       y2=0.0_r_def, z2=0.0_r_def,          &
-                                       sample_init_rho=.false.)
+                                       y2=0.0_r_def, z2=0.0_r_def)
+
     call feign_idealised_config( test=test_gravity_wave )
 
     nlayers=3
@@ -201,7 +202,11 @@ contains
   subroutine test_bottom_up( this )
 
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
-    use feign_config_mod,             only : feign_formulation_config
+    use feign_config_mod,             only : feign_formulation_config,     &
+                                             feign_initial_pressure_config
+
+    use initial_pressure_config_mod,  only : method_balanced
+
 
     implicit none
 
@@ -221,11 +226,14 @@ contains
                                   dry_static_adjust=.false.,                &
                                   dlayer_on=.false.,                        &
                                   exner_from_eos=.true.,                    &
-                                  set_hydrostatic_init = .true.,            &
                                   init_exner_bt        = .true.,            &
                                   si_momentum_equation=.true.,              &
                                   vector_invariant=.true.,                  &
                                   moisture_conservation=.false.   )
+
+    call feign_initial_pressure_config( method=method_balanced,             &
+                                        surface_pressure=1000.0e2_r_def)
+
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &
@@ -258,7 +266,10 @@ contains
   subroutine test_top_down( this )
 
     use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
-    use feign_config_mod,             only : feign_formulation_config
+    use feign_config_mod,             only : feign_formulation_config,     &
+                                             feign_initial_pressure_config
+
+    use initial_pressure_config_mod,  only : method_balanced
 
     implicit none
 
@@ -277,11 +288,15 @@ contains
                                   dry_static_adjust=.false.,                 &
                                   dlayer_on=.false.,                         &
                                   exner_from_eos=.true.,                     &
-                                  set_hydrostatic_init = .true.,             &
                                   init_exner_bt        = .false.,            &
                                   si_momentum_equation=.true.,               &
                                   vector_invariant=.true.,                   &
                                   moisture_conservation=.true.   )
+
+
+    call feign_initial_pressure_config( method=method_balanced,             &
+                                        surface_pressure=1000.0e2_r_def)
+
     nlayers=3
     cell=1
     call hydrostatic_exner_code( nlayers,                             &

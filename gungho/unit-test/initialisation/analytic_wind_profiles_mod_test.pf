@@ -77,7 +77,6 @@ contains
                                    use_wavedynamics      = .true.,          &
                                    dry_static_adjust     = .false.,         &
                                    exner_from_eos        = .false.,         &
-                                   set_hydrostatic_init  = .false.,         &
                                    init_exner_bt         = .true.,          &
                                    dlayer_on             = .false.,         &
                                    si_momentum_equation  = .true.,          &

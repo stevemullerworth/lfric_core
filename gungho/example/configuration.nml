@@ -45,7 +45,6 @@
   dlayer_on             = .false.
   dry_static_adjust     = .false.
   exner_from_eos        = .true.
-  set_hydrostatic_init  = .false.
   init_exner_bt         = .true.
   si_momentum_equation  = .false.
   vector_invariant      = .false.
@@ -57,7 +56,6 @@
 /
 
 &initial_density
-  sample_init_rho = .false.
   tracer_max = 2.0
   tracer_background = 0.1
   r1 = 0.4
@@ -66,6 +64,11 @@
   r2 = 0.4
   x2 = -0.4
   y2 = 0.0
+/
+
+&initial_pressure
+  method = 'projected'
+  surface_pressure = 1000.0e2
 /
 
 &initial_temperature

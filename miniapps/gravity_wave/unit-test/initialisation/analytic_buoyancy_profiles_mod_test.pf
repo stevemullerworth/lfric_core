@@ -38,6 +38,8 @@ module analytic_buoyancy_profiles_mod_test
   real(r_def), parameter :: theta_surf = 300.0_r_def
   real(r_def), parameter :: pert_width_scaling = 1.0_r_def
 
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -50,7 +52,11 @@ contains
                                         feign_planet_config,              &
                                         feign_initial_temperature_config, &
                                         feign_idealised_config,           &
-                                        feign_initial_wind_config
+                                        feign_initial_wind_config,        &
+                                        feign_initial_pressure_config
+
+    use initial_pressure_config_mod,                    &
+                                 only : method_balanced
     use idealised_config_mod,    only : test_gravity_wave
     use initial_wind_config_mod, only : profile_none
 
@@ -66,6 +72,10 @@ contains
     call feign_initial_temperature_config( bvf_square=bvf_square, &
                                            theta_surf=theta_surf, &
                                            pert_width_scaling=pert_width_scaling )
+
+    call feign_initial_pressure_config( method=method_balanced,             &
+                                        surface_pressure=surface_pressure )
+
     call feign_idealised_config( test=test_gravity_wave )
     call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
                               rd=rd, cp=cp, p_zero=p_zero,                 &
