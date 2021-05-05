@@ -96,6 +96,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use coordinate_jacobian_mod, only : coordinate_jacobian,                   &
                                         coordinate_jacobian_inverse,           &
                                         pointwise_coordinate_jacobian,         &
@@ -105,7 +106,8 @@ contains
 
     class(jacobian_abh_test_type), intent(inout) :: this
 
-    real(kind=r_def) :: tol, answer_dj
+    real(kind=r_def), parameter :: tol = 1.0e-14_r_def  ! r_def 64bit
+    real(kind=r_def)            :: use_tol, answer_dj
 
     integer :: ndf = 8
     integer :: ngp = 1
@@ -115,6 +117,7 @@ contains
     real(kind=r_def) :: alpha(8), beta(8), height(8), diff_basis(3,8,1,1)
     real(kind=r_def) :: basis(1,8,1,1), jac(3,3,1,1), dj(1,1)
     real(kind=r_def) :: jac_inv(3,3,1,1), identity(3,3,1,1), err, answer(3,3)
+    real(kind=r_def) :: tst(3,3)
 
     real(kind=r_def), parameter :: a = 0.1_r_def
     real(kind=r_def), parameter :: b = 0.1_r_def
@@ -164,17 +167,32 @@ contains
 
     err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
                   - identity(:,:,1,1) ) )
+    tst = abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) ))
 
-    tol = 1.0e-14_r_def
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( dj ) ) )
+    end if
+    @assertEqual( answer_dj, dj, use_tol*answer_dj )
 
-    @assertEqual( answer_dj, dj, tol*answer_dj )
-    @assertEqual( 0.0_r_def, err, tol )
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( tst ) ) )
+    end if
+    @assertEqual( 0.0_r_def, err, use_tol )
 
     ! Test Jacobian values
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( jac(:,:,1,1) ) ))
+    end if
     do i = 1, 3
       do j = 1, 3
         ! Scale tolerance so it makes sense for big numbers as well as zero
-        @assertEqual( answer(i,j), jac(i,j,1,1), tol*(answer(i,j)+1.0_r_def) )
+        @assertEqual( answer(i,j), jac(i,j,1,1), use_tol*(answer(i,j)+1.0_r_def) )
       end do
     end do
 
@@ -186,14 +204,31 @@ contains
                                                               dj(1,1))
     err = maxval( abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) )               &
                   - identity(:,:,1,1) ) )
+    tst = abs( matmul( jac_inv(:,:,1,1), jac(:,:,1,1) ))
 
-    @assertEqual( answer_dj, dj, tol*answer_dj )
-    @assertEqual( 0.0_r_def, err, tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( dj ) ) )
+    end if
+    @assertEqual( answer_dj, dj, use_tol*answer_dj )
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( tst ) ) )
+    end if
+    @assertEqual( 0.0_r_def, err, use_tol)
 
     ! Test Jacobian values
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( tol, 10.0_r_def*spacing( maxval( jac(:,:,1,1) ) ))
+    end if
     do i = 1, 3
       do j = 1, 3
-        @assertEqual( answer(i,j), jac(i,j,1,1), tol*(answer(i,j)+1.0_r_def) )
+        @assertEqual( answer(i,j), jac(i,j,1,1), use_tol*(answer(i,j)+1.0_r_def) )
       end do
     end do
 

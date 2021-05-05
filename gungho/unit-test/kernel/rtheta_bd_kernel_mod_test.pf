@@ -61,7 +61,8 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use rtheta_bd_kernel_mod, only : rtheta_bd_code
+    use, intrinsic :: iso_fortran_env, only : real64
+    use rtheta_bd_kernel_mod,          only : rtheta_bd_code
 
     use get_unit_test_qfaces_mod, only: get_number_quadrature_points_per_face, &
                                         get_w2_qfaces_cube_h_basis,            &
@@ -81,8 +82,10 @@ contains
 
     class(rtheta_bd_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: tol    = 1.0e-6_r_def   ! r_def 64bit
+    real(r_def), parameter :: tol32  = 1.0e-2_r_def   ! r_def 32bit
     real(r_def), parameter :: answer = 1.0_r_def
+    real(r_def)            :: use_tol
 
     ! Mesh and reference element information
     real(r_def), allocatable    :: normals_to_horizontal_faces(:,:)
@@ -201,7 +204,12 @@ contains
                          nfaces_qr, nqp_f, wqp_f )
 
     ! Simple test, check that when theta=constant, the code inputs no increment
-    @assertEqual( answer, r_theta_bd_data(:), tol )
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = tol32
+    end if
+    @assertEqual( answer, r_theta_bd_data(:), use_tol )
 
     deallocate(cross_stencil_w2_map)
     deallocate(cross_stencil_wtheta_map)

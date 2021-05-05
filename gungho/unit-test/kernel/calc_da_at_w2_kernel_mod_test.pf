@@ -102,13 +102,14 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use calc_dA_at_w2_kernel_mod, only : calc_dA_at_w2_code
+    use, intrinsic :: iso_fortran_env, only : real64
+    use calc_dA_at_w2_kernel_mod,      only : calc_dA_at_w2_code
 
     implicit none
 
     class(calc_dA_at_w2_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def  ! r_def 64bit tolerance
     real(kind=r_def), parameter :: dx   = 4.0_r_def
     real(kind=r_def), parameter :: dy   = 7.0_r_def
     real(kind=r_def), parameter :: dz   = 13.0_r_def
@@ -135,7 +136,8 @@ contains
     real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
     real(r_def), allocatable :: basis_w0(:,:,:,:)
 
-    integer(kind=i_def) :: i, j, k, cell
+    real(r_def)    :: tst, use_tol
+    integer(i_def) :: i, j, k, cell
 
     ! Sizes
     integer(i_def) :: nlayers, ncells
@@ -212,12 +214,39 @@ contains
     ! N,S: 7*13 = 91
     ! E,W: 4*13 = 52
     ! T,B: 5*7  = 35
-    @assertEqual(91.0_r_def, dA_w2( map_w2( N, cell) ), tol)
-    @assertEqual(91.0_r_def, dA_w2( map_w2( S, cell) ), tol)
-    @assertEqual(52.0_r_def, dA_w2( map_w2( E, cell) ), tol)
-    @assertEqual(52.0_r_def, dA_w2( map_w2( W, cell) ), tol)
-    @assertEqual(35.0_r_def, dA_w2( map_w2( T, cell) ), tol)
-    @assertEqual(35.0_r_def, dA_w2( map_w2( B, cell) ), tol)
+    if ( r_def == real64 ) then
+       use_tol = tol
+       @assertEqual(91.0_r_def, dA_w2( map_w2( N, cell) ), use_tol)
+       @assertEqual(91.0_r_def, dA_w2( map_w2( S, cell) ), use_tol)
+       @assertEqual(52.0_r_def, dA_w2( map_w2( E, cell) ), use_tol)
+       @assertEqual(52.0_r_def, dA_w2( map_w2( W, cell) ), use_tol)
+       @assertEqual(35.0_r_def, dA_w2( map_w2( T, cell) ), use_tol)
+       @assertEqual(35.0_r_def, dA_w2( map_w2( B, cell) ), use_tol)
+    else
+       tst     = dA_w2( map_w2( N, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(91.0_r_def, tst, use_tol)
+
+       tst     = dA_w2( map_w2( S, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(91.0_r_def, tst, use_tol)
+
+       tst     = dA_w2( map_w2( E, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(52.0_r_def, tst, use_tol)
+
+       tst     = dA_w2( map_w2( W, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(52.0_r_def, tst, use_tol)
+
+       tst     = dA_w2( map_w2( T, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(35.0_r_def, tst, use_tol)
+
+       tst     = dA_w2( map_w2( B, cell) )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(35.0_r_def, tst, use_tol)
+    endif
 
     deallocate(dA_w2)
     deallocate(chi1)

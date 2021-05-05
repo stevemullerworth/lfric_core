@@ -101,15 +101,16 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use moist_dyn_factors_kernel_mod, only: moist_dyn_factors_code
-    use planet_config_mod,            only: epsilon
+    use, intrinsic :: iso_fortran_env, only : real64
+    use moist_dyn_factors_kernel_mod,  only : moist_dyn_factors_code
+    use planet_config_mod,             only : epsilon
 
     implicit none
 
     class(moist_dyn_factors_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-9_r_def
-    real(r_def)            :: answer
+    real(r_def), parameter :: tol = 1.0e-9_r_def   ! r_def 64bit
+    real(r_def)            :: answer, use_tol
 
     integer(i_def) :: i, k, df
     real(r_def)    :: z_factor
@@ -163,6 +164,7 @@ contains
     end do
 
     ! Check total mass factor
+    ! For r_def 64bit
     do k = 1, nlayers - 1
       do df = 1, ndf_wtheta
         z_factor = 1.0_r_def - real(k + df - 1_i_def, kind = r_def) / &
@@ -172,7 +174,12 @@ contains
           answer = answer + 1.0_r_def / real(i, kind = r_def)
         end do
         answer = 1.0_r_def + 0.01_r_def * z_factor * answer
-        @assertEqual(this%moist_dyn(this%map_wtheta(df) + k, 2), answer, tol)
+        if ( r_def == real64 ) then
+          use_tol = tol
+        else
+          use_tol = 10.0_r_def * spacing( answer )
+        end if
+        @assertEqual( this%moist_dyn( this%map_wtheta(df) + k, 2 ), answer, use_tol )
       end do
     end do
 

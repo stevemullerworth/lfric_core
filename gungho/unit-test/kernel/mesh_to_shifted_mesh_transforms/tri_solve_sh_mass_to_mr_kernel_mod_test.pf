@@ -67,13 +67,13 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only      : real64
     use tri_solve_sh_mass_to_mr_kernel_mod, only : tri_solve_sh_mass_to_mr_code
 
     implicit none
 
     class(tri_solve_sh_mass_to_mr_kernel_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
 
     integer(kind=i_def) :: nlayers_shifted, nlayers, ncells, cell
     integer(kind=i_def) :: ndf_wt, undf_wt, ndf_sh_w3, undf_sh_w3
@@ -85,6 +85,7 @@ contains
     real(kind=r_def), allocatable    :: field_wt(:)
     real(kind=r_def), allocatable    :: field_sh_w3(:)
     real(kind=r_def), allocatable    :: answer(:)
+    real(kind=r_def)                 :: tol
 
     ! Set up a single column mesh
     nlayers = 3
@@ -134,6 +135,11 @@ contains
                                         map_sh_w3(:,cell)       &
                                       )
 
+    if ( r_def == real64 ) then
+       tol = 1.0e-12_r_def
+    else
+       tol = 10.0_r_def*spacing( maxval( field_wt ) )
+    end if
     @assertEqual(answer, field_wt, tol)
 
     deallocate(map_sh_w3)

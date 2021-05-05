@@ -7,6 +7,7 @@
 module chi_transform_mod_test
 
   use pFUnit_Mod
+  use, intrinsic :: iso_fortran_env, only : real64
   use yaxt,                      only : xt_initialize, xt_finalize
   use mpi_mod,                   only : store_comm, clear_comm
   use constants_mod,             only : r_def, i_def, i_native, PI, str_long
@@ -302,10 +303,19 @@ contains
     end select
 
     ! Check if answers are correct
-    tol = 1e-12
-    @assertEqual( this%target_chi_1, new_coord_1, tol )
-    @assertEqual( this%target_chi_2, new_coord_2, tol )
-    @assertEqual( this%target_chi_3, new_coord_3, tol )
+    if ( r_def == real64 ) then
+       tol = 1e-12
+       @assertEqual( this%target_chi_1, new_coord_1, tol )
+       @assertEqual( this%target_chi_2, new_coord_2, tol )
+       @assertEqual( this%target_chi_3, new_coord_3, tol )
+    else
+       tol = 10.0_r_def*spacing( new_coord_1 )
+       @assertEqual( this%target_chi_1, new_coord_1, tol )
+       tol = 10.0_r_def*spacing( new_coord_2 )
+       @assertEqual( this%target_chi_2, new_coord_2, tol )
+       tol = 10.0_r_def*spacing( new_coord_3 )
+       @assertEqual( this%target_chi_3, new_coord_3, tol )
+    end if
 
   end subroutine test_all
 

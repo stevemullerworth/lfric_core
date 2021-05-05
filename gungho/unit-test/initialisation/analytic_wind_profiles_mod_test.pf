@@ -130,6 +130,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use analytic_wind_profiles_mod, only: analytic_wind
     use constants_mod,              only: PI
     use initial_wind_config_mod, &
@@ -230,7 +231,7 @@ contains
 
     @assertEqual(v, u, tol)
 
-    tol=10.0E-12_r_def
+    tol = 10.0E-12_r_def
     llr = (/ 0.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_vortex,0)
     @assertEqual(0.0_r_def, u(1), tol)
@@ -238,15 +239,19 @@ contains
     llr = (/ 0.0_r_def, PI/8.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_vortex,0)
 
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
     @assertEqual(-9.0801912773695435_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_vortex,0)
 
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.0_r_def, u(1), tol)
     @assertEqual(9.0801912773695435_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     xyz = (/ 0.0_r_def, 10.0_r_def, 20.0_r_def /)
     initial_time = 0.0_r_def
     u = analytic_wind(xyz,initial_time,profile_yz_nl_case_1,0)
@@ -259,40 +264,50 @@ contains
     initial_time = 1.0_r_def
     u = analytic_wind(xyz,initial_time,profile_yz_nl_case_1,0)
 
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.0_r_def, u(1), tol)
     @assertEqual(0.10280308159920292788_r_def, u(2), tol)
     @assertEqual(-0.90172019935509484245_r_def, u(3), tol)
 
+    tol = 10.0E-12_r_def
     xyz = (/ 10.0_r_def, 15.0_r_def, 0.0_r_def /)
     initial_time = 0.0_r_def
     u = analytic_wind(xyz,initial_time,profile_xy_nl_case_1,0)
 
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
     @assertEqual(0.70710678118654768376_r_def, u(1), tol)
     @assertEqual(-0.38268343236508983729_r_def, u(2), tol)
     @assertEqual(0.0_r_def, u(3), tol)
 
+    tol = 10.0E-12_r_def
     xyz = (/ -10.0_r_def, -5.0_r_def, 0.0_r_def /)
     initial_time = 1.0_r_def
     u = analytic_wind(xyz,initial_time,profile_xy_nl_case_1,0)
 
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
     @assertEqual(-0.67249851196395715736_r_def, u(1), tol)
     @assertEqual(0.87866164966657944735_r_def, u(2), tol)
     @assertEqual(0.0_r_def, u(3), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 0.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_nl_case_1,0)
 
     @assertEqual(0.0_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.38268343236508978_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 1.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_nl_case_1,0)
 
     @assertEqual(0.0_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.36395357202901429_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 0.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_nl_case_2,0)
@@ -305,8 +320,10 @@ contains
     u = analytic_wind(llr,initial_time,profile_nl_case_3,0)
 
     @assertEqual(0.0_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.38268343236508978_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 0.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_nl_case_4,0)
@@ -319,22 +336,27 @@ contains
     u = analytic_wind(llr,initial_time,profile_nl_case_4,0)
 
     @assertEqual(0.62831853071795862_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(-0.86354124622677830_r_def, u(2), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 3600.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6000000.0_r_def + 4500.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_hadley_like_dcmip,0)
 
     @assertEqual(40.0_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(3) )
     @assertEqual(0.229381563122066_r_def, u(3), tol)
 
+    tol = 10.0E-12_r_def
     initial_time = 82800.0_r_def
     llr = (/ PI/4.0_r_def, 0.0_r_def, 6000000.0_r_def + 4500.0_r_def /)
     u = analytic_wind(llr,initial_time,profile_hadley_like_dcmip,0)
 
     @assertEqual(40.0_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(3) )
     @assertEqual(-0.229381563122066_r_def, u(3), tol)
 
   end subroutine test_all

@@ -88,8 +88,9 @@ contains
   @Test( npes=[1] )
   subroutine vortex_field_test( this )
 
-    use constants_mod,              only: PI
-    use analytic_density_profiles_mod, only:    vortex_field
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : PI
+    use analytic_density_profiles_mod, only : vortex_field
 
     implicit none
 
@@ -105,7 +106,7 @@ contains
     radius = 6371229.0_r_def
 
     density = vortex_field(lat,long,radius,time)
-    @assertEqual(1.0_r_def, density,tol)
+    @assertEqual(1.0_r_def, density, tol)
 
     long = PI/4.0_r_def
     density = vortex_field(lat,long,radius,time)
@@ -117,6 +118,7 @@ contains
   @Test( npes=[1] )
   subroutine yz_cosine_hill_test( this )
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use analytic_density_profiles_mod, only : analytic_density
     use idealised_config_mod,          only : test_yz_cosine_hill
 
@@ -128,10 +130,13 @@ contains
     real(kind=r_def) :: chi(3)
     real(kind=r_def) :: tol
 
-    tol=10.0E-12_r_def
-
     chi = (/ 2.0_r_def,3.25_r_def,4.5_r_def /)
     rho = analytic_density(chi , test_yz_cosine_hill, 0.0_r_def)
+    if ( r_def == real64 ) then
+       tol = 10.0E-12_r_def
+    else
+       tol = 10.0_r_def * spacing( rho )
+    endif
     @assertEqual(0.407826538399892_r_def, rho, tol)
 
 

@@ -131,9 +131,10 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use lhs_exner_kernel_mod,     only: lhs_exner_code
-    use planet_config_mod,        only: kappa
-    use calc_exner_pointwise_mod, only: calc_exner_pointwise
+    use, intrinsic :: iso_fortran_env, only: real64
+    use lhs_exner_kernel_mod,          only: lhs_exner_code
+    use planet_config_mod,             only: kappa
+    use calc_exner_pointwise_mod,      only: calc_exner_pointwise
 
     implicit none
 
@@ -143,8 +144,8 @@ contains
     real(r_def), parameter :: dy = 1000.0_r_def
     real(r_def), parameter :: dz = 2000.0_r_def
 
-    real(r_def), parameter :: tol = 1.0e-8_r_def
-    real(r_def)            :: answer
+    real(r_def), parameter :: tol = 1.0e-8_r_def  ! r_def 64bit
+    real(r_def)            :: answer, use_tol
 
     ! Fields
     real(r_def), allocatable :: lhs_exner(:)
@@ -270,7 +271,13 @@ contains
     answer = (1.0_r_def -kappa)/kappa*exner(1)/exner_ref(1) &
            - rho(1)/rho_ref(1) &
            - theta(1)/theta_ref(1)
-    @assertEqual(answer, lhs_exner(map_w3(1, cell)+k)/(dx*dy*dz), tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( lhs_exner(map_w3(1, cell)+k)/(dx*dy*dz) )
+    endif
+    @assertEqual(answer, lhs_exner(map_w3(1, cell)+k)/(dx*dy*dz), use_tol)
 
     deallocate(lhs_exner)
     deallocate(theta)

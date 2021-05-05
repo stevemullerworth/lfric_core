@@ -121,18 +121,20 @@ contains
   @test
   subroutine test_approximation_no_limiter( this )
 
+    use, intrinsic :: iso_fortran_env,  only : real64
     use vert_ppm_no_limiter_kernel_mod, only : vert_ppm_no_limiter_code
 
     implicit none
 
     class(vertical_ppm_coeffs_test_type), intent(inout) :: this
 
-    real(r_def),    parameter :: tol     = 1.0e-12_r_def
+    real(r_def),    parameter :: tol     = 1.0e-12_r_def   ! r_def 64bit
     integer(i_def), parameter :: nlayers = 5
     integer(i_def), parameter :: undf_w3 = 1
     integer(i_def), parameter :: ndf_w3  = 1
     integer(i_def), parameter :: map_w3(1) = 1
 
+    real(r_def)      :: use_tol
 
     real(kind=r_def) :: a0(1:nlayers)
     real(kind=r_def) :: a1(1:nlayers)
@@ -147,25 +149,31 @@ contains
                                    undf_w3,                 &
                                    map_w3                   )
 
-    @assertEqual( this%answer_level0(1), a0(1), tol)
-    @assertEqual( this%answer_level0(2), a1(1), tol)
-    @assertEqual( this%answer_level0(3), a2(1), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( (/ a0, a1, a2 /) ) )
+    endif
 
-    @assertEqual( this%answer_level1(1), a0(2), tol)
-    @assertEqual( this%answer_level1(2), a1(2), tol)
-    @assertEqual( this%answer_level1(3), a2(2), tol)
+    @assertEqual( this%answer_level0(1), a0(1), use_tol)
+    @assertEqual( this%answer_level0(2), a1(1), use_tol)
+    @assertEqual( this%answer_level0(3), a2(1), use_tol)
 
-    @assertEqual( this%answer_level2(1), a0(3), tol)
-    @assertEqual( this%answer_level2(2), a1(3), tol)
-    @assertEqual( this%answer_level2(3), a2(3), tol)
+    @assertEqual( this%answer_level1(1), a0(2), use_tol)
+    @assertEqual( this%answer_level1(2), a1(2), use_tol)
+    @assertEqual( this%answer_level1(3), a2(2), use_tol)
 
-    @assertEqual( this%answer_level3(1), a0(4), tol)
-    @assertEqual( this%answer_level3(2), a1(4), tol)
-    @assertEqual( this%answer_level3(3), a2(4), tol)
+    @assertEqual( this%answer_level2(1), a0(3), use_tol)
+    @assertEqual( this%answer_level2(2), a1(3), use_tol)
+    @assertEqual( this%answer_level2(3), a2(3), use_tol)
 
-    @assertEqual( this%answer_level4(1), a0(5), tol)
-    @assertEqual( this%answer_level4(2), a1(5), tol)
-    @assertEqual( this%answer_level4(3), a2(5), tol)
+    @assertEqual( this%answer_level3(1), a0(4), use_tol)
+    @assertEqual( this%answer_level3(2), a1(4), use_tol)
+    @assertEqual( this%answer_level3(3), a2(4), use_tol)
+
+    @assertEqual( this%answer_level4(1), a0(5), use_tol)
+    @assertEqual( this%answer_level4(2), a1(5), use_tol)
+    @assertEqual( this%answer_level4(3), a2(5), use_tol)
 
   end subroutine test_approximation_no_limiter
 

@@ -105,18 +105,19 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this)
 
+    use, intrinsic :: iso_fortran_env,   only : real64
     use compute_total_energy_kernel_mod, only : compute_total_energy_code
 
     implicit none
 
     class(compute_total_energy_kernel_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: tol = 1.0e-6_r_def   ! r_def 64bit
     real(r_def), parameter :: dx = 4.0_r_def, &
                               dy = 3.0_r_def, &
                               dz = 2.0_r_def
 
-    real(r_def) :: answer
+    real(r_def) :: answer, use_tol
 
     integer(i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2
@@ -244,7 +245,12 @@ contains
     cv = cp - rd
     t = cv*theta(1)*exner(1)
     answer = rho(1)*(gravity*0.5_r_def*dz + t) * dx*dy*dz
-    @assertEqual(answer, energy(map_w3(1, cell)), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( energy(map_w3(1, cell)) )
+    endif
+    @assertEqual(answer, energy(map_w3(1, cell)), use_tol)
 
     deallocate(map_w0)
     deallocate(map_w2)

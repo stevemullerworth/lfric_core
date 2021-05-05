@@ -105,17 +105,21 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use compute_total_pv_kernel_mod,only : compute_total_pv_code
+    use, intrinsic :: iso_fortran_env, only : real64
+    use compute_total_pv_kernel_mod,   only : compute_total_pv_code
 
     implicit none
 
     class(compute_total_pv_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol    = 1.0e-6_r_def
+    real(r_def), parameter :: tol    = 1.0e-6_r_def   ! r_def 64bit
+    real(r_def), parameter :: tol32  = 1.0e-4_r_def   ! r_def 32bit
     real(r_def), parameter :: answer = 0.0_r_def
     real(r_def), parameter :: dx     = 4.0_r_def, &
                               dy     = 3.0_r_def, &
                               dz     = 2.0_r_def
+
+    real(r_def)            :: use_tol
 
     integer(i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w1, undf_w1
@@ -211,8 +215,14 @@ contains
                                nqp_h, nqp_v,             &
                                wh, wv)
 
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = tol32
+    end if
+
     ! This is only testing the vertical component of vorticity
-    @assertEqual(answer, pv(map_w3(1, cell)), tol)
+    @assertEqual(answer, pv(map_w3(1, cell)), use_tol)
 
     deallocate(map_w0)
     deallocate(map_w1)

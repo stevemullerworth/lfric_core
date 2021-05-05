@@ -98,15 +98,16 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use vertical_mass_remapping_kernel_mod, only: vertical_mass_remapping_code
-    use transport_config_mod,  only : slice_order_cubic
+    use, intrinsic :: iso_fortran_env,      only : real64
+    use vertical_mass_remapping_kernel_mod, only : vertical_mass_remapping_code
+    use transport_config_mod,               only : slice_order_cubic
 
     implicit none
 
     class(vertical_mass_remapping_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def) :: answer
+    real(r_def), parameter :: tol = 1.0e-12_r_def    ! r_def 64bit tolerance
+    real(r_def) :: answer, tst, use_tol
 
     integer(i_def), parameter :: nlayers = 10
     integer(i_def), parameter :: ndf_w2 = 6
@@ -181,8 +182,13 @@ contains
                                        remap_order,             &
                                        ndf_w2, undf_w2, map_w2, &
                                        ndf_w3, undf_w3, map_w3  )
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( maxval(mass_in) )
+    end if
     do i = 1,nlayers
-      @assertEqual(mass_out(i), mass_in(i) , tol)
+      @assertEqual(mass_out(i), mass_in(i) , use_tol)
     end do
 
   end subroutine test_all

@@ -167,6 +167,7 @@ contains
   @Test( npes=[1] )
   subroutine test_analytic_orography_field_spherical(this)
 
+    use, intrinsic :: iso_fortran_env,  only : real64
     use local_mesh_mod,                 only : local_mesh_type
     use mesh_mod,                       only : mesh_type
     use partition_mod,                  only : partition_type,        &
@@ -195,7 +196,8 @@ contains
     ! Test parameters
     integer(i_def), parameter :: ndf = 1, undf = nlayers*ndf
     integer(i_def)            :: itest, i, map(1)
-    real(r_def), parameter    :: tol = 1.0e-3_r_def
+    real(r_def), parameter    :: tol = 1.0e-3_r_def  ! r_def 64bit tolerance
+    real(r_def)               :: use_tol
     real(r_def)               :: height_flat_surface, height_domain_top
     real(r_def)               :: chi_1(undf), chi_2(undf), chi_3(undf)
     real(r_def)               :: chi_1_cart(undf), chi_2_cart(undf), chi_3_cart(undf)
@@ -265,16 +267,22 @@ contains
                    chi_1(i), chi_2(i), chi_3(i))
     end do
 
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( chi_3 ) )
+    end if
+
     ! Test selected chi_3
     itest = 1
     chi_surf = chi_3(itest)
     chi_test = this%mountain_height + height_flat_surface
-    @assertEqual( chi_surf, chi_test, tol )
+    @assertEqual( chi_surf, chi_test, use_tol )
 
     itest = 5
     chi_surf = chi_3(itest)
     chi_test = 55029.832_r_def
-    @assertEqual( chi_surf, chi_test, tol )
+    @assertEqual( chi_surf, chi_test, use_tol )
 
     return
   end subroutine test_analytic_orography_field_spherical

@@ -17,6 +17,7 @@
 
 program cma_test
 
+  use, intrinsic :: iso_fortran_env,  only : real64
   use base_mesh_config_mod,           only : geometry,           &
                                              geometry_spherical, &
                                              prime_mesh_name
@@ -114,7 +115,11 @@ program cma_test
   logical :: do_test_diag_dhmdht = .false.
 
   ! Error tolerance for tests
-  real(kind=r_def), parameter :: tolerance=1.0E-12
+  ! Note: tolerance is for r_def = real64
+  !       Tolerance at r_def = real32: generated using spacing() in
+  !           ./gungho/source/algorithm/cma_test_algorithm_mod.x90
+  real(kind=r_def) :: tolerance
+  tolerance = 1.0E-12_r_def
 
   ! Initialise MPI communicatios and get a valid communicator
   call initialise_comm(comm)

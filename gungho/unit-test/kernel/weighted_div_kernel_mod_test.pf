@@ -88,6 +88,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use weighted_div_kernel_mod, only : weighted_div_code
 
     implicit none
@@ -95,7 +96,8 @@ contains
     class(weighted_div_test_type), intent(inout) :: this
 
     real(kind=r_def), dimension(1,6) :: answer
-    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def   ! r_def 64bit tolerance
+    real(kind=r_def)            :: use_tol
 
     integer(i_def) :: nlayers, ncells, ncell_3d, cell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2, ndf_w3, undf_w3
@@ -165,7 +167,12 @@ contains
                             )
 
     call div_operator(answer)
-    @assertEqual(answer, transpose(local_stencil(:, :, 1 )), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval(local_stencil(:, :, 1 )) )
+    endif
+    @assertEqual(answer, transpose(local_stencil(:, :, 1 )), use_tol)
 
     deallocate(basis_w0)
     deallocate(diff_basis_w0)

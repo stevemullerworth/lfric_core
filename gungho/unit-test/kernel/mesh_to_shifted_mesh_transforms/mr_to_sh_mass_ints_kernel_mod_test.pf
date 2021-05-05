@@ -93,16 +93,18 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this)
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use mr_to_sh_mass_ints_kernel_mod, only : mr_to_sh_mass_ints_code
 
     implicit none
 
     class(mr_to_sh_mass_ints_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+    real(kind=r_def), parameter :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
     real(kind=r_def), parameter :: dx = 4.0_r_def, &
                                    dy = 3.0_r_def, &
                                    dz = 2.0_r_def
+    real(kind=r_def)    :: use_tol
     real(kind=r_def)    :: I_lower_i_ip1_answer, I_upper_i_i_answer
     real(kind=r_def)    :: I_lower_i_i_answer, I_upper_i_im1_answer
     integer(kind=i_def) :: nlayers, ncells, ncell_3d, cell, icell
@@ -212,8 +214,14 @@ contains
     I_upper_i_im1_answer = dx * dy * dz / 8.0
     @assertEqual(I_lower_i_ip1_answer, I_lower_i_ip1(map_w3(1, cell)), tol)
     @assertEqual(I_lower_i_i_answer,   I_lower_i_i(map_w3(1, cell)),   tol)
-    @assertEqual(I_upper_i_i_answer,   I_upper_i_i(map_w3(1, cell)),   tol)
-    @assertEqual(I_upper_i_im1_answer, I_upper_i_im1(map_w3(1, cell)), tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( I_upper_i_i(map_w3(1, cell) ))
+    end if
+    @assertEqual(I_upper_i_i_answer,   I_upper_i_i(map_w3(1, cell)),   use_tol)
+    @assertEqual(I_upper_i_im1_answer, I_upper_i_im1(map_w3(1, cell)), use_tol)
 
     deallocate(map_dl_w0)
     deallocate(map_w3)

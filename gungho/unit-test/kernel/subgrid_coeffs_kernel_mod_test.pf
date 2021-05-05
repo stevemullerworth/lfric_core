@@ -170,20 +170,22 @@ contains
   @test
   subroutine test_approximation( this )
 
-    use subgrid_coeffs_kernel_mod, only : subgrid_coeffs_code
-    use flux_direction_mod, only : x_direction, y_direction
+    use, intrinsic :: iso_fortran_env, only : real64
+    use subgrid_coeffs_kernel_mod,     only : subgrid_coeffs_code
+    use flux_direction_mod,            only : x_direction, y_direction
 
     implicit none
 
     class(subgrid_coeffs_test_type), intent(inout) :: this
 
-    real(r_def),    parameter :: tol     = 1.0e-12_r_def
+    real(r_def),    parameter :: tol     = 1.0e-12_r_def   ! r_def 64bit
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: cell    = 1
     integer(i_def), parameter :: undf_w3 = 5
     integer(i_def), parameter :: ndf_w3  = 1
     integer(i_def), parameter :: stencil_map(1,1:5) = reshape( (/1, 2, 3, 4, 5/), &
                                                                (/1, 5/) )
+    real(r_def) :: use_tol
     real(r_def) :: cell_orientation(1:undf_w3)
 
     real(kind=r_def) :: a0(1:5)
@@ -201,9 +203,14 @@ contains
                               stencil_map,            &
                               this%direction,         &
                               a0, a1, a2 )
-    @assertEqual( this%answer(1), a0(1), tol)
-    @assertEqual( this%answer(2), a1(1), tol)
-    @assertEqual( this%answer(3), a2(1), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( (/ a0(1), a1(1), a2(1) /)) )
+    endif
+    @assertEqual( this%answer(1), a0(1), use_tol)
+    @assertEqual( this%answer(2), a1(1), use_tol)
+    @assertEqual( this%answer(3), a2(1), use_tol)
 
 
   end subroutine test_approximation

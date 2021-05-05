@@ -14,69 +14,87 @@ contains
   @test
   subroutine find_local_x_value_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def, i_def
-    use biperiodic_deppts_mod, only: find_local_x_value
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : r_def, i_def
+    use biperiodic_deppts_mod,         only : find_local_x_value
 
     implicit none
 
-    real(kind=r_def)    :: x_original, local_coordinate_value, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)    :: x_original, local_coordinate_value, use_tol
     integer(kind=i_def) :: iEdge, nCellEdges
-
-    tol = 10.0e-8_r_def
 
     nCellEdges = 10
 
     x_original = -3.4_r_def
     call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(1, iEdge)
-    @assertEqual(0.6_r_def, local_coordinate_value,tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( local_coordinate_value )
+    end if
+    @assertEqual(0.6_r_def, local_coordinate_value, use_tol)
 
     x_original = -2.4_r_def
     call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(2, iEdge)
-    @assertEqual(0.6_r_def, local_coordinate_value,tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( local_coordinate_value )
+    end if
+    @assertEqual(0.6_r_def, local_coordinate_value, use_tol)
 
     x_original = 3.4_r_def
     call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(8, iEdge)
-    @assertEqual(0.4_r_def, local_coordinate_value,tol)
+    @assertEqual(0.4_r_def, local_coordinate_value, tol)
 
     x_original = 4.4_r_def
     call find_local_x_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(9, iEdge)
-    @assertEqual(0.4_r_def, local_coordinate_value,tol)
+    @assertEqual(0.4_r_def, local_coordinate_value, tol)
 
   end subroutine find_local_x_value_test
 
   @test
   subroutine find_local_vertical_value_test()
     use pFUnit_Mod
-    use constants_mod, only: r_def, i_def
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : r_def, i_def
     use biperiodic_deppts_mod, only: find_local_vertical_value
 
     implicit none
 
-    real(kind=r_def)    :: x_original, local_coordinate_value, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)    :: x_original, local_coordinate_value, use_tol
     integer(kind=i_def) :: iEdge, nCellEdges
-
-    tol = 10.0e-8_r_def
 
     nCellEdges = 10
 
     x_original = 0.4_r_def
     call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(1, iEdge)
-    @assertEqual(0.4_r_def, local_coordinate_value,tol)
+    @assertEqual(0.4_r_def, local_coordinate_value, tol)
 
     x_original = 8.9_r_def
     call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(9, iEdge)
-    @assertEqual(0.9_r_def, local_coordinate_value,tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( local_coordinate_value )
+    end if
+    @assertEqual(0.9_r_def, local_coordinate_value, use_tol)
 
     x_original = 9.0_r_def
     call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
     @assertEqual(10, iEdge)
-    @assertEqual(0.0_r_def, local_coordinate_value,tol)
+    @assertEqual(0.0_r_def, local_coordinate_value, tol)
 
   end subroutine find_local_vertical_value_test
 
@@ -88,11 +106,11 @@ contains
 
     implicit none
 
-    real(kind=r_def)              :: x_in, u_at_x, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)              :: x_in, u_at_x
     real(kind=r_def), allocatable :: wind_values(:)
     integer(kind=i_def)           :: nCellEdges
 
-    tol = 10.0e-8_r_def
     nCellEdges = 4
 
     allocate(wind_values(1:nCellEdges))
@@ -100,7 +118,7 @@ contains
     wind_values=(/ 1.0_r_def,2.0_r_def,3.0_r_def,4.0_r_def /)
     x_in = 0.4_r_def
     u_at_x = calc_u_at_x(x_in,nCellEdges,wind_values)
-    @assertEqual(2.4_r_def, u_at_x,tol)
+    @assertEqual(2.4_r_def, u_at_x, tol)
 
     deallocate(wind_values)
   end subroutine calc_u_at_x_test
@@ -113,11 +131,11 @@ contains
 
     implicit none
 
-    real(kind=r_def)              :: x_in, u_at_x, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)              :: x_in, u_at_x
     real(kind=r_def), allocatable :: wind_values(:)
     integer(kind=i_def)           :: nCellEdges
 
-    tol = 10.0e-8_r_def
     nCellEdges = 6
 
     allocate(wind_values(1:nCellEdges))
@@ -125,20 +143,20 @@ contains
     wind_values=(/ 0.0_r_def,0.2_r_def,0.4_r_def,0.4_r_def,0.2_r_def,0.0_r_def /)
     x_in = 0.5_r_def
     u_at_x = calc_u_in_vertical(x_in,nCellEdges,wind_values)
-    @assertEqual(0.1_r_def, u_at_x,tol)
+    @assertEqual(0.1_r_def, u_at_x, tol)
 
     wind_values=(/ 0.0_r_def,0.2_r_def,0.4_r_def,0.4_r_def,0.2_r_def,0.0_r_def /)
     x_in = 1.0_r_def
     u_at_x = calc_u_in_vertical(x_in,nCellEdges,wind_values)
-    @assertEqual(0.2_r_def, u_at_x,tol)
+    @assertEqual(0.2_r_def, u_at_x, tol)
 
     wind_values=(/ 0.0_r_def,0.2_r_def,0.4_r_def,0.4_r_def,0.2_r_def,0.0_r_def /)
     x_in = 5.0_r_def
     u_at_x = calc_u_in_vertical(x_in,nCellEdges,wind_values)
-    @assertEqual(0.0_r_def, u_at_x,tol)
-
+    @assertEqual(0.0_r_def, u_at_x, tol)
 
     deallocate(wind_values)
+
   end subroutine calc_u_in_vertical_test
 
   @test
@@ -154,11 +172,10 @@ contains
 
     implicit none
 
-    real(kind=r_def)    :: x_arrival, deltaT, x_departure, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)    :: x_arrival, deltaT, x_departure
     integer(kind=i_def) :: n_dep_pt_iterations, nCellEdges
     real(kind=r_def), allocatable :: u_n(:),u_np1(:)
-
-    tol = 10.0e-8_r_def
 
     nCellEdges = 4
 
@@ -201,11 +218,10 @@ contains
 
     implicit none
 
-    real(kind=r_def)    :: x_arrival, deltaT, departure_dist, tol
+    real(kind=r_def), parameter :: tol = 10.0e-8_r_def  ! r_def 64bit
+    real(kind=r_def)    :: x_arrival, deltaT, departure_dist
     integer(kind=i_def) :: n_dep_pt_iterations, nCellEdges
     real(kind=r_def), allocatable :: u_n(:),u_np1(:)
-
-    tol = 10.0e-8_r_def
 
     nCellEdges = 4
 

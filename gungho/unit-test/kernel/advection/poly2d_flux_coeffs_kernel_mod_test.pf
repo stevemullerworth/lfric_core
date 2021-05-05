@@ -71,14 +71,16 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use poly2d_flux_coeffs_kernel_mod, only: poly2d_flux_coeffs_code
 
     implicit none
 
     class(poly2d_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def), dimension(9) :: answer
+    real(r_def), parameter    :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
+    real(r_def), dimension(9) :: answer, tstv
+    real(r_def)               :: tst, use_tol
 
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: ndf_w3 = 1
@@ -226,13 +228,35 @@ contains
     answer = (/ 0.95_r_def, 0.15_r_def, -5.833333333333340E-002_r_def, &
                -1.666666666666665E-002_r_def, -5.833333333333340E-002_r_def, 9.166666666666659E-002_r_def, &
                -7.5E-002_r_def, -7.5E-002_r_def, 9.166666666666659E-002_r_def /)
-    @assertEqual(answer, coeff(:,1,1), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+      @assertEqual(answer, coeff(:,1,1), use_tol)
+    else
+      tstv = coeff(:,1,1)
+      use_tol = 10.0_r_def*spacing( maxval(tstv) )
+      @assertEqual(answer, tstv, use_tol)
+    endif
 
     ! Check summation over y direction equals known quadratic in x intepolation
     ! weights
-     @assertEqual( 2.0_r_def/6.0_r_def, coeff(2,1,1)+coeff(6,1,1)+coeff(9,1,1), tol)
-     @assertEqual( 5.0_r_def/6.0_r_def, coeff(1,1,1)+coeff(3,1,1)+coeff(5,1,1), tol)
-     @assertEqual(-1.0_r_def/6.0_r_def, coeff(4,1,1)+coeff(7,1,1)+coeff(8,1,1), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+      @assertEqual( 2.0_r_def/6.0_r_def, coeff(2,1,1)+coeff(6,1,1)+coeff(9,1,1), use_tol)
+      @assertEqual( 5.0_r_def/6.0_r_def, coeff(1,1,1)+coeff(3,1,1)+coeff(5,1,1), use_tol)
+      @assertEqual( -1.0_r_def/6.0_r_def, coeff(4,1,1)+coeff(7,1,1)+coeff(8,1,1), use_tol)
+    else
+      tst = coeff(2,1,1)+coeff(6,1,1)+coeff(9,1,1)
+      use_tol = 10.0_r_def*spacing(tst)
+      @assertEqual( 2.0_r_def/6.0_r_def, tst, use_tol)
+
+      tst = coeff(1,1,1)+coeff(3,1,1)+coeff(5,1,1)
+      use_tol = 10.0_r_def*spacing(tst)
+      @assertEqual( 5.0_r_def/6.0_r_def, tst, use_tol)
+
+      tst = coeff(4,1,1)+coeff(7,1,1)+coeff(8,1,1)
+      use_tol = 10.0_r_def*spacing(tst)
+      @assertEqual( -1.0_r_def/6.0_r_def, tst, use_tol)
+    endif
   end subroutine test_all
 
   subroutine tearDown( this )

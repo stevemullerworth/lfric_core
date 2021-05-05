@@ -324,6 +324,7 @@ contains
   !>@param[in] tolerance Tolerance \f$\epsilon\f$
   !>@param[in] label Label for comparison
   subroutine compare_fields(x1,x2,tolerance,label)
+    use, intrinsic :: iso_fortran_env, only: real64
     implicit none
     ! Passed parameters
     type(field_type), intent(in) :: x1
@@ -334,6 +335,7 @@ contains
     ! Internal variables
     type(field_type) :: dx, x_tmp
     real(kind=r_def) :: dx_nrm_sq, x1_nrm_sq, x2_nrm_sq
+    real(kind=r_def) :: use_tol
     character(len=128) :: output
     character(len=4) :: pass_str
     type(function_space_type), pointer :: fs => null()
@@ -355,7 +357,18 @@ contains
                  setval_X( x_tmp, x2 ),                    &
                  X_innerproduct_Y( x2_nrm_sq, x2, x_tmp ) )
 
-    if (sqrt(dx_nrm_sq/x1_nrm_sq) < tolerance) then
+    ! Set use_tol according to r_def
+    if ( r_def == real64 ) then
+      use_tol = tolerance
+    else
+      ! Note: Test is: sqrt(dx_nrm_sq/x1_nrm_sq) < use_tol.
+      !       Square root of ratio of 2 squared quantities =
+      !       ratio of square roots, hence the correct spacing
+      !       quantity should be sqrt(x1_nrm_sq).
+      use_tol = 10.0_r_def*spacing( sqrt(x1_nrm_sq) )
+    end if
+
+    if (sqrt(dx_nrm_sq/x1_nrm_sq) < use_tol) then
        pass_str = "PASS"
     else
        pass_str = "FAIL"
@@ -369,6 +382,8 @@ contains
     write(output,'("   ||x1-x2||        = ",E15.8)') sqrt(dx_nrm_sq)
     call log_event( output, LOG_LEVEL_INFO )
     write(output,'("   ||x1-x2||/||x1|| = ",E15.8)') sqrt(dx_nrm_sq/x1_nrm_sq)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   tolerance        = ",E15.8)') use_tol
     call log_event( output, LOG_LEVEL_INFO )
     write(output,'("   test",A32," : ",A4)') trim(label), pass_str
     call log_event( output, LOG_LEVEL_INFO )

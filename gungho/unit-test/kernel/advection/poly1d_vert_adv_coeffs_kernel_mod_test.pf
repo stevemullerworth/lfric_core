@@ -92,7 +92,7 @@ contains
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def), parameter    :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
     real(r_def), dimension(3) :: answer
 
     integer(i_def), parameter :: nfaces_v = 2
@@ -171,14 +171,16 @@ contains
   @Test( npes=[1] )
   subroutine test_stretched_mesh( this )
 
-    use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
-    use poly1d_vert_adv_kernel_mod,        only: poly1d_vert_adv_code
+    use, intrinsic :: iso_fortran_env,     only : real64
+    use poly1d_vert_adv_coeffs_kernel_mod, only : poly1d_vert_adv_coeffs_code
+    use poly1d_vert_adv_kernel_mod,        only : poly1d_vert_adv_code
     implicit none
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
     real(r_def), dimension(3) :: answer
+    real(r_def)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
 
@@ -298,10 +300,19 @@ contains
                                  global_order,         &
                                  nfaces_v,             &
                                  .false. )
-      do k = 1,nlayers-1
-        ddz = flux(map_wt(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2(5))
-        @assertEqual(ddensitydz(map_wt(1)+k), ddz, tol)
-      end do
+       if ( r_def == real64 ) then
+         use_tol = tol
+         do k = 1,nlayers-1
+           ddz = flux(map_wt(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2(5))
+           @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
+         end do
+       else
+         do k = 1,nlayers-1
+           ddz = flux(map_wt(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2(5))
+           use_tol = 10.0_r_def*spacing( ddz )
+           @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
+         end do
+       endif
     end do
 
   end subroutine test_stretched_mesh

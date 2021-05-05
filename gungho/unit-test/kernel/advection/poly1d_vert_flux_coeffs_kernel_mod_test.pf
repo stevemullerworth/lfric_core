@@ -58,13 +58,15 @@ contains
   @Test( npes=[1] )
   subroutine test_uniform_mesh( this )
 
+    use, intrinsic :: iso_fortran_env,      only: real64
     use poly1d_vert_flux_coeffs_kernel_mod, only: poly1d_vert_flux_coeffs_code
     implicit none
 
     class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit
     real(r_def), dimension(3) :: answer
+    real(r_def)               :: use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
     integer(i_def), parameter :: nlayers = 8
@@ -158,29 +160,38 @@ contains
                                       nqp_h, nqp_v, wqp_h, wqp_v,&
                                       nfaces_v, nqp_f, wqp_f )
 
-    answer = (/ 2.0_r_def, 5.0_r_def, -1.0_r_def /)/6.0_r_def
-    @assertEqual(answer, coeff(:,1,2), tol)
-    answer = (/ -1.0_r_def, 5.0_r_def, 2.0_r_def /)/6.0_r_def
-    @assertEqual(answer, coeff(:,2,2), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( 6.0_r_def )
+    end if
 
     answer = (/ 2.0_r_def, 5.0_r_def, -1.0_r_def /)/6.0_r_def
-    @assertEqual(answer, coeff(:,2,1),       tol)
+    @assertEqual(answer, coeff(:,1,2), use_tol)
+
     answer = (/ -1.0_r_def, 5.0_r_def, 2.0_r_def /)/6.0_r_def
-    @assertEqual(answer, coeff(:,1,nlayers), tol)
+    @assertEqual(answer, coeff(:,2,2), use_tol)
+
+    answer = (/ 2.0_r_def, 5.0_r_def, -1.0_r_def /)/6.0_r_def
+    @assertEqual(answer, coeff(:,2,1), use_tol)
+
+    answer = (/ -1.0_r_def, 5.0_r_def, 2.0_r_def /)/6.0_r_def
+    @assertEqual(answer, coeff(:,1,nlayers), use_tol)
 
   end subroutine test_uniform_mesh
 
   @Test( npes=[1] )
   subroutine test_stretched_mesh( this )
 
+    use, intrinsic :: iso_fortran_env,      only: real64
     use poly1d_vert_flux_coeffs_kernel_mod, only: poly1d_vert_flux_coeffs_code
     use poly1d_vert_flux_kernel_mod,        only: poly1d_vert_flux_code
     implicit none
 
     class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
 
-    real(r_def), parameter    :: tol = 1.0e-12_r_def
-    real(r_def), dimension(3) :: answer
+    real(r_def), parameter    :: tol = 1.0e-12_r_def  ! r_def 64bit
+    real(r_def)               :: ans, mx, use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
     integer(i_def), parameter :: nlayers = 8
@@ -223,7 +234,7 @@ contains
 
     real(r_def), dimension(3,ndf_w2,ndf_w2) :: basis
     real(r_def), dimension(3,2)             :: outward_normals
-    real(r_def)                             :: div_f, ans, z_w3
+    real(r_def)                             :: div_f, z_w3
 
     xq(:) = 0.5_r_def + 0.5_r_def*(/ -sqrt(3.0_r_def/5.0_r_def), 0.0_r_def, sqrt(3.0_r_def/5.0_r_def) /)
     wqp_v(:) = (/5.0_r_def, 8.0_r_def, 5.0_r_def/)/18.0_r_def
@@ -328,7 +339,7 @@ contains
 
       z_w3 = 0.5_r_def*(z(map_wx(1)+k)+z(map_wx(5)+k))
       density(1+k) = this%test_function(z_w3)
-   end do
+    end do
 
     ! Compute the coeffs for the stretched mesh
     call poly1d_vert_flux_coeffs_code(nlayers,                   &
@@ -380,15 +391,24 @@ contains
                                  nfaces_v,             &
                                  outward_normals,      &
                                  .false. )
+
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        mx = 0.0_r_def
+        do k = 0, nlayers
+           mx = max( mx, flux(map_w2(5)+k)/wind(map_w2(5)+k) )
+        end do
+        use_tol = max(tol, 10.0_r_def*spacing( mx ))
+      end if
       do k = 0,nlayers-1
         div_f = (flux(map_w2(6)+k)-flux(map_w2(5)+k))/mdw3(map_w3(1)+k)
         ans = this%test_function(z(map_wx(1)+k))
-        @assertEqual(ans, flux(map_w2(5)+k)/wind(map_w2(5)+k), tol)
-
+        @assertEqual(ans, flux(map_w2(5)+k)/wind(map_w2(5)+k), use_tol)
       end do
       k = nlayers
       ans = this%test_function(z(map_wx(5)+k-1))
-      @assertEqual(ans, flux(map_w2(5)+k)/wind(map_w2(5)+k), tol)
+      @assertEqual(ans, flux(map_w2(5)+k)/wind(map_w2(5)+k), use_tol)
     end do
 
   end subroutine test_stretched_mesh

@@ -52,13 +52,15 @@ contains
   @Test( )
   subroutine test_x_plus_ay( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use operator_algebra_kernel_mod, only : operator_x_plus_ay_kernel_code
 
     implicit none
 
     class(operator_algebra_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
+    real(r_def)            :: use_tol
 
     ! Mesh
     integer(i_def), parameter :: nlayers = 1
@@ -93,11 +95,16 @@ contains
                                         a,                &
                                         ncell, y,         &
                                         ndf1, ndf2)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval(x_plus_ay) )
+    endif
     do df = 1,ndf1
       answer = 2.3_r_def
-      @assertEqual(answer, x_plus_ay(df,1,1), tol)
+      @assertEqual(answer, x_plus_ay(df,1,1), use_tol)
       answer = 4.4_r_def
-      @assertEqual(answer, x_plus_ay(df,2,1), tol)
+      @assertEqual(answer, x_plus_ay(df,2,1), use_tol)
     end do
 
   end subroutine test_x_plus_ay
@@ -105,13 +112,15 @@ contains
   @Test( )
   subroutine test_setval_c( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use operator_algebra_kernel_mod, only : operator_setval_c_kernel_code
 
     implicit none
 
     class(operator_algebra_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
+    real(r_def)            :: use_tol
 
     ! Mesh
     integer(i_def), parameter :: nlayers = 1
@@ -135,8 +144,15 @@ contains
                                        ncell, x,      &
                                        a,             &
                                        ndf1, ndf2)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( x ) )
+    endif
+
     answer = a
-    @assertEqual(answer, x, tol)
+    @assertEqual(answer, x, use_tol)
 
   end subroutine test_setval_c
 end module operator_algebra_kernel_mod_test

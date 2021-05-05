@@ -28,7 +28,8 @@ contains
   @Test
   subroutine test_all( this )
 
-    use poly1d_vert_flux_kernel_mod, only: poly1d_vert_flux_code
+    use, intrinsic :: iso_fortran_env, only: real64
+    use poly1d_vert_flux_kernel_mod,   only: poly1d_vert_flux_code
 
     use get_unit_test_planar_mesh_mod, &
                                      only: get_outward_normals_to_vertical_faces
@@ -37,8 +38,8 @@ contains
 
     class(poly1d_vert_flux_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def)            :: answer
+    real(r_def), parameter :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
+    real(r_def)            :: answer, use_tol
 
     integer(i_def), parameter :: nfaces_v = 2
     integer(i_def), parameter :: nlayers = 3
@@ -144,9 +145,15 @@ contains
                                 outward_normals_to_vertical_faces, &
                                 logspace=.true.)
     answer = exp(-1.0_r_def)
-    @assertEqual(answer, flux(map_w2(5)+1) , tol)
+    @assertEqual(answer, flux(map_w2(5)+1), tol)
     answer = exp(-2.0_r_def)
-    @assertEqual(answer, flux(map_w2(5)+2) , tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+      @assertEqual(answer, flux(map_w2(5)+2), use_tol)
+    else
+      use_tol = 10.0_r_def*spacing( flux(map_w2(5)+2) )
+      @assertEqual(answer, flux(map_w2(5)+2), use_tol)
+    endif
 
   end subroutine test_all
 

@@ -102,17 +102,18 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this)
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use compute_moist_mass_kernel_mod, only : compute_moist_mass_code
 
     implicit none
 
     class(compute_moist_mass_kernel_test_type), intent(inout) :: this
 
-    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+    real(kind=r_def), parameter :: tol = 1.0e-12_r_def  ! r_def 64bit
     real(kind=r_def), parameter :: dx = 4.0_r_def
     real(kind=r_def), parameter :: dy = 3.0_r_def
     real(kind=r_def), parameter :: dz = 2.0_r_def
-    real(kind=r_def)            :: answer
+    real(kind=r_def)            :: answer, use_tol
 
     integer(kind=i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(kind=i_def) :: ndf_w0, undf_w0, ndf_w3, undf_w3
@@ -215,8 +216,13 @@ contains
                                   nqp_h, nqp_v, wh, wv              &
                                 )
 
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( water_mass(map_w3(1, cell)) )
+    end if
     answer = rho(1) * mr_i(1) * dx * dy * dz
-    @assertEqual(answer, water_mass(map_w3(1, cell)), tol)
+    @assertEqual(answer, water_mass(map_w3(1, cell)), use_tol)
 
     deallocate(map_w0)
     deallocate(map_w3)

@@ -31,7 +31,8 @@ module ancil_orography_spherical_mod_test
   real(r_def), parameter :: radius   = 6371229.0_r_def
   real(r_def), parameter :: domain_surface = radius
 
-  real(r_def), parameter :: tol = 1.0e-8_r_def
+  real(r_def), parameter :: tol = 1.0e-8_r_def     ! r_def 64bit
+  real(r_def), parameter :: tol32 = 1.0e-0_r_def   ! to clear ans-tst of 0.5
 
 contains
 
@@ -107,6 +108,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use average_w3_to_w0_kernel_mod,   only : average_w3_to_w0_code
     use assign_orography_field_mod,    only : ancil_orography_spherical_xyz
 
@@ -138,6 +140,7 @@ contains
     real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
 
     real(r_def) :: answer, lat, lon, r
+    real(r_def) :: use_tol
 
     integer(i_def) :: df, cell, k
     integer(i_def) :: err
@@ -248,7 +251,12 @@ contains
       call xyz2llr( chi1(map_wchi(df, cell)), &
                     chi2(map_wchi(df, cell)), &
                     chi3(map_wchi(df, cell)), lon, lat, r )
-      @assertEqual(answer, r-radius, tol)
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def*spacing( r )
+      endif
+      @assertEqual(answer, r-radius, use_tol)
     end do
 
     ! Test corner cell
@@ -258,7 +266,12 @@ contains
       call xyz2llr( chi1(map_wchi(df, cell)), &
                     chi2(map_wchi(df, cell)), &
                     chi3(map_wchi(df, cell)), lon, lat, r )
-      @assertEqual(answer, r-radius, tol)
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def*spacing( r-radius )
+      endif
+      @assertEqual(answer, r-radius, use_tol)
     end do
 
     df=4
@@ -266,7 +279,12 @@ contains
     call xyz2llr( chi1(map_wchi(df, cell)), &
                   chi2(map_wchi(df, cell)), &
                   chi3(map_wchi(df, cell)), lon, lat, r )
-    @assertEqual(answer, r-radius, tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( r )
+    endif
+    @assertEqual(answer, r-radius, use_tol)
 
     deallocate( srf_alt_w3 )
     deallocate( srf_alt_w0 )

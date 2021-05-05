@@ -102,18 +102,20 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only : real64
     use convert_hcurl_field_kernel_mod, only: convert_hcurl_field_code
 
     implicit none
 
     class(convert_hcurl_field_kernel_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-10_r_def
+    real(r_def), parameter :: tol = 1.0e-10_r_def  ! r_def 64bit
     real(r_def), parameter :: dx = 6000.0_r_def, &
                               dy = 1000.0_r_def, &
                               dz = 2000.0_r_def
 
     real(r_def) :: answer
+    real(r_def) :: use_tol
 
     integer(i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w1, undf_w1, ndf_pid, undf_pid
@@ -204,7 +206,12 @@ contains
     @assertEqual(answer, phys1(map_w1(4, cell)), tol)
     @assertEqual(answer, phys3(map_w1(5, cell)), tol)
     answer = -6.0_r_def
-    @assertEqual(answer, phys3(map_w1(6, cell)), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing(phys3(map_w1(6, cell)) )
+    end if
+    @assertEqual(answer, phys3(map_w1(6, cell)), use_tol)
 
     deallocate(map_w0)
     deallocate(map_w1)

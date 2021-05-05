@@ -17,7 +17,7 @@ module gungho_model_mod
   use configuration_mod,          only : final_configuration
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, i_native, &
-                                         PRECISION_REAL
+                                         PRECISION_REAL, r_second
   use convert_to_upper_mod,       only : convert_to_upper
   use count_mod,                  only : count_type, halo_calls
   use derived_config_mod,         only : set_derived_config
@@ -309,23 +309,24 @@ contains
 
     if ( use_xios_io ) then
       populate_pointer => populate_file_list
-      call initialise_xios( io_context,      &
-                            io_context_name, &
-                            communicator,    &
-                            mesh_id,         &
-                            twod_mesh_id,    &
-                            chi_xyz,         &
-                            timestep_start,  &
-                            timestep_end,    &
-                            spinup_period,   &
-                            dt,              &
+      call initialise_xios( io_context,                    &
+                            io_context_name,               &
+                            communicator,                  &
+                            mesh_id,                       &
+                            twod_mesh_id,                  &
+                            chi_xyz,                       &
+                            timestep_start,                &
+                            timestep_end,                  &
+                            real(spinup_period, r_second), &
+                            real(dt, r_second),            &
                             populate_pointer )
     else
-      call initialise_simple_io( io_context,     &
-                                 timestep_start, &
-                                 timestep_end,   &
-                                 spinup_period,  &
-                                 dt )
+      call initialise_simple_io( &
+                            io_context,                    &
+                            timestep_start,                &
+                            timestep_end,                  &
+                            real(spinup_period, r_second), &
+                            real(dt, r_second) )
     end if
 
     clock => io_context%get_clock()

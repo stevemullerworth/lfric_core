@@ -102,18 +102,19 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env, only: real64
     use convert_hdiv_field_kernel_mod, only: convert_hdiv_field_code
 
     implicit none
 
     class(convert_hdiv_field_kernel_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-10_r_def
+    real(r_def), parameter :: tol = 1.0e-10_r_def    ! r_def 64bit
     real(r_def), parameter :: dx = 6000.0_r_def, &
                               dy = 1000.0_r_def, &
                               dz = 2000.0_r_def
 
-    real(kind=r_def) :: answer
+    real(kind=r_def) :: answer, use_tol
 
     integer(i_def) :: nlayers, ncells, ncell_3d, cell, icell
     integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2, ndf_pid, undf_pid
@@ -194,18 +195,23 @@ contains
                                  basis_w0, diff_basis_w0,         &
                                  ndf_pid, undf_pid, map_pid       &
                                 )
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( 6.0_r_def ) ! max mod answer
+    endif
 
     answer = 1.0_r_def
-    @assertEqual(answer, phys1(map_w2(1, cell)), tol)
+    @assertEqual(answer, phys1(map_w2(1, cell)), use_tol)
     answer = -3.0_r_def
-    @assertEqual(answer, phys2(map_w2(2, cell)), tol)
+    @assertEqual(answer, phys2(map_w2(2, cell)), use_tol)
     answer = 0.0_r_def
-    @assertEqual(answer, phys1(map_w2(3, cell)), tol)
-    @assertEqual(answer, phys2(map_w2(4, cell)), tol)
-    @assertEqual(answer, phys3(map_w2(5, cell)), tol)
+    @assertEqual(answer, phys1(map_w2(3, cell)), use_tol)
+    @assertEqual(answer, phys2(map_w2(4, cell)), use_tol)
+    @assertEqual(answer, phys3(map_w2(5, cell)), use_tol)
     ! *2 as values is computed for cells both above and below the dof
     answer = -6.0_r_def * 2.0_r_def
-    @assertEqual(answer, phys3(map_w2(6, cell)), tol)
+    @assertEqual(answer, phys3(map_w2(6, cell)), use_tol)
 
     deallocate(map_w0)
     deallocate(map_w2)

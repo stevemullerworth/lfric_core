@@ -147,11 +147,11 @@ contains
        clm_mat_DTD(3,i,cell) = +1.0_r_def
        clm_mat_M(1,i,cell)   = +1.0_r_def
        densematrix_mass(i,i) = +1.0_r_def
-       if(i>1_i_def) then
+       if (i>1_i_def) then
           densematrix_DT_D(i,i-1_i_def) = +1.0_r_def
        end if
        densematrix_DT_D(i,i)   = +2.0_r_def
-       if(i<nrow_33) then
+       if (i<nrow_33) then
           densematrix_DT_D(i,i+1_i_def) = +1.0_r_def
        end if
     end do

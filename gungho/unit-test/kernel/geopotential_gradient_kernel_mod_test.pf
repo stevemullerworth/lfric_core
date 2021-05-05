@@ -80,6 +80,7 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
+    use, intrinsic :: iso_fortran_env,    only : real64
     use geopotential_gradient_kernel_mod, only : geopotential_gradient_code
 
     use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w0_m3x3_q3x3x3_size,    &
@@ -95,7 +96,7 @@ contains
 
     class(geopotential_gradient_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-3_r_def
+    real(r_def), parameter :: tol = 1.0e-3_r_def     ! r_def 64bit tolerance
     real(r_def), parameter :: dx = 6000.0_r_def, &
                               dy = 1000.0_r_def, &
                               dz = 2000.0_r_def
@@ -123,6 +124,7 @@ contains
     real(r_def), allocatable :: phi_data(:)
 
     real(r_def) :: answer
+    real(r_def) :: tst, use_tol
 
     ! Get canned data for a 3-layer mesh
     nlayers = 3
@@ -172,8 +174,19 @@ contains
 
     answer = -gravity*dz
     k = 1
-    @assertEqual(answer, r_u_data(map_w2(5, cell)+k), tol)
-    @assertEqual(answer, r_u_data(map_w2(6, cell)+k), tol)
+    if ( r_def == real64 ) then
+       use_tol = tol
+       @assertEqual(answer, r_u_data(map_w2(5, cell)+k), use_tol)
+       @assertEqual(answer, r_u_data(map_w2(6, cell)+k), use_tol)
+    else
+       tst   = r_u_data( map_w2( 5, cell ) + k )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(answer, tst, use_tol)
+
+       tst   = r_u_data( map_w2( 6, cell ) + k )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(answer, tst, use_tol)
+    endif
 
     deallocate(map_w0)
     deallocate(map_w2)

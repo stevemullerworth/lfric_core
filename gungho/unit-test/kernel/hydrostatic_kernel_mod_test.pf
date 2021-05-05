@@ -99,7 +99,8 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use hydrostatic_kernel_mod, only : hydrostatic_code
+    use, intrinsic :: iso_fortran_env, only: real64
+    use hydrostatic_kernel_mod,        only: hydrostatic_code
 
     implicit none
 
@@ -109,8 +110,8 @@ contains
     real(r_def), parameter :: dy = 1000.0_r_def
     real(r_def), parameter :: dz = 2000.0_r_def
 
-    real(r_def), parameter :: tol = 1.0e-9_r_def
-    real(r_def)            :: answer
+    real(r_def), parameter :: tol = 1.0e-9_r_def  ! r_def 64bit
+    real(r_def)            :: answer, use_tol
 
     ! Fields
     real(r_def), allocatable :: r_u(:)
@@ -223,8 +224,13 @@ contains
 
     k = 1
     answer = -gravity*dz
-    @assertEqual(answer, r_u(map_w2(5, cell)+k), tol)
-    @assertEqual(answer, r_u(map_w2(6, cell)+k), tol)
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( r_u ) )
+    end if
+    @assertEqual(answer, r_u(map_w2(5, cell)+k), use_tol)
+    @assertEqual(answer, r_u(map_w2(6, cell)+k), use_tol)
 
     deallocate( r_u )
     deallocate( exner )

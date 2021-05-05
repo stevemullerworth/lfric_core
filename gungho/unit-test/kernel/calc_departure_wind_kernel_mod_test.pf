@@ -103,17 +103,19 @@ contains
   @Test( npes=[1] )
   subroutine test_all( this )
 
-    use calc_departure_wind_kernel_mod, only: calc_departure_wind_code
+    use, intrinsic :: iso_fortran_env, only  : real64
+    use calc_departure_wind_kernel_mod, only : calc_departure_wind_code
 
     implicit none
 
     class(calc_departure_wind_test_type), intent(inout) :: this
 
-    real(kind=r_def)             :: answer, physical_wind_value
-    real(kind=r_def), parameter  :: tol = 1.0e-12_r_def
+    real(kind=r_def), parameter  :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
     real(kind=r_def), parameter  :: dx = 6.0_r_def
     real(kind=r_def), parameter  :: dy = 1.0_r_def
     real(kind=r_def), parameter  :: dz = 2.0_r_def
+    real(kind=r_def)             :: answer, physical_wind_value
+    real(kind=r_def)             :: tst, use_tol
 
     ! Fields
     real(r_def), allocatable :: u_piola(:)
@@ -202,9 +204,18 @@ contains
                                   )
 
     answer = physical_wind_value/(dx*dy*dz)
-    do df = 1,ndf_w2
-      @assertEqual(answer, u_departure_wind(map_w2(df, cell)), tol)
-    end do
+    if ( r_def == real64 ) then
+       use_tol = tol
+       do df = 1,ndf_w2
+         @assertEqual(answer, u_departure_wind(map_w2(df, cell)), use_tol)
+       end do
+    else
+       do df = 1,ndf_w2
+         tst   = u_departure_wind( map_w2(df, cell) )
+         use_tol = 10.0_r_def*spacing( tst )
+         @assertEqual(answer, tst, use_tol)
+       end do
+    endif
 
     deallocate(u_departure_wind)
     deallocate(u_piola)

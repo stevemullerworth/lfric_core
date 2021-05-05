@@ -28,7 +28,8 @@ contains
   @Test
   subroutine test_all( this )
 
-    use poly1d_flux_kernel_mod, only: poly1d_flux_code
+    use, intrinsic :: iso_fortran_env, only: real64
+    use poly1d_flux_kernel_mod,        only: poly1d_flux_code
 
     use get_unit_test_planar_mesh_mod, &
                                 only: get_outward_normals_to_horizontal_faces
@@ -37,8 +38,8 @@ contains
 
     class(poly1d_flux_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def) :: answer
+    real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
+    real(r_def) :: answer, use_tol
 
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: ndf_w2 = 4
@@ -102,15 +103,22 @@ contains
                            order,                &
                            nfaces_h,             &
                            outward_normals_to_horizontal_faces )
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( flux(1:4) ) )
+    end if
+
     answer = 2.0_r_def
-    @assertEqual(answer, flux(2) , tol)
+    @assertEqual(answer, flux(2), use_tol)
     answer = 4.0_r_def
-    @assertEqual(answer, flux(3) , tol)
+    @assertEqual(answer, flux(3), use_tol)
     ! These flux points should not have been computed so check
     ! they are unchanged
     answer = -1.0_r_def
-    @assertEqual(answer, flux(1) , tol)
-    @assertEqual(answer, flux(4) , tol)
+    @assertEqual(answer, flux(1), use_tol)
+    @assertEqual(answer, flux(4), use_tol)
 
   end subroutine test_all
 
