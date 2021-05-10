@@ -31,7 +31,6 @@ module lfric_xios_clock_mod
   contains
     private
     procedure, public :: initialise
-    procedure, public :: post_context
     procedure, public :: tick
   end type lfric_xios_clock_type
 
@@ -56,13 +55,15 @@ contains
     implicit none
 
     class(lfric_xios_clock_type), intent(inout) :: this
-    class(calendar_type), intent(in)    :: calendar
-    character(*),         intent(in)    :: first
-    character(*),         intent(in)    :: last
-    real(r_second),       intent(in)    :: seconds_per_step
-    real(r_second),       intent(in)    :: spinup_period
+    class(calendar_type),         intent(in)    :: calendar
+    character(*),                 intent(in)    :: first
+    character(*),                 intent(in)    :: last
+    real(r_second),               intent(in)    :: seconds_per_step
+    real(r_second),               intent(in)    :: spinup_period
 
-    type(xios_duration) :: timestep_length_for_xios
+    type(xios_duration) :: xios_since_timestep_zero, &
+                           timestep_length_for_xios
+    type(xios_date)     :: xios_start_date
 
     call this%clock_type%initialise( calendar,         &
                                      first,            &
@@ -71,30 +72,19 @@ contains
                                      spinup_period )
     this%step_offset = this%get_first_step() - 1
 
+    ! Set the current date by adding the run length so far to the run start date
+    ! obtained from XIOS
+    call xios_get_start_date(xios_start_date)
+    xios_since_timestep_zero%second = &
+                             this%seconds_from_steps(this%step_offset)
+    xios_start_date = xios_start_date + xios_since_timestep_zero
+    call xios_set_start_date(xios_start_date)
+
     ! Set the XIOS time-step from the model clock
     timestep_length_for_xios%second = this%get_seconds_per_step()
     call xios_set_timestep( timestep_length_for_xios )
 
   end subroutine initialise
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Performs post context setup.
-  !>
-  subroutine post_context( this )
-
-    implicit none
-
-    class(lfric_xios_clock_type), intent(in) :: this
-
-    integer(i_timestep) :: checkpoint_step
-
-    checkpoint_step = this%get_first_step() - 1
-    if (checkpoint_step < 1) then
-      checkpoint_step = 1
-    end if
-    call xios_update_calendar( checkpoint_step )
-
-  end subroutine post_context
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Advances the clock by one step.
@@ -107,7 +97,7 @@ contains
     logical                                     :: tick
 
     tick = this%clock_type%tick()
-    call xios_update_calendar( this%get_step() )
+    call xios_update_calendar( this%get_step() - this%get_first_step() + 1 )
 
   end function tick
 

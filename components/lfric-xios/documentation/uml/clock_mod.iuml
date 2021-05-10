@@ -7,7 +7,6 @@ package lfric_xios_clock_mod {
     -step_offset: Integer
 
     +initialise(calendar: calendar_type, first: String, last: String, seconds_per_step: Float, spinup_period: Float)
-    +post_context()
     +tick(): Boolean
   }
   clock_mod::clock_type ^-- lfric_xios_clock_type

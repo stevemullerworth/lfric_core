@@ -100,8 +100,6 @@ contains
 
     call xios_close_context_definition()
 
-    call this%clock%post_context()
-
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

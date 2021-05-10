@@ -103,6 +103,9 @@ CHARACTER(*),   PARAMETER :: last_step        = '1'
 REAL(r_second), PARAMETER :: spinup_period    = 0.0_r_second
 REAL(r_second), PARAMETER :: seconds_per_step = 1.0_r_second
 
+CLASS(clock_type), POINTER :: clock
+LOGICAL                    :: advance
+
 PROCEDURE(populate_filelist_if), POINTER :: populate_pointer
 
 ! Set module variables
@@ -158,6 +161,10 @@ call initialise_xios( io_context,       &
                       spinup_period,    &
                       seconds_per_step, &
                       populate_pointer )
+
+! Advance XIOS calendar to enable dump writing
+clock => io_context%get_clock()
+advance = clock%tick()
 
 END SUBROUTINE lfricinp_initialise_lfric
 
