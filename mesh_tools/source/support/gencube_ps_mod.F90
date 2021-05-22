@@ -1401,9 +1401,9 @@ subroutine calc_global_mesh_maps(self, panel_rotation_array)
   class(gencube_ps_type), intent(inout) :: self
   integer(i_def),         intent(in)    :: panel_rotation_array(:)
 
-  integer(i_def) :: source_id, source_cpp, source_ncells, &
-                    target_edge_cells_x, target_edge_cells_y, target_cpp, &
-                    target_ncells, i
+  integer(i_def) :: source_id, source_cpp, source_ncells,         &
+                    target_edge_cells, target_cpp, target_ncells, &
+                    ntarget_per_source_x, ntarget_per_source_y, i
   integer(i_def), allocatable :: cell_map(:,:,:)
 
 
@@ -1416,12 +1416,13 @@ subroutine calc_global_mesh_maps(self, panel_rotation_array)
 
   do i=1, size(self%target_mesh_names)
 
-    target_edge_cells_x = self%target_edge_cells(i)
-    target_edge_cells_y = target_edge_cells_x
-    target_cpp          = target_edge_cells_x*target_edge_cells_y
-    target_ncells       = target_cpp*self%npanels
-    allocate(cell_map(target_edge_cells_x,target_edge_cells_y,source_ncells))
-    call calc_global_cell_map(self, target_edge_cells_x, target_edge_cells_y, &
+    target_edge_cells    = self%target_edge_cells(i)
+    target_cpp           = target_edge_cells*target_edge_cells
+    target_ncells        = target_cpp*self%npanels
+    ntarget_per_source_x = max(1,target_edge_cells/self%edge_cells)
+    ntarget_per_source_y = max(1,target_edge_cells/self%edge_cells)
+    allocate(cell_map(ntarget_per_source_x,ntarget_per_source_y,source_ncells))
+    call calc_global_cell_map(self, target_edge_cells, target_edge_cells, &
                               cell_map, panel_rotation_array )
     call self%global_mesh_maps%add_global_mesh_map( source_id, i+1, cell_map )
 

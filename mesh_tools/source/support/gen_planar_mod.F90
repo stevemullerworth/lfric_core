@@ -1776,9 +1776,9 @@ subroutine calc_global_mesh_maps(self)
 
   class(gen_planar_type), intent(inout) :: self
 
-  integer(i_def) :: source_id, source_cpp, source_ncells, &
+  integer(i_def) :: source_id, source_cpp, source_ncells, target_ncells,  &
                     target_edge_cells_x, target_edge_cells_y, target_cpp, &
-                    target_ncells, i
+                    ntarget_per_source_x, ntarget_per_source_y, i
   integer(i_def), allocatable :: cell_map(:,:,:)
 
   if (.not. allocated( self%global_mesh_maps )) then
@@ -1791,11 +1791,13 @@ subroutine calc_global_mesh_maps(self)
 
   do i=1, size(self%target_mesh_names)
 
-    target_edge_cells_x = self%target_edge_cells_x(i)
-    target_edge_cells_y = self%target_edge_cells_y(i)
-    target_cpp          = target_edge_cells_x*target_edge_cells_y
-    target_ncells       = target_cpp*self%npanels
-    allocate(cell_map(target_edge_cells_x,target_edge_cells_y,source_ncells))
+    target_edge_cells_x  = self%target_edge_cells_x(i)
+    target_edge_cells_y  = self%target_edge_cells_y(i)
+    target_cpp           = target_edge_cells_x*target_edge_cells_y
+    target_ncells        = target_cpp*self%npanels
+    ntarget_per_source_x = max(1,target_edge_cells_x/self%edge_cells_x)
+    ntarget_per_source_y = max(1,target_edge_cells_y/self%edge_cells_y)
+    allocate(cell_map(ntarget_per_source_x,ntarget_per_source_y,source_ncells))
 
     call calc_global_cell_map( self,                &
                                target_edge_cells_x, &

@@ -1232,8 +1232,8 @@ subroutine calc_lbc_lam_map(self, lam_face_face)
   integer(i_def) :: source_id
   integer(i_def) :: target_id
 
-  integer(i_def) :: target_edge_cells_x = 1
-  integer(i_def) :: target_edge_cells_y = 1
+  integer(i_def) :: ntarget_per_source_x = 1
+  integer(i_def) :: ntarget_per_source_y = 1
 
   integer(i_def), allocatable :: lam_cell_next(:,:)
 
@@ -1280,7 +1280,7 @@ subroutine calc_lbc_lam_map(self, lam_face_face)
 
   ! 2.0 Construct the LBC-LAM cell map from the base panels
   !----------
-  allocate(cell_map(target_edge_cells_x, target_edge_cells_y, self%n_faces))
+  allocate(cell_map(ntarget_per_source_x, ntarget_per_source_y, self%n_faces))
 
   lbc_cell_id = 0
   do panel=1, 2
