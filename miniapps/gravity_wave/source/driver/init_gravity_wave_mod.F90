@@ -21,25 +21,20 @@ module init_gravity_wave_mod
 
   contains
 
-  subroutine init_gravity_wave( mesh_id, prognostics )
+  subroutine init_gravity_wave( mesh_id, wind, buoyancy, pressure )
     implicit none
 
     integer(i_def), intent(in) :: mesh_id
-    type( field_collection_type ),   intent(inout) :: prognostics
 
     ! Prognostic fields
-    type( field_type ), pointer :: wind => null()
-    type( field_type ), pointer :: pressure => null()
-    type( field_type ), pointer :: buoyancy => null()
+    type( field_type ), intent(inout) :: wind
+    type( field_type ), intent(inout) :: buoyancy
+    type( field_type ), intent(inout) :: pressure
 
     call log_event( 'gravity_wave: Initialising miniapp ...', LOG_LEVEL_INFO )
 
     ! Get a reference out of the depository collection and put it into
     ! the collection held in state
-
-    wind => prognostics%get_field("wind")
-    buoyancy => prognostics%get_field("buoyancy")
-    pressure => prognostics%get_field("pressure")
 
     call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
 

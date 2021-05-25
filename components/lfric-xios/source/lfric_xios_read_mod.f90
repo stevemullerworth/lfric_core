@@ -603,57 +603,41 @@ subroutine read_checkpoint(state, timestep)
     if ( .not.iter%has_next() ) exit
     fld => iter%next()
     select type(fld)
-      type is (field_type)
-        if ( fld%can_checkpoint() ) then
+    type is (field_type)
+       if ( fld%can_checkpoint() ) then
 
           call log_event( 'Reading checkpoint file to restart '// &
-                           trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
+               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
           call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
-                                    trim(ts_fname(checkpoint_stem_name, "",    &
-                                    trim(adjustl(fld%get_name())),timestep,"")) )
-        else if ( fld%can_read() ) then
+               trim(ts_fname(checkpoint_stem_name, "",    &
+               trim(adjustl(fld%get_name())),timestep,"")) )
+       else if ( fld%can_read() ) then
           write(log_scratch_space,'(2A)') &
-                "Reading UGRID checkpoint for ", trim(adjustl(fld%get_name()))
+               "Reading UGRID checkpoint for ", trim(adjustl(fld%get_name()))
           call log_event(log_scratch_space, LOG_LEVEL_INFO)
           call fld%read_field( "restart_" // trim(adjustl(fld%get_name())) )
-        else
+       else
           call log_event( 'Reading not set up for  '// trim(adjustl(fld%get_name())), &
-                          LOG_LEVEL_INFO )
-        end if
-      type is (integer_field_type)
-        if ( fld%can_checkpoint() ) then
+               LOG_LEVEL_INFO )
+       end if
+    type is (integer_field_type)
+       if ( fld%can_checkpoint() ) then
           call log_event( 'Reading checkpoint file to restart '// &
-                           trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
+               trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
           call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
-                                    trim(ts_fname(checkpoint_stem_name, "",    &
-                                    trim(adjustl(fld%get_name())),timestep,"")) )
-        else if ( fld%can_read() ) then
+               trim(ts_fname(checkpoint_stem_name, "",    &
+               trim(adjustl(fld%get_name())),timestep,"")) )
+       else if ( fld%can_read() ) then
           write(log_scratch_space,'(2A)') &
-                "Reading UGRID checkpoint for ", trim(adjustl(fld%get_name()))
+               "Reading UGRID checkpoint for ", trim(adjustl(fld%get_name()))
           call log_event(log_scratch_space, LOG_LEVEL_INFO)
           call fld%read_field( "restart_" // trim(adjustl(fld%get_name())) )
-        else
+       else
           call log_event( 'Reading not set up for  '// trim(adjustl(fld%get_name())), &
-                          LOG_LEVEL_INFO )
-        end if
-
-      type is (r_solver_field_type)
-        if ( fld%can_checkpoint() ) then
-          call log_event( 'Reading checkpoint file to restart '// &
-                           trim(adjustl(fld%get_name())), LOG_LEVEL_INFO)
-          call fld%read_checkpoint( "restart_"//trim(adjustl(fld%get_name())), &
-                                    trim(ts_fname(checkpoint_stem_name, "",    &
-                                    trim(adjustl(fld%get_name())),timestep,"")))
-        else if ( fld%can_read() ) then
-          write(log_scratch_space,'(2A)') &
-                "Reading UGRID checkpoint for ", trim(adjustl(fld%get_name()))
-          call log_event(log_scratch_space, LOG_LEVEL_INFO)
-          call fld%read_field( "restart_" // trim(adjustl(fld%get_name())) )
-        else
-          call log_event( 'Reading not set up for  '// trim(adjustl(fld%get_name())), &
-                          LOG_LEVEL_INFO )
-        end if
-
+               LOG_LEVEL_INFO )
+       end if
+    class default
+       call log_event('read_checkpoint:Invalid type of field, not supported',LOG_LEVEL_ERROR)
     end select
   end do
 

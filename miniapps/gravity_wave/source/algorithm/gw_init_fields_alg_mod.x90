@@ -7,7 +7,6 @@
 !>@brief Initialisation of prognostic fields for the gravity wave equations
 module gw_init_fields_alg_mod
 
-  !use quadrature_edge_mod,               only:
   use log_mod,                           only: log_event,         &
                                                log_scratch_space, &
                                                LOG_LEVEL_INFO,    &
@@ -51,17 +50,15 @@ contains
   !>          all solvers.
   !> @param[inout] prognostics  The prognostic variables
   !>                            (wind buoyancy and pressure)
-  subroutine gw_init_fields_alg( prognostics )
+  subroutine gw_init_fields_alg( wind, pressure, buoyancy )
 
     implicit none
 
     ! Prognostic fields
-    type( field_collection_type ), intent(inout) :: prognostics
+    type( field_type ), intent(inout)           :: wind
+    type( field_type ), intent(inout)           :: pressure
+    type( field_type ), intent(inout)           :: buoyancy
 
-
-    type( field_type ), pointer           :: wind => null()
-    type( field_type ), pointer           :: pressure => null()
-    type( field_type ), pointer           :: buoyancy => null()
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
     type( field_type )                    :: r_u
@@ -76,9 +73,6 @@ contains
 
     ! Get references out of the prognostic collection for the prognostic
     ! variables
-    wind => prognostics%get_field("wind")
-    buoyancy => prognostics%get_field("buoyancy")
-    pressure => prognostics%get_field("pressure")
 
     mesh_id = wind%get_mesh_id()
 
@@ -93,7 +87,6 @@ contains
     call log_event( 'gravity_wave: Initialising prognostic fields', LOG_LEVEL_INFO )
 
     call invoke( initial_buoyancy_kernel_type(buoyancy, chi_xyz) )
-
     ! Initialise U and p according to formulation
     call r_u % initialise( vector_space = wind%get_function_space() )
     call invoke( name = 'Initialise U and p',     &

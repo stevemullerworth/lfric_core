@@ -18,7 +18,6 @@ module gravity_wave_driver_mod
   use create_gravity_wave_prognostics_mod, &
                                       only: create_gravity_wave_prognostics
   use field_mod,                      only: field_type
-  use field_collection_mod,           only: field_collection_type
   use function_space_chain_mod,       only: function_space_chain_type
   use gravity_wave_mod,               only: program_name
   use gravity_wave_constants_config_mod, &
@@ -33,18 +32,20 @@ module gravity_wave_driver_mod
                                       only: initialise_infrastructure, &
                                             finalise_infrastructure
   use gw_init_fields_alg_mod,         only: gw_init_fields_alg
-  use init_gravity_wave_mod,          only: init_gravity_wave
-  use io_config_mod,                  only: write_diag,           &
-                                            checkpoint_read,      &
-                                            checkpoint_write,     &
-                                            diagnostic_frequency, &
-                                            use_xios_io,          &
-                                            nodal_output_on_w3,   &
+  use gravity_wave_alg_mod,           only: gravity_wave_alg_init, &
+                                            gravity_wave_alg_step, &
+                                            gravity_wave_alg_final
+  use io_config_mod,                  only: write_diag,            &
+                                            checkpoint_read,       &
+                                            checkpoint_write,      &
+                                            diagnostic_frequency,  &
+                                            use_xios_io,           &
+                                            nodal_output_on_w3,    &
                                             subroutine_timers
   use io_context_mod,                 only: io_context_type
   use runtime_constants_mod,          only: create_runtime_constants
-  use step_gravity_wave_mod,          only: step_gravity_wave
-  use final_gravity_wave_mod,         only: final_gravity_wave
+  use checksum_alg_mod,               only : checksum_alg
+
   use boundaries_config_mod,          only: limited_area
   use log_mod,                        only: log_event,          &
                                             log_scratch_space,  &
@@ -52,8 +53,7 @@ module gravity_wave_driver_mod
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_TRACE,    &
                                             LOG_LEVEL_ERROR
-  use lfric_xios_read_mod,            only: read_checkpoint
-  use lfric_xios_write_mod,           only: write_checkpoint
+  use io_mod,                         only: ts_fname
   use files_config_mod,               only: checkpoint_stem_name
   use timer_mod,                      only: init_timer, timer, output_timer
 
@@ -65,16 +65,15 @@ module gravity_wave_driver_mod
 
   character(*), public, parameter   :: xios_ctx = 'gravity_wave'
 
-  ! Depository of shared fields
-  type( field_collection_type ), target :: depository
-
-  ! Gravity wave model state
-  type( field_collection_type ) :: prognostic_fields
-
   ! Coordinate field
   type(field_type), target, dimension(3) :: chi_xyz
   type(field_type), target, dimension(3) :: chi_sph
   type(field_type), target               :: panel_id
+
+  ! The prognostic fields
+  type( field_type ), target             :: wind
+  type( field_type ), target             :: pressure
+  type( field_type ), target             :: buoyancy
 
   integer(i_def) :: mesh_id
   integer(i_def) :: twod_mesh_id
@@ -148,31 +147,42 @@ contains
   ! matrix diagonal fields and the geopotential field and limited area masks.
   call create_runtime_constants(mesh_id, twod_mesh_id, chi_xyz, chi_sph, panel_id)
 
-  ! Create the depository and prognostics field collections.
-  ! Actually, here they will have the same contents (prognostics points to all
-  ! the fields in the depository), but both are maintained to be consistent
-  ! with more complex models
-  depository=field_collection_type(name='depository')
-  prognostic_fields=field_collection_type(name='prognostics')
-
   ! Create the prognostic fields
-  call create_gravity_wave_prognostics(mesh_id, depository, prognostic_fields)
+  call create_gravity_wave_prognostics(mesh_id, wind, pressure, buoyancy)
 
   ! Initialise prognostic fields
-  if (checkpoint_read) then                 ! Recorded check point to start from
-    call read_checkpoint(prognostic_fields, clock%get_step()-1)
+  if (checkpoint_read) then                 ! R ecorded check point to start from
+     call log_event( 'Reading checkpoint file to restart wind', LOG_LEVEL_INFO)
+     call wind%read_checkpoint("restart_wind",                                &
+          trim(ts_fname(checkpoint_stem_name,                                 &
+          "","wind",clock%get_step()-1,"")) )
+
+     call log_event( 'Reading checkpoint file to restart pressure',           &
+          LOG_LEVEL_INFO)
+     call pressure%read_checkpoint("restart_pressure",                        &
+          trim(ts_fname(checkpoint_stem_name,"",                              &
+          "pressure",clock%get_step()-1,"")) )
+
+     call log_event( 'Reading checkpoint file to restart buoyancy',           &
+          LOG_LEVEL_INFO)
+     call buoyancy%read_checkpoint("restart_buoyancy",                        &
+          trim(ts_fname(checkpoint_stem_name,"",                              &
+          "buoyancy",clock%get_step()-1,"")) )
+
   else                                      ! No check point to start from
-    call gw_init_fields_alg(prognostic_fields)
+     call gw_init_fields_alg(wind, pressure, buoyancy)
   end if
 
   ! Initialise the gravity-wave model
-  call init_gravity_wave( mesh_id, prognostic_fields )
+  call gravity_wave_alg_init(mesh_id, wind, pressure, buoyancy)
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
   if (clock%is_initialisation() .and. write_diag) then
     call gravity_wave_diagnostics_driver( mesh_id,           &
-                                          prognostic_fields, &
+                                          wind,              &
+                                          pressure,          &
+                                          buoyancy,          &
                                           clock,             &
                                           nodal_output_on_w3)
   end if
@@ -211,7 +221,7 @@ contains
     write( log_scratch_space, '(A,I0)' ) 'Start of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    call step_gravity_wave(prognostic_fields)
+    call gravity_wave_alg_step(wind, pressure, buoyancy)
 
     write( log_scratch_space, '(A,I0)' ) 'End of timestep ', clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -223,7 +233,9 @@ contains
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
       call gravity_wave_diagnostics_driver( mesh_id,           &
-                                            prognostic_fields, &
+                                            wind,              &
+                                            pressure,          &
+                                            buoyancy,          &
                                             clock,             &
                                             nodal_output_on_w3)
     end if
@@ -249,11 +261,24 @@ contains
   !--------------------------------------------------------------------------
   call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
-  call final_gravity_wave(prognostic_fields, program_name)
+  ! Write checksums to file
+  call checksum_alg( program_name, wind, 'wind', buoyancy, 'buoyancy', pressure, 'pressure')
+  call gravity_wave_alg_final()
 
   ! Write checkpoint/restart files if required
   if( checkpoint_write ) then
-    call write_checkpoint(prognostic_fields, clock)
+     call wind%write_checkpoint("restart_wind",                               &
+          trim(ts_fname(checkpoint_stem_name,                                 &
+          "","wind",clock%get_step(),"")) )
+
+     call pressure%write_checkpoint("restart_pressure",                       &
+          trim(ts_fname(checkpoint_stem_name,"",                              &
+          "pressure",clock%get_step(),"")) )
+
+     call buoyancy%write_checkpoint("restart_buoyancy",                       &
+          trim(ts_fname(checkpoint_stem_name,"",                              &
+          "buoyancy",clock%get_step(),"")) )
+
   end if
 
   if ( subroutine_timers ) then

@@ -17,7 +17,6 @@ module create_gravity_wave_prognostics_mod
   use field_parent_mod,               only : write_interface, &
                                              checkpoint_write_interface, &
                                              checkpoint_read_interface
-  use field_collection_mod,           only : field_collection_type
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W0, W2, W3, Wtheta
@@ -46,29 +45,23 @@ module create_gravity_wave_prognostics_mod
   private
   public create_gravity_wave_prognostics
 
-  contains
+contains
 
   !> @brief Create the prognostic fields and place them in the depository
   !> @param [in] mesh_id The identifier of the primary mesh
-  !> @param [inout] depository A collection of all fields used in the miniapp
-  !> @param [inout] prognostics A collection of all the prognostic fields.
-  !>                            For the gravity wave miniapp, the prognostics
-  !>                            are all the fields in the depository - so the
-  !>                            two collections contain the same fields
-  subroutine create_gravity_wave_prognostics(mesh_id, depository, prognostics)
+  !> @param [inout] wind prognostic field
+  !> @param [inout] pressure prognostic field
+  !> @param [inout] buoyancy prognostic field
+  subroutine create_gravity_wave_prognostics(mesh_id, wind, pressure, buoyancy)
 
     implicit none
     integer(i_def), intent(in)                   :: mesh_id
-    type( field_collection_type ), intent(inout) :: depository
-    type( field_collection_type ), intent(inout) :: prognostics
 
-    type( field_type) :: wind
-    type( field_type) :: buoyancy
-    type( field_type) :: pressure
+    type( field_type), intent(inout) :: wind
+    type( field_type), intent(inout) :: pressure
+    type( field_type), intent(inout) :: buoyancy
 
     integer(i_def) :: buoyancy_space
-
-    class(pure_abstract_field_type), pointer  :: tmp_ptr => null()
 
     procedure(write_interface),       pointer :: tmp_write_ptr
     procedure(checkpoint_write_interface), pointer :: tmp_checkpoint_write_ptr
@@ -138,19 +131,6 @@ module create_gravity_wave_prognostics_mod
       call buoyancy%set_checkpoint_read_behaviour(tmp_checkpoint_read_ptr)
 
     end if
-
-    ! Put the prognostic fields into the depository
-    call depository%add_field(wind)
-    call depository%add_field(pressure)
-    call depository%add_field(buoyancy)
-
-    ! Put pointers to the prognostic fields into the prognostic collection
-    tmp_ptr => depository%get_field('wind')
-    call prognostics%add_reference_to_field(tmp_ptr)
-    tmp_ptr => depository%get_field('pressure')
-    call prognostics%add_reference_to_field(tmp_ptr)
-    tmp_ptr => depository%get_field('buoyancy')
-    call prognostics%add_reference_to_field(tmp_ptr)
 
   end subroutine create_gravity_wave_prognostics
 
