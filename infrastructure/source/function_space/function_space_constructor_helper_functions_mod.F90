@@ -8,6 +8,7 @@
 module function_space_constructor_helper_functions_mod
 
   use constants_mod,         only: i_def, i_halo_index, r_def, IMDI
+  use local_mesh_mod,        only: local_mesh_type
   use mesh_mod,              only: mesh_type
   use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
                                    W2broken, W2trace,      &
@@ -1679,6 +1680,8 @@ contains
     ! Number of cells in all the inner halos added together
     integer(i_def) :: tot_num_inner
 
+    type(local_mesh_type), pointer :: local_mesh => null()
+
     type(select_entity_type), target :: select_entity_all,   &
                                         select_entity_theta, &
                                         select_entity_w2h,   &
@@ -1688,6 +1691,8 @@ contains
     integer(i_halo_index) :: num_layers, num_dofs, num_ndata
 
     !===========================================================================
+
+    local_mesh => mesh%get_local_mesh()
 
     reference_element => mesh%get_reference_element()
     number_faces               = reference_element%get_number_faces()
@@ -2193,7 +2198,7 @@ contains
           if(mesh%is_edge_owned(iedge, icell))then
             do m = 1, ndata
               global_edge_dof_id_2d(((dofmap(iedge, icell) - 1) / (nlayers * ndata)) + 1) = &
-                (mesh%get_edge_gid_on_cell(iedge, icell) - 1) * ndata + m - 1
+                (local_mesh%get_edge_gid_on_cell(iedge, icell) - 1) * ndata + m - 1
             end do
           endif
         end do
@@ -2214,7 +2219,7 @@ contains
           if(mesh%is_vertex_owned(ivert, icell))then
             do m = 1, ndata
               global_vert_dof_id_2d(((dofmap(ivert, icell) - 1) / ((nlayers + 1) * ndata)) + 1) = &
-                (mesh%get_vert_gid_on_cell(ivert, icell) - 1) * ndata + m - 1
+                (local_mesh%get_vert_gid_on_cell(ivert, icell) - 1) * ndata + m - 1
             end do
           endif
         end do

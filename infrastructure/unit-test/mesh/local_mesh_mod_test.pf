@@ -8,7 +8,7 @@
 !>
 module local_mesh_mod_test
 
-  use constants_mod,              only: i_def, i_native, &
+  use constants_mod,              only: i_def, i_native, r_def, &
                                         str_max_filename, str_def
   use global_mesh_collection_mod, only: global_mesh_collection_type, &
                                         global_mesh_collection
@@ -121,6 +121,16 @@ contains
     integer(i_def) :: cell_owner
     integer(i_def) :: lid
     integer(i_def) :: gid
+    integer(i_def) :: vert_gid
+    integer(i_def) :: edge_gid
+    integer(i_def) :: vert_lid
+    integer(i_def) :: edge_lid
+    integer(i_def) :: n_unique_vertices
+    integer(i_def) :: n_unique_edges
+    integer(i_def) :: cell_next(4)
+    integer(i_def) :: known_cell_next(4)
+    real(r_def)    :: vert_coords(2)
+    real(r_def)    :: known_vert_coords(2)
 
     ! Create a local mesh from partitioning a global mesh on 1 and 4 processors
 
@@ -210,6 +220,32 @@ contains
         cell_owner = local_mesh%get_cell_owner( 1 )
         @assertEqual( 0, cell_owner )
 
+        vert_gid = local_mesh%get_vert_gid_on_cell( 1, 6 )
+        @assertEqual ( 36, vert_gid )
+
+        edge_gid = local_mesh%get_edge_gid_on_cell( 4, 5 )
+        @assertEqual ( 46, edge_gid )
+
+        known_vert_coords(:) = [ -750.0, 500.0 ]
+        call local_mesh%get_vert_coords( 3, vert_coords )
+        @assertEqual ( known_vert_coords, vert_coords, 1.0e-2_r_def )
+
+        n_unique_vertices = local_mesh%get_n_unique_vertices()
+        @assertEqual ( 64, n_unique_vertices )
+
+        n_unique_edges = local_mesh%get_n_unique_edges()
+        @assertEqual ( 128, n_unique_edges )
+
+        vert_lid = local_mesh%get_vert_on_cell( 1, 6 )
+        @assertEqual ( 12, vert_lid )
+
+        edge_lid = local_mesh%get_edge_on_cell( 4, 5 )
+        @assertEqual ( 2, edge_lid )
+
+        known_cell_next(:) = [ 2, 7, 4, 20 ]
+        call local_mesh%get_cell_next( 3, cell_next )
+        @assertEqual ( known_cell_next, cell_next )
+
         lid = 1
         gid = local_mesh%get_gid_from_lid( lid )
         @assertEqual( 19, gid )
@@ -251,6 +287,62 @@ contains
 
         cell_owner = local_mesh%get_cell_owner(1)
         @assertEqual( this%local_rank, cell_owner )
+
+        vert_gid = local_mesh%get_vert_gid_on_cell( 1, 6 )
+        select case ( this%local_rank )
+          case (0)
+            @assertEqual( 42, vert_gid )
+          case (1)
+            @assertEqual( 46, vert_gid )
+          case (2)
+            @assertEqual( 2, vert_gid )
+          case (3)
+            @assertEqual( 11, vert_gid )
+        end select
+
+        edge_gid = local_mesh%get_edge_gid_on_cell( 4, 5 )
+        select case ( this%local_rank )
+          case (0)
+            @assertEqual( 58, edge_gid )
+          case (1)
+            @assertEqual( 66, edge_gid )
+          case (2)
+            @assertEqual( 4, edge_gid )
+          case (3)
+            @assertEqual( 16, edge_gid )
+        end select
+
+        call local_mesh%get_vert_coords( 3, vert_coords )
+        select case ( this%local_rank )
+          case (0)
+            known_vert_coords(:) = [ -1500.0, -250.0 ]
+            @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
+          case (1)
+            known_vert_coords(:) = [  1500.0, -250.0 ]
+            @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
+          case (2)
+            known_vert_coords(:) = [ -1500.0,  750.0 ]
+            @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
+          case (3)
+            known_vert_coords(:) = [  1500.0,  750.0 ]
+            @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
+        end select
+
+        n_unique_vertices = local_mesh%get_n_unique_vertices()
+        @assertEqual ( 64, n_unique_vertices )
+
+        n_unique_edges = local_mesh%get_n_unique_edges()
+        @assertEqual ( 128, n_unique_edges )
+
+        vert_lid = local_mesh%get_vert_on_cell( 1, 6 )
+        @assertEqual( 4, vert_lid )
+
+        edge_lid = local_mesh%get_edge_on_cell( 4, 5 )
+        @assertEqual( 16, edge_lid )
+
+        known_cell_next(:) = [ 11, 14, 4, 1 ]
+        call local_mesh%get_cell_next( 3, cell_next )
+        @assertEqual ( known_cell_next, cell_next )
 
         lid = 1
         gid = local_mesh%get_gid_from_lid( lid )

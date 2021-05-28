@@ -28,6 +28,7 @@ contains
 
     subroutine invoke_set_target_data_point_kernel(field, target_cell, target_layer, value)
 
+        use local_mesh_mod, only : local_mesh_type
         use mesh_mod, only : mesh_type
 
         implicit none
@@ -36,6 +37,7 @@ contains
         real(kind = r_def), intent(in) :: value
         integer(kind = i_def), intent(in) :: target_cell, target_layer
         type(mesh_type), pointer :: mesh => null()
+        type(local_mesh_type), pointer :: local_mesh => null()
         integer, pointer :: map_w3(:, :) => null()
 
         integer(i_def) :: local_id
@@ -46,11 +48,12 @@ contains
         !        field_proxy%data(target_variable)=value
 
         mesh => field_proxy%vspace%get_mesh()
+        local_mesh => mesh%get_local_mesh()
         map_w3 => field_proxy%vspace%get_whole_dofmap()
 
         ! find out what the local mesh id is for the global ID provided (this could be working on a partition of the
         ! global mesh.
-        local_id = mesh%get_cell_lid(target_cell)
+        local_id = local_mesh%get_lid_from_gid(target_cell)
         ! only update it if it is in our grid
         if(local_id /= IMDI) then
 

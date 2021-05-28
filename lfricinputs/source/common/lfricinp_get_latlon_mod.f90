@@ -78,6 +78,7 @@ USE mesh_collection_mod,        ONLY: mesh_collection
 USE mesh_mod,                   ONLY: mesh_type
 USE global_mesh_collection_mod, ONLY: global_mesh_collection
 USE global_mesh_mod,            ONLY: global_mesh_type
+USE local_mesh_mod,             ONLY: local_mesh_type
 USE lfricinp_lfric_driver_mod,  ONLY: mesh_id
 
 IMPLICIT NONE
@@ -91,14 +92,16 @@ REAL(KIND=real64), INTENT(OUT) :: lon, lat
 ! Local variables
 TYPE(mesh_type),        POINTER  :: mesh => NULL()
 TYPE(global_mesh_type), POINTER  :: global_mesh => NULL()
+TYPE(local_mesh_type),  POINTER  :: local_mesh => NULL()
 INTEGER(KIND=int32), ALLOCATABLE :: verts(:)
 INTEGER(KIND=int32)              :: i
 REAL(KIND=real64)                :: vert_coords(2)
 
 mesh => mesh_collection%get_mesh(mesh_id)
+local_mesh => mesh%get_local_mesh()
 global_mesh => global_mesh_collection%get_global_mesh(mesh%get_global_mesh_id())
 ALLOCATE(verts(global_mesh%get_nverts_per_cell()))
-CALL global_mesh%get_vert_on_cell(mesh%get_cell_gid(cell_lid), verts)
+CALL global_mesh%get_vert_on_cell(local_mesh%get_gid_from_lid(cell_lid), verts)
 
 !
 ! NOTE: Below we take the cell centre coordinates to be the average of the
@@ -116,7 +119,7 @@ END DO
 lat = lat / REAL(SIZE(verts))
 lon = lon / REAL(SIZE(verts))
 
-NULLIFY(mesh,global_mesh)
+NULLIFY(mesh,local_mesh,global_mesh)
 
 DEALLOCATE(verts)
 

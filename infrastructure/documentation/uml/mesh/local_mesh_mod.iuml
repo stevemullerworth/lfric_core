@@ -9,6 +9,14 @@ class local_mesh_mod::local_mesh_type {
   -nedges_per_cell: integer
   -num_cells_in_layer: integer
   -global_cell_id: integer[:] <<allocatable>>
+  -n_unique_vertices: integer
+  -n_unique_edges: integer
+  -vert_coords: integer[::] <<allocatable>>
+  -vert_on_cell: integer[::] <<allocatable>>
+  -edge_on_cell: integer[::] <<allocatable>>
+  -vert_on_cell_gid: integer[::] <<allocatable>>
+  -edge_on_cell_gid: integer[::] <<allocatable>>
+  -cell_next: integer[::] <<allocatable>>
   -cell_owner: integer[:] <<allocatable>>
   -num_inner: integer[:] <<allocatable>>
   -last_inner_cell: integer[:] <<allocatable>>
@@ -19,8 +27,9 @@ class local_mesh_mod::local_mesh_type {
   -last_halo_cell: integer[:] <<allocatable>>
   -halo_depth: integer
   -num_ghost: integer
-  -npanels: integer
+  -last_ghost_cell: integer
   -local_mesh_map_collection: local_mesh_map_collection_type <<allocatable>>
+  -npanels: integer
 
   +<<destroy>> local_mesh_destructor()
   +clear()
@@ -35,6 +44,14 @@ class local_mesh_mod::local_mesh_type {
   +get_nverts_per_edge(): integer
   +get_nedges_per_cell(): integer
   +get_num_cells_in_layer(): integer
+  +get_edge_gid_on_cell(<<in>>iedge: integer, <<in>>icell: integer): integer
+  +get_vert_gid_on_cell(<<in>>ivert: integer, <<in>>icell: integer): integer
+  +get_vert_coords(<<in>>vert_lid: integer, <<out>>vert_coords(:): integer)
+  +get_n_unique_vertices(): integer
+  +get_n_unique_edges(): integer
+  +get_edge_on_cell(<<in>>iedge: integer, <<in>>icell: integer): integer
+  +get_vert_on_cell(<<in>>ivert: integer, <<in>>icell: integer): integer
+  +get_cell_next(<<in>>cell_lid: integer, <<out>>cell_next(:): integer)
   +get_inner_depth(): integer
   +get_num_cells_inner(): integer
   +get_last_inner_cell(): integer
