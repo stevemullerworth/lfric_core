@@ -1051,7 +1051,7 @@ this metadata is used by PSyclone to generate correct code.
   the coordinate field only.
 \item The {\tt operates\_on} integer is set to the entity over which
   the kernel needs to loop. For GungHo dynamics kernels this is always
-  {\tt CELL_COLUMN} meaning that each call to the kernel needs to be
+  {\tt CELL\_COLUMN} meaning that each call to the kernel needs to be
   given a dof-map for all the dofs in the lowest cell of a column.
   PSyclone \textit{can} support other looping strategies.
 \item The {\tt gh\_shape} integer references one of several quadrature

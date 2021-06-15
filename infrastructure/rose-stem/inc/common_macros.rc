@@ -142,11 +142,14 @@
                  """
     script = make -C $SOURCE_DIRECTORY document-latex {{verboseMake()}}
 
+    post-script = """
+                  RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")
+                  echo $RELATIVE_LOG_ROOT > $DOCUMENT_DIR/design.log.path
+                  """
+
     [[[environment]]]
       DOCUMENT_DIR = $OUTPUT_ROOT/documents/design
 
-    [[[job]]]
-      execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%-   endif %}
 
 
