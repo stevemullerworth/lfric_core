@@ -54,10 +54,17 @@ def run(miniapp_name, miniapp_dir):
         newpath = replace_keep_case(skeleton_word, miniapp_var, relpath)
 
         for each_dir in dirs:
-            # Create new directories (substituting name where required)
-            newdir = replace_keep_case(skeleton_word, miniapp_var, each_dir)
-            dir_out = "{}/{}/{}".format(miniapp_root, newpath, newdir)
-            os.makedirs(dir_out)
+            if os.path.islink(root+"/"+each_dir):
+                # If dir is a symlink, copy it (assumes a relative symlink)
+                olddir = "{}/{}".format(root, each_dir)
+                newdir = "{}/{}/{}".format(miniapp_root, newpath, each_dir)
+                copyfile(olddir, newdir, follow_symlinks=False)
+            else:
+                # Create new directories (substituting name where required)
+                newdir = replace_keep_case(skeleton_word, miniapp_var,
+                                           each_dir)
+                dir_out = "{}/{}/{}".format(miniapp_root, newpath, newdir)
+                os.makedirs(dir_out)
 
         for each_file in files:
             # Create new files (replacing name in text where required)
