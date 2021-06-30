@@ -110,10 +110,9 @@ module mixed_schur_preconditioner_alg_mod
                                              get_rho_at_u, &
                                              get_helm_diag, &
                                              get_Hb_lumped_inv
-  use fem_constants_mod,               only: get_mass_matrix, &
+  use fem_constants_mod,               only: get_inverse_w3_mass_matrix, &
                                              get_div, &
-                                             get_normalisation, &
-                                             w2_id, w3inv_id, wt_id
+                                             get_normalisation
   use limited_area_constants_mod,      only: get_mask
   use fs_continuity_mod,               only: W2, W3, Wtheta
   use boundaries_config_mod,           only: limited_area
@@ -332,6 +331,9 @@ contains
     type( field_type )             :: rhs_uvw
     type( field_type ), pointer    :: w2_mask => null(), &
                                       w3_mask => null()
+    integer( kind=i_def )          :: mesh_id
+
+    mesh_id = rhs0%vector( igh_u )%get_mesh_id()
 
     call rhs_uvw%initialise( vector_space = self%rhs_u%get_function_space() )
     if ( split_w )then
@@ -352,9 +354,9 @@ contains
     ptheta2         => get_ptheta2v()
     p3theta         => get_p3theta()
     m3_rho_star     => get_m3_rho_star()
-    m3_inv          => get_mass_matrix(w3inv_id)
+    m3_inv          => get_inverse_w3_mass_matrix(mesh_id)
     compound_div    => get_compound_div()
-    u_normalisation => get_normalisation(w2_id)
+    u_normalisation => get_normalisation(W2, mesh_id)
     Hb_lumped_inv   => get_Hb_lumped_inv()
     ! rhs_u = rhs_u + UNORM*P02*rhs_t
 
@@ -380,7 +382,7 @@ contains
     ! Compute H(u_term)
     ! r_pi = M3^-1*(rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r)
     ! r_rho already contains M3^-1 factor
-    mt_lumped_inv => get_normalisation(wt_id)
+    mt_lumped_inv => get_normalisation(Wtheta, mesh_id)
     if ( element_order == 0 ) then
       call invoke( setval_c( r_p, 0.0_r_def ),  &
                    opt_apply_variable_hx_kernel_type( r_p, u_term, mt_lumped_inv, rhs0%vector(igh_d), &
@@ -469,15 +471,17 @@ contains
 
     if ( subroutine_timers ) call timer('Schur back substitute')
 
+    mesh_id = self%rhs_u%get_mesh_id()
+
     ! Need to pass in mathfrak{R}_u
-    u_normalisation => get_normalisation(w2_id)
-    t_normalisation => get_normalisation(wt_id)
+    u_normalisation => get_normalisation(W2, mesh_id)
+    t_normalisation => get_normalisation(Wtheta, mesh_id)
 
     div_star      => get_div_star()
     ptheta2       => get_ptheta2v()
     rho_at_u      => get_rho_at_u()
-    div           => get_div()
-    m3_inv        => get_mass_matrix(w3inv_id)
+    div           => get_div(mesh_id)
+    m3_inv        => get_inverse_w3_mass_matrix(mesh_id)
     Hb_lumped_inv => get_Hb_lumped_inv()
 
     if ( limited_area ) then
@@ -549,7 +553,6 @@ contains
     end if
 
     p = self%rhs_u%get_element_order()
-    mesh_id = self%rhs_u%get_mesh_id()
     call uv_inc%initialise( vector_space = function_space_collection%get_fs( mesh_id, p, W2h ) )
     call w_inc%initialise( vector_space = function_space_collection%get_fs( mesh_id, p, W2v ) )
 

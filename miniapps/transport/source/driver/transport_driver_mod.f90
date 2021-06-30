@@ -76,8 +76,7 @@ module transport_driver_mod
   use cosmic_threed_alg_mod,          only: cosmic_threed_transport_step
   use calc_dep_pts_alg_mod,           only: calc_dep_pts
   use density_inc_update_alg_mod,     only: density_inc_update_alg
-  use fem_constants_mod,              only: get_detj_at_w2,                   &
-                                            get_detj_at_w2_shifted
+  use fem_constants_mod,              only: get_detj_at_w2
   use geometric_constants_mod,        only: get_cell_orientation
   use yaxt,                           only: xt_initialize, xt_finalize
   use rk_transport_rho_mod,           only: rk_transport_rho_final
@@ -268,8 +267,8 @@ contains
     ! Calculate det(J) at W2 dofs for chi and shifted_chi fields.
     ! The calculation of det(J) for the shifted_chi field is done in preparation
     ! for Ticket #1608.
-    detj_at_w2 => get_detj_at_w2()
-    detj_at_w2_shifted => get_detj_at_w2_shifted()
+    detj_at_w2 => get_detj_at_w2(mesh_id)
+    detj_at_w2_shifted => get_detj_at_w2(shifted_mesh_id)
 
     ! Set cell cell_orientation (and shifted) if using splitting scheme.
     ! Cell orientation is used by Cosmic and splitting schemes

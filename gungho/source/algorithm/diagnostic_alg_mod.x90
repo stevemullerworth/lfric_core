@@ -50,9 +50,8 @@ contains
   !> @param[in] mesh_id         Mesh_id
   subroutine divergence_diagnostic_alg(divergence, l2, u, mesh_id)
     use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
-    use fem_constants_mod,            only: get_mass_matrix, &
-                                            get_div, &
-                                            w3inv_id
+    use fem_constants_mod,            only: get_inverse_w3_mass_matrix, &
+                                            get_div
     use constants_mod,                only: pi
 
     implicit none
@@ -66,8 +65,8 @@ contains
 
     call divergence%initialise( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
     call div_u%initialise( vector_space = function_space_collection%get_fs(mesh_id,element_order, W3) )
-    div    => get_div()
-    m3_inv => get_mass_matrix(w3inv_id)
+    div    => get_div(mesh_id)
+    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
     ! Compute l2 norm of area integrated quantity
     call invoke( dg_matrix_vector_kernel_type( div_u, u, div ),             &
                  dg_matrix_vector_kernel_type( divergence, div_u , m3_inv), &
@@ -90,8 +89,7 @@ contains
   !> @param[in] timestep Timestep
   !> @param[in] dt       The model timestep length
   subroutine density_diagnostic_alg(l2, rho_num, timestep, dt)
-    use fem_constants_mod,            only: get_mass_matrix, &
-                                            w3_id
+    use fem_constants_mod,            only: get_mass_matrix
     use operator_mod,                 only: operator_type
     use field_mod,                    only: field_type
     use quadrature_xyoz_mod,          only: quadrature_xyoz_type
@@ -117,7 +115,7 @@ contains
     call w3_rho_diff%initialise( vector_space = rho_num%get_function_space() )
     call w3_rho_analytic%initialise( vector_space = rho_num%get_function_space() )
 
-    mm_w3 => get_mass_matrix(w3_id)
+    mm_w3 => get_mass_matrix(W3, rho_num%get_mesh_id())
 
     call set_rho_alg( rho_analytic, timestep, dt )
 
@@ -250,7 +248,7 @@ contains
     call u3_wind%initialise( vector_space = &
               function_space_collection%get_fs(mesh_id,element_order, Wtheta) )
 
-    w2_rmultiplicity => get_rmultiplicity( W2 )
+    w2_rmultiplicity => get_rmultiplicity( W2, mesh_id )
 
     call invoke( setval_c(u1_wind, 0.0_r_def), &
                  setval_c(u2_wind, 0.0_r_def), &
@@ -450,7 +448,7 @@ contains
     ! Scale by the reciprocal of multiplicity (number of shared dofs
     ! in a cell
     if ( output_fs == W1 .or. output_fs == W2) then
-      rmultiplicity => get_rmultiplicity( output_fs )
+      rmultiplicity => get_rmultiplicity( output_fs, mesh_id )
       do i = 1,output_dim
         call invoke( inc_X_times_Y(output_field(i), rmultiplicity) )
       end do

@@ -91,7 +91,7 @@ contains
 
     wind_fs  => wind%get_function_space()
     rho_fs  => rho%get_function_space()
-    detj_w2 => get_detj_at_w2()
+    detj_w2 => get_detj_at_w2(wind%get_mesh_id())
 
     call rho_temp%initialise( vector_space = rho_fs )
     call wind_horiz%initialise( vector_space = wind_fs )
@@ -178,8 +178,7 @@ contains
 
   subroutine vertical_slice_transport( vert_wind, rho, dts, vert_scheme, order)
     use fem_constants_mod,                   only: get_mass_matrix,  &
-                                                   w3_id,            &
-                                                   w3inv_id
+                                                   get_inverse_w3_mass_matrix
     use operator_mod,                        only: operator_type
 
     implicit none
@@ -231,8 +230,8 @@ contains
     else if ( vert_scheme == rho_vertical_scheme_slice ) then
 
       call mass%initialise( vector_space = rho_fs )
-      mm_w3 => get_mass_matrix(w3_id)
-      mm_w3_inv => get_mass_matrix(w3inv_id)
+      mm_w3 => get_mass_matrix(W3, mesh_id)
+      mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
       call invoke( dg_matrix_vector_kernel_type(mass, rho, mm_w3),                   &
                    vertical_mass_remapping_kernel_type(wind_comp, mass, dts, order), &

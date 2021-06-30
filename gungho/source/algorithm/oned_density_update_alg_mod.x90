@@ -7,6 +7,7 @@ module oned_density_update_alg_mod
 
   use constants_mod,                     only: r_def, i_def
   use field_mod,                         only: field_type
+  use fs_continuity_mod,                 only: W3
   use function_space_mod,                only: function_space_type
   use log_mod,                           only: log_event,            &
                                                log_scratch_space,    &
@@ -14,7 +15,7 @@ module oned_density_update_alg_mod
                                                LOG_LEVEL_TRACE
   use subgrid_config_mod,                only: dep_pt_stencil_extent,          &
                                                rho_approximation_stencil_extent
-  use fem_constants_mod,                 only: get_mass_matrix, w3_id
+  use fem_constants_mod,                 only: get_mass_matrix
 
   use psykal_lite_mod,                   only: invoke_subgrid_coeffs,      &
                                                invoke_fv_mass_fluxes
@@ -92,7 +93,7 @@ contains
                  setval_c(a1,        0.0_r_def), &
                  setval_c(a2,        0.0_r_def) )
 
-    mm_w3 => get_mass_matrix(w3_id)
+    mm_w3 => get_mass_matrix(W3, rho_in%get_mesh_id())
     call invoke( dg_matrix_vector_kernel_type(mass, rho_in, mm_w3) )
     call invoke_subgrid_coeffs(a0, a1, a2, mass, cell_orientation, direction, &
                                rho_approximation_stencil_extent, dep_pt_stencil_extent)
@@ -109,7 +110,6 @@ contains
                  setval_c(a1,             0.0_r_def), &
                  setval_c(a2,             0.0_r_def) )
 
-    mm_w3 => get_mass_matrix(w3_id)
     call invoke( dg_matrix_vector_kernel_type(mass, rho_constant_1, mm_w3) )
     call invoke_subgrid_coeffs(a0, a1, a2, mass, cell_orientation, direction, &
                                rho_approximation_stencil_extent, dep_pt_stencil_extent)

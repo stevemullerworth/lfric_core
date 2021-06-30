@@ -84,7 +84,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   integer, intent(in) :: timestep
 
   real(r_def)    :: dt_again
-  integer(i_def) :: mesh_id
+  integer(i_def) :: mesh_id, twod_mesh_id
 
   ! Unpacked fields from collections
   type( field_type ), pointer :: tile_fraction       => null()
@@ -148,8 +148,6 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
 
   call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_INFO )
 
-  mesh_id = theta%get_mesh_id()
-
   tile_fraction    => surface_fields%get_field('tile_fraction')
   tile_temperature => surface_fields%get_field('tile_temperature')
 
@@ -198,8 +196,11 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr,                    &
   cloud_drop_no_conc  => aerosol_fields%get_field('cloud_drop_no_conc')
   sulphuric           => aerosol_fields%get_field('sulphuric')
 
-  latitude  => get_latitude(mesh_id)
-  longitude => get_longitude(mesh_id)
+  mesh_id = theta%get_mesh_id()
+  twod_mesh_id = cos_zenith_angle%get_mesh_id()
+
+  latitude  => get_latitude(twod_mesh_id)
+  longitude => get_longitude(twod_mesh_id)
   height_wth => get_height(Wtheta, mesh_id)
   height_w3 => get_height(W3, mesh_id)
 

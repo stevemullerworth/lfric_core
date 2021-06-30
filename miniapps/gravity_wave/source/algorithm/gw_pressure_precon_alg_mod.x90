@@ -39,6 +39,7 @@ module gw_pressure_precon_alg_mod
 
   type, public, extends(abstract_preconditioner_type) :: gw_pressure_preconditioner_type
 
+     integer(kind=i_def) :: mesh_id
      !> Constant \f$\omega_c^2 = (\alpha\Delta t c)^2\f$
      real(kind=r_def) :: omega2_c
      !> Constant \f$\omega_N^2 = (\alpha\Delta t N)^2\f$
@@ -68,13 +69,15 @@ contains
   !> @brief Construct a <code> gw_pressure_preconditioner_type</code> object
   !>
   !> @return self the constructed preconditioner object
-  function gw_pressure_preconditioner_constructor() result(self)
+  function gw_pressure_preconditioner_constructor(mesh_id) result(self)
 
-    use log_mod,                           only : log_event, LOG_LEVEL_INFO
+    use log_mod,                           only: log_event, LOG_LEVEL_INFO
     use timestepping_config_mod,           only: dt, alpha
     use gravity_wave_constants_config_mod, only: cs_square
     use initial_temperature_config_mod,    only: bvf_square
     implicit none
+
+    integer(kind=i_def), intent(in) :: mesh_id
 
     type(gw_pressure_preconditioner_type)  :: self
 
@@ -84,6 +87,7 @@ contains
     ! set scaling constants
     self%omega2_c = alpha**2*dt**2*cs_square
     self%omega2_N = alpha**2*dt**2*bvf_square
+    self%mesh_id = mesh_id
 
     call self%build_Hz()
 
@@ -97,10 +101,8 @@ contains
     use fem_constants_mod,            only : get_div_v,                 &
                                              get_div_h,                 &
                                              get_mass_matrix,           &
-                                             w3_id,                     &
-                                             w3inv_id,                  &
-                                             w2h_id,                    &
-                                             w2v_id
+                                             get_inverse_w3_mass_matrix
+    use fs_continuity_mod,            only : W3, W2h, W2v
     use transpose_matrix_kernel_mod,            only : transpose_matrix_kernel_type
     use enforce_operator_bc_kernel_mod,         only : enforce_operator_bc_kernel_type
     use columnwise_op_asm_kernel_mod,           only : columnwise_op_asm_kernel_type
@@ -112,7 +114,7 @@ contains
     implicit none
 
     ! Instance of type
-    class(gw_pressure_preconditioner_type), intent(inout)    :: self
+    class(gw_pressure_preconditioner_type), intent(inout) :: self
 
     ! Pointers to mass matrices and derivative operators
     type(operator_type), pointer :: mm_w3
@@ -135,21 +137,24 @@ contains
     type(columnwise_operator_type) :: diag_DhMDht_cma
     type(columnwise_operator_type) :: tmp_1, tmp_2, tmp_3, tmp_4
     ! Scaling constants for invoke calls
-    real(kind=r_def) :: alpha, beta
+    real(kind=r_def)    :: alpha, beta
+    integer(kind=i_def) :: mesh_id
+
+    mesh_id = self%mesh_id
 
     ! Set pointers to vertical operators
-    div_v => get_div_v()
+    div_v => get_div_v(mesh_id)
     grad_v = operator_type( div_v%get_fs_from(), div_v%get_fs_to() )
-    div_h => get_div_h()
-    mm_w3 => get_mass_matrix(w3_id)
-    mm_w3_inv => get_mass_matrix(w3inv_id)
+    div_h => get_div_h(mesh_id)
+    mm_w3 => get_mass_matrix(W3, mesh_id)
+    mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
     ! Take a copy of the vertical mass matrix since we need to apply the BCs
-    mm_w2v_noBC => get_mass_matrix(w2v_id)
+    mm_w2v_noBC => get_mass_matrix(W2v, mesh_id)
     mm_w2v = mm_w2v_noBC%deep_copy()
     ! Now apply BCs
     call invoke( enforce_operator_bc_kernel_type( mm_w2v ) )
     ! Get horizontal velocity mass matrix
-    mm_w2h => get_mass_matrix(w2h_id)
+    mm_w2h => get_mass_matrix(W2h, mesh_id)
 
     ! Construct weak gradient as transpose of divergence
     call invoke( transpose_matrix_kernel_type( div_v, grad_v ) )

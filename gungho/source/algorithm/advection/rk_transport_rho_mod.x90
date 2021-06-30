@@ -38,11 +38,9 @@ module rk_transport_rho_mod
   use runge_kutta_init_mod,              only: num_rk_stage, ak
   use fem_constants_mod,                 only: get_mass_matrix,                &
                                                get_mass_matrix_diagonal,       &
-                                               get_inverse_lumped_mass_matrix, &
+                                               get_inverse_w3_mass_matrix,     &
                                                get_detj_at_w2,                 &
-                                               get_qr,                         &
-                                               w2_id, w3_id, w3inv_id,         &
-                                               wt_id
+                                               get_qr
   use geometric_constants_mod,           only: get_coordinates,                &
                                                get_panel_id
 
@@ -179,7 +177,7 @@ contains
                                    reference_element, gaussian_quadrature)
 
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
-        md_w3 => get_mass_matrix_diagonal(w3_id)
+        md_w3 => get_mass_matrix_diagonal(W3, mesh_id)
         if ( oned_reconstruction ) then
           call invoke( poly1d_flux_coeffs_kernel_type(                             &
                                           flux_coeffs, md_w3, flux_stencil_extent, &
@@ -232,17 +230,16 @@ contains
     type( function_space_type ), pointer :: u_fs     => null()
     type( function_space_type ), pointer :: rho_fs   => null()
 
-    integer(i_def) :: stage, st
+    integer(i_def) :: stage, st, mesh_id
     integer(i_def) :: logspace
     integer(i_def) :: stencil_extent
 
     ! Temps for retrieving objects back from runtime constants
     type(operator_type), pointer :: mm_w3_inv => null()
-    type(field_type), pointer    :: mt_lumped_inv => null()
-
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(wt_id)
 
     if ( subroutine_timers ) call timer('rk_transport_rho_alg')
+
+    mesh_id = u%get_mesh_id()
 
     allocate( rr_prediction(num_rk_stage) )
     qr => get_qr()
@@ -250,7 +247,7 @@ contains
     rho_fs => rho%get_function_space()
 
     ! Create operators needed for timestepping
-    mm_w3_inv => get_mass_matrix(w3inv_id)
+    mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
     call rho_n%initialise( vector_space = rho_fs )
     call r_rho%initialise( vector_space = rho_fs )
@@ -304,7 +301,7 @@ contains
 
     end do
 
-    nullify( mm_w3_inv, mt_lumped_inv, u_fs, rho_fs, qr )
+    nullify( mm_w3_inv, u_fs, rho_fs, qr )
     deallocate(rr_prediction)
     if ( subroutine_timers ) call timer('rk_transport_rho_alg')
 
@@ -329,13 +326,14 @@ contains
    type(field_type)                   :: wind2
    real(r_def)            :: dt_substep
    real(r_def)            :: cfl_min, cfl_max
-   integer(i_def)         :: sub_step_count, mol_substeps
+   integer(i_def)         :: sub_step_count, mol_substeps, mesh_id
 
    if ( subroutine_timers ) call timer('rk_transport_rho_multistep')
 
+   mesh_id = wind%get_mesh_id()
    w2_fs =>  wind%get_function_space()
    call wind2%initialise( vector_space = w2_fs )
-   detj_at_w2 => get_detj_at_w2()
+   detj_at_w2 => get_detj_at_w2(mesh_id)
 
    call invoke( X_divideby_Y(wind2,wind,detj_at_w2), &
                 inc_a_times_X(dt, wind2 )            )

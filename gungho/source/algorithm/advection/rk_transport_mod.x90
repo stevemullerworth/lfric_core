@@ -22,7 +22,7 @@ module rk_transport_mod
   use finite_element_config_mod,         only: element_order, nqp_exact
   use formulation_config_mod,            only: moisture_conservation, &
                                                use_moisture
-  use fs_continuity_mod,                 only: W1
+  use fs_continuity_mod,                 only: W1, W3, Wtheta
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use io_config_mod,                     only: subroutine_timers
@@ -219,9 +219,7 @@ contains
   subroutine rk_transport_final( rho, theta, mr )
 
     use matrix_vector_kernel_mod,     only: matrix_vector_kernel_type
-    use fem_constants_mod,            only: get_mass_matrix, &
-                                            w3_id,           &
-                                            wt_id
+    use fem_constants_mod,            only: get_mass_matrix
 
     implicit none
 
@@ -239,6 +237,7 @@ contains
     real(kind=r_def)                       :: l2_rho_diff, l2_theta_diff
     real(kind=r_def)                       :: l2_rho_analytic, l2_theta_analytic
     real(kind=r_def)                       :: l2_mr_diff, l2_mr_analytic
+    integer(kind=i_def)                    :: mesh_id
 
     if ( subroutine_timers ) call timer('rk_transport_alg')
 
@@ -251,8 +250,9 @@ contains
     call drho%initialise( vector_space = rho_fs )
     call l2_rho%initialise( vector_space = rho_fs )
 
-    mm_w3 => get_mass_matrix(w3_id)
-    mm_wt => get_mass_matrix(wt_id)
+    mesh_id = rho%get_mesh_id()
+    mm_w3 => get_mass_matrix(W3, mesh_id)
+    mm_wt => get_mass_matrix(Wtheta, mesh_id)
 
     call invoke( name = "compute_L2_error_for_theta_and_rho",           &
                  X_minus_Y(drho,   rho,   rho0  ),                      &

@@ -1,8 +1,8 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! (C) Crown copyright 2021 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
 !
 !> @brief Provides physical operators that are constants throughout a run.
 !>
@@ -154,7 +154,7 @@ contains
       call delta_at_wtheta%initialise( vector_space = wtheta_k0_fs )
       call max_diff_wtheta%initialise( vector_space = wtheta_k0_fs )
 
-      detj_at_w2 => get_detj_at_w2()
+      detj_at_w2 => get_detj_at_w2(mesh_id)
       dA_at_w2 => get_dA_at_w2(mesh_id)
       height_w1 => get_height(W1, mesh_id)
       height_w2 => get_height(W2, mesh_id)

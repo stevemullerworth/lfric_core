@@ -23,9 +23,9 @@ module gw_pressure_operator_alg_mod
   use field_vector_mod,                   only: field_vector_type
   use constants_mod,                      only: i_def, r_def
   use fem_constants_mod,                  only: get_mass_matrix,     &
-                                                get_div,             &
-                                                w0_id, w2_id, w3_id, &
-                                                w3inv_id, wt_id
+                                                get_inverse_w3_mass_matrix, &
+                                                get_div
+  use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
   use timestepping_config_mod,            only: dt
 
   use initial_temperature_config_mod,     only: bvf_square
@@ -109,6 +109,7 @@ contains
                                            wu => null(), &
                                            wb => null()
     real(kind=r_def)                    :: const1
+    integer(kind=i_def)                 :: mesh_id
     type(field_type)                    :: ones, M_lumped, &
                                            ones_u, M_lumped_u, &
                                            Mb_lumped_inv, QT1
@@ -123,6 +124,7 @@ contains
     self%alpha = 0.5_r_def
 
     ! Get needed function spaces
+    mesh_id = state%vector(igw_u)%get_mesh_id()
     wu => state%vector(igw_u)%get_function_space()
     wp => state%vector(igw_p)%get_function_space()
     wb => state%vector(igw_b)%get_function_space()
@@ -137,11 +139,11 @@ contains
     call Mb_lumped_inv%initialise( vector_space = wb )
     select case(b_space)
       case(b_space_w0)
-        Mb => get_mass_matrix(w0_id)
+        Mb => get_mass_matrix(W0, mesh_id)
       case(b_space_w3)
-        Mb => get_mass_matrix(w3_id)
+        Mb => get_mass_matrix(W3, mesh_id)
       case(b_space_wtheta)
-        Mb => get_mass_matrix(wt_id)
+        Mb => get_mass_matrix(Wtheta, mesh_id)
     end select
     call invoke( setval_c( ones,     1.0_r_def ),               &
                  setval_c( M_lumped, 0.0_r_def ),               &
@@ -158,7 +160,7 @@ contains
     call M_lumped_u%initialise( vector_space = wu )
     call QT1%initialise( vector_space = wb )
     call self%Hb_lumped_inv%initialise( vector_space = wu )
-    Mu => get_mass_matrix(w2_id)
+    Mu => get_mass_matrix(W2, mesh_id)
 
     const1 = self%alpha**2*dt**2*bvf_square
     call invoke( setval_c(ones_u,     1.0_r_def),                        &
@@ -223,7 +225,8 @@ contains
     class(gw_pressure_operator_type), intent(inout) :: self
     class(abstract_vector_type), intent(in)      :: x
     class(abstract_vector_type), intent(inout)   :: y
-    real(kind=r_def) :: const
+    real(kind=r_def)    :: const
+    integer(kind=i_def) :: mesh_id
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
 
@@ -231,8 +234,9 @@ contains
     type is (field_vector_type)
        select type (y)
        type is (field_vector_type)
-          div    => get_div()
-          M3_inv => get_mass_matrix(w3inv_id)
+          mesh_id = x%vector(1)%get_mesh_id()
+          div    => get_div(mesh_id)
+          M3_inv => get_inverse_w3_mass_matrix(mesh_id)
           const = self%alpha**2*dt**2*cs_square
           call invoke( setval_c(self%grad_p, 0.0_r_def),                &
                        transpose_matrix_vector_kernel_type(self%grad_p, &

@@ -42,8 +42,8 @@ module transport_general_mod
   use transport_config_mod,          only: scheme_method_of_lines,     &
                                            cfl_mol_3d_stab, &
                                            log_rho
-  use fem_constants_mod,             only: get_detj_at_w2, w3inv_id,   &
-                                           get_mass_matrix, get_div
+  use fem_constants_mod,             only: get_detj_at_w2, get_div, &
+                                           get_inverse_w3_mass_matrix
   use operator_mod,                  only: operator_type
   use fs_continuity_mod,             only: W3, Wtheta
   use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
@@ -64,7 +64,7 @@ module transport_general_mod
   real(r_def)            :: dt_substep
   real(r_def)            :: cfl_min, cfl_max
   integer(i_def)         :: sub_step_count, mol_substeps
-  integer(i_def)         :: function_space
+  integer(i_def)         :: function_space, mesh_id
   logical(l_def)         :: advect_density, si_advective_terms, &
                              shifted, density_predictor
   type(operator_type), pointer :: mm_w3_inv     => null(), &
@@ -82,6 +82,7 @@ module transport_general_mod
                setval_c(field_old, 0.0_r_def),        &
                setval_c(field_inc, 0.0_r_def)         )
 
+  mesh_id = field%get_mesh_id()
   advect_density = conservative
   shifted = shifted_grid
   si_advective_terms = .false.
@@ -93,7 +94,7 @@ module transport_general_mod
 
     w2_fs =>  wind%get_function_space()
     call comp_wind%initialise( vector_space = w2_fs )
-    detj_at_w2 => get_detj_at_w2()
+    detj_at_w2 => get_detj_at_w2(mesh_id)
 
     call invoke( X_divideby_Y(comp_wind, wind, detj_at_w2), &
                  inc_a_times_X(dt, comp_wind )              )
@@ -107,8 +108,8 @@ module transport_general_mod
 
       call mass_flux%initialise( wind%get_function_space() )
       call r_rho%initialise( field%get_function_space() )
-      mm_w3_inv => get_mass_matrix(w3inv_id)
-      div       => get_div()
+      mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
+      div       => get_div(mesh_id)
 
       do sub_step_count = 1, mol_substeps
 

@@ -1,8 +1,8 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! (C) Crown copyright 2021 Met Office. All rights reserved.
-! For further details please refer to the file COPYRIGHT.txt
-! which you should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
 !
 !> @brief Provides various geometric objects for use throughout gungho.
 !>
@@ -25,6 +25,13 @@ module geometric_constants_mod
                                                 LOG_LEVEL_ERROR
   use mesh_mod,                           only: mesh_type
   use timer_mod,                          only: timer
+
+  ! Other algorithms
+  use runtime_tools_mod,                  only: find_mesh_index,    &
+                                                primary_mesh_label, &
+                                                shifted_mesh_label, &
+                                                twod_mesh_label,    &
+                                                multigrid_mesh_label
 
   ! Configuration
   use base_mesh_config_mod,               only: f_lat, geometry, &
@@ -49,10 +56,6 @@ module geometric_constants_mod
 
   ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them
-
-  ! Mesh ID list
-  integer(i_def), allocatable :: global_mesh_id_list(:)
-  integer(i_def), allocatable :: global_2D_mesh_id_list(:)
 
   ! Panel ID fields
   type(field_type), allocatable, target :: panel_id_list(:)
@@ -87,14 +90,12 @@ module geometric_constants_mod
 contains
 
   !>@brief Subroutine to create the geometric constants
-  !> @param[in] mesh_id              List of mesh_ids
-  !> @param[in] twod_mesh_id         List of 2D mesh_ids
+  !> @param[in] mesh_id_list         List of mesh_ids
   !> @param[in] chi_xyz_in           List of (X,Y,Z) chi fields
   !> @param[in] chi_sph_in           List of spherically-based chi fields
   !> @param[in] panel_id_in          List of panel_id fields
   !> @param[in] label_list           List of labels for meshes
   subroutine create_geometric_constants(mesh_id_list,      &
-                                        twod_mesh_id_list, &
                                         chi_xyz_in,        &
                                         chi_sph_in,        &
                                         panel_id_in,       &
@@ -102,12 +103,11 @@ contains
     implicit none
 
     ! Arguments
-    integer(i_def),         intent(in) :: mesh_id_list(:)
-    integer(i_def),         intent(in) :: twod_mesh_id_list(:)
+    integer(kind=i_def),    intent(in) :: mesh_id_list(:)
     type(field_type),       intent(in) :: chi_xyz_in(:,:)
     type(field_type),       intent(in) :: chi_sph_in(:,:)
     type(field_type),       intent(in) :: panel_id_in(:)
-    character(str_def),     intent(in) :: label_list(:)
+    integer(kind=i_def),    intent(in) :: label_list(:)
 
     ! Internal variables
     type(function_space_type), pointer :: w2_fs     => null()
@@ -117,21 +117,18 @@ contains
     type(function_space_type), pointer :: w1_k0_fs  => null() ! lowest order w1 fs
     type(function_space_type), pointer :: w2_k0_fs  => null() ! lowest order w2 fs
     type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs
-    type(function_space_type), pointer :: w3_k0_2d_fs => null() ! lowest order w3 fs
     type(field_type)                   :: temp_w2_field
 
 
     ! Temporary values for iterating through list
-    integer(i_def) :: i, j, mesh_id, twod_mesh_id, num_meshes
+    integer(kind=i_def) :: i, j, mesh_id, num_meshes
 
 
     if ( subroutine_timers ) call timer('geometric_constants_alg')
     call log_event( "Gungho: creating geometric_constants", LOG_LEVEL_INFO )
 
-    num_meshes = SIZE(mesh_id_list)
+    num_meshes = size(mesh_id_list)
 
-    allocate(global_mesh_id_list(num_meshes))
-    allocate(global_2D_mesh_id_list(num_meshes))
     allocate(chi_xyz_list(3,num_meshes))
     allocate(chi_sph_list(3,num_meshes))
     allocate(panel_id_list(num_meshes))
@@ -152,18 +149,18 @@ contains
 
       !=========== Create function spaces required for setup ==================!
       mesh_id = mesh_id_list(i)
-      twod_mesh_id = twod_mesh_id_list(i)
-      global_mesh_id_list(i) = mesh_id
-      global_2D_mesh_id_list(i) = twod_mesh_id
 
-      w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
-      w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
-      wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
-      w1_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W1 )
-      w2_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W2 )
-      w3_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W3 )
-      wth_k0_fs => function_space_collection%get_fs( mesh_id,             0, Wtheta )
-      w3_k0_2d_fs => function_space_collection%get_fs( twod_mesh_id,      0, W3 )
+      w3_k0_fs => function_space_collection%get_fs( mesh_id, 0, W3 )
+
+      ! Don't need most function spaces for 2D meshes
+      if (mesh_id /= twod_mesh_label) then
+        w2_fs     => function_space_collection%get_fs( mesh_id, element_order, W2 )
+        w3_fs     => function_space_collection%get_fs( mesh_id, element_order, W3 )
+        wtheta_fs => function_space_collection%get_fs( mesh_id, element_order, Wtheta )
+        w1_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W1 )
+        w2_k0_fs  => function_space_collection%get_fs( mesh_id,             0, W2 )
+        wth_k0_fs => function_space_collection%get_fs( mesh_id,             0, Wtheta )
+      end if
 
       !================ Set coordinates field and panel ID ====================!
 
@@ -179,7 +176,8 @@ contains
       if ( ( scheme /= scheme_method_of_lines    .or. &
              rho_splitting /= rho_splitting_none .or. &
              theta_splitting /= theta_splitting_none  ) .and. &
-           ( label_list(i) == 'primary' .or. label_list(i) == 'shifted' ) ) then
+           ( label_list(i) == primary_mesh_label .or. &
+             label_list(i) == shifted_mesh_label ) ) then
 
         call temp_w2_field%initialise( vector_space = w2_fs )
         call cell_orientation_list(i)%initialise( vector_space = w3_fs )
@@ -202,7 +200,8 @@ contains
       ! representation of chi, this will result in the lowest
       ! levels being -ve. This should be reviewed with ticket #562
 
-      if ( label_list(i) == 'primary' .or. label_list(i) == 'shifted' ) then
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label ) then
         call height_w1_list(i)%initialise( vector_space = w1_k0_fs )
         call height_w2_list(i)%initialise( vector_space = w2_k0_fs )
         call height_w3_list(i)%initialise( vector_space = w3_k0_fs )
@@ -215,9 +214,9 @@ contains
 
       ! ================= Compute latitude and longitude maps =================!
 
-      if ( label_list(i) == 'primary' ) then
-        call lat_w3_list(i)%initialise( vector_space = w3_k0_2d_fs )
-        call long_w3_list(i)%initialise( vector_space = w3_k0_2d_fs )
+      if ( label_list(i) == twod_mesh_label ) then
+        call lat_w3_list(i)%initialise( vector_space = w3_k0_fs )
+        call long_w3_list(i)%initialise( vector_space = w3_k0_fs )
         if ( geometry == geometry_spherical ) then
           call invoke( compute_latlon_kernel_type( lat_w3_list(i),   &
                                                    long_w3_list(i),  &
@@ -231,7 +230,8 @@ contains
 
       !================ Create dA values at W2 dof locations ==================!
 
-      if ( label_list(i) /= 'multigrid' ) then
+      if ( label_list(i) /= twod_mesh_label .and. &
+           label_list(i) /= multigrid_mesh_label) then
         call dA_at_w2_list(i)%initialise( vector_space = w2_fs )
         call invoke( setval_c(dA_at_w2_list(i), 0.0_r_def),&
                      calc_dA_at_w2_kernel_type(dA_at_w2_list(i), &
@@ -250,46 +250,20 @@ contains
     nullify( w3_k0_fs  )
     nullify( w2_k0_fs  )
     nullify( w1_k0_fs  )
-    nullify( w3_k0_2d_fs  )
 
     call log_event( "Gungho: created geometric_constants", LOG_LEVEL_INFO )
     if ( subroutine_timers ) call timer('geometric_constants_alg')
 
   end subroutine create_geometric_constants
 
-  !> @brief Returns the mesh index in the mesh list from the mesh_id
-  !> @param[in] mesh_id
-  !> @return The mesh index
-  function find_mesh_index(mesh_id) result(mesh_index)
-    implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: i, mesh_index
-
-    mesh_index = 0_i_def
-    do i = 1, SIZE(global_mesh_id_list)
-      if ( global_mesh_id_list(i) == mesh_id ) then
-        mesh_index = i
-        exit
-      ! Also allow 2D mesh_ids to be passed in
-      else if ( global_2D_mesh_id_list(i) == mesh_id ) then
-        mesh_index = i
-        exit
-      end if
-    end do
-
-    if ( mesh_index == 0_i_def ) then
-      call log_event( "mesh_id cannot be found in mesh_id_list", LOG_LEVEL_ERROR )
-    end if
-  end function find_mesh_index
-
   !> @brief Function to return a pointer to the panel_id
   !> @param[in] mesh_id the ID of the mesh to get the object for
   !> @return The coordinate field array
   function get_panel_id(mesh_id) result(panel_id_ptr)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: panel_id_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: panel_id_ptr
 
     mesh_index = find_mesh_index(mesh_id)
     panel_id_ptr => panel_id_list(mesh_index)
@@ -300,9 +274,9 @@ contains
   !> @return The coordinate field array
   function get_coordinates(mesh_id) result(coords_ptr)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: coords_ptr(:)
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: coords_ptr(:)
 
     mesh_index = find_mesh_index(mesh_id)
     coords_ptr => chi_sph_list(:,mesh_index)
@@ -314,9 +288,9 @@ contains
   !> @return The coordinate field array
   function get_coordinates_xyz(mesh_id) result(coords_ptr)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: coords_ptr(:)
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: coords_ptr(:)
 
     mesh_index = find_mesh_index(mesh_id)
     coords_ptr => chi_xyz_list(:,mesh_index)
@@ -328,9 +302,9 @@ contains
   !> @return The cell_orientation field
   function get_cell_orientation(mesh_id) result(orientation)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: orientation
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: orientation
 
     if (scheme /= scheme_method_of_lines    .or. &
         rho_splitting /= rho_splitting_none .or. &
@@ -349,9 +323,9 @@ contains
   !> @return The dA field
   function get_dA_at_w2(mesh_id) result(dA)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: dA
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: dA
 
     mesh_index = find_mesh_index(mesh_id)
     dA => dA_at_w2_list(mesh_index)
@@ -364,10 +338,10 @@ contains
   !> @return A height field
   function get_height(space, mesh_id) result(height)
     implicit none
-    integer(i_def), intent(in) :: space
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type),  pointer :: height
+    integer(kind=i_def), intent(in) :: space
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: height
 
     mesh_index = find_mesh_index(mesh_id)
 
@@ -392,9 +366,9 @@ contains
   !> @return The latitude field array
   function get_latitude(mesh_id) result(lat_ptr)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type), pointer :: lat_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: lat_ptr
 
     mesh_index = find_mesh_index(mesh_id)
     lat_ptr => lat_w3_list(mesh_index)
@@ -406,9 +380,9 @@ contains
   !> @return The longitude field array
   function get_longitude(mesh_id) result(long_ptr)
     implicit none
-    integer(i_def), intent(in) :: mesh_id
-    integer(i_def)             :: mesh_index
-    type(field_type), pointer :: long_ptr
+    integer(kind=i_def), intent(in) :: mesh_id
+    integer(kind=i_def)             :: mesh_index
+    type(field_type),       pointer :: long_ptr
 
     mesh_index = find_mesh_index(mesh_id)
     long_ptr => long_w3_list(mesh_index)
@@ -432,8 +406,6 @@ contains
     if (allocated(panel_id_list)) deallocate(panel_id_list)
     if (allocated(chi_sph_list)) deallocate(chi_sph_list)
     if (allocated(chi_xyz_list)) deallocate(chi_xyz_list)
-    if (allocated(global_2D_mesh_id_list)) deallocate(global_2D_mesh_id_list)
-    if (allocated(global_mesh_id_list)) deallocate(global_mesh_id_list)
 
   end subroutine final_geometric_constants
 

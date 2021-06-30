@@ -16,7 +16,7 @@ module cusph_fv_density_update_alg_mod
                                                invoke_multiply_field_data
   use dg_matrix_vector_kernel_mod,       only: dg_matrix_vector_kernel_type
   use operator_mod,                      only: operator_type
-  use fem_constants_mod,                 only: get_mass_matrix, w3inv_id
+  use fem_constants_mod,                 only: get_inverse_w3_mass_matrix
   use flux_direction_mod,                only: x_direction, y_direction
 
   implicit none
@@ -61,7 +61,7 @@ contains
     type( field_type )                  :: mass_flux_mult_x, mass_flux_mult_y
     type(operator_type), pointer        :: m3_inv => null()
 
-    m3_inv            => get_mass_matrix(w3inv_id)
+    m3_inv => get_inverse_w3_mass_matrix(increment%get_mesh_id())
     call div_temp%initialise( vector_space = increment%get_function_space() )
     call mass_flux_mult_x%initialise( vector_space = detj_at_w2%get_function_space() )
     call mass_flux_mult_y%initialise( vector_space = detj_at_w2%get_function_space() )

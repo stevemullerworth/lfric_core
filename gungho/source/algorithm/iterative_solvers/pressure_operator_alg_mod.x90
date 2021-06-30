@@ -30,9 +30,8 @@ module pressure_operator_alg_mod
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
                                                 log_scratch_space
-  use fem_constants_mod,                  only: get_mass_matrix, &
-                                                get_normalisation, &
-                                                w2_id, wt_id, w3inv_id
+  use fem_constants_mod,                  only: get_inverse_w3_mass_matrix, &
+                                                get_normalisation
   use limited_area_constants_mod,         only: get_mask
   use fs_continuity_mod,                  only: W2, W3, Wtheta
   use si_operators_alg_mod,               only: get_m3_exner_star, &
@@ -171,6 +170,7 @@ contains
     type(field_type),    pointer :: Helmholtz_operator(:) => null()
     type(field_type), pointer    :: w3_mask => null(), &
                                     w2_mask => null()
+    integer(kind=i_def)          :: mesh_id
 
     if ( subroutine_timers ) call timer('helmholtz lhs')
 
@@ -187,15 +187,16 @@ contains
                                                              Helmholtz_operator) )
            nullify( Helmholtz_operator )
          else
+           mesh_id = x%vector(1)%get_mesh_id()
            m3_exner_star   => get_m3_exner_star(self%level)
            div_star        => get_div_star(self%level)
            compound_div    => get_compound_div(self%level)
            ptheta2         => get_ptheta2v(self%level)
-           mt_lumped_inv   => get_normalisation(wt_id, self%level)
+           mt_lumped_inv   => get_normalisation(Wtheta, mesh_id)
            p3theta         => get_p3theta(self%level)
-           u_normalisation => get_normalisation(w2_id, self%level)
+           u_normalisation => get_normalisation(W2, mesh_id)
            hb_lumped_inv   => get_hb_lumped_inv(self%level)
-           m3_inv => get_mass_matrix(w3inv_id, self%level)
+           m3_inv => get_inverse_w3_mass_matrix(mesh_id)
            if ( limited_area ) then
              w2_mask => get_mask(W2)
              call invoke( setval_c( self%grad_p, 0.0_r_def ),                           &

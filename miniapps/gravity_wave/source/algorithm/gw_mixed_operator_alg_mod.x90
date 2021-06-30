@@ -36,8 +36,7 @@ module gw_mixed_operator_alg_mod
   use operator_mod,                      only: operator_type
   use fem_constants_mod,                 only: get_div,             &
                                                get_mass_matrix,     &
-                                               w0_id, w2_id, w3_id, &
-                                               w3inv_id, wt_id
+                                               get_inverse_w3_mass_matrix
   use limited_area_constants_mod,        only: get_mask
   use vector_mod,                        only: abstract_vector_type
 
@@ -176,29 +175,38 @@ contains
     type(field_type), pointer    :: w2_mask => null()
     type(field_type), pointer    :: w3_mask => null()
     type(field_type), pointer    :: wtheta_mask => null()
-    integer(i_def)               :: buoyancy_space
+    integer(i_def)               :: buoyancy_space, mesh_id
 
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2, const3
 
+    ! Extract mesh ID
+    select type (y)
+    type is (field_vector_type)
+      mesh_id = y%vector(igw_u)%get_mesh_id()
+    class default
+       write(log_scratch_space, '(A)') &
+             "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
     select case(b_space)
     case(b_space_w0)
        buoyancy_space = W0
-       mm_wt => get_mass_matrix(w0_id)
     case(b_space_w3)
        buoyancy_space = W3
-       mm_wt => get_mass_matrix(w3_id)
     case(b_space_wtheta)
        buoyancy_space = Wtheta
-       mm_wt => get_mass_matrix(wt_id)
     end select
 
+    mm_wt => get_mass_matrix(buoyancy_space, mesh_id)
+
     ! Extract velocity mass matrix
-    mm_w2 => get_mass_matrix(w2_id)
+    mm_w2 => get_mass_matrix(W2, mesh_id)
     ! Extract divergence operator
-    div   => get_div()
+    div   => get_div(mesh_id)
     ! Extract inverse pressure mass matrix
-    m3_inv => get_mass_matrix(w3inv_id)
+    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
     if (limited_area) then
       ! Extract limited area mask

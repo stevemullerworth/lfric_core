@@ -20,7 +20,7 @@ module gravity_wave_alg_mod
   use timestepping_config_mod,        only: dt, alpha
   use fem_constants_mod,              only: get_div,         &
                                             get_mass_matrix, &
-                                            w3inv_id
+                                            get_inverse_w3_mass_matrix
   use limited_area_constants_mod,     only: get_mask
   use initial_temperature_config_mod, only: bvf_square
   use gravity_wave_constants_config_mod, only: cs_square,     &
@@ -256,7 +256,7 @@ contains
        gw_pressure_preconditioner = null_preconditioner_type()
     type is ( gw_pressure_preconditioner_type )
        ! Vertical preconditioner
-       gw_pressure_preconditioner = gw_pressure_preconditioner_type()
+       gw_pressure_preconditioner = gw_pressure_preconditioner_type(mesh_id)
     class default
        call log_event( "Can not initialise pressure preconditioner", &
                        LOG_LEVEL_ERROR )
@@ -439,15 +439,16 @@ contains
     type(field_type), pointer    :: w2_mask => null()
     type(field_type), pointer    :: w3_mask => null()
     type(field_type), pointer    :: wtheta_mask => null()
-    integer(i_def)               :: buoyancy_space
+    integer(i_def)               :: buoyancy_space, mesh_id
 
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2
 
     if ( subroutine_timers ) call timer('gravity_wave_alg')
     !=== Do a single timestep ==============================================!
-    div => get_div()
-    m3_inv => get_mass_matrix(w3inv_id)
+    mesh_id = wind%get_mesh_id()
+    div => get_div(mesh_id)
+    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
     if ( limited_area ) then
       select case(b_space)

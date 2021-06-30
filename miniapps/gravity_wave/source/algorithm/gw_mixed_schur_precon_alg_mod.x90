@@ -71,10 +71,9 @@ module gw_mixed_schur_precon_alg_mod
   use field_mod,                       only: field_type
   use field_vector_mod,                only: field_vector_type
   use constants_mod,                   only: i_def, r_def
-  use fem_constants_mod,               only: get_mass_matrix,     &
-                                             get_div,             &
-                                             w0_id, w2_id, w3_id, &
-                                             w3inv_id, wt_id
+  use fem_constants_mod,               only: get_inverse_w3_mass_matrix, &
+                                             get_mass_matrix, &
+                                             get_div
   use limited_area_constants_mod,      only: get_mask
   use initial_temperature_config_mod,  only: bvf_square
   use timestepping_config_mod,         only: dt
@@ -210,11 +209,14 @@ contains
     type(operator_type), pointer              :: Mb => null()
     type(quadrature_xyoz_type)                :: qr
     type(quadrature_rule_gaussian_type)       :: quadrature_rule
+    integer(i_def)                            :: mesh_id
 
     call log_event( 'Constructing gravity waves mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
     self%alpha = 0.5_r_def
+
+    mesh_id = state%vector(igw_u)%get_mesh_id()
 
     ! Get required function spaces
     wu => state%vector(igw_u)%get_function_space()
@@ -244,11 +246,11 @@ contains
     call self%Mb_lumped_inv%initialise( vector_space = wb )
     select case(b_space)
     case(b_space_w0)
-       Mb => get_mass_matrix(w0_id)
+       Mb => get_mass_matrix(W0, mesh_id)
     case(b_space_w3)
-       Mb => get_mass_matrix(w3_id)
+       Mb => get_mass_matrix(W3, mesh_id)
     case(b_space_wtheta)
-       Mb => get_mass_matrix(wt_id)
+       Mb => get_mass_matrix(Wtheta, mesh_id)
     end select
     call invoke( setval_c( ones,     1.0_r_def ),               &
                  setval_c( M_lumped, 0.0_r_def ),               &
@@ -389,7 +391,10 @@ contains
     type(field_type), pointer    :: w2_mask => null()
     type(field_type), pointer    :: w3_mask => null()
 
-    real(kind=r_def) :: const1, const2
+    real(kind=r_def)    :: const1, const2
+    integer(kind=i_def) :: mesh_id
+
+    mesh_id = rhs0%vector(igw_b)%get_mesh_id()
 
     ! rhs_u = R_u + alpha * dt * Q * Mb^-1 * R_b
     ! rhs_p = R_p - alpha * dt * cs^2 * M3^-1 * D * HB^-1 * rhs_u
@@ -412,8 +417,8 @@ contains
     endif
 
     ! Compute rhs_p
-    div    => get_div()
-    M3_inv => get_mass_matrix(w3inv_id)
+    div    => get_div(mesh_id)
+    M3_inv => get_inverse_w3_mass_matrix(mesh_id)
     const2 = -self%alpha*dt*cs_square
     call invoke( X_times_Y(self%hb_ru, self%rhs_u, self%Hb_lumped_inv),       &
                  dg_matrix_vector_kernel_type(self%rhs_p_tmp,self%hb_ru, div),&
@@ -478,7 +483,7 @@ contains
     call invoke( setval_c(self%u_inc, 0.0_r_def), &
                  setval_c(self%b_inc, 0.0_r_def) )
     ! U increment
-    div => get_div()
+    div => get_div(self%u_inc%get_mesh_id())
     const1 = self%alpha*dt
     call invoke( transpose_matrix_vector_kernel_type(self%u_inc,       &
                                                      self%p_inc,       &

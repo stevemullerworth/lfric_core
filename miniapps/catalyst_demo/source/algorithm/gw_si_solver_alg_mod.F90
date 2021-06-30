@@ -25,6 +25,7 @@ module gw_si_solver_alg_mod
                                      bundle_minmax,                             &
                                      bundle_inner_product
   use field_mod,               only: field_type
+  use fs_continuity_mod,       only: W0, W2, W3, Wtheta
   use gw_lhs_alg_mod,          only: gw_lhs_alg
   use log_mod,                 only: log_event,                                &
                                      log_scratch_space,                        &
@@ -74,21 +75,15 @@ contains
   !>@param[in] x0 The state array to used to clone field bundles
   subroutine gw_si_solver_init(x0)
     use gw_lhs_alg_mod,             only: gw_lhs_init
-    use gravity_wave_constants_config_mod, only: &
-            b_space,                             &
-            gravity_wave_constants_b_space_w0,   &
-            gravity_wave_constants_b_space_w3,   &
-            gravity_wave_constants_b_space_wtheta
+    use gravity_wave_constants_config_mod, only: b_space
     use mm_diagonal_kernel_mod,     only: mm_diagonal_kernel_type
-    use fem_constants_mod,          only: get_mass_matrix, &
-                                          get_mass_matrix_diagonal, &
-                                          w0_id, w2_id, w3_id, wt_id
+    use fem_constants_mod,          only: get_mass_matrix_diagonal
     use gw_pressure_solver_alg_mod, only: gw_pressure_solver_init
 
     implicit none
 
     type(field_type),             intent(in) :: x0(bundle_size)
-    integer                                  :: iter
+    integer                                  :: iter, mesh_id
 
     if ( si_preconditioner  == si_preconditioner_pressure .or.  &
          si_postconditioner == si_postconditioner_pressure .or. &
@@ -103,16 +98,17 @@ contains
               mm_diagonal(bundle_size), &
               v          (bundle_size,gcrk) )
 
+    mesh_id = x0(1)%get_mesh_id()
 
-    mm_diagonal(igw_u) = get_mass_matrix_diagonal(w2_id)
-    mm_diagonal(igw_p) = get_mass_matrix_diagonal(w3_id)
+    mm_diagonal(igw_u) = get_mass_matrix_diagonal(W2, mesh_id)
+    mm_diagonal(igw_p) = get_mass_matrix_diagonal(W3, mesh_id)
     select case(b_space)
       case(gravity_wave_constants_b_space_w0)
-        mm_diagonal(igw_b) = get_mass_matrix_diagonal(w0_id)
+        mm_diagonal(igw_b) = get_mass_matrix_diagonal(W0, mesh_id)
       case(gravity_wave_constants_b_space_w3)
-        mm_diagonal(igw_b) = get_mass_matrix_diagonal(w3_id)
+        mm_diagonal(igw_b) = get_mass_matrix_diagonal(W3, mesh_id)
       case(gravity_wave_constants_b_space_wtheta)
-        mm_diagonal(igw_b) = get_mass_matrix_diagonal(wt_id)
+        mm_diagonal(igw_b) = get_mass_matrix_diagonal(Wtheta, mesh_id)
     end select
     call clone_bundle(x0, dx,       bundle_size)
     call clone_bundle(x0, Ax,       bundle_size)

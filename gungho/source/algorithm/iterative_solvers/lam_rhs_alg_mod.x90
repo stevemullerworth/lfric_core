@@ -8,7 +8,7 @@
 
 module lam_rhs_alg_mod
 
-  use constants_mod,               only: r_def
+  use constants_mod,               only: r_def, i_def
   use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
   use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
   use enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
@@ -18,12 +18,11 @@ module lam_rhs_alg_mod
   use si_operators_alg_mod,        only: get_ptheta2,       &
                                          get_rho_at_u
   use fem_constants_mod,           only: get_div,           &
-                                         get_mass_matrix,   &
-                                         w2_id, w3inv_id,   &
-                                         wt_id,             &
-                                         dl_id,             &
-                                         w2_si_id,          &
-                                         get_normalisation
+                                         get_mass_matrix,       &
+                                         get_dl_mass_matrix,    &
+                                         get_w2_si_mass_matrix, &
+                                         get_normalisation,     &
+                                         get_inverse_w3_mass_matrix
   use limited_area_constants_mod,  only: get_mask
   use fs_continuity_mod,           only: W2, W3, Wtheta
   use field_mod,                   only: field_type
@@ -97,8 +96,11 @@ contains
     type(field_type),    pointer :: w2_mask     => null(), &
                                     w3_mask     => null(), &
                                     wtheta_mask => null()
+    integer(i_def)               :: mesh_id
 
     if ( subroutine_timers ) call timer('rhs_lbc')
+
+    mesh_id = rhs(igh_u)%get_mesh_id()
 
     ! Get the LBC data
     boundary_u => lbc_fields%get_field('boundary_u_diff')
@@ -109,11 +111,11 @@ contains
     wtheta_mask => get_mask(Wtheta)
 
     ! Obtain operators from runtime constants
-    mm_w3_inv     => get_mass_matrix(w3inv_id)
-    div           => get_div()
-    mt_lumped_inv => get_normalisation(wt_id)
-    m2_diag       => get_normalisation(w2_id)
-    mm_vel        => get_mass_matrix(w2_si_id) ! = m2 (or dl) + tau_u*dt*coriolis
+    mm_w3_inv     => get_inverse_w3_mass_matrix(mesh_id)
+    div           => get_div(mesh_id)
+    mt_lumped_inv => get_normalisation(Wtheta, mesh_id)
+    m2_diag       => get_normalisation(W2, mesh_id)
+    mm_vel        => get_w2_si_mass_matrix(mesh_id) ! = m2 (or dl) + tau_u*dt*coriolis
 
     ! Obtain operators from SI operators
     ptheta2  => get_ptheta2()

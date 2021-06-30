@@ -12,9 +12,9 @@ module gw_lhs_alg_mod
   use function_space_collection_mod,     only: function_space_collection
   use fem_constants_mod,                 only: get_div, &
                                                get_mass_matrix, &
-                                               w0_id, w2_id, w3_id, w3inv_id, &
-                                               wt_id
+                                               get_inverse_w3_mass_matrix
   use field_mod,                         only: field_type
+  use fs_continuity_mod,                 only: W0, W2, W3, Wtheta
   use operator_mod,                      only: operator_type
   use field_indices_mod,                 only: igw_u, igw_b, igw_p
   implicit none
@@ -110,19 +110,19 @@ contains
   ! Auxiliary constants to group invokes
   real(kind=r_def)             :: const1, const2, const3
 
+  mesh_id = state(igw_u)%get_mesh_id()
+
   select case(b_space)
     case(gravity_wave_constants_b_space_w0)
-      mm_wt => get_mass_matrix(w0_id)
+      mm_wt => get_mass_matrix(W0, mesh_id)
     case(gravity_wave_constants_b_space_w3)
-      mm_wt => get_mass_matrix(w3_id)
+      mm_wt => get_mass_matrix(W3, mesh_id)
     case(gravity_wave_constants_b_space_wtheta)
-      mm_wt => get_mass_matrix(wt_id)
+      mm_wt => get_mass_matrix(Wtheta, mesh_id)
   end select
-
-
-  mm_w2 => get_mass_matrix(w2_id)
-  div   => get_div()
-  m3_inv => get_mass_matrix(w3inv_id)
+  mm_w2 => get_mass_matrix(W2, mesh_id)
+  div   => get_div(mesh_id)
+  m3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
   u => state(igw_u)
   p => state(igw_p)

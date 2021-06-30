@@ -70,8 +70,7 @@ contains
   subroutine apply_pressure_diag_preconditioner(self, x, y)
     use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
     use operator_mod,                 only: operator_type
-    use fem_constants_mod,            only: w3inv_id,      &
-                                            get_mass_matrix
+    use fem_constants_mod,            only: get_inverse_w3_mass_matrix
     implicit none
     class(pressure_diag_preconditioner_type), intent(inout) :: self
     class(abstract_vector_type),         intent(in)    :: x
@@ -83,7 +82,7 @@ contains
        select type(y)
        type is(field_vector_type)
           ! Multiply by inverse of mass matrix
-          m3_inv => get_mass_matrix(w3inv_id)
+          m3_inv => get_inverse_w3_mass_matrix(y%vector(1)%get_mesh_id())
           call invoke( dg_matrix_vector_kernel_type(y%vector(1), x%vector(1), m3_inv) )
        class default
           write(log_scratch_space, '(A)') &

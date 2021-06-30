@@ -317,7 +317,9 @@ contains
                                                get_rmultiplicity, &
                                                get_div, &
                                                get_mass_matrix, &
-                                               w2_id, w3inv_id, wt_id, dl_id
+                                               get_inverse_w3_mass_matrix, &
+                                               get_dl_mass_matrix
+    use fs_continuity_mod,               only: W2, Wtheta
     use limited_area_constants_mod,      only: get_mask
     use derived_config_mod,              only: bundle_size
     use invert_local_operator_kernel_mod,only: invert_local_operator_kernel_type
@@ -434,7 +436,7 @@ contains
        else
           ! for non MG, at higher order, need computed rmultiplicity
           call ones%initialise( vector_space = w2_fs )
-          w2_rmultiplicity => get_rmultiplicity( W2 )
+          w2_rmultiplicity => get_rmultiplicity( W2, mesh_id )
           call invoke( setval_c(ones,     1.0_r_def),                &
                setval_c(rho_at_u(level), 0.0_r_def),                 &
                sample_flux_kernel_type(rho_at_u(level), ones,        &
@@ -443,8 +445,8 @@ contains
 
 
        const1 = tau_r*dt
-       m3_inv => get_mass_matrix(w3inv_id, level)
-       div    => get_div(level)
+       m3_inv => get_inverse_w3_mass_matrix(mesh_id)
+       div    => get_div(mesh_id)
        call invoke( compound_operator_kernel_type( &
                            compound_div(level), m3_rho_star(level), &
                            m3_inv, div, &
@@ -452,12 +454,12 @@ contains
 
        ! Compute Hb_lumped_inv field
        if (dlayer_on) then
-          m2 => get_mass_matrix(dl_id, level)
+          m2 => get_dl_mass_matrix(mesh_id)
        else
-          m2 => get_mass_matrix(w2_id, level)
+          m2 => get_mass_matrix(W2, mesh_id)
        end if
-       u_normalisation => get_normalisation(w2_id, level)
-       t_normalisation => get_normalisation(wt_id, level)
+       u_normalisation => get_normalisation(W2, mesh_id)
+       t_normalisation => get_normalisation(Wtheta, mesh_id)
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )

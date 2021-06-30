@@ -17,6 +17,12 @@ module runtime_constants_mod
   use formulation_config_mod,            only: moisture_conservation
   use io_config_mod,                     only: subroutine_timers
   use log_mod,                           only: log_event, LOG_LEVEL_INFO
+  use runtime_tools_mod,                 only: primary_mesh_label,      &
+                                               shifted_mesh_label,      &
+                                               double_level_mesh_label, &
+                                               twod_mesh_label,         &
+                                               multigrid_mesh_label,    &
+                                               extra_mesh_label
   use timer_mod,                         only: timer
 
   implicit none
@@ -77,36 +83,36 @@ contains
     use intermesh_constants_mod,     only: create_intermesh_constants
     use limited_area_constants_mod,  only: create_limited_area_constants
     use physical_op_constants_mod,   only: create_physical_op_constants
+    use runtime_tools_mod,           only: init_mesh_id_list
 
     implicit none
 
-    integer(i_def),             intent(in) :: mesh_id, twod_mesh_id
-    type(field_type), target,   intent(in) :: chi_xyz(:)
-    type(field_type), target,   intent(in) :: chi_sph(:)
-    type(field_type), target,   intent(in) :: panel_id
-    integer(i_def),   optional, intent(in) :: shifted_mesh_id
-    type(field_type), optional, intent(in) :: shifted_chi_xyz(:)
-    type(field_type), optional, intent(in) :: shifted_chi_sph(:)
-    integer(i_def),   optional, intent(in) :: double_level_mesh_id
-    type(field_type), optional, intent(in) :: double_level_chi_xyz(:)
-    type(field_type), optional, intent(in) :: double_level_chi_sph(:)
-    integer(i_def),   optional, intent(in) :: mg_mesh_ids(:)
-    integer(i_def),   optional, intent(in) :: mg_2D_mesh_ids(:)
-    type(field_type), optional, intent(in) :: chi_mg_sph(:,:)
-    type(field_type), optional, intent(in) :: panel_id_mg(:)
-    integer(i_def),   optional, intent(in) :: extra_mesh_ids(:)
-    integer(i_def),   optional, intent(in) :: extra_2D_mesh_ids(:)
-    type(field_type), optional, intent(in) :: chi_extra_sph(:,:)
-    type(field_type), optional, intent(in) :: panel_id_extra(:)
+    integer(kind=i_def),             intent(in) :: mesh_id, twod_mesh_id
+    type(field_type),      target,   intent(in) :: chi_xyz(:)
+    type(field_type),      target,   intent(in) :: chi_sph(:)
+    type(field_type),      target,   intent(in) :: panel_id
+    integer(kind=i_def),   optional, intent(in) :: shifted_mesh_id
+    type(field_type),      optional, intent(in) :: shifted_chi_xyz(:)
+    type(field_type),      optional, intent(in) :: shifted_chi_sph(:)
+    integer(kind=i_def),   optional, intent(in) :: double_level_mesh_id
+    type(field_type),      optional, intent(in) :: double_level_chi_xyz(:)
+    type(field_type),      optional, intent(in) :: double_level_chi_sph(:)
+    integer(kind=i_def),   optional, intent(in) :: mg_mesh_ids(:)
+    integer(kind=i_def),   optional, intent(in) :: mg_2D_mesh_ids(:)
+    type(field_type),      optional, intent(in) :: chi_mg_sph(:,:)
+    type(field_type),      optional, intent(in) :: panel_id_mg(:)
+    integer(kind=i_def),   optional, intent(in) :: extra_mesh_ids(:)
+    integer(kind=i_def),   optional, intent(in) :: extra_2D_mesh_ids(:)
+    type(field_type),      optional, intent(in) :: chi_extra_sph(:,:)
+    type(field_type),      optional, intent(in) :: panel_id_extra(:)
 
     ! Internal variables
-    integer(i_def)                         :: num_meshes, mesh_counter, i, j
-    integer(i_def),            allocatable :: mesh_id_list(:)
-    integer(i_def),            allocatable :: twod_mesh_id_list(:)
-    type(field_type),          allocatable :: chi_sph_list(:,:)
-    type(field_type),          allocatable :: chi_xyz_list(:,:)
-    type(field_type),          allocatable :: panel_id_list(:)
-    character(str_def),        allocatable :: label_list(:)
+    integer(kind=i_def)                         :: num_meshes, mesh_counter, i, j
+    integer(kind=i_def),            allocatable :: mesh_id_list(:)
+    integer(kind=i_def),            allocatable :: label_list(:)
+    type(field_type),               allocatable :: chi_sph_list(:,:)
+    type(field_type),               allocatable :: chi_xyz_list(:,:)
+    type(field_type),               allocatable :: panel_id_list(:)
 
     if ( subroutine_timers ) call timer('runtime_constants_alg')
     call log_event( "Gungho: creating runtime_constants", LOG_LEVEL_INFO )
@@ -116,14 +122,15 @@ contains
     !==========================================================================!
 
     ! Count the number of meshes that we have
-    num_meshes = 1_i_def ! We should always have primary mesh_id
+    num_meshes = 2_i_def ! We should always have primary mesh_id and twod_mesh_id
     if ( present(shifted_mesh_id) .and. present(shifted_chi_sph) ) num_meshes = num_meshes + 1_i_def
     if ( present(double_level_mesh_id) .and. present(double_level_chi_sph) ) num_meshes = num_meshes + 1_i_def
-    if ( present(mg_mesh_ids) .and. present(chi_mg_sph) ) num_meshes = num_meshes + SIZE(mg_mesh_ids)
-    if ( present(extra_mesh_ids) .and. present(chi_extra_sph) ) num_meshes = num_meshes + SIZE(extra_mesh_ids)
+    if ( present(mg_mesh_ids) .and. present(chi_mg_sph) ) num_meshes = num_meshes + size(mg_mesh_ids)
+    if ( present(mg_2D_mesh_ids) .and. present(chi_mg_sph) ) num_meshes = num_meshes + size(mg_2D_mesh_ids)
+    if ( present(extra_mesh_ids) .and. present(chi_extra_sph) ) num_meshes = num_meshes + size(extra_mesh_ids)
+    if ( present(extra_2D_mesh_ids) .and. present(chi_extra_sph) ) num_meshes = num_meshes + size(extra_2D_mesh_ids)
 
     allocate(mesh_id_list(num_meshes))
-    allocate(twod_mesh_id_list(num_meshes))
     allocate(chi_sph_list(3,num_meshes))
     allocate(chi_xyz_list(3,num_meshes))
     allocate(panel_id_list(num_meshes))
@@ -131,9 +138,18 @@ contains
 
     ! Populate these lists
     mesh_counter = 1_i_def
-    label_list(mesh_counter) = 'primary'
+    label_list(mesh_counter) = primary_mesh_label
     mesh_id_list(mesh_counter) = mesh_id
-    twod_mesh_id_list(mesh_counter) = twod_mesh_id
+    call panel_id%copy_field(panel_id_list(mesh_counter))
+    do j = 1, 3
+      call chi_xyz(j)%copy_field(chi_xyz_list(j, mesh_counter))
+      call chi_sph(j)%copy_field(chi_sph_list(j, mesh_counter))
+    end do
+
+    ! Primary 2D mesh
+    mesh_counter = mesh_counter + 1_i_def
+    label_list(mesh_counter) = twod_mesh_label
+    mesh_id_list(mesh_counter) = twod_mesh_id
     call panel_id%copy_field(panel_id_list(mesh_counter))
     do j = 1, 3
       call chi_xyz(j)%copy_field(chi_xyz_list(j, mesh_counter))
@@ -143,9 +159,8 @@ contains
     if ( present(shifted_mesh_id) .and. present(shifted_chi_sph) ) then
       global_shifted_mesh_id = shifted_mesh_id
       mesh_counter = mesh_counter + 1_i_def
-      label_list(mesh_counter) = 'shifted'
+      label_list(mesh_counter) = shifted_mesh_label
       mesh_id_list(mesh_counter) = shifted_mesh_id
-      twod_mesh_id_list(mesh_counter) = twod_mesh_id ! Same as for primary mesh
       call panel_id%copy_field(panel_id_list(mesh_counter)) ! Same as for primary mesh
       do j = 1, 3
         call shifted_chi_xyz(j)%copy_field(chi_xyz_list(j, mesh_counter))
@@ -156,9 +171,8 @@ contains
     if ( present(double_level_mesh_id) .and. present(double_level_chi_sph) ) then
       global_double_level_mesh_id = double_level_mesh_id
       mesh_counter = mesh_counter + 1_i_def
-      label_list(mesh_counter) = 'double_level'
+      label_list(mesh_counter) = double_level_mesh_label
       mesh_id_list(mesh_counter) = double_level_mesh_id
-      twod_mesh_id_list(mesh_counter) = twod_mesh_id ! Same as for primary mesh
       call panel_id%copy_field(panel_id_list(mesh_counter)) ! Same as for primary mesh
       do j = 1, 3
         call double_level_chi_xyz(j)%copy_field(chi_xyz_list(j, mesh_counter))
@@ -167,11 +181,25 @@ contains
     end if
 
     if ( present(mg_mesh_ids) .and. present(chi_mg_sph) ) then
-      do i = 1, SIZE(mg_mesh_ids)
+      do i = 1, size(mg_mesh_ids)
         mesh_counter = mesh_counter + 1_i_def
-        label_list(mesh_counter) = 'multigrid'
+        label_list(mesh_counter) = multigrid_mesh_label
         mesh_id_list(mesh_counter) = mg_mesh_ids(i)
-        twod_mesh_id_list(mesh_counter) = mg_2D_mesh_ids(i)
+        call panel_id_mg(i)%copy_field(panel_id_list(mesh_counter))
+        do j = 1, 3
+          ! MG (X,Y,Z) coordinates don't exist. As the (X,Y,Z) chi fields will
+          ! be soon removed by #2371, just fill these with chi_sph
+          call chi_mg_sph(j,i)%copy_field(chi_xyz_list(j, mesh_counter))
+          call chi_mg_sph(j,i)%copy_field(chi_sph_list(j, mesh_counter))
+        end do
+      end do
+    end if
+
+    if ( present(mg_2D_mesh_ids) .and. present(chi_mg_sph) ) then
+      do i = 1, size(mg_2D_mesh_ids)
+        mesh_counter = mesh_counter + 1_i_def
+        label_list(mesh_counter) = twod_mesh_label
+        mesh_id_list(mesh_counter) = mg_2D_mesh_ids(i)
         call panel_id_mg(i)%copy_field(panel_id_list(mesh_counter))
         do j = 1, 3
           ! MG (X,Y,Z) coordinates don't exist. As the (X,Y,Z) chi fields will
@@ -183,11 +211,25 @@ contains
     end if
 
     if ( present(extra_mesh_ids) .and. present(chi_extra_sph) ) then
-      do i = 1, SIZE(extra_mesh_ids)
+      do i = 1, size(extra_mesh_ids)
         mesh_counter = mesh_counter + 1_i_def
-        label_list(mesh_counter) = 'extra'
+        label_list(mesh_counter) = extra_mesh_label
         mesh_id_list(mesh_counter) = extra_mesh_ids(i)
-        twod_mesh_id_list(mesh_counter) = extra_2D_mesh_ids(i)
+        call panel_id_extra(i)%copy_field(panel_id_list(mesh_counter))
+        do j = 1, 3
+          ! Extra (X,Y,Z) coordinates don't exist. As the (X,Y,Z) chi fields will
+          ! be soon removed by #2371, just fill these with chi_sph
+          call chi_extra_sph(j,i)%copy_field(chi_xyz_list(j, mesh_counter))
+          call chi_extra_sph(j,i)%copy_field(chi_sph_list(j, mesh_counter))
+        end do
+      end do
+    end if
+
+    if ( present(extra_2D_mesh_ids) .and. present(chi_extra_sph) ) then
+      do i = 1, size(extra_2D_mesh_ids)
+        mesh_counter = mesh_counter + 1_i_def
+        label_list(mesh_counter) = twod_mesh_label
+        mesh_id_list(mesh_counter) = extra_2D_mesh_ids(i)
         call panel_id_extra(i)%copy_field(panel_id_list(mesh_counter))
         do j = 1, 3
           ! Extra (X,Y,Z) coordinates don't exist. As the (X,Y,Z) chi fields will
@@ -202,8 +244,9 @@ contains
     ! Set up runtime_constants for each category
     !==========================================================================!
 
+    call init_mesh_id_list(mesh_id_list)
+
     call create_geometric_constants(mesh_id_list,      &
-                                    twod_mesh_id_list, &
                                     chi_xyz_list,      &
                                     chi_sph_list,      &
                                     panel_id_list,     &
@@ -211,11 +254,10 @@ contains
 
     ! Finite element constants should be created after geometric constants
     ! The chi fields set up in geometric constants are used here
-    call create_fem_constants(mesh_id, twod_mesh_id, &
-                              chi_sph,               &
-                              panel_id,              &
-                              shifted_mesh_id,       &
-                              shifted_chi_sph        )
+    call create_fem_constants(mesh_id_list,      &
+                              chi_sph_list,      &
+                              panel_id_list,     &
+                              label_list         )
 
     call create_physical_op_constants(mesh_id, chi_sph, panel_id)
 
@@ -248,7 +290,7 @@ contains
   !> @return The shifted mesh id
   function get_shifted_mesh_id() result(our_mesh_id)
     implicit none
-    integer(i_def), pointer :: our_mesh_id
+    integer(kind=i_def), pointer :: our_mesh_id
 
     our_mesh_id => global_shifted_mesh_id
   end function get_shifted_mesh_id
@@ -259,7 +301,7 @@ contains
   !> @return The double layer mesh id
   function get_double_level_mesh_id() result(our_mesh_id)
     implicit none
-    integer(i_def), pointer :: our_mesh_id
+    integer(kind=i_def), pointer :: our_mesh_id
 
     our_mesh_id => global_double_level_mesh_id
   end function get_double_level_mesh_id
@@ -275,6 +317,7 @@ contains
     use intermesh_constants_mod,     only: final_intermesh_constants
     use limited_area_constants_mod,  only: final_limited_area_constants
     use physical_op_constants_mod,   only: final_physical_op_constants
+    use runtime_tools_mod,           only: final_mesh_id_list
 
     implicit none
 
@@ -283,6 +326,7 @@ contains
     call final_physical_op_constants()
     if ( limited_area ) call final_limited_area_constants()
     if ( moisture_conservation ) call final_intermesh_constants()
+    call final_mesh_id_list()
 
 
   end subroutine final_runtime_constants

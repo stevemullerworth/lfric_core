@@ -49,7 +49,7 @@ contains
     call field_2%initialise( function_space_collection%get_fs(mesh_id, element_order, W2))
 
     ! Set the new field to a constant value and compute the divergence of it
-    divergence => get_div()
+    divergence => get_div(mesh_id)
     s = 2.0_r_def
     call invoke( name = "Compute divergence",  &
                  setval_c(field_2, s        ), &

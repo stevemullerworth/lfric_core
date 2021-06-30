@@ -348,9 +348,9 @@ contains
 
     use geometric_constants_mod,       only: get_coordinates, &
                                              get_panel_id
-    use fem_constants_mod,             only: get_mass_matrix, &
-                                             get_normalisation, get_qr, &
-                                             wt_id, w2_id, w3inv_id
+    use fem_constants_mod,             only: get_inverse_w3_mass_matrix, &
+                                             get_normalisation, get_qr
+    use fs_continuity_mod,             only: W2, Wtheta
     use mr_indices_mod,                only: nummr
     use formulation_config_mod,        only: exner_from_eos
     use project_pressure_kernel_mod,   only: project_pressure_kernel_type
@@ -370,7 +370,8 @@ contains
 
     type( field_vector_type ) :: inc
 
-    real( r_def ) :: si_err(bundle_size)
+    real( r_def )     :: si_err(bundle_size)
+    integer ( i_def ) :: mesh_id
 
     type( field_type ),           pointer :: t_normalisation => null(), &
                                              u_normalisation => null()
@@ -382,6 +383,8 @@ contains
 
     if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
 
+    mesh_id = state(igh_p)%get_mesh_id()
+
     if ( write_moisture_diag ) then
       ! Best guess for the prognostic fields state can be calculated as
       ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
@@ -391,8 +394,8 @@ contains
     end if
 
     ! Normalise theta & u residual
-    t_normalisation => get_normalisation(wt_id)
-    u_normalisation => get_normalisation(w2_id)
+    t_normalisation => get_normalisation(Wtheta, mesh_id)
+    u_normalisation => get_normalisation(W2, mesh_id)
     call invoke( inc_X_times_Y(rhs(igh_t), t_normalisation), &
                  inc_X_times_Y(rhs(igh_u), u_normalisation) )
 
@@ -440,9 +443,9 @@ contains
     call vector_state%export_field( state( igh_p ), igh_p )
 
     if (exner_from_eos) then
-      m3_inv  => get_mass_matrix(w3inv_id)
-      chi_sph => get_coordinates(state(igh_p)%get_mesh_id())
-      panel_id => get_panel_id(state(igh_p)%get_mesh_id())
+      m3_inv  => get_inverse_w3_mass_matrix(mesh_id)
+      chi_sph => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
       qr => get_qr()
       call invoke( project_pressure_kernel_type( state(igh_p), state(igh_d), &
                                                  state(igh_t),               &

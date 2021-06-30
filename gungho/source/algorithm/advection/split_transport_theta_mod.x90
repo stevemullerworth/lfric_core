@@ -72,7 +72,7 @@ module split_transport_theta_mod
 
     call theta_in%initialise( vector_space = theta%get_function_space())
     call theta%copy_field(theta_in)
-    detj_at_w2 => get_detj_at_w2()
+    detj_at_w2 => get_detj_at_w2(wind%get_mesh_id())
 
     if ( theta_splitting /= theta_splitting_strang .and. &
          theta_splitting /= theta_splitting_vh     .and. &

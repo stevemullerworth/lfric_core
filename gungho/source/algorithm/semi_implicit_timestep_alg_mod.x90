@@ -36,14 +36,17 @@ module semi_implicit_timestep_alg_mod
                                        spinup_period, spinup_alpha, spinup_winds
   use derived_config_mod,        only: bundle_size
   use boundaries_config_mod,     only: limited_area
-  use fem_constants_mod,         only: get_mass_matrix,  &
-                                       wt_id, w2_id, dl_id, get_qr
+  use fem_constants_mod,         only: get_mass_matrix,       &
+                                       get_dl_mass_matrix,    &
+                                       get_w2_si_mass_matrix, &
+                                       get_qr
 
   use field_bundle_mod,          only: clone_bundle,      &
                                        bundle_axpy,       &
                                        add_bundle,        &
                                        copy_bundle,       &
                                        set_bundle_scalar
+  use fs_continuity_mod,         only: Wtheta
 
   ! PsyKAl PSYClone kernels
   use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
@@ -336,12 +339,12 @@ contains
 
     qr => get_qr()
 
-    mm_wt         => get_mass_matrix(wt_id)
+    mm_wt    => get_mass_matrix(Wtheta, mesh_id)
     ! Using modified velocity mass matrix if using damping layer
     if(dlayer_on) then
-      mm_vel => get_mass_matrix(dl_id)
+      mm_vel => get_dl_mass_matrix(mesh_id)
     else
-      mm_vel => get_mass_matrix(w2_id)
+      mm_vel => get_w2_si_mass_matrix(mesh_id)
     end if
 
     ! Density predictor used for moisture conservation diagnostics

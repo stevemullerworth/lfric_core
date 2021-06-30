@@ -29,8 +29,7 @@ contains
     use quadrature_xyoz_mod,          only: quadrature_xyoz_type
     use operator_mod,                 only: operator_type
     use fem_constants_mod,            only: get_qr, &
-                                            get_mass_matrix, &
-                                            w3inv_id
+                                            get_inverse_w3_mass_matrix
     use geometric_constants_mod,      only: get_coordinates, &
                                             get_panel_id
     use mass_matrix_solver_alg_mod,   only: mass_matrix_solver_alg
@@ -54,7 +53,7 @@ contains
 
     call dtheta%initialise( state(igh_t)%get_function_space() )
 
-    m3_inv  => get_mass_matrix(w3inv_id)
+    m3_inv  => get_inverse_w3_mass_matrix(mesh_id)
     chi_sph => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
     qr => get_qr()
@@ -65,9 +64,6 @@ contains
     call invoke( X_plus_Y(state(igh_d), rhs_adv(igh_d), rhs_n(igh_d)), &
                  X_plus_Y(dtheta,       rhs_adv(igh_t), rhs_n(igh_t)) )
     call mass_matrix_solver_alg(state(igh_t), dtheta)
-
-    ! exner^np1 can be computed directly from the equation of state
-    m3_inv => get_mass_matrix(w3inv_id)
 
     call invoke( project_pressure_kernel_type(state(igh_p), state(igh_d),      &
                                               state(igh_t), moist_dyn_gas_law, &

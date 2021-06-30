@@ -87,7 +87,7 @@ contains
     if (heldsuarez_wind_placement < 0)then
 
       u_physics => derived_fields%get_field('u_physics')
-      w2_rmultiplicity => get_rmultiplicity( W2 ) ! 1/multiplicity of w2
+      w2_rmultiplicity => get_rmultiplicity( W2, mesh_id ) ! 1/multiplicity of w2
 
       call du_hs%initialise( vector_space = u_physics%get_function_space() )
       call invoke( setval_c(du_hs, 0.0_r_def) )

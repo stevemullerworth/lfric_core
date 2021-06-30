@@ -83,11 +83,10 @@ contains
                                                   get_m3_exner_star, &
                                                   get_p3theta,       &
                                                   get_rho_at_u
-    use fem_constants_mod,                  only: get_div,           &
-                                                  get_mass_matrix,   &
-                                                  w2_id, w3inv_id,   &
-                                                  wt_id,             &
-                                                  w2_si_id,          &
+    use fem_constants_mod,                  only: get_div,                    &
+                                                  get_mass_matrix,            &
+                                                  get_inverse_w3_mass_matrix, &
+                                                  get_w2_si_mass_matrix,      &
                                                   get_normalisation
     use limited_area_constants_mod,         only: get_mask
     use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
@@ -129,6 +128,16 @@ contains
 
     if ( subroutine_timers ) call timer('mixed_operator')
 
+    ! Extract mesh id
+    select type (y)
+    type is (field_vector_type)
+      mesh_id = y%vector(igh_u)%get_mesh_id()
+    class default
+       write(log_scratch_space, '(A)') &
+             "mixed_operator_alg_mod: incorrect vector_type argument y"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
     ! LAM Masks
     if ( limited_area ) then
       w2_mask     => get_mask(W2)
@@ -139,12 +148,12 @@ contains
     tau_r_dt = tau_r*dt
 
     ! Obtain operators from runtime constants
-    mm_w3_inv     => get_mass_matrix(w3inv_id)
-    mm_wtheta     => get_mass_matrix(wt_id)
-    div           => get_div()
-    mt_lumped_inv => get_normalisation(wt_id)
-    m2_diag       => get_normalisation(w2_id)
-    mm_vel        => get_mass_matrix(w2_si_id) ! = m2 (or dl) + tau_u*dt*coriolis
+    mm_w3_inv     => get_inverse_w3_mass_matrix(mesh_id)
+    mm_wtheta     => get_mass_matrix(Wtheta, mesh_id)
+    div           => get_div(mesh_id)
+    mt_lumped_inv => get_normalisation(Wtheta, mesh_id)
+    m2_diag       => get_normalisation(W2, mesh_id)
+    mm_vel        => get_w2_si_mass_matrix(mesh_id) ! = m2 (or dl) + tau_u*dt*coriolis
 
     ! Obtain operators from si operators
     p2theta           => get_p2theta()
@@ -161,7 +170,6 @@ contains
        type is (field_vector_type)
          ! Create fields in 3D W2 space
          p = y%vector(igh_u)%get_element_order()
-         mesh_id = y%vector(igh_u)%get_mesh_id()
          u_fs => function_space_collection%get_fs( mesh_id, p, W2 )
 
          call f_star%initialise( vector_space = u_fs )

@@ -20,8 +20,8 @@ module init_gungho_prognostics_alg_mod
   use geometric_constants_mod,         only: get_coordinates, &
                                              get_panel_id,    &
                                              get_height
-  use fem_constants_mod,               only: get_mass_matrix, &
-                                             w3inv_id
+  use fem_constants_mod,               only: get_inverse_w3_mass_matrix
+
   use finite_element_config_mod,       only: element_order, &
                                              nqp_exact
   use base_mesh_config_mod,            only: geometry,           &
@@ -131,7 +131,7 @@ contains
     qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
     chi_sph => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
-    m3_inv => get_mass_matrix(w3inv_id)
+    m3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
     ! Default is dry dynamics - set moist dynamics factors to one
     do i = 1, num_moist_factors

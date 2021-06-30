@@ -12,7 +12,7 @@ module cusph_density_update_alg_mod
   use function_space_mod,          only: function_space_type
   use operator_mod,                only: operator_type
   use psykal_lite_mod,             only: invoke_fv_divergence
-  use fem_constants_mod,           only: get_mass_matrix, w3inv_id
+  use fem_constants_mod,           only: get_inverse_w3_mass_matrix
 
   implicit none
 
@@ -62,7 +62,7 @@ subroutine cusph_density_update_alg( rho_n,                    &
     call invoke_fv_divergence(mass_divergence,mass_flux,mass_flux,     &
                                                     cell_orientation, direction)
 
-    mm_w3_inv => get_mass_matrix(w3inv_id)
+    mm_w3_inv => get_inverse_w3_mass_matrix(rho%get_mesh_id())
     call invoke( dg_matrix_vector_kernel_type( divergence_term, &
                                                mass_divergence, &
                                                mm_w3_inv ) )

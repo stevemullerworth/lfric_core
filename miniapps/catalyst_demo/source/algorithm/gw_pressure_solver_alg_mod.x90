@@ -9,10 +9,10 @@
 module gw_pressure_solver_alg_mod
   use field_mod,                          only: field_type
   use constants_mod,                      only: i_def, r_def
-  use fem_constants_mod,                  only: get_mass_matrix, &
-                                                get_div, &
-                                                w0_id, w2_id, w3_id, &
-                                                w3inv_id, wt_id
+  use fem_constants_mod,                  only: get_inverse_w3_mass_matrix, &
+                                                get_mass_matrix, &
+                                                get_div
+  use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
   use initial_temperature_config_mod,     only: bvf_square
   use timestepping_config_mod,            only: dt
   use gravity_wave_constants_config_mod,  only: cs_square, b_space,                &
@@ -86,10 +86,12 @@ contains
     type(operator_type), pointer        :: Mb => null(), Mu => null()
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_rule_gaussian_type) :: quadrature_rule
+    integer(kind=i_def)                 :: mesh_id
 
     call log_event( 'Constructing pressure solver...', LOG_LEVEL_INFO )
 
     ! Get needed function spaces
+    mesh_id = state(igw_u)%get_mesh_id()
     wu => state(igw_u)%get_function_space()
     wp => state(igw_p)%get_function_space()
     wb => state(igw_b)%get_function_space()
@@ -124,13 +126,14 @@ contains
     call ones%initialise(vector_space = wb)
     call M_lumped%initialise(vector_space = wb)
     call Mb_lumped_inv%initialise(vector_space = wb)
+
     select case(b_space)
       case(gravity_wave_constants_b_space_w0)
-        Mb => get_mass_matrix(w0_id)
+        Mb => get_mass_matrix(W0, mesh_id)
       case(gravity_wave_constants_b_space_w3)
-        Mb => get_mass_matrix(w3_id)
+        Mb => get_mass_matrix(W3, mesh_id)
       case(gravity_wave_constants_b_space_wtheta)
-        Mb => get_mass_matrix(wt_id)
+        Mb => get_mass_matrix(Wtheta, mesh_id)
     end select
     call invoke( name = "Compute inverse approximate Mt",       &
                  setval_c( ones,     1.0_r_def ),               &
@@ -148,7 +151,7 @@ contains
     call M_lumped%initialise(vector_space = wu)
     call QT1%initialise(vector_space = wb)
     call Hb_lumped_inv%initialise(vector_space = wu)
-    Mu => get_mass_matrix(w2_id)
+    Mu => get_mass_matrix(W2, mesh_id)
 
     const1 = tau_u*tau_b*dt**2*bvf_square
     call invoke( name = "Compute inverse approximate HB",           &
@@ -257,10 +260,12 @@ contains
     type(field_type),                intent(inout) :: p
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
+    integer(kind=i_def)          :: mesh_id
 
     ! lhs = (I + tau_p*tau_u*dt^2*cs^2*M3^-1 * D * HB^-1 * D^T)*p
-    div    => get_div()
-    M3_inv => get_mass_matrix(w3inv_id)
+    mesh_id = p%get_mesh_id()
+    div    => get_div(mesh_id)
+    M3_inv => get_inverse_w3_mass_matrix(mesh_id)
     const1 = tau_p*tau_u*dt**2*cs_square
     call invoke( name = "Apply GW pressure lhs",                        &
                  setval_c(grad_p, 0.0_r_def),                           &
@@ -406,7 +411,7 @@ contains
     call invoke( setval_c(u_inc, 0.0_r_def), &
                  setval_c(b_inc, 0.0_r_def) )
     ! U increment
-    div => get_div()
+    div => get_div(u_inc%get_mesh_id())
     const1 = tau_u*dt
     call invoke( name = "Compute U increment",                           &
                  transpose_matrix_vector_kernel_type(u_inc, p_inc, div), &

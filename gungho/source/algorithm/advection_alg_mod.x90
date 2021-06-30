@@ -22,14 +22,11 @@ module advection_alg_mod
   use runtime_constants_mod,          only: get_shifted_mesh_id,            &
                                             get_double_level_mesh_id
   use fem_constants_mod,              only: get_div,                        &
-                                            get_div_shifted,                &
                                             get_mass_matrix,                &
                                             get_mass_matrix_diagonal,       &
                                             get_inverse_lumped_mass_matrix, &
-                                            get_detj_at_w2,                 &
-                                            get_detj_at_w2_shifted,         &
-                                            w3inv_id, wt_id,                &
-                                            w3inv_shift_id, w3_shift_id
+                                            get_inverse_W3_mass_matrix,     &
+                                            get_detj_at_w2
   use intermesh_constants_mod,        only: get_mr_to_sh_mass_integrals
   use field_mod,                      only: field_type
   use function_space_collection_mod,  only: function_space_collection
@@ -252,7 +249,7 @@ contains
 
       ! Calculate substepping timestep if needed for mol
       call cfl%initialise( wind_n%get_function_space() )
-      detj_at_w2 => get_detj_at_w2()
+      detj_at_w2 => get_detj_at_w2(wind_n%get_mesh_id())
       ! Set advecting velocity = 0.5(u_np1 + u_n)
       call invoke( aX_plus_bY(cfl, 0.5_r_def, wind_n, &
                                    0.5_r_def, wind_np1), &
@@ -388,10 +385,13 @@ contains
                                   advecting_wind
   type(field_type) :: field, field_inc, field_old, mass_flux_i
   integer(i_def)   :: sub_step_count
+  integer(i_def)   :: mesh_id
 
   real(r_def) :: dt_substep, dt_fraction
 
   if ( subroutine_timers ) call timer('advection_alg')
+
+  mesh_id = wind_n%get_mesh_id()
 
   ! substepping timesteps
   dt_fraction = 1.0_r_def/real(n_substeps, r_def)
@@ -425,8 +425,8 @@ contains
      call invoke(setval_c(mass_flux, 0.0_r_def), &
                  setval_c(mass_flux_i, 0.0_r_def), &
                  setval_c(advection(igh_d), 0.0_r_def))
-     mm_w3_inv => get_mass_matrix(w3inv_id)
-     div       => get_div()
+     mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
+     div       => get_div(mesh_id)
      do sub_step_count = 1, n_substeps
        call field%copy_field(field_old)
        call advect_field(mass_flux_i, field, advecting_wind,        &
@@ -490,13 +490,13 @@ contains
       call invoke( setval_X(advection(igh_t), u_grad_theta) )
     else
       ! Convert equation from pointwise form to weak form (fully fem equation)
-      mm_wt => get_mass_matrix(wt_id)
+      mm_wt => get_mass_matrix(Wtheta, mesh_id)
       call invoke( setval_c(advection(igh_t), 0.0_r_def), &
                    matrix_vector_kernel_type(advection(igh_t), u_grad_theta, mm_wt) )
     end if
   else
     ! Cancel out the lumped mass matrix used to advect theta
-    mt_lumped_inv => get_inverse_lumped_mass_matrix(wt_id)
+    mt_lumped_inv => get_inverse_lumped_mass_matrix(Wtheta, mesh_id)
     call invoke( X_divideby_Y(advection(igh_t), u_grad_theta, &
                               mt_lumped_inv) )
   end if
@@ -643,16 +643,16 @@ end subroutine advection_alg
     shifted_mesh_id => get_shifted_mesh_id()
     double_level_mesh_id => get_double_level_mesh_id()
     mr_to_sh_mass_integrals => get_mr_to_sh_mass_integrals()
-    mm_w3_inv => get_mass_matrix(w3inv_id)
-    mm_w3_shifted_inv_diag => get_mass_matrix_diagonal(w3inv_shift_id)
-    mm_w3_shifted_diag => get_mass_matrix_diagonal(w3_shift_id)
+    mm_w3_inv => get_inverse_W3_mass_matrix(primary_mesh_id)
+    mm_w3_shifted_inv_diag => get_inverse_lumped_mass_matrix(W3, shifted_mesh_id)
+    mm_w3_shifted_diag => get_mass_matrix_diagonal(W3, shifted_mesh_id)
     dA_w2 => get_dA_at_w2(primary_mesh_id)
     dA_w2_shifted => get_dA_at_w2(shifted_mesh_id)
     dA_w2_double_level => get_dA_at_w2(double_level_mesh_id)
     chi_sph => get_coordinates(primary_mesh_id)
     chi_sph_shifted => get_coordinates(shifted_mesh_id)
-    div => get_div()
-    div_shifted => get_div_shifted()
+    div => get_div(primary_mesh_id)
+    div_shifted => get_div(shifted_mesh_id)
     height_wt => get_height(WTHETA, primary_mesh_id)
     height_wt_shifted => get_height(WTHETA, shifted_mesh_id)
 
@@ -1059,13 +1059,8 @@ end subroutine advection_alg
      call field_new%initialise( field%get_function_space() )
      call field%copy_field(field_new)
 
-     if ( shifted ) then
-        div       => get_div_shifted()
-        mm_w3_inv => get_mass_matrix(w3inv_shift_id)
-      else
-        div       => get_div()
-        mm_w3_inv => get_mass_matrix(w3inv_id)
-     end if
+     div       => get_div(mesh_id)
+     mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
 
      if ( time_method == method_semi_implicit          &
           .and. advect_density                         &
@@ -1263,15 +1258,7 @@ end subroutine advection_alg
             call wind_divergence%initialise( field%get_function_space() )
 
             cell_orientation => get_cell_orientation(mesh_id)
-
-            if ( shifted ) then
-              detj_at_w2 => get_detj_at_w2_shifted()
-              call log_event("Cosmic not yet implemented for shifted mesh", &
-                             LOG_LEVEL_ERROR)
-
-            else
-              detj_at_w2 => get_detj_at_w2()
-            end if
+            detj_at_w2 => get_detj_at_w2(mesh_id)
 
             call calc_dep_pts( dep_pts_x, dep_pts_y, dep_pts_z, wind_divergence, &
                                wind_n, wind_np1, detj_at_w2, cell_orientation, dt )

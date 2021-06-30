@@ -211,7 +211,7 @@ contains
       chi_sph          => get_coordinates(mesh_id)
       panel_id         => get_panel_id(mesh_id)
       coriolis         => get_coriolis()
-      w2_rmultiplicity => get_rmultiplicity( W2 )
+      w2_rmultiplicity => get_rmultiplicity( W2, mesh_id )
 
       ! Create intermediate fields.
       do i = 1,3

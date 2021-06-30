@@ -26,13 +26,13 @@ module flux_shifted_alg_mod
   use geometric_constants_mod,        only: get_coordinates,  &
                                             get_panel_id
   use fem_constants_mod,              only: get_mass_matrix,          &
-                                            get_mass_matrix_diagonal, &
-                                            w2_shift_id, w3_shift_id
+                                            get_mass_matrix_diagonal
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order,          &
                                             nqp_exact,              &
                                             spherical_coord_system, &
                                             spherical_coord_system_xyz
+  use fs_continuity_mod,              only: W2, W3
   use function_space_mod,             only: function_space_type
   use operator_mod,                   only: operator_type
   use poly1d_flux_kernel_mod,         only: poly1d_flux_kernel_type
@@ -177,7 +177,7 @@ contains
                                    reference_element, gaussian_quadrature)
 
         call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
-        md_w3 => get_mass_matrix_diagonal(w3_shift_id)
+        md_w3 => get_mass_matrix_diagonal(W3, mesh_id)
         ! Create multi-data space and field for the vertical flux coefficients
         ndata_h = nfaces_re_h*flux_stencil_size
         multidata_fs => function_space_collection%get_fs( mesh_id, element_order, W3, ndata_h )
@@ -299,8 +299,8 @@ contains
       ! Project density*wind into the mass flux space
       qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
 
-      mm_w2    => get_mass_matrix(w2_shift_id)
-      mmd_w2   => get_mass_matrix_diagonal(w2_shift_id)
+      mm_w2    => get_mass_matrix(W2, mesh_id)
+      mmd_w2   => get_mass_matrix_diagonal(W2, mesh_id)
       chi_sph  => get_coordinates(mesh_id)
       panel_id => get_panel_id(mesh_id)
       u_fs     => wind%get_function_space()
@@ -311,7 +311,7 @@ contains
                                         chi_sph, panel_id, qr), &
                    enforce_bc_kernel_type(rhs_f),               &
                    setval_c(mass_flux, 0.0_r_def) )
-      call mass_matrix_solver_alg( mass_flux, rhs_f, .true., .true.)
+      call mass_matrix_solver_alg( mass_flux, rhs_f, .true.)
       nullify( mm_w2, chi_sph, panel_id, mmd_w2, u_fs )
   end select
 
