@@ -18,18 +18,14 @@ module compute_dl_matrix_kernel_mod
                                        GH_REAL, ANY_SPACE_9,      &
                                        ANY_DISCONTINUOUS_SPACE_3, &
                                        GH_BASIS, GH_DIFF_BASIS,   &
-                                       GH_SCALAR, CELL_COLUMN,    &
-                                       GH_QUADRATURE_XYoZ
+                                       GH_SCALAR, GH_INTEGER,     &
+                                       CELL_COLUMN, GH_QUADRATURE_XYoZ
   use base_mesh_config_mod,      only: geometry, geometry_spherical
   use constants_mod,             only: i_def, r_def, PI
   use coord_transform_mod,       only: xyz2llr
-  use damping_layer_config_mod,  only: dl_base, dl_str
-  use extrusion_config_mod,      only: domain_top
-  use finite_element_config_mod, only: element_order,             &
-                                       spherical_coord_system,    &
+  use finite_element_config_mod, only: spherical_coord_system,    &
                                        spherical_coord_system_xyz
   use fs_continuity_mod,         only: W2
-  use planet_config_mod,         only: radius
   use kernel_mod,                only: kernel_type
   use coordinate_jacobian_mod,   only: coordinate_jacobian
 
@@ -43,10 +39,15 @@ module compute_dl_matrix_kernel_mod
 
   type, public, extends(kernel_type) :: compute_dl_matrix_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                       &
+    type(arg_type) :: meta_args(9) = (/                                       &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W2),                    &
          arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),               &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,   GH_INTEGER, GH_READ),                          &
          arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(2) = (/                                    &
@@ -77,6 +78,14 @@ contains
   !! @param[in] chi2     2nd (spherical) coordinate field in Wchi
   !! @param[in] chi3     3rd (spherical) coordinate field in Wchi
   !! @param[in] panel_id Field giving the ID for mesh panels
+  !! @param[in] dl_base_height
+  !!                     Base height of damping layer
+  !! @param[in] dl_strength
+  !!                     Strength of damping layer
+  !! @param[in] domain_top
+  !!                     The model domain height
+  !! @param[in] radius   The planet radius
+  !! @param[in] element_order The model finite element order
   !! @param[in] dt       The model timestep length
   !! @param[in] ndf_w2   Degrees of freedom per cell
   !! @param[in] basis_w2 Vector basis functions evaluated at quadrature points.
@@ -96,7 +105,9 @@ contains
   !! @param[in] wqp_v    Vertical quadrature weights
   subroutine compute_dl_matrix_code(cell, nlayers, ncell_3d,     &
                                     mm, chi1, chi2, chi3,        &
-                                    panel_id, dt,                &
+                                    panel_id, dl_base_height,    &
+                                    dl_strength, domain_top,     &
+                                    radius, element_order, dt,   &
                                     ndf_w2, basis_w2,            &
                                     ndf_chi, undf_chi, map_chi,  &
                                     basis_chi, diff_basis_chi,   &
@@ -123,10 +134,15 @@ contains
     real(kind=r_def),    intent(in)    :: chi2(undf_chi)
     real(kind=r_def),    intent(in)    :: chi3(undf_chi)
     real(kind=r_def),    intent(in)    :: panel_id(undf_pid)
+    real(kind=r_def),    intent(in)    :: dl_base_height
+    real(kind=r_def),    intent(in)    :: dl_strength
+    real(kind=r_def),    intent(in)    :: domain_top
+    real(kind=r_def),    intent(in)    :: radius
     real(kind=r_def),    intent(in)    :: dt
     real(kind=r_def),    intent(in)    :: wqp_h(nqp_h)
     real(kind=r_def),    intent(in)    :: wqp_v(nqp_v)
     real(kind=r_def),    intent(in)    :: basis_w2(3,ndf_w2,nqp_h,nqp_v)
+    integer(kind=i_def), intent(in)    :: element_order
 
     ! Internal variables
     integer(kind=i_def) :: df, df2, dfc, k, ik
@@ -186,9 +202,11 @@ contains
                   ! We're in a spherically-based coordinate with chi3=z
                   z=chi3_at_quad
                 end if
-                mu_at_quad = damping_layer_func(z, dl_str, dl_base, domain_top)
+                mu_at_quad = damping_layer_func(z, dl_strength, &
+                                                dl_base_height, domain_top)
               else
-                mu_at_quad = damping_layer_func(chi3_at_quad, dl_str, dl_base, domain_top)
+                mu_at_quad = damping_layer_func(chi3_at_quad, dl_strength, &
+                                                dl_base_height, domain_top)
               end if
 
               integrand = wqp_h(qp1) * wqp_v(qp2) *                          &
@@ -214,24 +232,25 @@ contains
 
   !> @brief Computes the value of damping layer function at height z.
   !!
-  !! @param[in]  height      Physical height on which to compute value of damping layer function.
-  !! @param[in]  dl_str      Damping layer function coefficient and maximum value of damping layer function.
-  !! @param[in]  dl_base     Height above which damping layer is active.
-  !! @param[in]  domain_top  Top of the computational domain.
-  !! @return     dl_val      Value of damping layer function.
-  function damping_layer_func(height, dl_str, dl_base, domain_top) result (dl_val)
+  !! @param[in]  height         Physical height on which to compute value of damping layer function.
+  !! @param[in]  dl_strength    Damping layer function coefficient and maximum value of damping layer function.
+  !! @param[in]  dl_base_height Height above which damping layer is active.
+  !! @param[in]  domain_top     Top of the computational domain.
+  !! @return     dl_val         Value of damping layer function.
+  function damping_layer_func(height, dl_strength, dl_base_height, domain_top) result (dl_val)
 
     implicit none
 
     ! Arguments
     real(kind=r_def),   intent(in)  :: height
-    real(kind=r_def),   intent(in)  :: dl_str
-    real(kind=r_def),   intent(in)  :: dl_base
+    real(kind=r_def),   intent(in)  :: dl_strength
+    real(kind=r_def),   intent(in)  :: dl_base_height
     real(kind=r_def),   intent(in)  :: domain_top
     real(kind=r_def)                :: dl_val
 
-    if (height >= dl_base) then
-      dl_val = dl_str*sin(0.5_r_def*PI*(height-dl_base)/(domain_top-dl_base))**2
+    if (height >= dl_base_height) then
+      dl_val = dl_strength*sin(0.5_r_def*PI*(height-dl_base_height) / &
+                                            (domain_top-dl_base_height))**2
     else
       dl_val = 0.0_r_def
     end if

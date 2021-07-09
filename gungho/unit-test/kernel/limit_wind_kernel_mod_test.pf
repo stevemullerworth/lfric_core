@@ -41,8 +41,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,          only : feign_timestepping_config, &
-                                          feign_checks_config
+    use feign_config_mod,          only : feign_timestepping_config
 
     use timestepping_config_mod,   only : method_semi_implicit, &
                                           runge_kutta_method_ssp3
@@ -54,8 +53,6 @@ contains
     call xt_initialize(this%getMpiCommunicator())
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    call feign_checks_config( limit_cfl=.true., max_cfl=MAX_CFL )
 
     call feign_timestepping_config(                                   &
              method=method_semi_implicit,                             &
@@ -137,6 +134,7 @@ contains
     call limit_wind_code( nlayers,         &
                           wind,            &
                           dJ_on_w2, dt,    &
+                          MAX_CFL,         &
                           ndf_w2, undf_w2, &
                           map_w2(:,cell)   &
                           )

@@ -34,6 +34,7 @@ module departure_point_kernel_mod_test
   real(r_def), parameter    :: tau_r   = 0.5_r_def
   integer(i_def), parameter :: inner_iterations = 0
   integer(i_def), parameter :: outer_iterations = 0
+  integer(i_def), parameter :: n_dep_pt_iterations = 1
   real(r_def), parameter    :: spinup_period = 0.0_r_def
   logical, parameter        :: spinup_winds  = .false.
   logical, parameter        :: spinup_alpha  = .false.
@@ -151,6 +152,8 @@ contains
     call calc_departure_point_code( nlayers,                       &
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
+                                    n_dep_pt_iterations,           &
+                                    dt,                            &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &
@@ -161,7 +164,7 @@ contains
                                     u_field,                       &
                                     u_field,                       &
                                     x_direction,                   &
-                                    method_euler, dt)
+                                    method_euler)
     @assertEqual(1.0_r_def, dep_pts(1), tol)
 
     ! Linearly varying wind field values which are determined by the above
@@ -183,6 +186,8 @@ contains
     call calc_departure_point_code( nlayers,                       &
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
+                                    n_dep_pt_iterations,           &
+                                    dt,                            &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &
@@ -193,7 +198,7 @@ contains
                                     u_field,                       &
                                     u_field,                       &
                                     x_direction,                   &
-                                    method_euler, dt )
+                                    method_euler)
     @assertEqual(1.5_r_def, dep_pts(1), tol)
     @assertEqual(0.0_r_def, dep_pts(2), tol)
     @assertEqual(1.6_r_def, dep_pts(3), tol)
@@ -234,6 +239,8 @@ contains
     call calc_departure_point_code( nlayers,                       &
                                     dep_pts,                       &
                                     departure_pt_stencil_length,   &
+                                    n_dep_pt_iterations,           &
+                                    dt,                            &
                                     undf_w2,                       &
                                     ndf_w2,                        &
                                     stencil_map_W2,                &
@@ -244,7 +251,7 @@ contains
                                     u_field,                       &
                                     u_field,                       &
                                     x_direction,                   &
-                                    method_euler, dt )
+                                    method_euler )
     @assertEqual(1.5_r_def, dep_pts(1), tol)
     @assertEqual(0.0_r_def, dep_pts(2), tol)
     @assertEqual(1.6_r_def, dep_pts(3), tol)

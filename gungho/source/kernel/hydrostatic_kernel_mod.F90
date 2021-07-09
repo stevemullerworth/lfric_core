@@ -30,13 +30,13 @@ module hydrostatic_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,     &
                                 GH_FIELD, GH_REAL,       &
+                                GH_SCALAR,               &
                                 GH_READ, GH_INC, ANY_W2, &
                                 GH_BASIS, GH_DIFF_BASIS, &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : cp
 
   implicit none
   private
@@ -48,12 +48,13 @@ module hydrostatic_kernel_mod
   !>
   type, public, extends(kernel_type) :: hydrostatic_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                  &
+    type(arg_type) :: meta_args(6) = (/                  &
          arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_W2), &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, W3),     &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta), &
          arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wtheta), &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3)      &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W3),     &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)          &
          /)
     type(func_type) :: meta_funcs(3) = (/                &
          func_type(ANY_W2, GH_BASIS, GH_DIFF_BASIS),     &
@@ -82,6 +83,7 @@ contains
 !! @param[in] moist_dyn_tot Moist dynamics total mass factor
 !! @param[in] moist_dyn_fac Moist dynamics water factor
 !! @param[in] phi Geopotential field
+!! @param[in] cp Specific heat of dry air at constant pressure
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
@@ -102,7 +104,7 @@ contains
 !! @param[in] wqp_v Vertical quadrature weights
 subroutine hydrostatic_code(nlayers,                                          &
                             r_u, exner, theta, moist_dyn_gas, moist_dyn_tot,  &
-                            moist_dyn_fac, phi,                               &
+                            moist_dyn_fac, phi, cp,                           &
                             ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis, &
                             ndf_w3, undf_w3, map_w3, w3_basis,                &
                             ndf_wt, undf_wt, map_wt, wt_basis, wt_diff_basis, &
@@ -131,6 +133,7 @@ subroutine hydrostatic_code(nlayers,                                          &
                                                          moist_dyn_tot, &
                                                          moist_dyn_fac
   real(kind=r_def), dimension(undf_w3), intent(in)    :: phi
+  real(kind=r_def),                     intent(in)    :: cp
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v

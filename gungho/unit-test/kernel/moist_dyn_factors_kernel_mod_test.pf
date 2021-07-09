@@ -103,7 +103,6 @@ contains
 
     use, intrinsic :: iso_fortran_env, only : real64
     use moist_dyn_factors_kernel_mod,  only : moist_dyn_factors_code
-    use planet_config_mod,             only : epsilon
 
     implicit none
 
@@ -112,8 +111,9 @@ contains
     real(r_def), parameter :: tol = 1.0e-9_r_def   ! r_def 64bit
     real(r_def)            :: answer, use_tol
 
-    integer(i_def) :: i, k, df
-    real(r_def)    :: z_factor
+    integer(i_def)         :: i, k, df
+    real(r_def)            :: z_factor
+    real(r_def), parameter :: epsilon = 0.65004008580529138_r_def
 
     ! Single column with nlayers
     ! Fields are p/wise linear discontinuous functions
@@ -142,6 +142,7 @@ contains
                                 this%mr(:,4),                 &
                                 this%mr(:,5),                 &
                                 this%mr(:,6),                 &
+                                1.0_r_def/epsilon,            &
                                 ndf_wtheta, undf_wtheta,      &
                                 this%map_wtheta )
 

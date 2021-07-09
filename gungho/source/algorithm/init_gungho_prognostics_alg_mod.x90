@@ -37,12 +37,16 @@ module init_gungho_prognostics_alg_mod
                                              method_projected, &
                                              method_balanced
   use initial_wind_config_mod,         only: smp_init_wind,                   &
+                                             sbr_angle_lat, sbr_angle_lon,    &
+                                             u0, v0,                          &
                                              profile,                         &
                                              profile_sbr_streamfunction,      &
                                              profile_dcmip301_streamfunction, &
                                              profile_div_free_reversible,     &
                                              profile_eternal_fountain,        &
                                              profile_rotational
+  use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
+                                             recip_epsilon
   use io_mod,                          only: ts_fname
 
   ! PsyKAl-lite kernels
@@ -155,7 +159,7 @@ contains
       end if
       call invoke( name = "get_u_from_sampling", &
                    setval_c( u, 0.0_r_def ),     &
-                   sample_initial_u_kernel_type( u, chi_sph ) )
+                   sample_initial_u_kernel_type( u, chi_sph, u0, v0 ) )
     else
       if ( profile == profile_sbr_streamfunction .or.  &
            profile == profile_dcmip301_streamfunction .or. &
@@ -167,11 +171,12 @@ contains
                     function_space_collection%get_fs(mesh_id, element_order, W1) )
         call r_psi%initialise( vector_space =                                         &
                     function_space_collection%get_fs(mesh_id, element_order, W1) )
-        call invoke( name = "initialise_streamfunction", &
-                     setval_c(psi, 0.0_r_def),           &
-                     setval_c(r_psi, 0.0_r_def),         &
-                     initial_streamfunc_kernel_type(r_psi, chi_sph, panel_id, &
-                                                    initial_time, qr) )
+        call invoke( name = "initialise_streamfunction",                         &
+                     setval_c(psi, 0.0_r_def),                                   &
+                     setval_c(r_psi, 0.0_r_def),                                 &
+                     initial_streamfunc_kernel_type(r_psi, chi_sph, panel_id,    &
+                                                    initial_time, sbr_angle_lat, &
+                                                    sbr_angle_lon, u0, v0, qr ) )
         ! We do not want to force zero stream function at boundaries
         call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
         call invoke( name = "get_u_from_curl_of_psi", &
@@ -203,8 +208,10 @@ contains
         height_wth => get_height(Wtheta, mesh_id)
 
         ! Initialise exner assuming hydrostatic balance
-        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, height_wth, &
-                                                    height_w3, chi_sph, panel_id ) )
+        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
+                                                    height_wth, height_w3,   &
+                                                    chi_sph, panel_id,       &
+                                                    gravity, p_zero, rd, cp ) )
       case(method_sampled)
         ! Initialise exner through sampling analytic solution
         call invoke (initial_exner_sample_kernel_type( exner, chi_sph, panel_id, initial_time ) )
@@ -233,14 +240,16 @@ contains
         case(eos_method_sampled)
           ! Diagnose density from equation of state by sampling
           call invoke( sample_eos_rho_kernel_type( rho, exner, theta,      &
-                                                   moist_dyn(gas_law) ) )
+                                                   moist_dyn(gas_law),     &
+                                                   kappa, rd, p_zero ) )
         case(eos_method_projected)
           qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
           ! Diagnose density from equation of state by projection
           call invoke(   setval_c( r_rho, 0.0_r_def ),                           &
                          project_eos_rho_kernel_type( r_rho, exner, theta,       &
                                                     moist_dyn(gas_law), chi_sph, &
-                                                    panel_id, qr ),              &
+                                                    panel_id, kappa, rd, p_zero, &
+                                                    qr ),                        &
                          dg_matrix_vector_kernel_type(rho, r_rho, m3_inv) )
         case default
           call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
@@ -253,27 +262,31 @@ contains
         do i = 1, nummr
           call invoke( setval_X(mr(i), theta) )
         end do
-        call invoke( moist_dyn_factors_kernel_type( moist_dyn, mr ) )
+        call invoke( moist_dyn_factors_kernel_type( moist_dyn, mr, recip_epsilon ) )
       else
         ! Initialise moisture and update factors for moist dynamics
-        call invoke( initial_mr_kernel_type( theta, exner, rho, mr ), &
-                     moist_dyn_factors_kernel_type( moist_dyn, mr )   )
+        call invoke( initial_mr_kernel_type( theta, exner, rho, mr, &
+                                             p_zero, rd, kappa ),   &
+                     moist_dyn_factors_kernel_type( moist_dyn, mr, recip_epsilon )   )
         ! Recalculate hydrostatic pressure and dry density
         height_w3 => get_height(W3, mesh_id)
         height_wth => get_height(Wtheta, mesh_id)
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
-                                                    chi_sph, panel_id ) )
+                                                    chi_sph, panel_id,       &
+                                                    gravity, p_zero, rd, cp ) )
         select case(eos_method)
           case(eos_method_sampled)
             call invoke( sample_eos_rho_kernel_type( rho, exner, theta,      &
-                                                     moist_dyn(gas_law) ) )
+                                                     moist_dyn(gas_law),     &
+                                                     kappa, rd, p_zero ) )
           case(eos_method_projected)
             qr = quadrature_xyoz_type( nqp_exact, quadrature_rule )
             call invoke(   setval_c( r_rho, 0.0_r_def ),                           &
                            project_eos_rho_kernel_type( r_rho, exner, theta,       &
                                                       moist_dyn(gas_law), chi_sph, &
-                                                      panel_id, qr ),              &
+                                                      panel_id, kappa, rd, p_zero, &
+                                                      qr ),                        &
                            dg_matrix_vector_kernel_type(rho, r_rho, m3_inv) )
           case default
             call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )

@@ -34,6 +34,7 @@ module held_suarez_kernel_mod_test
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 287.05_r_def
   real(r_def), parameter :: cp       = 1005.0_r_def
+  real(r_def), parameter :: kappa    = rd/cp
   real(r_def), parameter :: scaling  = 1.0_r_def
   real(r_def), parameter :: dlat=1.0_r_def, dlon=1.0_r_def, dz = 10000.0_r_def
   real(r_def), parameter :: dt = 600.0_r_def
@@ -239,6 +240,7 @@ contains
                               chi_data(:,2),                        &
                               chi_data(:,3),                        &
                               panel_id(:),                          &
+                              kappa,                                &
                               dt,                                   &
                               ndf_wth, undf_wth, map_wth(:,cell),   &
                               ndf_w3, undf_w3, map_w3(:,cell),      &
@@ -251,9 +253,10 @@ contains
     call held_suarez_fv_wind_code( nlayers,                              &
                                    du_data,                              &
                                    u_data,                               &
+                                   w2_rmultiplicity_data,                &
                                    exner_data,                           &
                                    exner_wth_data,                       &
-                                   w2_rmultiplicity_data, dt,            &
+                                   kappa, dt,                            &
                                    ndf_w2, undf_w2, map_w2(:,cell),      &
                                    ndf_w3, undf_w3, map_w3(:,cell),      &
                                    ndf_wth, undf_wth, map_wth(:,cell)    &

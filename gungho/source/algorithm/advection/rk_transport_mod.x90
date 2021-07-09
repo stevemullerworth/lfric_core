@@ -28,9 +28,11 @@ module rk_transport_mod
   use io_config_mod,                     only: subroutine_timers
   use initial_streamfunc_kernel_mod,     only: initial_streamfunc_kernel_type
   use initial_u_kernel_mod,              only: initial_u_kernel_type
-  use initial_wind_config_mod,           only: profile,                     &
-                                               profile_div_free_reversible, &
-                                               profile_curl_free_reversible
+  use initial_wind_config_mod,           only: profile,                      &
+                                               profile_div_free_reversible,  &
+                                               profile_curl_free_reversible, &
+                                               sbr_angle_lat, sbr_angle_lon, &
+                                               u0, v0
 
   use log_mod,                           only: log_event,           &
                                                log_scratch_space,   &
@@ -164,8 +166,9 @@ contains
       call invoke( name="set_streamfunction",                       &
                    setval_c(psi, 0.0_r_def),                        &
                    setval_c(r_psi, 0.0_r_def),                      &
-                   initial_streamfunc_kernel_type(r_psi, chi_sph,   &
-                                                  panel_id, time, qr) )
+                   initial_streamfunc_kernel_type(r_psi, chi_sph, panel_id, &
+                                                  time, sbr_angle_lat,      &
+                                                  sbr_angle_lon, u0, v0, qr ) )
       call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
       call invoke( strong_curl_kernel_type(wind, psi) )
     elseif ( profile == profile_curl_free_reversible ) then

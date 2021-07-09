@@ -31,7 +31,8 @@ module rk_alg_timestep_mod
                                                 get_panel_id
   use transport_config_mod,               only: operators, &
                                                 operators_fv
-  use mixing_config_mod,                  only: viscosity
+  use mixing_config_mod,                  only: viscosity, viscosity_mu
+  use planet_config_mod,                  only: cp
 
   use field_bundle_mod,                   only: clone_bundle, &
                                                 bundle_axpy,  &
@@ -249,10 +250,10 @@ contains
       call invoke( name = "Compute new rhs",                                        &
                    pressure_gradient_bd_kernel_type( rhs_prediction(igh_u, stage),  &
                                                      state(igh_p), 1, state(igh_t), &
-                                                     moist_dyn, qrf ),              &
+                                                     moist_dyn, cp, qrf ),          &
                    hydrostatic_kernel_type( rhs_prediction(igh_u,stage),            &
                                             state(igh_p), state(igh_t),             &
-                                            moist_dyn, geopotential, qr ),          &
+                                            moist_dyn, geopotential, cp, qr ),      &
                    kinetic_energy_gradient_kernel_type(                             &
                                         rhs_prediction(igh_u,stage), state(igh_u),  &
                                         chi_sph, panel_id, qr ),                    &
@@ -300,9 +301,11 @@ contains
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
       call invoke(tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
-                                                  chi_sph, panel_id ), &
+                                                  chi_sph, panel_id,           &
+                                                  viscosity_mu ),              &
                   momentum_viscosity_kernel_type( inc(igh_u), state(igh_u), 1, &
-                                                  chi_sph, panel_id ), &
+                                                  chi_sph, panel_id,           &
+                                                  viscosity_mu ),              &
                   setval_c(inc(igh_d), 0.0_r_def) )
       call bundle_axpy(dt, inc, state, state, bundle_size)
     end if

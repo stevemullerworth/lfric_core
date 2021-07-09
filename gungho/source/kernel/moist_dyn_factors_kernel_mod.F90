@@ -8,12 +8,12 @@ module moist_dyn_factors_kernel_mod
 
     use argument_mod,                  only: arg_type,          &
                                              GH_FIELD, GH_REAL, &
+                                             GH_SCALAR,         &
                                              GH_WRITE, GH_READ, &
                                              CELL_COLUMN
     use constants_mod,                 only: r_def, i_def
     use fs_continuity_mod,             only: Wtheta
     use kernel_mod,                    only: kernel_type
-    use planet_config_mod,             only: recip_epsilon
 
     implicit none
 
@@ -25,9 +25,10 @@ module moist_dyn_factors_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: moist_dyn_factors_kernel_type
         private
-        type(arg_type) :: meta_args(2) = (/                   &
+        type(arg_type) :: meta_args(3) = (/                   &
              arg_type(GH_FIELD*3, GH_REAL, GH_WRITE, Wtheta), &
-             arg_type(GH_FIELD*6, GH_REAL, GH_READ,  Wtheta)  &
+             arg_type(GH_FIELD*6, GH_REAL, GH_READ,  Wtheta), &
+             arg_type(GH_SCALAR,  GH_REAL, GH_READ)           &
              /)
         integer :: operates_on = CELL_COLUMN
     contains
@@ -52,12 +53,13 @@ contains
     !! @param[in] mr_ci Ice cloud mixing ratio
     !! @param[in] mr_s Snow mixing ratio
     !! @param[in] mr_g Graupel mixing ratio
+    !! @param[in] recip_epsilon Reciprocal of ratio molecular mass of water to dry air
     !! @param[in] ndf_wtheta The number of degrees of freedom per cell for wtheta
     !! @param[in] udf_wtheta The number of total degrees of freedom for wtheta
     !! @param[in] map_wtheta Integer array holding the dofmap for the cell at the base of the column
 
     subroutine moist_dyn_factors_code(nlayers, moist_dyn_gas, moist_dyn_tot, moist_dyn_fac,  &
-                                      mr_v, mr_cl, mr_r, mr_ci, mr_s, mr_g,                  &
+                                      mr_v, mr_cl, mr_r, mr_ci, mr_s, mr_g, recip_epsilon,   &
                                       ndf_wtheta, undf_wtheta, map_wtheta )
 
         implicit none
@@ -70,6 +72,7 @@ contains
                                                                      moist_dyn_fac
         real(kind=r_def), dimension(undf_wtheta),   intent(in)    :: mr_v, mr_cl, mr_r
         real(kind=r_def), dimension(undf_wtheta),   intent(in)    :: mr_ci, mr_s, mr_g
+        real(kind=r_def),                           intent(in)    :: recip_epsilon
         integer(kind=i_def), dimension(ndf_wtheta), intent(in)    :: map_wtheta
 
         ! Internal variables

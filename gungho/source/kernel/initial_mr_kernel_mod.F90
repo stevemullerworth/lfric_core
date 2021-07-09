@@ -15,12 +15,12 @@ module initial_mr_kernel_mod
 
     use argument_mod,                  only: arg_type,          &
                                              GH_FIELD, GH_REAL, &
+                                             GH_SCALAR,         &
                                              GH_WRITE, GH_READ, &
                                              CELL_COLUMN
     use fs_continuity_mod,             only: W3, Wtheta
     use constants_mod,                 only: r_def, i_def
     use kernel_mod,                    only: kernel_type
-    use planet_config_mod,             only: p_zero, Rd, kappa
     use section_choice_config_mod,     only: cloud, cloud_um
     use initial_pressure_config_mod,   only: method, method_balanced
 
@@ -36,11 +36,14 @@ module initial_mr_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: initial_mr_kernel_type
         private
-        type(arg_type) :: meta_args(4) = (/                       &
+        type(arg_type) :: meta_args(7) = (/                       &
              arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),     &
              arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),         &
              arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),         &
-             arg_type(GH_FIELD*6, GH_REAL, GH_WRITE, Wtheta)      &
+             arg_type(GH_FIELD*6, GH_REAL, GH_WRITE, Wtheta),     &
+             arg_type(GH_SCALAR,  GH_REAL, GH_READ),              &
+             arg_type(GH_SCALAR,  GH_REAL, GH_READ),              &
+             arg_type(GH_SCALAR,  GH_REAL, GH_READ)               &
              /)
         integer :: operates_on = CELL_COLUMN
     contains
@@ -64,6 +67,9 @@ contains
     !! @param[in,out] mr_ci Ice cloud mixing ratio
     !! @param[in,out] mr_s Snow mixing ratio
     !! @param[in,out] mr_g Graupel mixing ratio
+    !! @param[in] p_zero Reference surface pressure
+    !! @param[in] Rd Gas constant for dry air
+    !! @param[in] kappa Ratio of Rd and cp
     !! @param[in] ndf_wtheta The number of degrees of freedom per cell for wtheta
     !! @param[in] undf_wtheta The number of total degrees of freedom for wtheta
     !! @param[in] map_wtheta Integer array holding the dofmap for the cell at the base of the column
@@ -72,6 +78,7 @@ contains
     !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
     subroutine initial_mr_code(nlayers, theta, exner, rho,           &
                                mr_v, mr_cl, mr_r, mr_ci, mr_s, mr_g, &
+                               p_zero, Rd, kappa,                    &
                                ndf_wtheta, undf_wtheta, map_wtheta,  &
                                ndf_w3, undf_w3, map_w3)
 
@@ -87,6 +94,9 @@ contains
         real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
         real(kind=r_def), dimension(undf_w3), intent(in)        :: exner
         real(kind=r_def), dimension(undf_w3), intent(in)        :: rho
+        real(kind=r_def),                     intent(in)        :: p_zero
+        real(kind=r_def),                     intent(in)        :: Rd
+        real(kind=r_def),                     intent(in)        :: kappa
 
         ! Internal variables
         integer(kind=i_def)                 :: k, df, kp1

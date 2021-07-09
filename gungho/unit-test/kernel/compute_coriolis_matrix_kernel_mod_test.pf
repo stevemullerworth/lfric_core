@@ -62,21 +62,13 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_planet_config( cp=1000.0_r_def,         &
-                              gravity=10.0_r_def,      &
-                              omega=7.292116E-5_r_def, &
-                              p_zero=100000.0_r_def,   &
-                              radius=6000000.0_r_def,  &
-                              rd=300.0_r_def,          &
-                              scaling_factor=1.0_r_def )
-
     call feign_base_mesh_config( filename='foo',                    &
                                  prime_mesh_name='unit_test',       &
                                  geometry=geometry_planar,          &
                                  partitioner=partitioner_planar,    &
                                  topology=topology_fully_periodic,  &
                                  fplane=.true.,                     &
-                                 f_lat_deg=PI/4.0_r_def )
+                                 f_lat_deg=45.0_r_def )
 
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
@@ -138,6 +130,8 @@ contains
     real(r_def), parameter :: dx = 6000.0_r_def
     real(r_def), parameter :: dy = 1000.0_r_def
     real(r_def), parameter :: dz = 2000.0_r_def
+    real(r_def), parameter :: scaled_omega=7.292116E-5_r_def
+    real(r_def), parameter :: f_lat_rad=(PI/4.0_r_def)*(PI/180.0_r_def)
     integer(i_def), parameter :: nlayers = 5
 
     integer(i_def) :: i, j, k, cell
@@ -203,6 +197,8 @@ contains
                                        chi2_data,     &
                                        chi3_data,     &
                                        panel_id,      &
+                                       scaled_omega,  &
+                                       f_lat_rad,     &
                                        ndf_w2,        &
                                        w2_basis,      &
                                        ndf_w0,        &

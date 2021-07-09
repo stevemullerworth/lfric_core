@@ -12,11 +12,11 @@ module sample_eos_rho_kernel_mod
 
 use argument_mod,               only : arg_type, func_type,   &
                                        GH_FIELD, GH_REAL,     &
+                                       GH_SCALAR,             &
                                        GH_READ, GH_WRITE,     &
                                        ANY_SPACE_1, GH_BASIS, &
                                        CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use planet_config_mod,          only : kappa, rd, p_zero
 use idealised_config_mod,       only : test
 use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
@@ -31,11 +31,14 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_eos_rho_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                      &
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),          &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),          &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1), &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)  &
+  type(arg_type) :: meta_args(7) = (/                       &
+       arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3),          &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),          &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),               &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),               &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)                &
        /)
   type(func_type) :: meta_funcs(2) = (/                    &
        func_type(W3,          GH_BASIS),                   &
@@ -59,6 +62,9 @@ contains
 !! @param[in] exner Exner pressure field
 !! @param[in] theta Potential temperature field
 !! @param[in] moist_dyn_gas Moist dynamics factor
+!! @param[in] kappa Ratio of rd and cp
+!! @param[in] rd Specific heat of dry air at constant density
+!! @param[in] p_zero Reference surface pressure
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !! @param[in] undf_w3 Number of unique degrees of freedom for W3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
@@ -69,6 +75,7 @@ contains
 !! @param[in] basis_t Basis functions evaluated at degrees of freedom for W3
 subroutine sample_eos_rho_code(nlayers, rho, exner,              &
                                theta, moist_dyn_gas,             &
+                               kappa, rd, p_zero,                &
                                ndf_w3, undf_w3, map_w3, basis_3, &
                                ndf_wt, undf_wt, map_wt, basis_t)
 
@@ -87,6 +94,10 @@ subroutine sample_eos_rho_code(nlayers, rho, exner,              &
   real(kind=r_def), dimension(undf_wt),  intent(in)          :: moist_dyn_gas
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3),  intent(in)  :: basis_3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3),  intent(in)  :: basis_t
+
+  real(kind=r_def), intent(in) :: kappa
+  real(kind=r_def), intent(in) :: rd
+  real(kind=r_def), intent(in) :: p_zero
 
   ! Internal variables
   integer(kind=i_def)                  :: k, df, dft, df3

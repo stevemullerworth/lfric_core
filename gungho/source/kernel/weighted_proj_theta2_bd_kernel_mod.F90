@@ -30,7 +30,6 @@ module weighted_proj_theta2_bd_kernel_mod
   use cross_product_mod, only : cross_product
   use fs_continuity_mod, only : W2, Wtheta
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : cp
 
   implicit none
 

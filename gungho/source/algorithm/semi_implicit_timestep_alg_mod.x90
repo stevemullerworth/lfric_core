@@ -46,6 +46,7 @@ module semi_implicit_timestep_alg_mod
                                        add_bundle,        &
                                        copy_bundle,       &
                                        set_bundle_scalar
+  use planet_config_mod,         only: recip_epsilon
   use fs_continuity_mod,         only: Wtheta
 
   ! PsyKAl PSYClone kernels
@@ -384,7 +385,7 @@ contains
       end do
       call copy_bundle(mr, mr_n, nummr)
       call copy_bundle(mr, mr_after_slow, nummr)
-      call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr_n))
+      call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr_n, recip_epsilon))
     end if
     call copy_bundle(state, state_n, bundle_size)
     call copy_bundle(state, state_after_slow, bundle_size)
@@ -475,7 +476,10 @@ contains
       if (use_wavedynamics) then
 
         ! Update factors for moist dynamics
-        if (use_moisture) call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr))
+        if (use_moisture) then
+          call invoke(moist_dyn_factors_kernel_type(moist_dyn, mr, &
+                                                    recip_epsilon))
+        end if
 
         ! Use advective update to guess n+1 level scalar fieldsgv .
         if ( guess_np1 ) &

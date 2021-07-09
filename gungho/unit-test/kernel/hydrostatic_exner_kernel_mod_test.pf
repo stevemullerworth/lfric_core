@@ -270,6 +270,7 @@ contains
                                  this%chi2,                           &
                                  this%chi3,                           &
                                  this%panel_id,                       &
+                                 gravity, p_zero, rd, cp,             &
                                  this%ndf_w3, this%undf_w3,           &
                                  this%map_w3(:,cell),                 &
                                  this%ndf_wt, this%undf_wt,           &
@@ -338,6 +339,7 @@ contains
                                  this%chi2,                           &
                                  this%chi3,                           &
                                  this%panel_id,                       &
+                                 gravity, p_zero, rd, cp,             &
                                  this%ndf_w3, this%undf_w3,           &
                                  this%map_w3(:,cell),                 &
                                  this%ndf_wt, this%undf_wt,           &

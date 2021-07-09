@@ -45,7 +45,6 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,          only : feign_initial_wind_config
     use initial_wind_config_mod,   only : profile_none
     use mesh_mod,                  only : PLANE_BI_PERIODIC
 
@@ -58,16 +57,6 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_initial_wind_config(       &
-             nl_constant=nl_constant,     &
-             profile=profile_none,        &
-             sbr_angle_lat=sbr_angle_lat, &
-             sbr_angle_lon=sbr_angle_lon, &
-             smp_init_wind=.false.,       &
-             u0=u0, v0=v0,                &
-             shear=shear,                 &
-             wavelength=wavelength,       &
-             wind_time_period=wind_time_period )
 
   end subroutine setUp
 
@@ -167,6 +156,7 @@ contains
                                 chi_data(:,1),       &
                                 chi_data(:,2),       &
                                 chi_data(:,3),       &
+                                u0, v0,              &
                                 ndf_w2, undf_w2,     &
                                 map_w2(:,cell),      &
                                 ndf_wchi, undf_wchi, &

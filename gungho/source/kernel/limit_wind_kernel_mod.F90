@@ -11,7 +11,6 @@ module limit_wind_kernel_mod
                                       GH_FIELD, GH_REAL, &
                                       GH_READ, GH_INC,   &
                                       GH_SCALAR, CELL_COLUMN
-  use checks_config_mod,       only : max_cfl
   use constants_mod,           only : i_def, r_def
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
@@ -28,9 +27,10 @@ module limit_wind_kernel_mod
   !>
   type, public, extends(kernel_type) :: limit_wind_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/             &
+    type(arg_type) :: meta_args(4) = (/             &
          arg_type(GH_FIELD,  GH_REAL, GH_INC,  W2), &
          arg_type(GH_FIELD,  GH_REAL, GH_READ, W2), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),     &
          arg_type(GH_SCALAR, GH_REAL, GH_READ)      &
          /)
     integer :: operates_on = CELL_COLUMN
@@ -50,11 +50,12 @@ contains
 !! @param[in,out] wind Wind
 !! @param[in] dJ_on_w2 detJ evaluated on w2 points
 !! @param[in] dt The model timestep length
+!! @param[in] max_cfl Maximum advective Courant number
 !! @param[in] ndf_w2 Number of degrees of freedom per cell
 !! @param[in] undf_w2 Total number of degrees of freedom
 !! @param[in] map_w2 Dofmap for the cell at the base of the column
 subroutine limit_wind_code(nlayers, wind, dJ_on_w2, dt, &
-                           ndf_w2, undf_w2, map_w2)
+                           max_cfl, ndf_w2, undf_w2, map_w2)
 
   implicit none
 
@@ -63,6 +64,7 @@ subroutine limit_wind_code(nlayers, wind, dJ_on_w2, dt, &
   integer(kind=i_def), dimension(ndf_w2), intent(in)  :: map_w2
   real(kind=r_def), dimension(undf_w2), intent(inout) :: wind
   real(kind=r_def), dimension(undf_w2), intent(in)    :: dJ_on_w2
+  real(kind=r_def),                     intent(in)    :: max_cfl
   real(kind=r_def),                     intent(in)    :: dt
 
   ! Internal variables

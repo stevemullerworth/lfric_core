@@ -20,6 +20,7 @@ module pressure_gradient_bd_kernel_mod
                                        mesh_data_type,              &
                                        reference_element_data_type, &
                                        GH_FIELD, GH_READ, GH_INC,   &
+                                       GH_SCALAR,                   &
                                        GH_REAL, STENCIL, CROSS,     &
                                        GH_BASIS, GH_DIFF_BASIS,     &
                                        GH_QUADRATURE_face,          &
@@ -29,7 +30,6 @@ module pressure_gradient_bd_kernel_mod
   use cross_product_mod,        only : cross_product
   use fs_continuity_mod,        only : W2, W3, Wtheta
   use kernel_mod,               only : kernel_type
-  use planet_config_mod,        only : cp
 
   implicit none
 
@@ -41,11 +41,12 @@ module pressure_gradient_bd_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
   type, public, extends(kernel_type) :: pressure_gradient_bd_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                     &
+    type(arg_type) :: meta_args(5) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, W3, STENCIL(CROSS)),        &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, Wtheta),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wtheta)                     &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wtheta),                    &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -83,6 +84,7 @@ contains
   !> @param[in] moist_dyn_gas Gas factor (1 + m_v / epsilon)
   !> @param[in] moist_dyn_tot Total mass factor (1 + sum m_x)
   !> @param[in] moist_dyn_fac Water factor
+  !> @param[in] cp Specific heat of dry air at constant pressure
   !> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
   !> @param[in] undf_w2 Number of unique degrees of freedom for W2
   !> @param[in] map_w2 Dofmap for the cell at the base of the column for W2
@@ -115,7 +117,7 @@ contains
                                         stencil_w3_size, stencil_w3_map,     &
                                         theta,                               &
                                         moist_dyn_gas, moist_dyn_tot,        &
-                                        moist_dyn_fac,                       &
+                                        moist_dyn_fac, cp,                   &
                                         ndf_w2, undf_w2, map_w2,             &
                                         w2_basis_face,                       &
                                         ndf_w3, undf_w3, map_w3,             &
@@ -159,6 +161,7 @@ contains
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: moist_dyn_gas, &
                                                                moist_dyn_tot, &
                                                                moist_dyn_fac
+    real(kind=r_def),                         intent(in)    :: cp
 
     ! Internal variables
     integer(kind=i_def) :: df, k, face, face_next

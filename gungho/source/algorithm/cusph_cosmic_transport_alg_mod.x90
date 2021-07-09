@@ -38,7 +38,9 @@ module cusph_cosmic_transport_alg_mod
                                                profile_dcmip301_streamfunction, &
                                                profile_div_free_reversible,     &
                                                profile_eternal_fountain,        &
-                                               profile_rotational
+                                               profile_rotational,              &
+                                               sbr_angle_lat, sbr_angle_lon,    &
+                                               u0, v0
 
   implicit none
 
@@ -109,7 +111,8 @@ subroutine set_winds(u, mesh_id, timestep, dt)
                    setval_c(psi, 0.0_r_def),           &
                    setval_c(r_psi, 0.0_r_def),         &
                    initial_streamfunc_kernel_type(r_psi, chi_sph, panel_id, &
-                                                  time, qr) )
+                                                  time, sbr_angle_lat,      &
+                                                  sbr_angle_lon, u0, v0, qr) )
       ! We do not want to force zero stream function at boundaries
       call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
       call invoke( name = "get_u_from_curl_of_psi", &

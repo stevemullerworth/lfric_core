@@ -13,11 +13,11 @@ module sample_initial_u_kernel_mod
 
   use argument_mod,            only : arg_type,          &
                                       GH_FIELD, GH_REAL, &
+                                      GH_SCALAR,         &
                                       GH_INC, GH_READ,   &
                                       ANY_SPACE_9, CELL_COLUMN
   use constants_mod,           only : r_def, i_def
   use fs_continuity_mod,       only : W2
-  use initial_wind_config_mod, only : u0, v0
   use kernel_mod,              only : kernel_type
 
   implicit none
@@ -32,9 +32,11 @@ module sample_initial_u_kernel_mod
   !>
   type, public, extends(kernel_type) :: sample_initial_u_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                      &
-         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),         &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9) &
+    type(arg_type) :: meta_args(4) = (/                       &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),          &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),              &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)               &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -54,6 +56,8 @@ contains
 !! @param[in] chi_1 X component of the coordinate field
 !! @param[in] chi_2 Y component of the coordinate field
 !! @param[in] chi_3 Z component of the coordinate field
+!! @param[in] u0 Initial wind u component
+!! @param[in] v0 Initial wind v component
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column
@@ -63,6 +67,7 @@ contains
 subroutine sample_initial_u_code(nlayers,                   &
                                  wind,                      &
                                  chi_1, chi_2, chi_3,       &
+                                 u0, v0,                    &
                                  ndf, undf, map,            &
                                  ndf_chi, undf_chi, map_chi &
                                  )
@@ -78,6 +83,9 @@ subroutine sample_initial_u_code(nlayers,                   &
 
   real(kind=r_def), dimension(undf),     intent(inout) :: wind
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
+
+  real(kind=r_def), intent(in) :: u0
+  real(kind=r_def), intent(in) :: v0
 
   ! Internal variables
   integer(kind=i_def) :: k

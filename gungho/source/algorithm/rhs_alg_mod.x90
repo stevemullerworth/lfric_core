@@ -26,6 +26,7 @@ module rhs_alg_mod
   use formulation_config_mod,              only: rotating,             &
                                                  si_momentum_equation, &
                                                  vector_invariant
+  use planet_config_mod,                   only: cp, kappa, rd, p_zero
   use kinetic_energy_gradient_kernel_mod,  only: kinetic_energy_gradient_kernel_type
   use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
   use operator_mod,                        only: operator_type
@@ -168,9 +169,9 @@ subroutine rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
     ! Compute rhs_u
     call invoke( name = "Compute rhs_u setup",                               &
                  pressure_gradient_bd_kernel_type( rhs_tmp, exner, 1, theta, &
-                                                   moist_dyn, qrf ),         &
+                                                   moist_dyn, cp, qrf ),     &
                  hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
-                                          geopotential, qr ),                &
+                                          geopotential, cp, qr ),            &
                  matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ) )
 
     if ( si_momentum_equation ) then
@@ -222,9 +223,10 @@ subroutine rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
                  setval_X( rhs(igh_d), rho_base ) )
     if ( compute_eos ) then
       qr = quadrature_xyoz_type(1, gaussian_quadrature)
-      call invoke( name = "Compute rhs_eos",                                       &
-                   rhs_eos_kernel_type(rhs_eos, exner, rho, theta,                 &
-                                       moist_dyn(gas_law), chi_sph, panel_id, qr), &
+      call invoke( name = "Compute rhs_eos",                                  &
+                   rhs_eos_kernel_type(rhs_eos, exner, rho, theta,            &
+                                       moist_dyn(gas_law), chi_sph, panel_id, &
+                                       kappa, rd, p_zero, qr),                &
                    dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ))
     else
       call invoke( setval_c(rhs(igh_p), 0.0_r_def) )

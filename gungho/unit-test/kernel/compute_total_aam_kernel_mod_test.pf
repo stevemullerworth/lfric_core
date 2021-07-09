@@ -240,6 +240,7 @@ contains
                                 chi2,                                      &
                                 chi3,                                      &
                                 panel_id,                                  &
+                                omega,                                     &
                                 ndf_w3, undf_w3,                           &
                                 map_w3(:,cell), basis_w3,                  &
                                 ndf_w2, undf_w2,                           &

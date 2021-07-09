@@ -31,8 +31,7 @@ contains
   subroutine setUp( this )
 
     use chi_transform_mod,         only : init_chi_transforms
-    use feign_config_mod,          only : feign_finite_element_config, &
-                                          feign_mixing_config
+    use feign_config_mod,          only : feign_finite_element_config
     use mixing_config_mod,         only : method_3d_smag
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           spherical_coord_system_xyz
@@ -45,12 +44,6 @@ contains
     call xt_initialize(this%getMpiCommunicator())
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    call feign_mixing_config( smagorinsky   = .false.,    &
-                              viscosity     = .false.,    &
-                              viscosity_mu  = 10.0_r_def, &
-                              mix_factor    = 0.0_r_def,  &
-                              method        = method_3d_smag )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
@@ -107,6 +100,9 @@ contains
     real(r_def), parameter :: dx = 6000.0_r_def, &
                               dy = 1000.0_r_def, &
                               dz = 2000.0_r_def
+
+    real(r_def), parameter :: viscosity_mu = 10.0_r_def
+
 
     real(r_def)    :: answer
     integer(i_def) :: cell, i, j, k
@@ -206,6 +202,7 @@ contains
                                 chi_data(2,:),           &
                                 chi_data(3,:),           &
                                 panel_id,                &
+                                viscosity_mu,            &
                                 ndf_t,                   &
                                 undf_t,                  &
                                 stencil_map_t(:,1,cell), &

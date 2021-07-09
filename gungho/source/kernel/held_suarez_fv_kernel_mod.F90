@@ -19,8 +19,8 @@ module held_suarez_fv_kernel_mod
   use argument_mod,             only: arg_type,                  &
                                       GH_FIELD, GH_REAL,         &
                                       GH_READ, GH_READWRITE,     &
-                                      ANY_DISCONTINUOUS_SPACE_3, &
                                       GH_SCALAR,                 &
+                                      ANY_DISCONTINUOUS_SPACE_3, &
                                       ANY_SPACE_9, CELL_COLUMN
   use constants_mod,            only: r_def, i_def
   use chi_transform_mod,        only: chi2llr
@@ -30,7 +30,6 @@ module held_suarez_fv_kernel_mod
                                       held_suarez_equilibrium_theta
   use kernel_mod,               only: kernel_type
   use physics_config_mod,       only: hs_random
-  use planet_config_mod,        only: kappa
 
   implicit none
 
@@ -44,12 +43,13 @@ module held_suarez_fv_kernel_mod
   !>
   type, public, extends(kernel_type) :: held_suarez_fv_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                          &
+    type(arg_type) :: meta_args(7) = (/                                          &
          arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                                 &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                                  &
          /)
     integer :: operates_on = CELL_COLUMN
@@ -73,6 +73,7 @@ contains
 !! @param[in] chi_2 Second component of the chi coordinate field
 !! @param[in] chi_3 Third component of the chi coordinate field
 !! @param[in] panel_id A field giving the ID for mesh panels
+!! @param[in] kappa Ratio of Rd and cp
 !! @param[in] dt The model timestep length
 !! @param[in] ndf_wth The number of degrees of freedom per cell for wth
 !! @param[in] undf_wth The number of unique degrees of freedom for wth
@@ -88,7 +89,7 @@ contains
 subroutine held_suarez_fv_code(nlayers,                     &
                                dtheta, theta, exner_in_wth, &
                                chi_1, chi_2, chi_3,         &
-                               panel_id, dt,                &
+                               panel_id, kappa, dt,         &
                                ndf_wth, undf_wth, map_wth,  &
                                ndf_chi, undf_chi, map_chi,  &
                                ndf_pid, undf_pid, map_pid   &
@@ -108,6 +109,7 @@ subroutine held_suarez_fv_code(nlayers,                     &
   real(kind=r_def), dimension(undf_wth), intent(in)    :: exner_in_wth
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
+  real(kind=r_def),                      intent(in)    :: kappa
   real(kind=r_def),                      intent(in)    :: dt
 
   integer(kind=i_def), dimension(ndf_wth),  intent(in) :: map_wth

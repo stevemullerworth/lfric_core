@@ -37,6 +37,7 @@ module sample_eos_rho_kernel_mod_test
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def
   real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: kappa    = rd/cp
   real(r_def), parameter :: scaling  = 1.0_r_def
 
 contains
@@ -49,8 +50,7 @@ contains
                                           topology_fully_periodic
     use finite_element_config_mod, only : cellshape_quadrilateral
     use feign_config_mod,          only : feign_base_mesh_config,           &
-                                          feign_initial_temperature_config, &
-                                          feign_planet_config
+                                          feign_initial_temperature_config
     use mesh_mod,                  only : PLANE_BI_PERIODIC
 
     implicit none
@@ -73,10 +73,6 @@ contains
     call feign_initial_temperature_config( bvf_square=bvf_square, &
                                            theta_surf=theta_surf, &
                                            pert_width_scaling=pert_width_scaling )
-
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
 
   end subroutine setUp
 
@@ -183,6 +179,9 @@ contains
                               exner_data,         &
                               theta_data,         &
                               moist_dyn_gas_data, &
+                              kappa,              &
+                              rd,                 &
+                              p_zero,             &
                               ndf_w3,             &
                               undf_w3,            &
                               map_w3(:,cell),     &

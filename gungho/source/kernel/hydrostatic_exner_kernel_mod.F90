@@ -12,12 +12,12 @@ module hydrostatic_exner_kernel_mod
 
 use argument_mod,               only : arg_type, func_type,       &
                                        GH_FIELD, GH_REAL,         &
+                                       GH_SCALAR,                 &
                                        GH_READ, GH_WRITE,         &
                                        ANY_SPACE_9, GH_BASIS,     &
                                        ANY_DISCONTINUOUS_SPACE_3, &
                                        CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use planet_config_mod,          only : gravity, cp, rd, p_zero
 use idealised_config_mod,       only : test
 use kernel_mod,                 only : kernel_type
 use fs_continuity_mod,          only : Wtheta, W3
@@ -33,17 +33,22 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                                     &
-       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta),                   &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+  type(arg_type) :: meta_args(11) = (/                                     &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta),                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                   &
-       func_type(ANY_SPACE_9, GH_BASIS)                                   &
+
+  type(func_type) :: meta_funcs(1) = (/                                    &
+       func_type(ANY_SPACE_9, GH_BASIS)                                    &
        /)
   integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR
@@ -72,6 +77,10 @@ contains
 !> @param[in] chi_2 Second component of the chi coordinate field
 !> @param[in] chi_3 Third component of the chi coordinate field
 !> @param[in] panel_id A field giving the ID for mesh panels
+!> @param[in] gravity The planet gravity
+!> @param[in] p_zero Reference surface pressure
+!> @param[in] rd Gas constant for dry air
+!> @param[in] cp Specific heat of dry air at constant pressure
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !> @param[in] undf_w3 Number of unique degrees of freedom for W3
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for W3
@@ -91,6 +100,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
                                   moist_dyn_fac,                 &
                                   height_wt, height_w3,          &
                                   chi_1, chi_2, chi_3, panel_id, &
+                                  gravity, p_zero, rd, cp,       &
                                   ndf_w3, undf_w3, map_w3,       &
                                   ndf_wt, undf_wt, map_wt,       &
                                   ndf_chi, undf_chi, map_chi,    &
@@ -122,6 +132,10 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   real(kind=r_def),    dimension(undf_chi),         intent(in)    :: chi_1, chi_2, chi_3
   real(kind=r_def),    dimension(undf_pid),         intent(in)    :: panel_id
   real(kind=r_def),    dimension(1,ndf_chi,ndf_wt), intent(in)    :: basis_chi_on_wt
+  real(kind=r_def),                                 intent(in)    :: gravity
+  real(kind=r_def),                                 intent(in)    :: p_zero
+  real(kind=r_def),                                 intent(in)    :: rd
+  real(kind=r_def),                                 intent(in)    :: cp
 
   ! Internal variables
   integer(kind=i_def)                  :: k, dfc, layers_offset, wt_dof, ipanel

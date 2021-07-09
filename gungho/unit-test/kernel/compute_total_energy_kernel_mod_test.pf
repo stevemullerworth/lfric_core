@@ -56,8 +56,7 @@ contains
 
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           spherical_coord_system_xyz
-    use feign_config_mod,          only : feign_finite_element_config, &
-                                          feign_planet_config
+    use feign_config_mod,          only : feign_finite_element_config
 
     implicit none
 
@@ -76,10 +75,6 @@ contains
              spherical_coord_order = 0,         &
              spherical_coord_system=spherical_coord_system_xyz, &
              vorticity_in_w1=.false. )
-
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
 
   end subroutine setUp
 
@@ -214,6 +209,8 @@ contains
     theta(:) = 300.0_r_def
     energy(:) = 0.0_r_def
 
+    cv = cp - rd
+
     cell = 1
     call compute_total_energy_code(                                &
                                    nlayers,                        &
@@ -227,6 +224,7 @@ contains
                                    chi2,                           &
                                    chi3,                           &
                                    panel_id,                       &
+                                   cv,                             &
                                    ndf_w3, undf_w3,                &
                                    map_w3(:,cell), basis_w3,       &
                                    ndf_w2, undf_w2,                &
@@ -242,7 +240,6 @@ contains
                                    )
 
     ! This is only testing the vertical component of vorticity
-    cv = cp - rd
     t = cv*theta(1)*exner(1)
     answer = rho(1)*(gravity*0.5_r_def*dz + t) * dx*dy*dz
     if ( r_def == real64 ) then

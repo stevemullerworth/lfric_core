@@ -21,9 +21,10 @@
 
 module vertical_trapezoidal_kernel_mod
 
-use argument_mod,  only : arg_type,          &
-                          GH_FIELD, GH_REAL, &
-                          GH_INC, GH_READ,   &
+use argument_mod,  only : arg_type,              &
+                          GH_FIELD, GH_REAL,     &
+                          GH_INC, GH_READ,       &
+                          GH_SCALAR, GH_INTEGER, &
                           GH_SCALAR, CELL_COLUMN
 use fs_continuity_mod, only : W2
 use constants_mod, only : r_def, i_def
@@ -39,10 +40,11 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: vertical_trapezoidal_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/             &
+  type(arg_type) :: meta_args(5) = (/             &
        arg_type(GH_FIELD,  GH_REAL, GH_INC,  W2), &
        arg_type(GH_FIELD,  GH_REAL, GH_READ, W2), &
        arg_type(GH_FIELD,  GH_REAL, GH_READ, W2), &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),  &
        arg_type(GH_SCALAR, GH_REAL, GH_READ)      &
        /)
   integer :: operates_on = CELL_COLUMN
@@ -63,6 +65,7 @@ contains
 !! @param[in,out]  dep_pts_z       The departure distances in the vertical
 !! @param[in]  u_n                 The wind field at time level n
 !! @param[in]  u_np1               The wind field at time level n+1
+!! @param[in]  n_dep_pt_iterations The number of departure point iterations
 !! @param[in]  dt                  The model timestep length
 !! @param[in]  ndf_w2              The number of degrees of freedom per cell
 !! @param[in]  undf_w2             The number of unique degrees of freedom
@@ -71,6 +74,7 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
                                        dep_pts_z,            &
                                        u_n,                  &
                                        u_np1,                &
+                                       n_dep_pt_iterations,  &
                                        dt,                   &
                                        ndf_w2,               &
                                        undf_w2,              &
@@ -78,8 +82,7 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
 
   use biperiodic_deppts_mod,       only : calc_dep_point,           &
                                           calc_vertical_trapezoidal
-  use biperiodic_deppt_config_mod, only : n_dep_pt_iterations,      &
-                                          vertical_method
+  use biperiodic_deppt_config_mod, only : vertical_method
 
   implicit none
 
@@ -92,6 +95,8 @@ subroutine vertical_trapezoidal_code(  nlayers,              &
   real(kind=r_def), dimension(undf_w2), intent(in)      :: u_np1
   real(kind=r_def),                     intent(in)      :: dt
   real(kind=r_def), dimension(undf_w2), intent(inout)   :: dep_pts_z
+
+  integer(kind=i_def), intent(in) :: n_dep_pt_iterations
 
   integer(kind=i_def) :: k
 

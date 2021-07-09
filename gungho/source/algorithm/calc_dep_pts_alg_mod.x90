@@ -23,7 +23,7 @@ module calc_dep_pts_alg_mod
   use fs_continuity_mod,                 only: W3
   use finite_element_config_mod,         only: element_order
   use flux_direction_mod,                only: x_direction, y_direction, z_direction
-  use biperiodic_deppt_config_mod,       only: method
+  use biperiodic_deppt_config_mod,       only: method, n_dep_pt_iterations
   use subgrid_config_mod,                only: dep_pt_stencil_extent
   use psykal_lite_mod,                   only: invoke_calc_deppts,             &
                                                invoke_extract_xy,              &
@@ -139,7 +139,7 @@ contains
                  vertical_trapezoidal_kernel_type( dep_pts_z,                   &
                                                    departure_wind_n,            &
                                                    departure_wind_np1,          &
-                                                   dt )  )
+                                                   n_dep_pt_iterations, dt )  )
 
     ! Calculate horizontal departure points.
 

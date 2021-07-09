@@ -66,10 +66,6 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
-
     ! Base mesh config is needed to ensure spherical geometry is used
     call feign_base_mesh_config( filename='foo',                      &
                                  prime_mesh_name='dynamics',          &
@@ -151,9 +147,9 @@ contains
     this%z(1) = radius + 10000.0_r_def
     this%basis(1,1,1) = 1.0_r_def
 
-    call compute_geopotential_code( nlayers,                         &
-                                   this%phi, this%x, this%y, this%z, &
-                                   ndf, undf,                        &
+    call compute_geopotential_code( nlayers,                          &
+                                   this%phi, this%x, this%y, this%z,  &
+                                   gravity, radius, ndf, undf,        &
                                    this%map, ndf, undf, this%map, this%basis )
 
     ! answer = a*g*(1-r/a)

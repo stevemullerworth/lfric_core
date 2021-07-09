@@ -51,6 +51,7 @@ module hydrostatic_coriolis_kernel_mod_test
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def
   real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: kappa    = rd/cp
   real(r_def), parameter :: scaling  = 1.0_r_def
 
 contains
@@ -92,10 +93,6 @@ contains
                topology=topology_fully_periodic, &
                fplane=.false.,                   &
                f_lat_deg=0.0_r_def )
-
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega,  &
-                              rd=rd, cp=cp, p_zero=p_zero,                  &
-                              scaling_factor=scaling )
 
     nlayers=3
 
@@ -209,6 +206,7 @@ contains
                                     this%moist_dyn_data(:,2),            &
                                     this%moist_dyn_data(:,3),            &
                                     this%height_w3_data,                 &
+                                    gravity, p_zero, kappa, rd, cp,      &
                                     this%ndf_w3, this%undf_w3,           &
                                     this%map_w3(:,cell), this%basis_w3,  &
                                     this%ndf_wt, this%undf_wt,           &

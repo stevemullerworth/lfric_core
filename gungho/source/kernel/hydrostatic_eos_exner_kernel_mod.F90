@@ -10,11 +10,11 @@ module hydrostatic_eos_exner_kernel_mod
 
 use argument_mod,               only : arg_type, func_type,      &
                                        GH_FIELD, GH_REAL,        &
+                                       GH_SCALAR,                &
                                        GH_READ, GH_WRITE,        &
                                        ANY_SPACE_9, ANY_SPACE_1, &
                                        GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use planet_config_mod,          only : gravity, p_zero, kappa, rd, cp
 use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 
@@ -28,12 +28,17 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: hydrostatic_eos_exner_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                   &
+  type(arg_type) :: meta_args(10) = (/                  &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),     &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),     &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta), &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta), &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3)      &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),     &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),          &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ)           &
        /)
   type(func_type) :: meta_funcs(2) = (/                 &
        func_type(W3,     GH_BASIS),                     &
@@ -58,6 +63,11 @@ contains
 !! @param[in] rho Density field
 !! @param[in] theta Potential temperature field
 !! @param[in] height_w3 Height coordinate in w3
+!! @param[in] gravity The planet gravity
+!! @param[in] p_zero Reference surface pressure
+!! @param[in] kappa Ratio of Rd and cp
+!! @param[in] rd Gas constant for dry air
+!! @param[in] cp Specific heat of dry air at constant pressure
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 Number of unique degrees of freedom  for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -65,10 +75,10 @@ contains
 !! @param[in] undf_wt Number of unique degrees of freedom  for wtheta
 !! @param[in] map_wt Dofmap for the cell at the base of the column for wt
 subroutine hydrostatic_eos_exner_code(nlayers, exner, rho, theta, &
-                                 moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, &
-                                 height_w3,    &
-                                 ndf_w3, undf_w3, map_w3, basis_w3, ndf_wt, &
-                                 undf_wt, map_wt, basis_wt)
+                                      moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, &
+                                      height_w3, gravity, p_zero, kappa, rd, cp, &
+                                      ndf_w3, undf_w3, map_w3, basis_w3, ndf_wt, &
+                                      undf_wt, map_wt, basis_wt)
 
   use analytic_temperature_profiles_mod, only : analytic_temperature
 
@@ -85,6 +95,11 @@ subroutine hydrostatic_eos_exner_code(nlayers, exner, rho, theta, &
   real(kind=r_def), dimension(undf_wt),  intent(in)          :: theta
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3),  intent(in)  :: basis_w3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3),  intent(in)  :: basis_wt
+  real(kind=r_def),                              intent(in) :: gravity
+  real(kind=r_def),                              intent(in) :: p_zero
+  real(kind=r_def),                              intent(in) :: kappa
+  real(kind=r_def),                              intent(in) :: rd
+  real(kind=r_def),                              intent(in) :: cp
 
   ! Internal variables
   integer(kind=i_def)                  :: k, df, dft, df3

@@ -19,7 +19,7 @@ use constants_mod,             only : r_def, i_def, PI
 use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
 use log_mod,                   only : log_event, LOG_LEVEL_ERROR
-use initial_wind_config_mod,   only : profile, sbr_angle_lat, sbr_angle_lon, u0, v0
+use initial_wind_config_mod,   only : profile
 
 implicit none
 
@@ -31,10 +31,14 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: initial_streamfunc_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                     &
+  type(arg_type) :: meta_args(8) = (/                                     &
        arg_type(GH_FIELD,   GH_REAL, GH_INC,  W1),                        &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
        arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
        /)
   type(func_type) :: meta_funcs(2) = (/                                   &
@@ -65,6 +69,10 @@ contains
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
 !! @param[in] panel_id A field giving the ID for mesh panels
 !! @param[in] time  The time to be passed to the analytic stream function
+!! @param[in] sbr_angle_lat  SBR angle latitude
+!! @param[in] sbr_angle_lon  SBR angle longitude
+!! @param[in] u0  Initial u-wind
+!! @param[in] v0  Initial v-wind
 !! @param[in] ndf Number of degrees of freedom per cell
 !! @param[in] undf Total number of degrees of freedom
 !! @param[in] map Dofmap for the cell at the base of the column for W1
@@ -88,6 +96,8 @@ subroutine initial_streamfunc_code(nlayers,                         &
                                    chi_sph_1, chi_sph_2, chi_sph_3, &
                                    panel_id,                        &
                                    time,                            &
+                                   sbr_angle_lat, sbr_angle_lon,    &
+                                   u0, v0,                          &
                                    ndf, undf, map, basis,           &
                                    ndf_chi_sph, undf_chi_sph,       &
                                    map_chi_sph, chi_sph_basis,      &
@@ -128,6 +138,10 @@ subroutine initial_streamfunc_code(nlayers,                         &
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
   real(kind=r_def),                   intent(in) ::  time
+  real(kind=r_def),                   intent(in) ::  sbr_angle_lat
+  real(kind=r_def),                   intent(in) ::  sbr_angle_lon
+  real(kind=r_def),                   intent(in) ::  u0
+  real(kind=r_def),                   intent(in) ::  v0
 
   ! Internal variables
   integer(kind=i_def)                          :: df, k, qp1, qp2, ipanel

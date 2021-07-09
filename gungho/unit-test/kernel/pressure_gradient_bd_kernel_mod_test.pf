@@ -53,10 +53,6 @@ contains
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
 
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -221,6 +217,7 @@ contains
                                     moist_dyn_data(:,1),                 &
                                     moist_dyn_data(:,2),                 &
                                     moist_dyn_data(:,3),                 &
+                                    cp,                                  &
                                     ndf_w2, undf_w2, map_w2(:,cell),     &
                                     basis_w2_face,                       &
                                     ndf_w3, undf_w3, map_w3(:,cell),     &

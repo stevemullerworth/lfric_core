@@ -10,6 +10,7 @@ module diagnostic_alg_mod
   use finite_element_config_mod,        only: element_order
   use base_mesh_config_mod,             only: geometry, &
                                               geometry_spherical
+  use planet_config_mod,                only: cp
   use mesh_mod,                         only: mesh_type
   use mesh_collection_mod,              only: mesh_collection
   use function_space_collection_mod,    only: function_space_collection
@@ -185,8 +186,8 @@ contains
 
     call invoke( setval_c(hyd_imbal, 0.0_r_def), &
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &
-                                          geopotential, qr ), &
-                 enforce_bc_kernel_type( hyd_imbal ), &
+                                          geopotential, cp, qr ),             &
+                 enforce_bc_kernel_type( hyd_imbal ),                         &
                  X_innerproduct_X(l2, hyd_imbal) )
 
     l2 = sqrt(l2)

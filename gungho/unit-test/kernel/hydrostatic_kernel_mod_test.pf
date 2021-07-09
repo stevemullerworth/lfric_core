@@ -61,8 +61,6 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,          only : feign_planet_config
-
     implicit none
 
     class(hydrostatic_test_type), intent(inout) :: this
@@ -73,9 +71,6 @@ contains
     call store_comm(this%getMpiCommunicator())
 
     ! The kernel uses cp
-    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
-                              rd=rd, cp=cp, p_zero=p_zero,                 &
-                              scaling_factor=scaling )
 
   end subroutine setUp
 
@@ -211,6 +206,7 @@ contains
                            moist_dyn2,                      &
                            moist_dyn3,                      &
                            phi,                             &
+                           cp,                              &
                            ndf_w2, undf_w2,                 &
                            map_w2(:, cell),                 &
                            basis_w2, diff_basis_w2,         &

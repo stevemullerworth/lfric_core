@@ -12,14 +12,14 @@ module compute_moist_mass_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,                  &
                                 GH_FIELD, GH_WRITE, GH_READ,          &
-                                GH_REAL, ANY_SPACE_9,                 &
+                                GH_REAL, GH_SCALAR,                   &
+                                ANY_SPACE_9,                          &
                                 ANY_DISCONTINUOUS_SPACE_3,            &
                                 GH_BASIS, GH_DIFF_BASIS,              &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : scaled_radius
 
   implicit none
 
@@ -33,12 +33,12 @@ module compute_moist_mass_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_moist_mass_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(5) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)  &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W3,          GH_BASIS),                                  &

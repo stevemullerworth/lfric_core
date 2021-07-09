@@ -34,7 +34,7 @@ contains
     use field_mod,                     only: field_type
     use field_collection_mod,          only: field_collection_type
     use mr_indices_mod,                only: nummr
-    use mixing_config_mod,             only: viscosity, smagorinsky
+    use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
     use smagorinsky_alg_mod,           only: smagorinsky_alg
     use tracer_viscosity_kernel_mod,   only: tracer_viscosity_kernel_type
     use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
@@ -80,10 +80,10 @@ contains
 
       chi_sph => get_coordinates(mesh_id)
       panel_id => get_panel_id(mesh_id)
-      call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1,            &
-                                                 chi_sph, panel_id ),         &
-                   momentum_viscosity_kernel_type( du, u, 1,                  &
-                                                   chi_sph, panel_id ),       &
+      call invoke( tracer_viscosity_kernel_type( dtheta, theta, 1, chi_sph,   &
+                                                panel_id, viscosity_mu ),     &
+                   momentum_viscosity_kernel_type( du, u, 1, chi_sph,         &
+                                                   panel_id, viscosity_mu ),  &
                    inc_X_plus_bY( theta, dt, dtheta ),                        &
                    inc_X_plus_bY( u,     dt, du ) )
     end if

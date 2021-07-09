@@ -14,8 +14,8 @@ module calc_departure_point_kernel_mod
                                           GH_FIELD, GH_REAL,       &
                                           GH_READ, GH_WRITE,       &
                                           GH_BASIS, GH_DIFF_BASIS, &
-                                          GH_SCALAR, CELL_COLUMN
-  use biperiodic_deppt_config_mod, only : n_dep_pt_iterations
+                                          GH_SCALAR, GH_INTEGER,   &
+                                          CELL_COLUMN
   use constants_mod,               only : r_def, i_def
   use fs_continuity_mod,           only : W0, W2, W3
   use kernel_mod,                  only : kernel_type
@@ -32,9 +32,10 @@ module calc_departure_point_kernel_mod
   !>
   type, public, extends(kernel_type) :: calc_departure_point_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/              &
+    type(arg_type) :: meta_args(4) = (/              &
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3), &
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2), &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),   &
          arg_type(GH_SCALAR, GH_REAL, GH_READ)       &
          /)
     integer :: operates_on = CELL_COLUMN
@@ -53,6 +54,8 @@ contains
 !! @param[in]    nlayers Number of model levels
 !! @param[in,out] dep_pts Departure point values in W2 space
 !! @param[in]    departure_pt_stencil_length  Length of stencil
+!! @param[in]    n_iterations  Number of iterations
+!! @param[in]    dt The model timestep length
 !! @param[in]    undf_w2 Number of unique degrees of freedom for W2
 !! @param[in]    ndf_w2 Number of degrees of freedom per cell in W2
 !! @param[in]    stencil_map_w2  Stencil map in W2 space
@@ -64,10 +67,11 @@ contains
 !! @param[in]    u_np1 Wind in W2 space at time n+1
 !! @param[in]    direction Direction in which to calculate departure points
 !! @param[in]    dep_pt_method Enumeration of method to use
-!! @param[in]    dt The model timestep length
 subroutine calc_departure_point_code( nlayers,                       &
                                       dep_pts,                       &
                                       departure_pt_stencil_length,   &
+                                      n_iterations,                  &
+                                      dt,                            &
                                       undf_w2,                       &
                                       ndf_w2,                        &
                                       stencil_map_w2,                &
@@ -78,7 +82,7 @@ subroutine calc_departure_point_code( nlayers,                       &
                                       u_n,                           &
                                       u_np1,                         &
                                       direction,                     &
-                                      dep_pt_method, dt )
+                                      dep_pt_method )
 
   use biperiodic_deppts_mod, only : calc_dep_point
   use cosmic_flux_mod,       only : calc_stencil_ordering, w2_dof, reorientate_w2field
@@ -90,6 +94,7 @@ subroutine calc_departure_point_code( nlayers,                       &
   integer(kind=i_def), intent(in)         :: undf_w2
   real(kind=r_def), intent(inout)         :: dep_pts(1:undf_w2)
   integer(kind=i_def), intent(in)         :: departure_pt_stencil_length
+  integer(kind=i_def), intent(in)         :: n_iterations
   integer(kind=i_def), intent(in)         :: ndf_w2
   integer(kind=i_def), intent(in)         :: undf_w3
   integer(kind=i_def), intent(in)         :: ndf_w3
@@ -166,7 +171,7 @@ subroutine calc_departure_point_code( nlayers,                       &
                                                         u_np1_local,          &
                                                         dt,                   &
                                                         dep_pt_method,        &
-                                                        n_dep_pt_iterations )
+                                                        n_iterations )
 
     ! xArrival = 1.0 represents the opposite flux edge in a finite element cell
     ! in the local coordinates
@@ -178,7 +183,7 @@ subroutine calc_departure_point_code( nlayers,                       &
                                                         u_np1_local,          &
                                                         dt,                   &
                                                         dep_pt_method,        &
-                                                        n_dep_pt_iterations )
+                                                        n_iterations )
 
   end do
 

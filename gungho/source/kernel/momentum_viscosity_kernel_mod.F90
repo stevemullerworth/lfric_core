@@ -11,14 +11,13 @@ module momentum_viscosity_kernel_mod
   use argument_mod,      only : arg_type,                  &
                                 GH_FIELD, GH_REAL,         &
                                 GH_READ, GH_INC,           &
-                                ANY_SPACE_9,               &
+                                GH_SCALAR, ANY_SPACE_9,    &
                                 ANY_DISCONTINUOUS_SPACE_3, &
                                 STENCIL, CROSS, CELL_COLUMN
   use chi_transform_mod, only : chi2xyz
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
-  use mixing_config_mod, only : viscosity_mu
 
   implicit none
 
@@ -32,11 +31,12 @@ module momentum_viscosity_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_viscosity_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                    &
-         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2, STENCIL(CROSS)),       &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(5) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, W2, STENCIL(CROSS)),        &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -60,6 +60,7 @@ contains
 !! @param[in] chi2 Second coordinate field
 !! @param[in] chi3 Third coordinate field
 !! @param[in] panel_id Field describing the IDs of the mesh panels
+!! @param[in] viscosity_mu Viscosity constant
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for wind space
 !! @param[in] undf_w2  Number of unique degrees of freedom  for wind_space
 !! @param[in] cell_map_w2 Array holding the dofmap for the cell at the base of the column for w2
@@ -73,7 +74,7 @@ subroutine momentum_viscosity_code(nlayers,                               &
                                    u_inc, u_n,                            &
                                    map_w2_size, map_w2,                   &
                                    chi1, chi2, chi3,                      &
-                                   panel_id,                              &
+                                   panel_id, viscosity_mu,                &
                                    ndf_w2, undf_w2, cell_map_w2,          &
                                    ndf_chi, undf_chi, map_chi,            &
                                    ndf_pid, undf_pid, map_pid             )
@@ -95,6 +96,8 @@ subroutine momentum_viscosity_code(nlayers,                               &
   real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi1, chi2, chi3
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
+
+  real(kind=r_def), intent(in) :: viscosity_mu
 
   ! Internal variables
   integer(kind=i_def)                      :: k, km, kp, df, ipanel

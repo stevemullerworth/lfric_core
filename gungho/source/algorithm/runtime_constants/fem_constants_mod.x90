@@ -33,6 +33,10 @@ module fem_constants_mod
   use finite_element_config_mod,          only: element_order, nqp_exact
   use formulation_config_mod,             only: dlayer_on, rotating
   use timestepping_config_mod,            only: dt, tau_u
+  use damping_layer_config_mod,           only: dl_base, dl_str
+  use extrusion_config_mod,               only: domain_top
+  use planet_config_mod,                  only: scaled_omega, radius
+  use base_mesh_config_mod,               only: f_lat
 
   ! Other algorithms
   use geometric_constants_mod,            only: get_coordinates, get_panel_id
@@ -334,7 +338,9 @@ contains
         ! but until the final form is settled upon it is left separate
         call invoke( name = "compute_damping_layer_mass_matrix",                &
                      compute_dl_matrix_kernel_type( mm_dl(i),chi_sph_list(:,i), &
-                                                    panel_id_list(i), dt, qr) )
+                                                    panel_id_list(i), dl_base,  &
+                                                    dl_str, domain_top, radius, &
+                                                    element_order, dt, qr) )
       end if
 
       if ( label_list(i) == primary_mesh_label ) then
@@ -344,10 +350,12 @@ contains
         ! Compute temporary Coriolis operator
         if ( rotating ) then
           const = tau_u * dt
-          call invoke( name = "compute_coriolis_matrix",                         &
-                       compute_coriolis_matrix_kernel_type(coriolis,             &
-                                                           chi_sph_list(:,i),    &
-                                                           panel_id_list(i), qr) )
+          call invoke( name = "compute_coriolis_matrix",                       &
+                       compute_coriolis_matrix_kernel_type(coriolis,           &
+                                                           chi_sph_list(:,i),  &
+                                                           panel_id_list(i),   &
+                                                           scaled_omega,       &
+                                                           f_lat, qr) )
         else
           call invoke( name = "set_coriolis_matrix_to_zero",              &
                        operator_setval_c_kernel_type(coriolis, 0.0_r_def) )

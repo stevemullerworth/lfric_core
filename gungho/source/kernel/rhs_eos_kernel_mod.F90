@@ -13,6 +13,7 @@ module rhs_eos_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
+                                GH_SCALAR,                   &
                                 GH_REAL, ANY_SPACE_9,        &
                                 ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
@@ -33,14 +34,17 @@ module rhs_eos_kernel_mod
   !>
   type, public, extends(kernel_type) :: rhs_eos_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(10) = (/                                     &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)                               &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W3,          GH_BASIS),                                  &
@@ -71,6 +75,9 @@ contains
 !! @param[in] chi_2 2nd (spherical) coordinate field in Wchi
 !! @param[in] chi_3 3rd (spherical) coordinate field in Wchi
 !! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] kappa Ratio of rd and cp
+!! @param[in] rd Specific heat of dry air at constant density
+!! @param[in] p_zero Reference surface pressure
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !! @param[in] undf_w3 Number of (local) unique degrees of freedom
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for W3
@@ -95,6 +102,7 @@ contains
 subroutine rhs_eos_code(nlayers,                                         &
                         rhs_eos, exner, rho, theta, moist_dyn_gas,       &
                         chi1, chi2, chi3, panel_id,                      &
+                        kappa, rd, p_zero,                               &
                         ndf_w3, undf_w3, map_w3, w3_basis,               &
                         ndf_wt, undf_wt, map_wt, wt_basis,               &
                         ndf_chi, undf_chi, map_chi,                      &
@@ -103,7 +111,6 @@ subroutine rhs_eos_code(nlayers,                                         &
                         nqp_h, nqp_v, wqp_h, wqp_v)
 
   use coordinate_jacobian_mod,  only: coordinate_jacobian
-  use planet_config_mod,        only: kappa, Rd, p_zero
 
   implicit none
   ! Arguments
@@ -129,6 +136,10 @@ subroutine rhs_eos_code(nlayers,                                         &
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
+
+  real(kind=r_def), intent(in) :: kappa
+  real(kind=r_def), intent(in) :: rd
+  real(kind=r_def), intent(in) :: p_zero
 
   ! Internal variables
   integer(kind=i_def) :: df, k

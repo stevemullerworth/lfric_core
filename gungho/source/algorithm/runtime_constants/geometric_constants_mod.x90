@@ -43,6 +43,7 @@ module geometric_constants_mod
                                                 rho_splitting_none,     &
                                                 theta_splitting,        &
                                                 theta_splitting_none
+  use planet_config_mod,                  only: scaled_radius
 
   ! Kernels
   use calc_dA_at_w2_kernel_mod,           only: calc_dA_at_w2_kernel_type
@@ -206,10 +207,18 @@ contains
         call height_w2_list(i)%initialise( vector_space = w2_k0_fs )
         call height_w3_list(i)%initialise( vector_space = w3_k0_fs )
         call height_wth_list(i)%initialise( vector_space = wth_k0_fs )
-        call invoke( get_height_kernel_type(height_w1_list(i), chi_sph_in(:,i)), &
-                     get_height_kernel_type(height_w2_list(i), chi_sph_in(:,i)), &
-                     get_height_kernel_type(height_w3_list(i), chi_sph_in(:,i)), &
-                     get_height_kernel_type(height_wth_list(i), chi_sph_in(:,i)) )
+        call invoke( get_height_kernel_type( height_w1_list(i),  &
+                                             chi_sph_in(:,i),    &
+                                             scaled_radius ),    &
+                     get_height_kernel_type( height_w2_list(i),  &
+                                             chi_sph_in(:,i),    &
+                                             scaled_radius ),    &
+                     get_height_kernel_type( height_w3_list(i),  &
+                                             chi_sph_in(:,i),    &
+                                             scaled_radius ),    &
+                     get_height_kernel_type( height_wth_list(i), &
+                                             chi_sph_in(:,i),    &
+                                             scaled_radius )     )
       end if
 
       ! ================= Compute latitude and longitude maps =================!

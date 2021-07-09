@@ -15,11 +15,11 @@ module compute_total_energy_kernel_mod
                                 GH_REAL, ANY_SPACE_9,        &
                                 ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
+                                GH_SCALAR,                   &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : cv
 
   implicit none
 
@@ -33,15 +33,16 @@ module compute_total_energy_kernel_mod
 !>
 type, public, extends(kernel_type) :: compute_total_energy_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                                     &
-       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                       &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                   &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-       arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+  type(arg_type) :: meta_args(9) = (/                                      &
+       arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                        &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+       arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
        /)
   type(func_type) :: meta_funcs(4) = (/                                   &
        func_type(W2,          GH_BASIS),                                  &
@@ -73,6 +74,7 @@ contains
 !! @param[in] chi_2 2nd spherical coordinate field in Wchi
 !! @param[in] chi_3 3rd spherical coordinate field in Wchi
 !! @param[in] panel_id A field giving the ID for mesh panels
+!! @param[in] cv Specific heat of dry air at constant volume
 !! @param[in] ndf_w3 The number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 The number of unique degrees of freedom  for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -102,6 +104,7 @@ subroutine compute_total_energy_code(                                           
                                      energy,                                     &
                                      u, rho, exner, theta, phi,                  &
                                      chi_1, chi_2, chi_3, panel_id,              &
+                                     cv,                                         &
                                      ndf_w3, undf_w3, map_w3, w3_basis,          &
                                      ndf_w2, undf_w2, map_w2, w2_basis,          &
                                      ndf_wtheta, undf_wtheta, map_wtheta,        &
@@ -139,7 +142,8 @@ subroutine compute_total_energy_code(                                           
   real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
   real(kind=r_def), dimension(undf_w3),     intent(in)    :: phi
   real(kind=r_def), dimension(undf_chi),    intent(in)    :: chi_1, chi_2, chi_3
-  real(kind=r_def), dimension(undf_pid),    intent(in)  :: panel_id
+  real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
+  real(kind=r_def),                         intent(in)    :: cv
 
   real(kind=r_def), dimension(nqp_h),       intent(in)  ::  wqp_h
   real(kind=r_def), dimension(nqp_v),       intent(in)  ::  wqp_v
@@ -208,7 +212,7 @@ subroutine compute_total_energy_code(                                           
                           + theta_e(df)*wtheta_basis(1,df,qp1,qp2)
         end do
         ! Temperature term
-        temperature_term = Cv*exner_at_quad*theta_at_quad
+        temperature_term = cv*exner_at_quad*theta_at_quad
         ! k.e term
         u_at_quad(:) = 0.0_r_def
         do df = 1, ndf_w2

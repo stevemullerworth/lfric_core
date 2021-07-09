@@ -34,7 +34,9 @@ module physical_op_constants_mod
   use formulation_config_mod,             only: rotating, use_physics
   use mixing_config_mod,                  only: smagorinsky
   use timestepping_config_mod,            only: dt
-  use planet_config_mod,                  only: radius
+  use planet_config_mod,                  only: radius, gravity, &
+                                                scaled_omega, scaled_radius
+  use base_mesh_config_mod,               only: f_lat
 
   ! Other algorithms
   use geometric_constants_mod,            only: get_dA_at_w2, get_height
@@ -129,7 +131,8 @@ contains
 
     call geopotential%initialise( vector_space = w3_fs )
     if ( rehabilitate ) then
-      call invoke( compute_geopotential_kernel_type( geopotential, chi_sph ) )
+      call invoke( compute_geopotential_kernel_type( geopotential, chi_sph, &
+                                                     gravity, scaled_radius ) )
     else
       call log_event( "Geopotential computation needs modifying for standard &
                        W3 mapping", LOG_LEVEL_ERROR )
@@ -139,7 +142,9 @@ contains
 
     if ( rotating ) then
       coriolis = operator_type( w2_fs, w2_fs )
-      call invoke( compute_coriolis_matrix_kernel_type(coriolis, chi_sph, panel_id, qr) )
+      call invoke( compute_coriolis_matrix_kernel_type(coriolis, chi_sph,      &
+                                                       panel_id, scaled_omega, &
+                                                       f_lat, qr) )
     end if
 
     !========================== Physics objects =============================!

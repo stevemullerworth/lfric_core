@@ -48,9 +48,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,          only: feign_damping_layer_config,  &
-                                         feign_extrusion_config,      &
-                                         feign_timestepping_config,   &
+    use feign_config_mod,          only: feign_timestepping_config,   &
                                          feign_finite_element_config, &
                                          feign_planet_config
 
@@ -68,14 +66,6 @@ contains
     call xt_initialize(this%getMpiCommunicator())
     ! Store the MPI communicator for later use
     call store_comm(this%getMpiCommunicator())
-
-    call feign_damping_layer_config( dl_base=800.0_r_def, dl_str=0.015_r_def )
-
-    call feign_extrusion_config( domain_top=6000.0_r_def, &
-                                 method=method_uniform,   &
-                                 number_of_layers=3_i_def, &
-                                 stretching_height=1.0_r_def, &
-                                 stretching_method=stretching_method_linear)
 
     call feign_timestepping_config(                              &
              method=method_semi_implicit,                        &
@@ -95,14 +85,6 @@ contains
              spherical_coord_system=spherical_coord_system_xyz, &
 
              vorticity_in_w1=.false. )
-
-    call feign_planet_config( cp=1000.0_r_def,        &
-                              gravity=10.0_r_def,     &
-                              omega=8.0E-5_r_def,     &
-                              p_zero=100000.0_r_def,  &
-                              radius=6000000.0_r_def, &
-                              rd=300.0_r_def,         &
-                              scaling_factor=1.0_r_def )
 
   end subroutine setUp
 
@@ -139,7 +121,13 @@ contains
     real(r_def), parameter :: dy = 1000.0_r_def
     real(r_def), parameter :: dz = 2000.0_r_def
     real(r_def), parameter :: dt = 1.0_r_def
+    real(r_def), parameter :: dl_base = 800.0_r_def
+    real(r_def), parameter :: dl_str = 0.015_r_def
+    real(r_def), parameter :: domain_top = 6000.0_r_def
+    real(r_def), parameter :: radius=6000000.0_r_def
+
     integer(i_def), parameter :: nlayers = 3
+    integer(i_def), parameter :: element_order = 0
 
     integer(i_def) :: i, j, k, cell
     integer(i_def) :: err
@@ -203,6 +191,11 @@ contains
                                  chi2,            &
                                  chi3,            &
                                  panel_id,        &
+                                 dl_base,         &
+                                 dl_str,          &
+                                 domain_top,      &
+                                 radius,          &
+                                 element_order,   &
                                  dt,              &
                                  ndf_w2,          &
                                  basis_w2,        &

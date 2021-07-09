@@ -16,14 +16,14 @@ module compute_total_aam_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
                                 GH_FIELD, GH_READ, GH_WRITE, &
-                                GH_REAL, ANY_SPACE_9,        &
+                                GH_REAL, GH_SCALAR,          &
+                                ANY_SPACE_9,                 &
                                 ANY_DISCONTINUOUS_SPACE_3,   &
                                 GH_BASIS, GH_DIFF_BASIS,     &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W2, W3
   use kernel_mod,        only : kernel_type
-  use planet_config_mod, only : scaled_omega, scaled_radius
 
   implicit none
 
@@ -37,12 +37,13 @@ module compute_total_aam_kernel_mod
   !>
   type, public, extends(kernel_type) :: compute_total_aam_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                       &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),              &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &
+    type(arg_type) :: meta_args(6) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W2),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W2,          GH_BASIS),                                  &
@@ -71,6 +72,7 @@ contains
 !! @param[in] chi_sph_2 2nd coordinate in spherical Wchi
 !! @param[in] chi_sph_3 3rd coordinate in spherical Wchi
 !! @param[in] panel_id Field giving the ID for mesh panels
+!! @param[in] omega Planet angular velocity
 !! @param[in] ndf_w2 Number of degrees of freedom per cell for w2
 !! @param[in] undf_w2 Number of unique degrees of freedom  for w2
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for w2
@@ -97,6 +99,7 @@ subroutine compute_total_aam_code(                                              
                                   nlayers,                                               &
                                   aam, u, rho,                                           &
                                   chi_sph_1, chi_sph_2, chi_sph_3, panel_id,             &
+                                  omega,                                                 &
                                   ndf_w3, undf_w3, map_w3, w3_basis,                     &
                                   ndf_w2, undf_w2, map_w2, w2_basis,                     &
                                   ndf_chi_sph, undf_chi_sph, map_chi_sph,                &
@@ -133,6 +136,7 @@ subroutine compute_total_aam_code(                                              
   real(kind=r_def), dimension(undf_w3),      intent(in)    :: rho
   real(kind=r_def), dimension(undf_chi_sph), intent(in)    :: chi_sph_1, chi_sph_2, chi_sph_3
   real(kind=r_def), dimension(undf_pid),     intent(in)    :: panel_id
+  real(kind=r_def),                          intent(in)    :: omega
 
   real(kind=r_def), dimension(nqp_h), intent(in)      ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)      ::  wqp_v
@@ -148,7 +152,7 @@ subroutine compute_total_aam_code(                                              
   real(kind=r_def), dimension(ndf_w3)          :: rho_e, aam_e
   real(kind=r_def), dimension(ndf_w2)          :: u_e
 
-  real(kind=r_def) :: u_at_quad(3), scaled_omega_vec(3), llr_vec(3), coords(3)
+  real(kind=r_def) :: u_at_quad(3), omega_vec(3), llr_vec(3), coords(3)
   real(kind=r_def) :: am(3), x_vec(3), u_vec(3), j_u(3), r_vec(3), spherical_z_hat(3)
   real(kind=r_def) :: rho_at_quad
   real(kind=r_def), parameter :: z_hat(3) = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
@@ -195,9 +199,9 @@ subroutine compute_total_aam_code(                                              
         spherical_z_hat(:) = cart2sphere_vector(x_vec, z_hat)
 
         ! get Omega vector expressed in (long,lat,r) components
-        scaled_omega_vec(1) = 0.0_r_def
-        scaled_omega_vec(2) = scaled_omega*cos(llr_vec(2))
-        scaled_omega_vec(3) = scaled_omega*sin(llr_vec(2))
+        omega_vec(1) = 0.0_r_def
+        omega_vec(2) = omega*cos(llr_vec(2))
+        omega_vec(3) = omega*sin(llr_vec(2))
 
         rho_at_quad = 0.0_r_def
         do df = 1, ndf_w3
@@ -216,7 +220,7 @@ subroutine compute_total_aam_code(                                              
         ! rho' * cross(r, J*u/dj + cross(Omega, r)) * dj * dV
         j_u = matmul(jac(:,:,qp1,qp2),u_at_quad)
         u_vec(:) = cart2sphere_vector(x_vec,j_u) &
-                 + cross_product(scaled_omega_vec,r_vec)*dj(qp1,qp2)
+                 + cross_product(omega_vec,r_vec)*dj(qp1,qp2)
 
         am(:) = cross_product(r_vec,u_vec)
 

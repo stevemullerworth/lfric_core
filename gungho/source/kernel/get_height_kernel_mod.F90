@@ -11,6 +11,7 @@ module get_height_kernel_mod
 
   use argument_mod,              only: arg_type, func_type,       &
                                        GH_FIELD, GH_REAL,         &
+                                       GH_SCALAR,                 &
                                        GH_WRITE, GH_READ, GH_INC, &
                                        ANY_DISCONTINUOUS_SPACE_1, &
                                        ANY_SPACE_9, GH_BASIS,     &
@@ -21,7 +22,6 @@ module get_height_kernel_mod
   use finite_element_config_mod, only: spherical_coord_system, &
                                        spherical_coord_system_xyz
   use kernel_mod,                only: kernel_type
-  use planet_config_mod,         only: scaled_radius
 
   implicit none
   private
@@ -34,9 +34,10 @@ module get_height_kernel_mod
   !>
   type, public, extends(kernel_type) :: get_height_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                                      &
+    type(arg_type) :: meta_args(3) = (/                                      &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9)                &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(1) = (/                                    &
          func_type(ANY_SPACE_9, GH_BASIS)                                    &
@@ -61,6 +62,7 @@ contains
 !! @param[in] chi_1 1st component of the coordinate
 !! @param[in] chi_2 2nd component of the coordinate
 !! @param[in] chi_3 3rd component of the coordinate
+!! @param[in] planet_radius The planet radius
 !! @param[in] ndf_x Number of degrees of freedom per cell for height
 !! @param[in] undf_x Number of unique degrees of freedom for height
 !! @param[in] map_x Dofmap for the cell at the base of the column for height
@@ -71,6 +73,7 @@ contains
 subroutine get_height_code(nlayers,                         &
                            height,                          &
                            chi_1, chi_2, chi_3,             &
+                           planet_radius,                   &
                            ndf_x, undf_x, map_x,            &
                            ndf_chi, undf_chi, map_chi,      &
                            basis_chi                        &
@@ -84,6 +87,7 @@ subroutine get_height_code(nlayers,                         &
   integer(kind=i_def),                         intent(in) :: ndf_chi, undf_chi
   real(kind=r_def),    dimension(undf_x),   intent(inout) :: height
   real(kind=r_def),    dimension(undf_chi),    intent(in) :: chi_1, chi_2, chi_3
+  real(kind=r_def),                            intent(in) :: planet_radius
 
   integer(kind=i_def), dimension(ndf_x),           intent(in) :: map_x
   integer(kind=i_def), dimension(ndf_chi),         intent(in) :: map_chi
@@ -91,7 +95,7 @@ subroutine get_height_code(nlayers,                         &
 
   ! Internal variables
   integer(kind=i_def) :: df_chi, df_x, k
-  real(kind=r_def)    :: coord(3), radius, height_at_dof
+  real(kind=r_def)    :: coord(3), coord_radius, height_at_dof
 
   if ( (geometry == geometry_spherical) .and. &
        (spherical_coord_system == spherical_coord_system_xyz) ) then
@@ -110,9 +114,9 @@ subroutine get_height_code(nlayers,                         &
           coord(3) = coord(3) + chi_3(map_chi(df_chi)+k)*basis_chi(1,df_chi,df_x)
         end do
 
-        radius = sqrt(coord(1)**2 + coord(2)**2 + coord(3)**2)
+        coord_radius = sqrt(coord(1)**2 + coord(2)**2 + coord(3)**2)
 
-        height( map_x(df_x) + k ) = radius - scaled_radius
+        height( map_x(df_x) + k ) = coord_radius - planet_radius
 
       end do
     end do

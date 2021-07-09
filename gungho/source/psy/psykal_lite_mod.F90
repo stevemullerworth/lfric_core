@@ -20,10 +20,11 @@ module psykal_lite_mod
   use mesh_mod,                     only : mesh_type
   use function_space_mod,           only : BASIS, DIFF_BASIS
 
-  use quadrature_xyoz_mod, only : quadrature_xyoz_type, &
-                                  quadrature_xyoz_proxy_type
-  use quadrature_face_mod, only : quadrature_face_type, &
-                                  quadrature_face_proxy_type
+  use quadrature_xyoz_mod,          only : quadrature_xyoz_type, &
+                                           quadrature_xyoz_proxy_type
+  use quadrature_face_mod,          only : quadrature_face_type, &
+                                           quadrature_face_proxy_type
+  use biperiodic_deppt_config_mod,  only : n_dep_pt_iterations
 
   implicit none
   public
@@ -797,6 +798,8 @@ subroutine invoke_calc_deppts(  u_n,                  &
     call calc_departure_point_code( nlayers,                      &
                                     dep_pts_proxy%data,           &
                                     transport_stencil_size,       &
+                                    n_dep_pt_iterations,          &
+                                    dt,                           &
                                     undf_w2,                      &
                                     ndf_w2,                       &
                                     stencil_map_w2,               &
@@ -807,7 +810,7 @@ subroutine invoke_calc_deppts(  u_n,                  &
                                     u_n_proxy%data,               &
                                     u_np1_proxy%data,             &
                                     direction,                    &
-                                    dep_pt_method, dt )
+                                    dep_pt_method )
 
   end do
   call dep_pts_proxy%set_dirty()

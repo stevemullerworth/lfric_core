@@ -12,6 +12,7 @@ module compute_geopotential_kernel_mod
   use argument_mod,              only : arg_type, func_type,   &
                                         GH_FIELD, GH_REAL,     &
                                         GH_READ, GH_WRITE,     &
+                                        GH_SCALAR,             &
                                         ANY_SPACE_9, GH_BASIS, &
                                         CELL_COLUMN, GH_EVALUATOR
   use base_mesh_config_mod,      only : geometry, &
@@ -23,7 +24,6 @@ module compute_geopotential_kernel_mod
                                         spherical_coord_system_xyz
   use fs_continuity_mod,         only : W3
   use kernel_mod,                only : kernel_type
-  use planet_config_mod,         only : gravity, scaled_radius
 
   implicit none
 
@@ -35,9 +35,11 @@ module compute_geopotential_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: compute_geopotential_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),         &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9) &
+    type(arg_type) :: meta_args(4) = (/                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),          &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),               &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                &
          /)
     type(func_type) :: meta_funcs(1) = (/                     &
          func_type(ANY_SPACE_9, GH_BASIS)                     &
@@ -60,6 +62,8 @@ contains
 !! @param[in] chi_1 1st physical coordinate field
 !! @param[in] chi_2 2nd physical coordinate field
 !! @param[in] chi_3 3rd physical coordinate field
+!! @param[in] gravity Planet gravity
+!! @param[in] planet_radius Planet radius
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 Number of unique degrees of freedom for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -69,6 +73,7 @@ contains
 !! @param[in] chi_basis Chi basis functions evaluated at w3 nodes
 subroutine compute_geopotential_code(nlayers, phi,               &
                                      chi_1, chi_2, chi_3,        &
+                                     gravity, planet_radius,     &
                                      ndf_w3, undf_w3, map_w3,    &
                                      ndf_chi, undf_chi, map_chi, &
                                      chi_basis)
@@ -88,6 +93,8 @@ subroutine compute_geopotential_code(nlayers, phi,               &
   real(kind=r_def), dimension(undf_chi), intent(in)         :: chi_2
   real(kind=r_def), dimension(undf_chi), intent(in)         :: chi_3
   real(kind=r_def), dimension(1,ndf_chi,ndf_w3), intent(in) :: chi_basis
+  real(kind=r_def),  intent(in)                             :: gravity
+  real(kind=r_def),  intent(in)                             :: planet_radius
 
   ! Internal variables
   integer(kind=i_def) :: df, dfc, k
@@ -125,7 +132,7 @@ subroutine compute_geopotential_code(nlayers, phi,               &
           call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)
 
             phi_shallow = gravity*radius
-            phi_deep    = -gravity*scaled_radius*(scaled_radius/radius - 1.0_r_def)
+            phi_deep    = -gravity*planet_radius*(planet_radius/radius - 1.0_r_def)
             phi(map_w3(df) + k) = shallow_switch*phi_shallow &
                                 + (1.0_r_def-shallow_switch)*phi_deep
 
@@ -135,13 +142,13 @@ subroutine compute_geopotential_code(nlayers, phi,               &
     else
       do k = 0, nlayers-1
         do df = 1, ndf_w3
-          radius = scaled_radius
+          radius = planet_radius
           do dfc = 1, ndf_chi
             radius = radius + chi_3( map_chi(dfc) + k )*chi_basis(1,dfc,df)
           end do
 
           phi_shallow = gravity*radius
-          phi_deep    = -gravity*scaled_radius*(scaled_radius/radius - 1.0_r_def)
+          phi_deep    = -gravity*planet_radius*(planet_radius/radius - 1.0_r_def)
           phi(map_w3(df) + k) = shallow_switch*phi_shallow &
                               + (1.0_r_def-shallow_switch)*phi_deep
         end do
