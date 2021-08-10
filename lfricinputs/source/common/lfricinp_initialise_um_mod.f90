@@ -19,15 +19,14 @@ USE lfricinp_check_shumlib_status_mod, ONLY: shumlib
 USE lfricinp_um_parameters_mod, ONLY: fnamelen, um_integer64
 
 ! LFRic modules
-USE log_mod,     ONLY: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
+USE log_mod,     ONLY: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR,             &
                        log_scratch_space
 
 IMPLICIT NONE
 
 PRIVATE
 
-PUBLIC :: lfricinp_initialise_um, find_field_by_stashcode, &
-     lfricinp_finalise_um, um_input_file
+PUBLIC :: lfricinp_initialise_um, lfricinp_finalise_um, um_input_file
 
 TYPE(shum_file_type), SAVE :: um_input_file
 
@@ -59,44 +58,6 @@ SUBROUTINE lfricinp_initialise_um(fname)
 
 END SUBROUTINE lfricinp_initialise_um
 
-!-------------------------------------------------------------------------------
-
-FUNCTION find_field_by_stashcode(stashcode_in)
-  ! This returns the _first_ field in the input file which matches a given
-  ! stash code, and aborts if if no matching fields are found.
-  USE f_shum_lookup_indices_mod, ONLY: lbuser4
-  USE lfricinp_um_parameters_mod, ONLY: um_imdi, msglen
-
-  IMPLICIT NONE
-
-  INTEGER, INTENT(IN) :: stashcode_in
-  INTEGER(KIND=um_integer64) :: stashcode
-  CHARACTER(LEN=16)          :: timestring
-  TYPE(shum_field_type), ALLOCATABLE :: found_fields(:)
-  TYPE(shum_field_type) :: find_field_by_stashcode
-  CHARACTER(LEN=*), PARAMETER :: routinename='find_field_by_stashcode'
-  stashcode = stashcode_in
-  IF (ALLOCATED(found_fields)) THEN
-    DEALLOCATE(found_fields)
-  END IF
-
-  CALL shumlib(routinename//'::find_fields_in_file',   &
-       um_input_file%find_fields_in_file(found_fields, &
-       max_returned_fields=1_um_integer64,             &
-       stashcode=stashcode),                           &
-       print_on_success=.TRUE._C_BOOL)
-
-  find_field_by_stashcode = found_fields(1)
-  CALL shumlib(routinename//'::find_fields_in_file', &
-       find_field_by_stashcode%get_timestring(timestring))
-
-  WRITE(log_scratch_space, '(A,A)') 'Chosen field has validity time: ', &
-       timestring
-  CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-
-END FUNCTION find_field_by_stashcode
-
-!-------------------------------------------------------------------------------
 SUBROUTINE lfricinp_finalise_um()
   IMPLICIT NONE
   CHARACTER(LEN=*), PARAMETER :: routinename='lfricinp_finalise_um'
@@ -105,5 +66,5 @@ SUBROUTINE lfricinp_finalise_um()
   CALL shumlib(routinename//'::close_file', um_input_file%close_file() )
 
 END SUBROUTINE lfricinp_finalise_um
-!-------------------------------------------------------------------------------
+
 END MODULE lfricinp_initialise_um_mod

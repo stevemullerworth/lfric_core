@@ -52,16 +52,19 @@ IF ( (TRIM(interp_method) /= 'bilinear') .AND.                                 &
 END IF
 
 IF ( (TRIM(regrid_type) /= 'global_to_global') .AND.                           & 
-     (TRIM(regrid_type) /= 'lam_to_lam') ) THEN
+     (TRIM(regrid_type) /= 'lam_to_lam') .AND.                                 &
+     (TRIM(regrid_type) /= 'lbc_to_lbc') ) THEN
   WRITE(log_scratch_space, '(A)') 'Regridding type: ' // TRIM(regrid_type) //  &
                                   ' not recognised.' 
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)                        
 END IF
 
 IF ( (TRIM(interp_method) == 'copy') .AND.                                     &
-     (TRIM(regrid_type) /= 'lam_to_lam') ) THEN
+     (TRIM(regrid_type) /= 'lam_to_lam' .AND.                                  &
+      TRIM(regrid_type) /= 'lbc_to_lbc') ) THEN
   WRITE(log_scratch_space, '(A)') 'The copy interpolation method is only ' //  &
-                                  'valid for LAM to LAM regridding' 
+                                  'valid for LAM to LAM or LBC to LBC ' //     &
+                                  'regridding' 
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 

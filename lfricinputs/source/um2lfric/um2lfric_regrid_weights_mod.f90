@@ -367,8 +367,8 @@ DO wgt = 1, num_wgts
     grid_u_to_w2h_map % remap_matrix(wgt, lnk) = 1.0
   END DO
   DO lnk = 1, num_links_v
-    grid_v_to_w2h_map % remap_matrix(wgt, lnk) = -1.0 ! Basis vector for V-winds
-  END DO                                              ! are opposite to UM ones
+    grid_v_to_w2h_map % remap_matrix(wgt, lnk) = 1.0
+  END DO
 END DO
 
 END SUBROUTINE create_w2h_copy_maps

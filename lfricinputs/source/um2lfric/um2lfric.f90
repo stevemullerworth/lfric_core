@@ -8,31 +8,32 @@ PROGRAM um2lfric
 ! lfricinputs modules
 USE lfricinp_read_command_line_args_mod, ONLY: lfricinp_read_command_line_args
 USE lfricinp_um_parameters_mod, ONLY: fnamelen
-USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric,        &
-    lfricinp_finalise_lfric, mesh_id, twod_mesh_id, lfric_fields
+USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric,                &
+                lfricinp_finalise_lfric, mesh_id, twod_mesh_id, lfric_fields
 USE lfricinp_ancils_mod, ONLY: lfricinp_create_ancil_fields, ancil_fields
 USE lfricinp_create_lfric_fields_mod, ONLY: lfricinp_create_lfric_fields
 USE lfricinp_um_grid_mod, ONLY: um_grid
-USE lfricinp_initialise_um_mod, ONLY: lfricinp_initialise_um, &
+USE lfricinp_initialise_um_mod, ONLY: lfricinp_initialise_um,                  &
     lfricinp_finalise_um, um_input_file
 USE lfricinp_regrid_options_mod, ONLY: lfricinp_init_regrid_options
+USE lfricinp_datetime_mod, ONLY : datetime_type
+USE lfricinp_read_um_time_data_mod, ONLY: lfricinp_read_um_time_data
+
 ! um2lfric modules
 USE um2lfric_namelist_mod, ONLY: um2lfric_config, required_lfric_namelists
 USE um2lfric_initialise_um2lfric_mod, ONLY: um2lfric_initialise_um2lfric
-USE um2lfric_regrid_fields_mod, ONLY: um2lfric_regrid_fields
+USE um2lfric_regrid_weights_mod, ONLY: um2lfric_regrid_weightsfile_ctl
+USE um2lfric_init_masked_field_adjustments_mod,  ONLY:                         &
+                                       um2lfric_init_masked_field_adjustments
+USE um2lfric_regrid_and_output_data_mod, ONLY: um2lfric_regrid_and_output_data
 
 ! LFRic modules
 USE log_mod,         ONLY: log_event, LOG_LEVEL_INFO
 
-USE lfric_xios_write_mod, ONLY: write_state
-
-! External libraries
-USE xios, ONLY: xios_context_finalize
-
 IMPLICIT NONE
 
-CHARACTER(LEN=fnamelen) :: lfric_fname
-CHARACTER(LEN=fnamelen) :: um2lfric_fname
+TYPE(datetime_type)        :: datetime
+CHARACTER(LEN=fnamelen)    :: lfric_fname, um2lfric_fname
 
 CALL lfricinp_read_command_line_args(um2lfric_fname, lfric_fname)
 
@@ -42,38 +43,49 @@ CALL um2lfric_config%load_namelist(um2lfric_fname)
 ! Read in global regrid options
 CALL lfricinp_init_regrid_options(um2lfric_fname)
 
-! Initialise LFRic Infrastructure
-CALL lfricinp_initialise_lfric(program_name_arg="um2lfric", &
-     lfric_nl_fname=lfric_fname,                            &
-     required_lfric_namelists = required_lfric_namelists)
-
 ! Open the UM file
 CALL log_event('Initialising UM input file', LOG_LEVEL_INFO)
 CALL lfricinp_initialise_um(um2lfric_config%um_file)
+
+! Load date and time information for requested stash items from um input file
+CALL datetime % initialise()
+CALL lfricinp_read_um_time_data(datetime, um_input_file,                       &
+                                um2lfric_config%stash_list)
+
+! Initialise LFRic Infrastructure
+CALL lfricinp_initialise_lfric(program_name_arg="um2lfric",                    &
+     lfric_nl_fname=lfric_fname,                                               &
+     required_lfric_namelists = required_lfric_namelists,                      &
+     calendar = datetime % calendar,                                           &
+     start_date = datetime % first_validity_time,                              &
+     time_origin = datetime % first_validity_time,                             &
+     first_step = datetime % first_step,                                       &
+     last_step = datetime % last_step,                                         &
+     spinup_period = datetime % spinup_period,                                 &
+     seconds_per_step = datetime % seconds_per_step)
 
 ! Initialise um2lfric
 CALL um2lfric_initialise_um2lfric()
 
 ! Initialise LFRic field collection
 CALL lfricinp_create_lfric_fields(mesh_id, twod_mesh_id,  &
-                                  lfric_fields, um2lfric_config%stash_list, &
+                                  lfric_fields, um2lfric_config%stash_list,    &
                                   um_grid, um_input_file)
 
 ! Initialise LFRic ancils field collection
 CALL lfricinp_create_ancil_fields(ancil_fields, mesh_id, twod_mesh_id)
 
-! Regrid from UM fields to lfric fields
-CALL um2lfric_regrid_fields()
+! Read in, process and partition regridding weights
+CALL um2lfric_regrid_weightsfile_ctl()
 
-! Write lfric fields to output
-CALL write_state(lfric_fields)
+! Now initialise masked points that requires post regridding adjustments
+CALL um2lfric_init_masked_field_adjustments()
+
+! Perform regridding and output data
+CALL um2lfric_regrid_and_output_data(datetime)
 
 ! Unloads data from memory and closes UM input file
 CALL lfricinp_finalise_um()
-
-! Finalizes XIOS file contents
-CALL xios_context_finalize()
-CALL log_event( 'UM2LFRic completed', LOG_LEVEL_INFO )
 
 ! Finalise YAXT, XIOS, MPI, logging
 CALL lfricinp_finalise_lfric()

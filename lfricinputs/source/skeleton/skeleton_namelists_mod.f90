@@ -47,17 +47,14 @@ CHARACTER(LEN=fnamelen), PUBLIC :: skeleton_nl_fname
 
 INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 
-CHARACTER(*), PARAMETER  :: required_lfric_namelists(9) =                      &
+CHARACTER(*), PARAMETER  :: required_lfric_namelists(7) =                      &
      ['finite_element  ',                                                      &
      'base_mesh       ',                                                       &
      'planet          ',                                                       &
      'extrusion       ',                                                       &
      'io              ',                                                       &
      'files           ',                                                       &
-     'time            ',                                                       &
-     'timestepping    ',                                                       &
      'domain_size     ']
-
 
 CONTAINS
 

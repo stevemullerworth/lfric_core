@@ -236,7 +236,7 @@ INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_surf_nir_alb      = 245
 INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_z0h_tile          = 246
 
 INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_CO2_surf_emiss    = 251
-INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_rho               = 253
+INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_rhor2             = 253
 INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_qcl               = 254
 INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_exner             = 255
 INTEGER(KIND=int64), PUBLIC, PARAMETER :: stashcode_u_adv             = 256

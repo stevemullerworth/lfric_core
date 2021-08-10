@@ -27,7 +27,7 @@ elif hasattr(cm, "winter"):
     plt.set_cmap(cm.winter)
 
 
-def load_data_and_extract_field(datapath, field_name, level):
+def load_data_and_extract_field(datapath, field_name, level, time_idx=0):
     """
     Returns a single level's worth of data and corresponding longitude
     and latitude values.
@@ -60,10 +60,17 @@ def load_data_and_extract_field(datapath, field_name, level):
 
         # Get dimensions objects
         dims = field.get_dims()
-        if len(dims) == 1:
-            num_levels = 1 # 2d field only have xy dims
+        if "time" in dataset.variables:
+            print('Source is a timeseries data file')
+            if len(dims) == 2:
+                num_levels = 1
+            else:
+                num_levels= len(dims[1])
         else:
-            num_levels = len(dims[0]) #3d fields levels is first dim
+            if len(dims) == 1:
+                num_levels = 1 # 2d field only have xy dims
+            else:
+                num_levels = len(dims[0]) #3d fields levels is first dim
 
         # Sanity check
         if level > num_levels:
@@ -72,7 +79,7 @@ def load_data_and_extract_field(datapath, field_name, level):
         if len(dims) == 1:
             level_data = field[:]
         else:
-            level_data = field[level, :]
+            level_data = field[time_idx, level, :]
         level_lon = longitudes[:]
         level_lat = latitudes[:]
         num_points = level_data.shape[0]
@@ -155,7 +162,7 @@ def gen_markersize(n_points):
     return max(round(exponential(c_value, *pcoeffs)), 1)
 
 
-def make_single_figure(datapath, field_name, level, interp=False,
+def make_single_figure(datapath, field_name, level, time_idx=0, interp=False,
                        plot_path=None):
     """
     Covers the 2 "single" figure plot types (either interpolated or just
@@ -164,7 +171,7 @@ def make_single_figure(datapath, field_name, level, interp=False,
 
     # Get the data
     level_lon, level_lat, level_data, num_points, field = load_data_and_extract_field(
-        datapath, field_name, level)
+        datapath, field_name, level, time_idx)
 
     # Make the figure and axis
     fig = plt.figure(figsize=(20, 15))
@@ -223,24 +230,24 @@ def make_single_figure(datapath, field_name, level, interp=False,
     if plot_path is None:
         plot_path = "."
     out_file_name = os.path.join(plot_path,
-                                 "{0}_{1}{2}.png"
-                                 .format(file_name, level, interp_fname))
+                                 "{0}_{1}-{2}{3}.png"
+                                 .format(file_name, level, time_idx, interp_fname))
     fig.savefig(out_file_name, bbox_inches='tight')
 
     data_file_name = os.path.join(plot_path,
-                                 "{0}_{1}{2}.dat"
-                                 .format(file_name, level, interp_fname))
+                                 "{0}_{1}-{2}{3}.dat"
+                                 .format(file_name, level, time_idx, interp_fname))
     export_plot_data(data_file_name, level_lon, level_lat, level_data, num_points)
 
 
-def make_double_figure(datapath, field_name,  level, plot_path=None):
+def make_double_figure(datapath, field_name,  level, time_idx=0, plot_path=None):
     """
     Covers the "double" figure plot types.
     """
 
     # Get the data
     level_lon, level_lat, level_data, num_points, field = load_data_and_extract_field(
-        datapath, field_name, level)
+        datapath, field_name, level, time_idx)
 
     # Make the figure and axes
     fig = plt.figure(figsize=(24, 12))
@@ -312,13 +319,13 @@ def make_double_figure(datapath, field_name,  level, plot_path=None):
     if plot_path is None:
         plot_path = "."
     out_file_name = os.path.join(plot_path,
-                                 "{0}_{1}.png"
-                                 .format(file_name, level))
+                                 "{0}_{1}-{2}.png"
+                                 .format(file_name, level, time_idx))
     fig.savefig(out_file_name, bbox_inches='tight')
 
     data_file_name = os.path.join(plot_path,
-                                 "{0}_{1}{2}.dat"
-                                 .format(file_name, level, interp_fname))
+                                 "{0}_{1}-{2}{3}.dat"
+                                 .format(file_name, level, time_idx, interp_fname))
     export_plot_data(data_file_name, level_lon, level_lat, level_data, num_points)
 
 
@@ -338,6 +345,9 @@ if __name__ == "__main__":
     parser.add_argument("level",
                         help="index of the level to be plotted",
                         type=int)
+    parser.add_argument("time_idx",
+                        help="index of the time to be plotted",
+                        type=int)                  
     parser.add_argument("--plot_path",
                         help="destination directory for plot "
                         "(default is current dir)")
@@ -357,6 +367,7 @@ if __name__ == "__main__":
         make_double_figure(args.input_file,
                            args.field_name,
                            args.level,
+                           time_idx=args.time_idx,
                            plot_path=args.plot_path)
     else:
         if plot_type == "interpolated":
@@ -367,5 +378,6 @@ if __name__ == "__main__":
         make_single_figure(args.input_file,
                            args.field_name,
                            args.level,
+                           time_idx=args.time_idx,
                            plot_path=args.plot_path,
                            interp=interpolate)

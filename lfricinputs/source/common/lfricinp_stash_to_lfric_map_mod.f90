@@ -61,7 +61,8 @@ USE lfricinp_stashmaster_mod, ONLY: &
     stashcode_snow_grnsiz_tiles, stashcode_dry_rho, stashcode_mv,             &
     stashcode_mcl, stashcode_mcf, stashcode_mr, stashcode_ddmfx,              &
     stashcode_tstar_sea, stashcode_tstar_sice, stashcode_sea_ice_temp,        &
-    stashcode_z0
+    stashcode_z0, stashcode_q, stashcode_qcf, stashcode_qcl, stashcode_qrain, &
+    stashcode_rhor2
 USE lfricinp_regrid_options_mod, ONLY: winds_on_w3
 
 IMPLICIT NONE
@@ -79,6 +80,8 @@ ELSE
 ENDIF
 CALL map_field_name(stashcode_theta, 'theta')                            ! stash 4
 CALL map_field_name(stashcode_soil_moist, 'soil_moisture')               ! stash 9
+CALL map_field_name(stashcode_q, 'q')                                    ! stash 10
+CALL map_field_name(stashcode_qcf, 'qcf')                                ! stash 12
 CALL map_field_name(stashcode_soil_temp, 'soil_temperature')             ! stash 20
 CALL map_field_name(stashcode_tstar, 'tstar')                            ! stash 24
 CALL map_field_name(stashcode_bl_depth, 'zh')                            ! stash 25
@@ -96,10 +99,13 @@ CALL map_field_name(stashcode_rgrain, 'tile_snow_rgrain')                ! stash
 CALL map_field_name(stashcode_tstar_tile, 'tile_temperature')            ! stash 233
 CALL map_field_name(stashcode_snow_tile , 'tile_snow_mass')              ! stash 240
 CALL map_field_name(stashcode_snow_grnd, 'tile_snow_under_canopy')       ! stash 242
+CALL map_field_name(stashcode_rhor2, 'rho_r2')                           ! stash 253
+CALL map_field_name(stashcode_qcl, 'qcl')                                ! stash 254
 CALL map_field_name(stashcode_area_cf, 'area_fraction')                  ! stash 265
 CALL map_field_name(stashcode_bulk_cf, 'bulk_fraction')                  ! stash 266
 CALL map_field_name(stashcode_liquid_cf, 'liquid_fraction')              ! stash 267
 CALL map_field_name(stashcode_frozen_cf, 'frozen_fraction')              ! stash 268
+CALL map_field_name(stashcode_qrain, 'qrain')                            ! stash 272
 CALL map_field_name(stashcode_fsat, 'soil_sat_frac')                     ! stash 279
 CALL map_field_name(stashcode_fwetl, 'soil_wet_frac')                    ! stash 280
 CALL map_field_name(stashcode_zw, 'water_table')                         ! stash 278

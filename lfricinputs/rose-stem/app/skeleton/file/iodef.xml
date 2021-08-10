@@ -6,7 +6,7 @@
 
   <context id = "gungho_atm">
 
-   <calendar type = "Gregorian" start_date = "2016-01-01 15:00:00" time_origin = "2016-01-01 15:00:00" />
+   <calendar type = "Gregorian"/>
 
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>

@@ -6,6 +6,7 @@
 MODULE lfricinp_check_shumlib_status_mod
 
 IMPLICIT NONE
+
 PRIVATE
 PUBLIC :: shumlib
 
@@ -41,9 +42,9 @@ IMPLICIT NONE
 
 ! Arguments
 TYPE(shum_ff_status_type), INTENT(IN) :: status
-CHARACTER(LEN=*),    INTENT(IN) :: routinename
-LOGICAL(KIND=C_BOOL), OPTIONAL  :: print_on_success, ignore_warning
-INTEGER, OPTIONAL               :: errorstatus
+CHARACTER(LEN=*),          INTENT(IN) :: routinename
+LOGICAL(KIND=C_BOOL), OPTIONAL,  INTENT(IN) :: print_on_success, ignore_warning
+INTEGER,              OPTIONAL, INTENT(OUT) :: errorstatus
 ! Internal variables
 
 ! Message - set to be the maximum SHUMlib message length (1024) plus a

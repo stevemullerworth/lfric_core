@@ -50,4 +50,17 @@
                                "lfric_mesh"         : {"file":"$BIG_DATA_DIR/meshes/Quagga/aquaplanet_lam.nc", "name":"dynamics"},
                              },
 
+"aquaplanet_lbc"           : {
+                               "app"                : "um2lfric",
+                               "opt_config"         : "aquaplanet_lbc",
+                               "source_grid_res"    : "",
+                               "source_grid_levs"   : "70",
+                               "source_grid_type"   : "regional",
+                               "target_grid_res"    : "",
+                               "target_grid_levs"   : "70",
+                               "target_grid_type"   : "regional",
+                               "source_dump"        : "$UMDIR/standard_jobs/lfricinputs/inputs/aquaplanet.lbc.ff",
+                               "lfric_mesh"         : {"file":"$UMDIR/standard_jobs/lfricinputs/meshes/aquaplanet_lam.nc", "name":"dynamics"},
+                             },
+
 }) %}

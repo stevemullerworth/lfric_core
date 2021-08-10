@@ -24,6 +24,7 @@ USE mod_wait,                   ONLY: init_wait
 USE linked_list_mod,            ONLY: linked_list_type
 USE lfric_xios_io_mod,          ONLY: populate_filelist_if
 USE lfricinp_setup_io_mod,      ONLY: init_lfricinp_files
+USE lfricinp_iodef_updates_mod, ONLY: lfricinp_iodef_set_calendar
 USE local_mesh_collection_mod,  ONLY: local_mesh_collection,                   &
                                       local_mesh_collection_type
 USE mesh_collection_mod,        ONLY: mesh_collection,                         &
@@ -43,7 +44,8 @@ USE lfricinp_um_parameters_mod, ONLY: fnamelen
 IMPLICIT NONE
 
 PRIVATE
-PUBLIC :: lfricinp_initialise_lfric, lfricinp_finalise_lfric, lfric_fields
+PUBLIC :: lfricinp_initialise_lfric, lfricinp_finalise_lfric, lfric_fields,    &
+          io_context
 
 CHARACTER(len=fnamelen) :: xios_id
 ! xios_ctx names needs to match iodef.xml file
@@ -66,7 +68,7 @@ INTEGER(KIND=i_def), PUBLIC :: twod_mesh_id = imdi
 ! Container for all input fields
 TYPE(field_collection_type) :: lfric_fields
 
-CLASS(io_context_type), allocatable :: io_context
+CLASS(io_context_type), ALLOCATABLE :: io_context
 
 CONTAINS
 
@@ -84,50 +86,56 @@ SUBROUTINE populate_file_list( file_list, clock )
 END SUBROUTINE populate_file_list
 
 
-SUBROUTINE lfricinp_initialise_lfric(program_name_arg, &
-                                     lfric_nl_fname,   &
-                                     required_lfric_namelists)
+SUBROUTINE lfricinp_initialise_lfric(program_name_arg,                         &
+                                     lfric_nl_fname,                           &
+                                     required_lfric_namelists,                 &
+                                     calendar, start_date, time_origin,        &
+                                     first_step, last_step,                    &
+                                     spinup_period, seconds_per_step)
 
 ! Description:
 !  Initialises LFRic infrastructure, MPI, XIOS and YAXT.
 
 IMPLICIT NONE
 
-CHARACTER(LEN=*), INTENT(IN) :: program_name_arg
-CHARACTER(LEN=*), INTENT(IN) :: lfric_nl_fname
-CHARACTER(LEN=*), INTENT(IN) :: required_lfric_namelists(:)
-
-CHARACTER(*),   PARAMETER :: first_step       = '1'
-CHARACTER(*),   PARAMETER :: last_step        = '1'
-REAL(r_second), PARAMETER :: spinup_period    = 0.0_r_second
-REAL(r_second), PARAMETER :: seconds_per_step = 1.0_r_second
-
-CLASS(clock_type), POINTER :: clock
-LOGICAL                    :: advance
+CHARACTER(LEN=*),    INTENT(IN) :: program_name_arg
+CHARACTER(LEN=*),    INTENT(IN) :: lfric_nl_fname
+CHARACTER(LEN=*),    INTENT(IN) :: required_lfric_namelists(:)
+CHARACTER(LEN=*),    INTENT(IN) :: calendar, start_date, time_origin
+INTEGER(KIND=i_def), INTENT(IN) :: first_step, last_step
+REAL(r_second),      INTENT(IN) :: spinup_period
+REAL(r_second),      INTENT(IN) :: seconds_per_step
 
 PROCEDURE(populate_filelist_if), POINTER :: populate_pointer
+
+CHARACTER(LEN=10) :: char_first_step, char_last_step
 
 ! Set module variables
 program_name = program_name_arg
 xios_id = TRIM(program_name) // "_client"
 
-! Initialise MPI, yaxt and XIOS
 ! Initialise MPI and create the default communicator: mpi_comm_world
 CALL initialise_comm(comm)
 CALL init_wait()
-CALL xios_initialize(xios_id, return_comm = comm)
-! Save LFRic's part of the split communicator for later use
-CALL store_comm(comm)
-CALL xt_initialize(comm)
 
-! Get rank information
+! Set calendar in iodef file, and then initialise xios
+CALL lfricinp_iodef_set_calendar(comm, calendar, start_date, time_origin)
+CALL xios_initialize(xios_id, return_comm = comm)
+
+! Save LFRic's part of the split communicator for later use, and
+! set the total number of ranks and the local rank of the split
+! communicator
+CALL store_comm(comm)
 total_ranks = get_comm_size()
 local_rank = get_comm_rank()
+
+!Initialise yaxt
+CALL xt_initialize(comm)
 
 ! Initialise logging system
 CALL initialise_logging(local_rank, total_ranks, program_name)
 
-WRITE(log_scratch_space, '(2(A,I0))') 'total ranks = ', total_ranks, &
+WRITE(log_scratch_space, '(2(A,I0))') 'total ranks = ', total_ranks,           &
                             ', local_rank = ', local_rank
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
@@ -148,23 +156,21 @@ CALL log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
 CALL init_fem(mesh_id, chi, panel_id)
 
 ! XIOS domain initialisation
+WRITE(char_first_step,'(I8)') first_step
+WRITE(char_last_step,'(I8)') last_step
 populate_pointer => populate_file_list
-call initialise_xios( io_context,       &
-                      xios_ctx,         &
-                      comm,             &
-                      mesh_id,          &
-                      twod_mesh_id,     &
-                      chi,              &
-                      panel_id,         &
-                      first_step,       &
-                      last_step,        &
-                      spinup_period,    &
-                      seconds_per_step, &
+CALL initialise_xios( io_context,                                              &
+                      xios_ctx,                                                &
+                      comm,                                                    &
+                      mesh_id,                                                 &
+                      twod_mesh_id,                                            &
+                      chi,                                                     &
+                      panel_id,                                                &
+                      TRIM(ADJUSTL(char_first_step)),                          &
+                      TRIM(ADJUSTL(char_last_step)),                           &
+                      spinup_period,                                           &
+                      seconds_per_step,                                        &
                       populate_filelist=populate_pointer )
-
-! Advance XIOS calendar to enable dump writing
-clock => io_context%get_clock()
-advance = clock%tick()
 
 END SUBROUTINE lfricinp_initialise_lfric
 
@@ -189,7 +195,7 @@ INTEGER              :: i
 
 ALLOCATE(success_map(SIZE(required_lfric_namelists)))
 
-CALL log_event('Loading '//TRIM(program_name)//' configuration ...',                 &
+CALL log_event('Loading '//TRIM(program_name)//' configuration ...',           &
                LOG_LEVEL_ALWAYS)
 
 CALL read_configuration( lfric_nl )
@@ -217,7 +223,7 @@ SUBROUTINE lfricinp_finalise_lfric()
 ! Description:
 !  Call finalise routines for associated APIs and logging system
 
-USE log_mod,                   ONLY: finalise_logging, LOG_LEVEL_INFO, &
+USE log_mod,                   ONLY: finalise_logging, LOG_LEVEL_INFO,         &
                                      log_event
 ! External libraries
 USE xios,                      ONLY: xios_finalize
@@ -238,6 +244,5 @@ CALL finalise_comm()
 CALL finalise_logging()
 
 END SUBROUTINE lfricinp_finalise_lfric
-
 
 END MODULE lfricinp_lfric_driver_mod

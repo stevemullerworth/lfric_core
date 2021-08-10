@@ -47,18 +47,13 @@ CHARACTER(LEN=fnamelen), PUBLIC :: lfric2um_nl_fname
 
 INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 
-CHARACTER(*), PARAMETER  :: required_lfric_namelists(10) = &
-     ['initialization  ',  &
-     'finite_element  ',   &
-     'base_mesh       ',   &
-     'planet          ',   &
-     'extrusion       ',   &
-     'io              ',   &
-     'files           ',   &
-     'time            ',   &
-     'timestepping    ',   &
-     'domain_size     ']
-
+CHARACTER(*), PARAMETER  :: required_lfric_namelists(7) = ['finite_element  ', &
+                                                           'base_mesh       ', &
+                                                           'planet          ', &
+                                                           'extrusion       ', &
+                                                           'io              ', &
+                                                           'files           ', &
+                                                           'domain_size     ']
 
 CONTAINS
 

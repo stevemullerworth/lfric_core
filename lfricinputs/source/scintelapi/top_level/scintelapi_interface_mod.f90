@@ -17,6 +17,7 @@ USE scintelapi_namelist_mod,   ONLY: scintelapi_namelist_from_cl, lfric_nl,    &
 USE constants_def_mod,         ONLY: func_space_name_len, field_name_len,      &
                                      gen_id_len, genpar_len, field_dim_len,    &
                                      field_id_list_max_size, empty_string
+USE lfricinp_datetime_mod,     ONLY: datetime_type
 
 IMPLICIT NONE
 
@@ -32,19 +33,39 @@ SUBROUTINE scintelapi_initialise()
 USE field_list_mod,            ONLY: init_field_list
 USE generator_library_mod,     ONLY: init_generator_lib
 USE dependency_graph_list_mod, ONLY: init_dependency_graph_list
-USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric
+USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, io_context
+USE clock_mod,                 ONLY: clock_type
 
 IMPLICIT NONE
+
+CLASS(clock_type), POINTER :: clock
+TYPE(datetime_type)        :: datetime
+LOGICAL                    :: l_advance
 
 ! Read namelist file names from command line
 CALL scintelapi_namelist_from_cl()
 
+! Load date and time information
+CALL datetime % initialise()
+
 ! Initialise LFRic infrastructure
-CALL lfricinp_initialise_lfric(                                                &
-                         program_name_arg="scintelapi",                        &
-                         lfric_nl_fname=lfric_nl,                              &
-                         required_lfric_namelists=required_lfric_namelists     &
-                              )
+CALL lfricinp_initialise_lfric(program_name_arg="scintelapi",                  &
+     lfric_nl_fname=lfric_nl,                                                  &
+     required_lfric_namelists = required_lfric_namelists,                      &
+     calendar = datetime % calendar,                                           &
+     start_date = datetime % first_validity_time,                              &
+     time_origin = datetime % first_validity_time,                             &
+     first_step = datetime % first_step,                                       &
+     last_step = datetime % last_step,                                         &
+     spinup_period = datetime % spinup_period,                                 &
+     seconds_per_step = datetime % seconds_per_step)
+
+! Advance clock to first time step, so output can be written to file
+clock => io_context % get_clock()
+l_advance = clock % tick()
+IF (.NOT. l_advance) THEN
+  CALL log_event('Failed to advance clock on initialisation', LOG_LEVEL_ERROR)
+END IF
 
 ! Initialise the field list
 CALL init_field_list()

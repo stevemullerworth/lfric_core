@@ -20,8 +20,11 @@ USE lfric2um_initialise_lfric2um_mod, ONLY: lfric2um_initialise_lfric2um
 USE lfric2um_main_loop_mod, ONLY: lfric2um_main_loop
 USE lfricinp_um_grid_mod, ONLY: um_grid
 USE lfricinp_regrid_options_mod, ONLY: lfricinp_init_regrid_options
+USE lfricinp_datetime_mod, ONLY : datetime_type
 
 IMPLICIT NONE
+
+TYPE(datetime_type) :: datetime
 
 ! Read command line args
 CALL lfricinp_read_command_line_args(lfric2um_nl_fname, lfric_nl_fname)
@@ -29,8 +32,20 @@ CALL lfricinp_read_command_line_args(lfric2um_nl_fname, lfric_nl_fname)
 ! Read in global regrid options
 CALL lfricinp_init_regrid_options(lfric2um_nl_fname)
 
+! Load date and time information
+CALL datetime % initialise()
+
 ! Initialise LFRic Infrastructure
-CALL lfricinp_initialise_lfric("lfric2um", lfric_nl_fname, required_lfric_namelists)
+CALL lfricinp_initialise_lfric(program_name_arg="lfric2um",                    &
+     lfric_nl_fname=lfric_nl_fname,                                            &
+     required_lfric_namelists = required_lfric_namelists,                      &
+     calendar = datetime % calendar,                                           &
+     start_date = datetime % first_validity_time,                              &
+     time_origin = datetime % first_validity_time,                             &
+     first_step = datetime % first_step,                                       &
+     last_step = datetime % last_step,                                         &
+     spinup_period = datetime % spinup_period,                                 &
+     seconds_per_step = datetime % seconds_per_step)
 
 ! Initialise lfric2um
 CALL lfric2um_initialise_lfric2um()

@@ -23,8 +23,8 @@ USE, INTRINSIC :: iso_fortran_env, ONLY: int64, real64
 USE log_mod,       ONLY: log_event, LOG_LEVEL_ERROR, log_scratch_space
 USE extrusion_config_mod, ONLY: number_of_layers, domain_top
 ! Shumlib modules
-USE f_shum_file_mod,   ONLY: shum_file_type
-USE f_shum_fixed_length_header_indices_mod, ONLY: &
+USE f_shum_file_mod,  ONLY: shum_file_type
+USE f_shum_fixed_length_header_indices_mod, ONLY:                              &
     horiz_grid_type, grid_staggering, dataset_type
 ! lfricinp modules
 USE lfricinp_check_shumlib_status_mod, ONLY: shumlib
@@ -37,6 +37,7 @@ TYPE(shum_file_type), INTENT(INOUT) :: um_input_file
 ! Parameters for accessing UM header information
 ! Dataset type indicator values - fixed header
 INTEGER(KIND=int64), PARAMETER :: inst_dump = 1
+INTEGER(KIND=int64), PARAMETER :: fieldsfile = 3
 ! Horizontal grid indicator values- fixed header
 INTEGER(KIND=int64), PARAMETER :: global_grid = 0, lam_no_wrap = 3
 ! Grid staggering indicator values - fixed header
@@ -45,7 +46,7 @@ INTEGER(KIND=int64), PARAMETER :: arakawa_C_nd = 3
 
 ! Values needed from dump headers
 INTEGER(KIND=int64) ::                                                         &
-  um_file_type, dump_stagger, dump_grid_type, dump_num_levels
+               um_file_type, dump_stagger, dump_grid_type, dump_num_levels
 REAL(KIND=real64)   :: dump_model_top
 
 ! Indices of required values in integer constants
@@ -60,18 +61,18 @@ REAL(KIND=real64) :: tolerance
 
 tolerance  = TINY(1.0_real64)
 
-! Check that the input file is a UM dump - we can't run from anything else as
-! FieldsFiles can have multiple timesteps which we don't account for
+! Check that the input file is a UM dump or a Fieldsfile - we can't run with
+! any other data format
 CALL shumlib(routinename//'::get_fixed_length_header_by_index',                &
      um_input_file % get_fixed_length_header_by_index(                         &
      dataset_type, um_file_type))
-IF (um_file_type /= inst_dump) THEN
-  WRITE(log_scratch_space, "(2(A,I0))" )                                       &
-       "Input file is not a UM dump, dataset type "                            &
-        // "found was: ", um_file_type, " but a dump should have: ", inst_dump
+IF ((um_file_type /= inst_dump) .AND. (um_file_type /= fieldsfile)) THEN
+  WRITE(log_scratch_space, "(3(A,I0))" )                                       &
+       "Input file is not a UM dump or fieldsfile, dataset type "              &
+        // "found was: ", um_file_type, " but input file should have: ",       &
+        inst_dump, " or ", fieldsfile 
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
-
 
 ! Get number of levels from integer constants
 CALL shumlib(routinename//'::get_integer_constants_by_index',                  &

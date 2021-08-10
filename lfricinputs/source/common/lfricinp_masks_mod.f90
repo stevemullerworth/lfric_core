@@ -7,7 +7,7 @@ MODULE lfricinp_masks_mod
 
 ! Intrinsic modules
 USE, INTRINSIC :: iso_fortran_env, ONLY: int32, int64, real64
-USE, INTRINSIC :: ISO_C_BINDING,   ONLY: C_BOOL
+USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_BOOL
 
 IMPLICIT NONE
 
@@ -52,8 +52,7 @@ INTEGER :: dim_1d, dim_2dx, dim_2dy, i
 INTEGER(KIND=int32)  :: err
 LOGICAL(KIND=C_BOOL) :: true_cbool
 
-! Set C BOOLEAN true
-true_cbool =  LOGICAL(.TRUE., KIND=C_BOOL)
+true_cbool = LOGICAL(.TRUE., KIND=C_BOOL)
 
 ! Get UM land mask
 CALL shumlib("um2lfric::find_fields_in_file",                                  &

@@ -6,7 +6,7 @@
 MODULE um2lfric_namelist_mod
 
 ! Intrinsic modules
-USE, INTRINSIC :: iso_fortran_env, ONLY : int64
+USE, INTRINSIC :: iso_fortran_env, ONLY : int64, real64
 
 ! UM2LFRic modules
 USE lfricinp_um_parameters_mod,     ONLY: fnamelen, um_imdi
@@ -43,14 +43,12 @@ INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 ! Input namelist configuration
 TYPE(config) :: um2lfric_config
 
-CHARACTER(*), PARAMETER :: required_lfric_namelists(8) =  &
-     ['finite_element      ', &
+CHARACTER(*), PARAMETER :: required_lfric_namelists(6) =  &
+    ['finite_element      ', &
      'base_mesh           ', &
      'planet              ', &
      'extrusion           ', &
      'io                  ', &
-     'time                ', &
-     'timestepping        ', &
      'domain_size         ']
 
 CONTAINS
@@ -80,9 +78,9 @@ SUBROUTINE load_namelist(self, fname)
   CHARACTER(LEN=fnamelen) :: weights_file_p_to_face_centre_neareststod = 'unset'
   CHARACTER(LEN=fnamelen) :: weights_file_u_to_face_centre_bilinear = 'unset'
   CHARACTER(LEN=fnamelen) :: weights_file_v_to_face_centre_bilinear = 'unset'
-  INTEGER(KIND=int64)     ::  stash_list(max_stash_list)
-  INTEGER(KIND=int64) :: num_snow_layers = um_imdi
-  INTEGER(KIND=int64) :: num_surface_types = um_imdi
+  INTEGER(KIND=int64)     :: stash_list(max_stash_list)
+  INTEGER(KIND=int64)     :: num_snow_layers = um_imdi
+  INTEGER(KIND=int64)     :: num_surface_types = um_imdi
   LOGICAL :: l_land_area_fraction = .FALSE.
 
   NAMELIST /configure_um2lfric/ um_file,                                       &
@@ -91,8 +89,7 @@ SUBROUTINE load_namelist(self, fname)
                                 weights_file_p_to_face_centre_neareststod,     &
                                 weights_file_u_to_face_centre_bilinear,        &
                                 weights_file_v_to_face_centre_bilinear,        &
-                                stash_list, num_snow_layers,                   &
-                                num_surface_types,                             &
+                                stash_list, num_snow_layers, num_surface_types,&
                                 l_land_area_fraction
 
   stash_list(:) = um_imdi
