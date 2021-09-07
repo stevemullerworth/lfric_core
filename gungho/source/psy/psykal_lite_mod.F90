@@ -1562,4 +1562,85 @@ end subroutine invoke_calc_deppts
     !
   end subroutine invoke_helmholtz_operator_kernel_type
 
+  !----------------------------------------------------------------------------
+  !> Requires GH_INC field to be halo swapped before updating. #
+  !> Described by Issue #1292.
+  !> https://github.com/stfc/PSyclone/issues/1292
+    SUBROUTINE invoke_impose_min_flux_kernel_type(field, mass_flux, div, mm_w3_inv, &
+                                                    field_min, dt_substep)
+      USE impose_min_flux_kernel_mod, ONLY: impose_min_flux_code
+      USE mesh_mod,                   ONLY: mesh_type
+      USE operator_mod,               ONLY: operator_type, operator_proxy_type
+
+      implicit none
+
+      REAL(KIND=r_def), intent(in)    :: dt_substep
+      REAL(KIND=r_def), intent(in)    :: field_min
+      TYPE(field_type), intent(in)    :: field, mass_flux
+      TYPE(operator_type), intent(in) :: div, mm_w3_inv
+      INTEGER(KIND=i_def) cell
+      INTEGER(KIND=i_def) nlayers
+      TYPE(operator_proxy_type) div_proxy, mm_w3_inv_proxy
+      TYPE(field_proxy_type) field_proxy, mass_flux_proxy
+      INTEGER(KIND=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
+      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      field_proxy = field%get_proxy()
+      mass_flux_proxy = mass_flux%get_proxy()
+      div_proxy = div%get_proxy()
+      mm_w3_inv_proxy = mm_w3_inv%get_proxy()
+      !
+      ! Initialise number of layers
+      !
+      nlayers = field_proxy%vspace%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => field_proxy%vspace%get_mesh()
+      !
+      ! Look-up dofmaps for each function space
+      !
+      map_w3 => field_proxy%vspace%get_whole_dofmap()
+      map_w2 => mass_flux_proxy%vspace%get_whole_dofmap()
+      !
+      ! Initialise number of DoFs for w3
+      !
+      ndf_w3 = field_proxy%vspace%get_ndf()
+      undf_w3 = field_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for w2
+      !
+      ndf_w2 = mass_flux_proxy%vspace%get_ndf()
+      undf_w2 = mass_flux_proxy%vspace%get_undf()
+      !
+      ! Call kernels and communication routines
+      !
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        CALL field_proxy%halo_exchange(depth=1)
+      END IF
+
+      ! Extra Halo swap that is currently not added by PSyclone for a GH_INC
+      ! field.  Issue #1292 will look at add a new type to cover this case.
+      IF (mass_flux_proxy%is_dirty(depth=1)) THEN
+        CALL mass_flux_proxy%halo_exchange(depth=1)
+      END IF
+
+      !
+      DO cell=1,mesh%get_last_halo_cell(1)
+        !
+        CALL impose_min_flux_code(cell, nlayers, field_proxy%data, mass_flux_proxy%data, div_proxy%ncell_3d, &
+&div_proxy%local_stencil, mm_w3_inv_proxy%ncell_3d, mm_w3_inv_proxy%local_stencil, field_min, dt_substep, ndf_w3, undf_w3, &
+&map_w3(:,cell), ndf_w2, undf_w2, map_w2(:,cell))
+      END DO
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL mass_flux_proxy%set_dirty()
+      !
+      !
+    END SUBROUTINE invoke_impose_min_flux_kernel_type
+
 end module psykal_lite_mod

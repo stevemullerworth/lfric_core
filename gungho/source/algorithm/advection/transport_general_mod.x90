@@ -12,8 +12,12 @@
 !>          various apps.
 !-----------------------------------------------------------------------------
 module transport_general_mod
+  use constants_mod,                 only: r_def, l_def
 
   implicit none
+
+  logical(l_def)      :: first_time_call=.true.
+  real(r_def)         :: field_min, field_max
 
   private
 
@@ -38,15 +42,19 @@ module transport_general_mod
   use io_config_mod,                 only: subroutine_timers
   use advection_alg_mod,             only: advect_field
   use function_space_mod,            only: function_space_type
-  use transport_config_mod,          only: scheme_method_of_lines,     &
-                                           cfl_mol_3d_stab, &
-                                           log_rho
+  use transport_config_mod,          only: scheme_method_of_lines,   &
+                                           cfl_mol_3d_stab,          &
+                                           log_rho,                  &
+                                           enforce_min_density,      &
+                                           enforce_min_tracers
   use fem_constants_mod,             only: get_detj_at_w2, get_div, &
                                            get_inverse_w3_mass_matrix
   use operator_mod,                  only: operator_type
   use fs_continuity_mod,             only: W3, Wtheta
   use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
   use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
+  use psykal_lite_mod,               only: invoke_impose_min_flux_kernel_type
+  use enforce_lower_bound_kernel_mod,only: enforce_lower_bound_kernel_type
 
   implicit none
 
@@ -88,6 +96,11 @@ module transport_general_mod
   mol_substeps  = 1_i_def
   dt_substep = dt
 
+  if (first_time_call) then
+     call field%field_minmax(field_min, field_max)
+     first_time_call=.false.
+  end if
+
   if ( adv_scheme == scheme_method_of_lines ) then
 
     w2_fs =>  wind%get_function_space()
@@ -117,6 +130,11 @@ module transport_general_mod
                            advect_density, dt_substep, si_advective_terms,  &
                            density_predictor, logspace=log_rho, dt=dt)
 
+         if ( enforce_min_density ) then
+           call invoke_impose_min_flux_kernel_type(field, mass_flux,   &
+                               div, mm_w3_inv, field_min, dt_substep   )
+         end if
+
          call invoke( setval_c(r_rho, 0.0_r_def),                              &
                       matrix_vector_kernel_type(r_rho, mass_flux, div),        &
                       inc_a_times_X(-1.0_r_def, r_rho),                        &
@@ -136,7 +154,9 @@ module transport_general_mod
                            density_predictor, logspace=.false., dt=dt)
 
          call invoke( aX_plus_Y(field, dt_substep, field_inc, field_old) )
-
+         if ( enforce_min_tracers ) then
+            call invoke( enforce_lower_bound_kernel_type(field, field_min) )
+         end if
        end do
       end if
 

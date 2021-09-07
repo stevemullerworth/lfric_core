@@ -67,7 +67,9 @@ module advection_alg_mod
                                             theta_splitting_hv,             &
                                             theta_splitting_strang,         &
                                             cfl_control_stab,               &
-                                            use_density_predictor
+                                            use_density_predictor,          &
+                                            enforce_min_density,            &
+                                            enforce_min_moisture
   use formulation_config_mod,         only: moisture_conservation,          &
                                             si_momentum_equation,           &
                                             transport_only,                 &
@@ -84,6 +86,7 @@ module advection_alg_mod
   use rk_transport_theta_mod,         only: rk_transport_theta_init
   use split_transport_theta_mod,      only: split_transport_theta_step
   use split_slice_mol_alg_mod,        only: split_slice_mol_transport
+  use psykal_lite_mod,                only: invoke_impose_min_flux_kernel_type
 
   implicit none
 
@@ -384,8 +387,7 @@ contains
   type(field_type) :: field, field_inc, field_old, mass_flux_i
   integer(i_def)   :: sub_step_count
   integer(i_def)   :: mesh_id
-
-  real(r_def) :: dt_substep, dt_fraction
+  real(r_def)      :: dt_substep, dt_fraction, rho_min
 
   if ( subroutine_timers ) call timer('advection_alg')
 
@@ -394,6 +396,7 @@ contains
   ! substepping timesteps
   dt_fraction = 1.0_r_def/real(n_substeps, r_def)
   dt_substep = dt_step*dt_fraction
+  rho_min    = 0.0_r_def
 
   ! Construct fields needed for advection
   call advecting_wind%initialise( state(igh_u)%get_function_space() )
@@ -432,6 +435,10 @@ contains
           density_predictor=use_density_predictor,                  &
           logspace=log_rho, dt=dt_step                              &
           )
+       if ( enforce_min_density ) then
+           call invoke_impose_min_flux_kernel_type(field, mass_flux_i, &
+                               div, mm_w3_inv, rho_min, dt_substep     )
+       end if
        call invoke( setval_c(r_rho, 0.0_r_def),                         &
                     matrix_vector_kernel_type(r_rho, mass_flux_i, div), &
                     inc_a_times_X(-1.0_r_def, r_rho),                   &
@@ -614,6 +621,7 @@ end subroutine advection_alg
     type(operator_type),       pointer :: div => null()
     type(operator_type),       pointer :: div_shifted => null()
     type(operator_type),       pointer :: mm_w3_inv => null()
+    type(operator_type),       pointer :: mm_w3_shifted_inv => null()
     type(field_type),          pointer :: mm_w3_shifted_inv_diag => null()
     type(field_type),          pointer :: mm_w3_shifted_diag => null()
     type(field_type),          pointer :: mr_to_sh_mass_integrals(:) => null()
@@ -631,6 +639,7 @@ end subroutine advection_alg
     type(field_type)                   :: advecting_wind, advecting_wind_shifted
     type(field_type)                   :: mass_flux_shifted, mass_flux
     type(field_type)                   :: r_rho_shifted, r_rho
+    real(r_def)                        :: moisture_min, rho_min
 
     if ( subroutine_timers ) call timer('conservative_mr_adv_alg')
     call log_event( "Computing conservative moisture advection...", LOG_LEVEL_INFO)
@@ -642,6 +651,7 @@ end subroutine advection_alg
     mm_w3_inv => get_inverse_W3_mass_matrix(primary_mesh_id)
     mm_w3_shifted_inv_diag => get_inverse_lumped_mass_matrix(W3, shifted_mesh_id)
     mm_w3_shifted_diag => get_mass_matrix_diagonal(W3, shifted_mesh_id)
+    mm_w3_shifted_inv => get_inverse_W3_mass_matrix(shifted_mesh_id)
     dA_w2 => get_dA_at_w2(primary_mesh_id)
     dA_w2_shifted => get_dA_at_w2(shifted_mesh_id)
     dA_w2_double_level => get_dA_at_w2(double_level_mesh_id)
@@ -651,6 +661,8 @@ end subroutine advection_alg
     div_shifted => get_div(shifted_mesh_id)
     height_wt => get_height(WTHETA, primary_mesh_id)
     height_wt_shifted => get_height(WTHETA, shifted_mesh_id)
+    moisture_min = 0.0_r_def
+    rho_min      = 0.0_r_def
 
     ! Get function spaces
     w3_shifted_fs => function_space_collection%get_fs(shifted_mesh_id, 0, W3)
@@ -701,6 +713,11 @@ end subroutine advection_alg
                       si_advective_terms=.false.,                              &
                       density_predictor=.false., logspace=log_rho, dt=dt_step )
 
+    if ( enforce_min_density ) then
+           call invoke_impose_min_flux_kernel_type(rho_d_n, mass_flux,  &
+                                div, mm_w3_inv, rho_min, dt_step        )
+    end if
+
     call invoke( name = "Compute advected dry density",                        &
                  setval_c(r_rho, 0.0_r_def),                                   &
                  matrix_vector_kernel_type(r_rho, mass_flux, div),             &
@@ -734,6 +751,11 @@ end subroutine advection_alg
                         advect_density=.true., timestep=dt_step,               &
                         si_advective_terms=.false.,                            &
                         density_predictor=.false., logspace=.false., dt=dt_step )
+
+      if ( enforce_min_moisture ) then
+        call invoke_impose_min_flux_kernel_type(rho_X_n(imr), mass_flux_shifted, &
+                          div_shifted, mm_w3_shifted_inv, moisture_min, dt_step  )
+      end if
 
       ! Reconstruct the advection increment from the mass flux
       call invoke( setval_c(r_rho_shifted, 0.0_r_def),                         &

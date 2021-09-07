@@ -3,11 +3,10 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Enforces (non-conservatively) a lower bound on a field, such that
-!>        if the value of the field is below this value, then the field is set
-!>        to zero.  The rational behind this is that if the threshold is set
-!>        to be O(SPACING(field)) then any small floating point errors will
-!>        be removed.
+!> @brief Enforces a lower bound on a field. If any element of the field array
+!>        is below this value, then it is set to the lower bound.
+!>        This can be used to remove negative values or clip any field to
+!>        any desired minimum value.
 module enforce_lower_bound_kernel_mod
 
   use argument_mod,  only : arg_type,            &
@@ -46,7 +45,7 @@ module enforce_lower_bound_kernel_mod
 
 contains
 
-!> @brief Limits the field dofs by some measure of CFL limit
+!> @brief Returns field=max(field,lower bound)
 !! @param[in] nlayers Number of layers
 !! @param[in,out] field Field
 !! @param[in] lower_bound The lower bound
@@ -71,7 +70,7 @@ subroutine enforce_lower_bound_code(nlayers, field, lower_bound, &
     do df = 1, ndf
 
       ! Clip field
-      if (field(map(df)+k) < lower_bound) field(map(df)+k) = 0.0_r_def
+      if (field(map(df)+k) < lower_bound) field(map(df)+k) = lower_bound
 
     end do
   end do

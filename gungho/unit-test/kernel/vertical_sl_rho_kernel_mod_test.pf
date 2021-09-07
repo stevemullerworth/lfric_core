@@ -74,7 +74,10 @@ contains
                                  log_rho=.true.,                              &
                                  log_theta=.false.,                           &
                                  cosmic_flux_splitting = cosmic_flux_splitting_full,           &
-                                 cosmic_advective_splitting = cosmic_advective_splitting_full  &
+                                 cosmic_advective_splitting = cosmic_advective_splitting_full, &
+                                 enforce_min_density=.false.,   &
+                                 enforce_min_moisture=.false.,  &
+                                 enforce_min_tracers=.false.    &
                                  )
 
   end subroutine setUp
