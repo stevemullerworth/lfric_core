@@ -10,6 +10,8 @@
 !!          coarse grid field. The fine grid cells are considered to be
 !!          contained in a coarse grid cell. Values are assumed to
 !!          be pointwise scalar values so no area weighting is used.
+!!          This kernel only works for the lowest-order W3 and Wtheta spaces
+
 module restrict_kernel_mod
 
 use constants_mod,           only: i_def, r_def
@@ -84,13 +86,20 @@ contains
     real(kind=r_def), dimension(undf_c), intent(inout) :: coarse
     real(kind=r_def), dimension(undf_f), intent(in) :: fine
 
-    integer(kind=i_def) :: df, k, lp_x, lp_y
+    integer(kind=i_def) :: df, k, lp_x, lp_y, lower_df
     real(kind=r_def) :: denom
 
     denom = 1.0_r_def/real(ncell_f_per_c_x*ncell_f_per_c_y, kind=r_def)
 
     do k = 0, nlayers-1
-      do df = 1, ndf
+      ! If we are at bottom do lower df, otherwise only top df
+      if ( k == 0 ) then
+        lower_df = 1
+      else
+        lower_df = ndf
+      end if
+
+      do df = lower_df, ndf
         coarse(dofmap_c(df) + k ) = 0.0_r_def
         do lp_y = 1, ncell_f_per_c_y
           do lp_x = 1, ncell_f_per_c_x

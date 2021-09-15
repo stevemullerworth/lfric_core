@@ -188,8 +188,7 @@ contains
       coarse_B = 0.0_r_def
       do lp_y = 1, ncell_f_per_c_y
         do lp_x = 1, ncell_f_per_c_x
-          coarse_B = coarse_B + ( rmultiplicity(dfmap_f(df,cell_map(lp_x,lp_y))+k) &
-                                 * fine_field(dfmap_f(df,cell_map(lp_x,lp_y))+k) )
+          coarse_B = coarse_B + fine_field(dfmap_f(df,cell_map(lp_x,lp_y))+k)
         end do
       end do
       coarse_field(dfmap_c(df)+k) = coarse_B
