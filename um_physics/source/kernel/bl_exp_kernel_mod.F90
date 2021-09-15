@@ -826,8 +826,7 @@ contains
     ! hence are unset in the kernel
     ! if they become set, please move up to be with other variables
     integer(i_um) :: asteps_since_triffid
-    integer(i_um) :: curr_year, curr_day_number, curr_hour, curr_minute,     &
-                     curr_second
+    integer(i_um) :: curr_day_number
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
@@ -1319,7 +1318,7 @@ contains
     !     IN parameters for SISL scheme
          outer_iterations, l_jules_call,                                       &
     !     IN time stepping information
-         curr_year, curr_day_number, curr_hour, curr_minute, curr_second,      &
+         curr_day_number,                                                      &
     !     IN switches
          L_aero_classic,                                                       &
     !     IN data fields.
@@ -1462,7 +1461,7 @@ contains
     !     IN parameters for SISL scheme
          outer_iterations, l_jules_call,                                &
     !     IN time stepping information
-         curr_year, curr_day_number, curr_hour, curr_minute, curr_second,&
+         curr_day_number,                                               &
     !     IN switches
          L_aero_classic,                                                &
     !     IN data fields.
