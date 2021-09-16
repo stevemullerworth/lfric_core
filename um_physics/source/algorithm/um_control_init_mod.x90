@@ -36,7 +36,9 @@ contains
   !>          UM modules which contains it).
   !> @param[in] mesh_id        Mesh_id
   !> @param[in] clock          The model clock object
-subroutine um_control_init(mesh_id, clock)
+  !> @param[in] ncells  The number of cells in the horizontal domain that
+  !>                    the UM code should loop over (i.e. not including halos)
+  subroutine um_control_init(mesh_id, clock, ncells)
 
     ! UM modules containing things that need setting
     use atm_fields_bounds_mod, only: atm_fields_bounds_init
@@ -58,6 +60,7 @@ subroutine um_control_init(mesh_id, clock)
 
     integer(i_def),   intent(in)    :: mesh_id
     type(clock_type), intent(in)    :: clock
+    integer(i_def),   intent(in)    :: ncells
 
     ! Local variables
     type(mesh_type),  pointer       :: mesh => null()
@@ -74,10 +77,9 @@ subroutine um_control_init(mesh_id, clock)
     cloud_levels = number_of_layers
     n_cca_lev    = number_of_layers
     bl_levels    = number_of_layers-1
-    ! Horizontal dimensions set to 1 to match the number of cells passed
-    ! to physics kernels.
-    ! This may need to be variable if we pass multiple cells to kernels.
-    row_length = 1
+    ! Horizontal dimensions set to the value passed into this routine.
+    ! This needs to match the number of cells passed to physics kernels.
+    row_length = int( ncells, i_um )
     rows       = 1
     ! Number of tracer variables - not implemented in LFRic so fixed at 0.
     ! This may change if we implement tracers ever.
@@ -86,9 +88,9 @@ subroutine um_control_init(mesh_id, clock)
     ! ----------------------------------------------------------------
     ! More model dimensions, this time from atm_step_local
     ! ----------------------------------------------------------------
-    ! Dimensions of critical relative humidity array. Again, set to 1 to
-    ! match number of points passed to kernels, but may change...
-    rhc_row_length = 1
+    ! Dimensions of critical relative humidity array. Again, needs to
+    ! match number of points passed to kernels.
+    rhc_row_length = int( ncells, i_um )
     rhc_rows       = 1
 
     ! ----------------------------------------------------------------
@@ -126,8 +128,11 @@ subroutine um_control_init(mesh_id, clock)
     ! in any kernel whos external code uses the variables.
     ! Ideally the UM code will be changed so that they are passed in
     ! through the argument list.
+    if(allocated(r_theta_levels))deallocate(r_theta_levels)
     allocate(r_theta_levels(row_length,rows,0:number_of_layers), source=rmdi)
+    if(allocated(r_rho_levels))deallocate(r_rho_levels)
     allocate(r_rho_levels(row_length,rows,number_of_layers), source=rmdi)
+    if(allocated(eta_theta_levels))deallocate(eta_theta_levels)
     allocate(eta_theta_levels(0:number_of_layers), source=rmdi)
 
     ! get pointer to local mesh
@@ -138,6 +143,7 @@ subroutine um_control_init(mesh_id, clock)
     ! UM parametrizations.
     ! As the grid here should be quasi-uniform, we'll assume that the
     ! average value is representative of all grid-points
+    if(allocated(cos_theta_latitude))deallocate(cos_theta_latitude)
     allocate(cos_theta_latitude(row_length,rows), source=1.0_r_um)
 
     ! This is a temporary method of calculating

@@ -124,7 +124,7 @@ module um_physics_init_mod
                                          include_moisture_dry
 
   ! Other LFRic modules used
-  use constants_mod,        only : i_def, r_um, rmdi
+  use constants_mod,        only : i_def, l_def, r_um, i_um, rmdi
   use log_mod,              only : log_event,         &
                                    log_scratch_space, &
                                    LOG_LEVEL_ERROR,   &
@@ -158,8 +158,10 @@ contains
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the UM code.
   !>       Where possible, all values are taken from GA7 science settings.
-  !>        Some are incorrect and that will be addressed in #2100
-  subroutine um_physics_init()
+  !>@param[in] ncells  The number of cells in the horizontal domain that
+  !>                   the UM code should loop over (i.e. not including halos)
+
+  subroutine um_physics_init(ncells)
 
     ! UM modules containing things that need setting
     use bl_option_mod, only: i_bl_vn, sbl_op, ritrans,                     &
@@ -213,7 +215,7 @@ contains
     use cv_stash_flg_mod, only: set_convection_output_flags
     use cv_set_dependent_switches_mod, only: cv_set_dependent_switches
     use dust_parameters_mod, only: i_dust, i_dust_off,                     &
-         dust_parameters_load
+         dust_parameters_load, dust_parameters_unload
     use electric_inputs_mod, only: electric_method, no_lightning
     use fsd_parameters_mod, only: fsd_eff_lam, fsd_eff_phi, f_cons, f_arr
     use glomap_clim_option_mod, only: i_glomap_clim_setup,                 &
@@ -256,6 +258,9 @@ contains
          ip_ukca_lut_accnarrow, ip_ukca_lut_sw, ip_ukca_lut_lw
 
     implicit none
+
+    integer(i_def), intent(in) :: ncells
+    logical(l_def) :: dust_loaded = .false.
 
     ! ----------------------------------------------------------------
     ! UKCA aerosol scheme settings - contained in glomap_clim_option_mod
@@ -372,6 +377,7 @@ contains
       end if
 
       a_ent_shr_nml = real(a_ent_shr, r_um)
+      if(allocated(alpha_cd))deallocate(alpha_cd)
       allocate(alpha_cd(bl_levels))
       alpha_cd      = 1.5_r_um
       alpha_cd(1)   = 2.0_r_um
@@ -708,7 +714,12 @@ contains
     !  Hence its inputs and options need setting according to the
     ! scheme being off
     i_dust = i_dust_off
+    if( dust_loaded ) then
+      call dust_parameters_unload( )
+      dust_loaded = .false.
+    end if
     call dust_parameters_load()
+    dust_loaded = .true.
 
     ! ----------------------------------------------------------------
     ! UM microphysics settings - contained in UM module mphys_inputs_mod
@@ -791,6 +802,7 @@ contains
         f_cons(1)      =  0.016
         f_cons(2)      =  2.76
         f_cons(3)      = -0.09
+        if(allocated(f_arr))deallocate(f_arr)
         allocate(f_arr(3, row_length, rows, number_of_layers))
       end if
 
@@ -847,7 +859,7 @@ contains
     bl_segment_size     = 1
     gw_seg_size         = 1
     precip_segment_size = 1
-    ussp_seg_size       = 1
+    ussp_seg_size       = int( ncells, i_um )
 
     !-----------------------------------------------------------------------
     ! Smagorinsky mixing options - contained in turb_diff_mod and
@@ -862,10 +874,15 @@ contains
       ! in any kernel whos external code uses the variables.
       ! Ideally the UM code will be changed so that they are passed in
       ! through the argument list.
+      if(allocated(visc_h))deallocate(visc_h)
       allocate ( visc_h(row_length, rows, number_of_layers), source=rmdi )
+      if(allocated(visc_m))deallocate(visc_m)
       allocate ( visc_m(row_length, rows, number_of_layers), source=rmdi )
+      if(allocated(rneutml_sq))deallocate(rneutml_sq)
       allocate ( rneutml_sq(row_length, rows, number_of_layers), source=rmdi )
+      if(allocated(max_diff))deallocate(max_diff)
       allocate ( max_diff  (row_length, rows), source=rmdi )
+      if(allocated(delta_smag))deallocate(delta_smag)
       allocate ( delta_smag(row_length, rows), source=rmdi )
 
       ! The following are needed regardless of which mixing option is used
@@ -895,10 +912,15 @@ contains
     else ! not Smagorinsky
 
       ! Allocate these to small size to avoid compiler issues
+      if(allocated(visc_h))deallocate(visc_h)
       allocate ( visc_h(1,1,1), source=rmdi  )
+      if(allocated(visc_m))deallocate(visc_m)
       allocate ( visc_m(1,1,1), source=rmdi  )
+      if(allocated(rneutml_sq))deallocate(rneutml_sq)
       allocate ( rneutml_sq(1,1,1), source=rmdi  )
+      if(allocated(max_diff))deallocate(max_diff)
       allocate ( max_diff(1,1), source=rmdi  )
+      if(allocated(delta_smag))deallocate(delta_smag)
       allocate ( delta_smag(1,1), source=rmdi  )
 
       ! Switches for Smagorinsky being off

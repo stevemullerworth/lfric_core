@@ -204,6 +204,10 @@ contains
     type(field_type), allocatable :: chi_mg(:,:)
     type(field_type), allocatable :: panel_id_mg(:)
 
+#ifdef UM_PHYSICS
+    integer(i_def) :: ncells
+
+#endif
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
     !-------------------------------------------------------------------------
@@ -376,15 +380,19 @@ contains
     ! Set derived planet constants and presets
     call set_planet_constants()
 
+    ! Initialise UM to run in columns
+    ncells = 1_i_def
+
     if ( use_physics ) then
       if (radiation == radiation_socrates) then
         ! Initialisation for the Socrates radiation scheme
         call socrates_init()
       end if
       ! Initialisation of UM high-level variables
-      call um_control_init(mesh_id, clock)
+      call um_control_init(mesh_id, clock, ncells)
+
       ! Initialisation of UM physics variables
-      call um_physics_init()
+      call um_physics_init(ncells)
       ! Initialisation of Jules high-level variables
       call jules_control_init()
       if (surface == surface_jules) then
