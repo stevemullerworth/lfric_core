@@ -33,7 +33,7 @@
   mesh_maps      = 'C16:C8'
   n_partitions   = 0
   coord_sys      = 'll'
-  rotate_mesh    = .false.
+  rotate_mesh    = .true.
 /
 
 !==================================================================
@@ -88,6 +88,6 @@
 /
 
 &rotation
-  rotation_angle = 0.0
-  target_pole    = 0.0, 90.0
+  rotation_target = "null_island"
+  null_island    = 0.0, 45.0
 /

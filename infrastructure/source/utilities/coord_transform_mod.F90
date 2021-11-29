@@ -40,6 +40,7 @@ public :: alphabetar2xyz_vector
 public :: xyz2alphabetar_vector
 public :: PANEL_ROT_MATRIX
 public :: INVERSE_PANEL_ROT_MATRIX
+public :: rebase_longitude_range
 
 ! A list of matrices, one for each panel i of cubed sphere, which rotates
 ! a point (X,Y,Z) from panel 1 to the respective point for i-th panel
@@ -142,7 +143,7 @@ end subroutine llr2xyz
 !!  @param[in]   x     Cartesian x coordinate to convert.
 !!  @param[in]   y     Cartesian y coordinate to convert.
 !!  @param[in]   z     Cartesian z coordinate to convert.
-!!  @param[out]  longitude  -PI   <  Longitude <= PI   (radians).
+!!  @param[out]  longitude  -PI   <=  Longitude < PI   (radians).
 !!  @param[out]  latitude   -PI/2 <= Latitude  <= PI/2 (radians).
 !------------------------------------------------------------------------------
 subroutine xyz2ll(x, y, z, longitude, latitude)
@@ -159,7 +160,7 @@ subroutine xyz2ll(x, y, z, longitude, latitude)
   real(r_def) :: radius
 
   ! Calculate longitude in range
-  ! -180 < longitude <= 180
+  ! -180 degrees <= longitude < 180 degrees
   if (x == 0.0_r_def) then
     if (y >= 0.0_r_def) then
       longitude =  0.5_r_def*PI
@@ -171,7 +172,7 @@ subroutine xyz2ll(x, y, z, longitude, latitude)
     longitude = atan(tan_longitude)
 
     if (x < 0.0_r_def) then
-      if (y >= 0.0_r_def) then
+      if (y > 0.0_r_def) then
         longitude = longitude + PI
       else
         longitude = longitude - PI
@@ -179,9 +180,8 @@ subroutine xyz2ll(x, y, z, longitude, latitude)
     end if
   end if
 
-
   ! Calculate latitude in range
-  ! -90 <= longitude <= +90
+  ! -90 degrees  <= longitude <= +90 degrees
   radius = sqrt(x*x+y*y)
   if (radius <= EPS) then
     if (z > 0.0_r_def) then
@@ -807,5 +807,29 @@ function xyz2alphabetar_vector(cart_vec, xyz) result(sphere_vec)
 
 end function xyz2alphabetar_vector
 
-end module coord_transform_mod
+!-----------------------------------------------------------------------------
+!> @brief   Calculate a longitude equivalent to the input, but in a specified
+!!          range.
+!> @details The returned longitude (degrees) is recalculated to be in the
+!!          range [lon_min, lon_min+360).  E.g. if lon_min is -180, then
+!!          an input longitude 270 degrees would return -90 degrees.
+!!
+!! @param[in] longitude         Input longitude (degrees)
+!! @param[in] lon_min           Lower bound on the longitude range (degrees)
+!! @return    rebased_longitude Output longitude in new range.
+!-----------------------------------------------------------------------------
+function rebase_longitude_range(longitude, lon_min) result(rebased_longitude)
 
+  implicit none
+
+  real(kind=r_def),    intent(in)  :: longitude
+  real(kind=r_def),    intent(in)  :: lon_min
+  real(kind=r_def)                 :: rebased_longitude
+
+  rebased_longitude =  MODULO( longitude - lon_min, 360.0_r_def) + lon_min
+
+  return
+
+end function rebase_longitude_range
+
+end module coord_transform_mod

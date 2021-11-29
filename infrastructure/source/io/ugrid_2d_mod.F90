@@ -82,6 +82,12 @@ type, public :: ugrid_2d_type
   ! Global mesh maps
   type(global_mesh_map_collection_type) :: target_mesh_maps
 
+  ! Information about the domain orientation
+  real(r_def)    :: north_pole(2)   !< [Longitude, Latitude] of northt pole used
+                                    !< for the domain orientation (degrees)
+  real(r_def)    :: null_island(2)  !< [Longitude, Latitude] of null island
+                                    !< used for the domain orientation (degrees)
+
   ! File handler
   class(ugrid_file_type), allocatable :: file_handler
 
@@ -343,6 +349,8 @@ subroutine set_by_generator(self, generator_strategy)
         edge_cells_x       = self%edge_cells_x,       &
         edge_cells_y       = self%edge_cells_y,       &
         constructor_inputs = self%constructor_inputs, &
+        north_pole         = self%north_pole,         &
+        null_island        = self%null_island,        &
         nmaps              = self%nmaps )
 
   call generator_strategy%generate()
@@ -451,7 +459,9 @@ subroutine set_from_file_read(self, mesh_name, filename)
       face_edge_connectivity = self%face_edge_connectivity, &
       face_face_connectivity = self%face_face_connectivity, &
       num_targets            = self%nmaps,                  &
-      target_mesh_names      = self%target_mesh_names )
+      target_mesh_names      = self%target_mesh_names,      &
+      north_pole             = self%north_pole,             &
+      null_island            = self%null_island   )
 
   call self%file_handler%file_close()
 
@@ -501,7 +511,9 @@ subroutine write_to_file(self, filename)
        face_face_connectivity = self%face_face_connectivity, &
        num_targets            = self%nmaps,                  &
        target_mesh_names      = self%target_mesh_names,      &
-       target_mesh_maps       = self%target_mesh_maps )
+       target_mesh_maps       = self%target_mesh_maps,       &
+       north_pole             = self%north_pole,             &
+       null_island            = self%null_island      )
 
   call self%file_handler%file_close()
 
@@ -552,7 +564,9 @@ subroutine append_to_file(self, filename)
        face_face_connectivity = self%face_face_connectivity, &
        num_targets            = self%nmaps,                  &
        target_mesh_names      = self%target_mesh_names,      &
-       target_mesh_maps       = self%target_mesh_maps )
+       target_mesh_maps       = self%target_mesh_maps,       &
+       north_pole             = self%north_pole,             &
+       null_island            = self%null_island  )
 
   call self%file_handler%file_close()
 
@@ -576,6 +590,10 @@ end subroutine append_to_file
 !> @param[out] nmaps              The number of intergrid maps from this mesh.
 !> @param[out] target_mesh_names  Names of target mesh topologies in this file
 !>                                which this mesh possesses cell-cell maps for.
+!> @param[out] north_pole         Optional, [Longitude, Latitude] of north pole
+!>                                used for domain orientation (degrees)
+!> @param[out] null_island        Optional, [Longitude, Latitude] of null
+!>                                island used for domain orientation (degrees)
 !-------------------------------------------------------------------------------
 subroutine get_metadata( self, mesh_name,               &
                          geometry, topology, coord_sys, &
@@ -583,7 +601,8 @@ subroutine get_metadata( self, mesh_name,               &
                          max_stencil_depth,             &
                          edge_cells_x, edge_cells_y,    &
                          constructor_inputs, nmaps,     &
-                         target_mesh_names )
+                         target_mesh_names,             &
+                         north_pole, null_island     )
 
   implicit none
 
@@ -605,6 +624,9 @@ subroutine get_metadata( self, mesh_name,               &
   character(str_def),   optional, intent(out), &
                                   allocatable :: target_mesh_names(:)
 
+  real(r_def),          optional, intent(out) :: north_pole(2)
+  real(r_def),          optional, intent(out) :: null_island(2)
+
   if (present(mesh_name))          mesh_name          = self%mesh_name
   if (present(geometry))           geometry           = self%geometry
   if (present(topology))           topology           = self%topology
@@ -619,6 +641,8 @@ subroutine get_metadata( self, mesh_name,               &
   if (self%nmaps > 0 .and. present(target_mesh_names)) then
     target_mesh_names = self%target_mesh_names
   end if
+  if (present(north_pole))         north_pole(:)      = self%north_pole(:)
+  if (present(null_island))        null_island(:)     = self%null_island(:)
 
 end subroutine get_metadata
 

@@ -13,6 +13,8 @@
   Nodes per edge:      2
   Max. faces per node: 4
   Maps to:             "physics"
+  North pole [lon,lat]: [   -180.00,     45.00]
+  Null Island [lon,lat]: [      0.00,     45.00]
 "physics":
   Geometry:            spherical
   Topology:            periodic
@@ -28,3 +30,5 @@
   Nodes per edge:      2
   Max. faces per node: 4
   Maps to:             "dynamics"
+  North pole [lon,lat]: [   -180.00,     45.00]
+  Null Island [lon,lat]: [      0.00,     45.00]

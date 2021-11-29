@@ -30,4 +30,11 @@
                       'planar_biperiodic',
                       'planar_maps',
                       'planar_lbc',
+                      'uk',
+                      'equator',
+                      'equator_band',
+                      'falklands',
+                      'london_model',
+                      'nzlam4',
+                      'polar',
                       'lam'] %}

@@ -176,6 +176,10 @@ abstract interface
   !> @param[out]    face_face_connectivity Faces adjacent to each face.
   !> @param[out]    num_targets            Number of mesh maps from mesh
   !> @param[out]    target_mesh_names      Mesh(es) that this mesh has maps for
+  !> @param[out]    north_pole             [Longitude, Latitude] of north pole
+  !>                                       used for domain orientation (degrees)
+  !> @param[out]    null_island            [Longitude, Latitude] of null
+  !>                                       island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
 
   subroutine read_mesh_interface( self, mesh_name,                &
@@ -190,7 +194,8 @@ abstract interface
                                   edge_node_connectivity,         &
                                   face_edge_connectivity,         &
                                   face_face_connectivity,         &
-                                  num_targets, target_mesh_names )
+                                  num_targets, target_mesh_names, &
+                                  north_pole, null_island  )
 
     import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, &
               l_def
@@ -221,6 +226,8 @@ abstract interface
     integer(i_def),     intent(out) :: face_face_connectivity(:,:)
     integer(i_def),     intent(out) :: num_targets
     character(str_def), intent(out), allocatable :: target_mesh_names(:)
+    real(r_def),        intent(out) :: north_pole(2)
+    real(r_def),        intent(out) :: null_island(2)
 
   end subroutine read_mesh_interface
 
@@ -249,6 +256,10 @@ abstract interface
   !> @param[in]      num_targets             Number of mesh maps from mesh
   !> @param[in]      target_mesh_names       Mesh(es) that this mesh has maps for
   !> @param[in]      target_mesh_maps        Mesh maps from this mesh to target mesh(es)
+  !> @param[in]      north_pole              [Longitude, Latitude] of north pole
+  !>                                         used for domain orientation (degrees)
+  !> @param[in]      null_island             [Longitude, Latitude] of null
+  !>                                         island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
 
   subroutine write_mesh_interface( self, mesh_name, geometry, topology, coord_sys, &
@@ -263,7 +274,9 @@ abstract interface
                                    face_face_connectivity,                         &
                                    num_targets,                                    &
                                    target_mesh_names,                              &
-                                   target_mesh_maps )
+                                   target_mesh_maps,                               &
+                                   north_pole,                                     &
+                                   null_island )
 
     import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, l_def, &
               global_mesh_map_collection_type
@@ -301,6 +314,9 @@ abstract interface
     type(global_mesh_map_collection_type), &
                         intent(in) :: target_mesh_maps
 
+    real(r_def),        intent(in) :: north_pole(2)
+    real(r_def),        intent(in) :: null_island(2)
+
   end subroutine write_mesh_interface
 
   !-----------------------------------------------------------------------------
@@ -326,4 +342,3 @@ abstract interface
 end interface
 
 end module ugrid_file_mod
-

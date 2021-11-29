@@ -236,4 +236,53 @@ contains
   end subroutine test_alphabetar2xyz_vector
 
 
+  !> Test re-basing of the longitude to -180< lon <=180
+  !>
+  @test
+  subroutine test_rebase_longitude_range( )
+    use coord_transform_mod, only : rebase_longitude_range
+    implicit none
+
+    real(kind=r_def),parameter :: LON_BASE = -180.0_r_def
+    real(kind=r_def)           :: tol
+    real(kind=r_def)           :: lon
+
+    tol = 1.0e-5_r_def
+
+    lon = 180.0_r_def
+    @assertEqual( -180.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = -180.0_r_def
+    @assertEqual( -180.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 360.0_r_def
+    @assertEqual( 0.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 45.0_r_def
+    @assertEqual( 45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = -45.0_r_def
+    @assertEqual( -45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 360_r_def - 45.0_r_def
+    @assertEqual( -45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 360_r_def + 45.0_r_def
+    @assertEqual( 45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = -45.0_r_def - 360_r_def
+    @assertEqual( -45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 45.0_r_def - 360_r_def
+    @assertEqual( 45.0_r_def, rebase_longitude_range(lon, LON_BASE) )
+
+    lon = 360_r_def + 45.0_r_def
+    @assertEqual( 45.0_r_def, rebase_longitude_range(lon, 0.0_r_def) )
+
+    lon = 360_r_def + 45.0_r_def
+    @assertEqual( 45.0_r_def, rebase_longitude_range(lon, -90.0_r_def) )
+
+
+  end subroutine test_rebase_longitude_range
+
 end module coord_transform_mod_test

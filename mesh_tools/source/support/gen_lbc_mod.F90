@@ -15,7 +15,8 @@ module gen_lbc_mod
 !-------------------------------------------------------------------------------
 
   use constants_mod,                  only: r_def, i_def, l_def, str_def, &
-                                            str_longlong, imdi, i_native
+                                            str_longlong, imdi, rmdi,     &
+                                            i_native, radians_to_degrees
   use gen_planar_mod,                 only: gen_planar_type
   use global_mesh_map_mod,            only: global_mesh_map_type
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
@@ -240,6 +241,14 @@ module gen_lbc_mod
     type(base_lbc_panel_type) :: base_h_panel
     type(base_lbc_panel_type) :: base_v_panel
 
+    ! Information about the domain orientation
+    real(r_def)    :: north_pole(2) = [rmdi,rmdi]  ! [Longitude, Latitude] of
+                                                   ! north pole used
+                                                   ! for domain orientation (degrees)
+    real(r_def)    :: null_island(2) = [rmdi,rmdi] ! [Longitude, Latitude] of
+                                                   ! null island used
+                                                   ! for domain orientation (degrees)
+
   contains
 
     procedure :: generate
@@ -350,6 +359,8 @@ function gen_lbc_constructor( lam_strategy, rim_depth ) result( self )
                           edge_cells_x      = self%outer_cells_x,        &
                           edge_cells_y      = self%outer_cells_y,        &
                           geometry          = geometry_key,              &
+                          north_pole        = self%north_pole,           &
+                          null_island       = self%null_island,          &
                           coord_sys         = coord_sys_key )
 
   self%mesh_parent =  trim(self%target_mesh_names(1))
@@ -706,24 +717,29 @@ end subroutine generate
 !> @brief Returns mesh metadata information.
 !> @details This subroutine is provided as a means to request specific metadata
 !>          from the current mesh configuration.
-!> @param[out]  mesh_name          [optional] Name of mesh instance to generate
-!> @param[out]  mesh_class         [optional] Primitive shape, i.e. sphere, plane, lbc
-!> @param[out]  periodic_x         [optional] Periodic in E-W direction.
-!> @param[out]  periodic_y         [optional] Periodic in N-S direction.
-!> @param[out]  npanels            [optional] Number of panels use to describe mesh
-!> @param[out]  coord_sys          [optional] Coordinate system to position nodes.
-!> @param[out]  edge_cells_x       [optional] Number of panel edge cells (x-axis).
-!> @param[out]  edge_cells_y       [optional] Number of panel edge cells (y-axis).
-!> @param[out]  constructor_inputs [optional] Inputs used to create this mesh from
-!>                                            the mesh_generator
-!> @param[out]  nmaps              [optional] Number of maps to create with this mesh
-!>                                            as source mesh
-!> @param[out]  target_mesh_names  [optional] Mesh names of the target meshes that
-!>                                            this mesh has maps for.
-!> @param[out]  maps_edge_cells_x  [optional] Number of panel edge cells (x-axis) of
-!>                                            target mesh(es) to create map(s) for.
-!> @param[out]  maps_edge_cells_y  [optional] Number of panel edge cells (y-axis) of
-!>                                            target mesh(es) to create map(s) for.
+!> @param[out] mesh_name           Optional, Name of mesh instance to generate
+!> @param[out] geometry            Optional, Mesh domain surface type.
+!> @param[out] topology            Optional, Mesh boundary/connectivity type
+!> @param[out] coord_sys           Optional, Coordinate system to position nodes.
+!> @param[out] periodic_x          Optional, Periodic in E-W direction.
+!> @param[out] periodic_y          Optional, Periodic in N-S direction.
+!> @param[out] npanels             Optional, Number of panels use to describe mesh
+!> @param[out] edge_cells_x        Optional, Number of panel edge cells (x-axis).
+!> @param[out] edge_cells_y        Optional, Number of panel edge cells (y-axis).
+!> @param[out] constructor_inputs  Optional, Inputs used to create this mesh from
+!>                                           the mesh_generator
+!> @param[out] nmaps               Optional, Number of maps to create with this mesh
+!>                                           as source mesh
+!> @param[out] target_mesh_names   Optional, Mesh names of the target meshes that
+!>                                           this mesh has maps for.
+!> @param[out] maps_edge_cells_x   Optional, Number of panel edge cells (x-axis) of
+!>                                           target mesh(es) to create map(s) for.
+!> @param[out] maps_edge_cells_y   Optional, Number of panel edge cells (y-axis) of
+!>                                           target mesh(es) to create map(s) for.
+!> @param[out] north_pole          Optional, [Longitude, Latitude] of north pole
+!>                                           used for domain orientation (degrees)
+!> @param[out] null_island         Optional, [Longitude, Latitude] of null
+!>                                           island used for domain orientation (degrees)
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
@@ -739,7 +755,9 @@ subroutine get_metadata( self,               &
                          nmaps,              &
                          target_mesh_names,  &
                          maps_edge_cells_x,  &
-                         maps_edge_cells_y )
+                         maps_edge_cells_y,  &
+                         north_pole,         &
+                         null_island     )
   implicit none
 
   class(gen_lbc_type), intent(in) :: self
@@ -761,6 +779,9 @@ subroutine get_metadata( self,               &
   character(str_def), optional, intent(out), allocatable :: target_mesh_names(:)
   integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_x(:)
   integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_y(:)
+
+  real(r_def),        optional, intent(out) :: north_pole(2)
+  real(r_def),        optional, intent(out) :: null_island(2)
 
   if (present(mesh_name)) mesh_name  = self%mesh_name
   if (present(geometry))  geometry   = key_from_geometry(self%geometry)
@@ -790,6 +811,10 @@ subroutine get_metadata( self,               &
     if (present(maps_edge_cells_y)) &
        allocate(maps_edge_cells_y(1), source=self%outer_cells_y)
   end if
+
+  ! These are inherited from LAM so should be in degrees for cf-compliance
+  if (present(north_pole))  north_pole(:)  = self%north_pole(:)
+  if (present(null_island)) null_island(:) = self%null_island(:)
 
   return
 end subroutine get_metadata

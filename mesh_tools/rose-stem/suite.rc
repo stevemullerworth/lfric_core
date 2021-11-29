@@ -361,10 +361,10 @@
   [[{{mesh|upper}}_{{label|upper}}]]
     inherit = {{family}}, TARGET
 
-
   [[generate_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
+                 ulimit -s unlimited
                  mkdir -p $DESTINATION_DIRECTORY/meshes
                  {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
                                                            'setup.base' ),
@@ -388,6 +388,7 @@
   [[summarise_{{mesh}}_{{label}}]]
     inherit = {{mesh|upper}}_{{label|upper}}
     pre-script = """
+                 ulimit -s unlimited
                  {{'\n'|command_list( get_target_property( PRIMARY_TARGET,
                                                            'setup.base' ),
                                       get_target_property( PRIMARY_TARGET,

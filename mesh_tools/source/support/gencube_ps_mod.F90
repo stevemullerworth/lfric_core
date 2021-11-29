@@ -46,10 +46,10 @@ module gencube_ps_mod
                                             geometry_spherical,          &
                                             topology_periodic
 
+  use rotation_mod,                   only: rotate_mesh_coords, &
+                                            TRUE_NORTH_POLE_LL, &
+                                            TRUE_NULL_ISLAND_LL
   implicit none
-
-  ! set Cartesian axis for north
-  real(r_def), parameter    :: TRUE_NORTH(3) = (/0._r_def, 0._r_def, 1._r_def/)
 
   private
 
@@ -98,8 +98,6 @@ module gencube_ps_mod
 
     real(r_def)         :: stretch_factor = 1.0_r_def
 
-    real(r_def)         :: target_pole(2) = rmdi
-    real(r_def)         :: rotation_angle = rmdi
     logical(l_def)      :: rotate_mesh    = .false.
     integer(i_native)   :: coord_sys      = emdi
 
@@ -113,6 +111,10 @@ module gencube_ps_mod
     integer(i_def),     allocatable :: verts_on_edge(:,:)
     real(r_def),        allocatable :: vert_coords(:,:)
     real(r_def),        allocatable :: cell_coords(:,:)
+
+    ! Information about the domain orientation
+    real(r_def) :: north_pole(2)
+    real(r_def) :: null_island(2)
 
   contains
     procedure :: calc_adjacency
@@ -152,13 +154,14 @@ contains
 !> @param[in] coord_sys          Coordinate system to position nodes.
 !> @param[in, optional] rotate_mesh
 !>                               Logical to indicate rotation of the resulting mesh
-!> @param[in, optional] target_pole
-!>                               If rotating the cubed-sphere, then this is the target
-!>                               pole coordinates [longitude, latitude] (degrees)
-!>                               to move the reference pole (default: North)
-!> @param[in, optional] rotation_angle
-!>                               If rotating the cubed-sphere, then this rotation
-!>                               angle (degrees) about the reference pole (default: North).
+!> @param[in, optional] target_north_pole
+!>                               If rotating the cubed-sphere, then these are the target
+!>                               coordinates [longitude, latitude] (degrees)
+!>                               to move the reference north pole.
+!> @param[in, optional] target_null_island
+!>                               If rotating the cubed-sphere, then these are the target
+!>                               coordinates [longitude, latitude] (degrees)
+!>                               to move the reference null island.
 !> @param[in, optional] target_mesh_names
 !>                               Names of meshes to map to.
 !> @param[in, optional] target_edge_cells
@@ -170,7 +173,8 @@ contains
 !> @return    self               Instance of gencube_ps_type
 !-------------------------------------------------------------------------------
  function gencube_ps_constructor( mesh_name, edge_cells, nsmooth, coord_sys,   &
-                                  rotate_mesh, target_pole, rotation_angle,    &
+                                  rotate_mesh, target_north_pole,              &
+                                  target_null_island,                          &
                                   target_mesh_names, target_edge_cells,        &
                                   stretch_factor )                             &
                                   result( self )
@@ -183,8 +187,8 @@ contains
   integer(i_def),     intent(in) :: coord_sys
 
   logical,            optional, intent(in) :: rotate_mesh
-  real(r_def),        optional, intent(in) :: target_pole(2)
-  real(r_def),        optional, intent(in) :: rotation_angle
+  real(r_def),        optional, intent(in) :: target_north_pole(2)
+  real(r_def),        optional, intent(in) :: target_null_island(2)
   real(r_def),        optional, intent(in) :: stretch_factor
 
   character(str_def), optional, intent(in) :: target_mesh_names(:)
@@ -226,18 +230,19 @@ contains
 
   end if
 
+  self%rotate_mesh = .false.
+  if ( present(rotate_mesh) ) self%rotate_mesh = rotate_mesh
 
-  if (present(rotate_mesh)) then
-
-    self%rotate_mesh = rotate_mesh
-
-    if ( self%rotate_mesh ) then
-      ! The namelist inputs were in degrees, so convert
-      ! and store them as radians.
-      self%target_pole    = degrees_to_radians * target_pole
-      self%rotation_angle = degrees_to_radians * rotation_angle
-    end if
-
+  if ( self%rotate_mesh )then
+    ! Inputs are in degrees, so convert
+    ! and store them as radians.
+    self%north_pole  = degrees_to_radians * target_north_pole
+    self%null_island = degrees_to_radians * target_null_island
+  else
+    ! Default value is also given in degrees so
+    ! convert to radians
+    self%north_pole  = degrees_to_radians * TRUE_NORTH_POLE_LL
+    self%null_island = degrees_to_radians * TRUE_NULL_ISLAND_LL
   end if
 
   ! Constructor inputs for any target mesh maps
@@ -1097,93 +1102,6 @@ subroutine calc_coords(self, vert_coords, coord_units_x, coord_units_y)
 end subroutine calc_coords
 
 !-------------------------------------------------------------------------------
-!> @brief   Rotates coordinates of the mesh by rotating to a new 'North'
-!>          given by lon_north, lat_north and then rotating clockwise by an
-!>          angle rotation_angle
-!> @details Rotates coordinates of the mesh by rotating to a new 'North'
-!>          given by lon_north, lat_north and then rotating clockwise by an
-!>          angle rotation_angle.  This routine updates self%vert_coords
-!>
-!> We can describe moving the pole from TRUE_NORTH to new_north
-!> as a rotation  about the vector rot_vec by an angle alpha_vec
-!>
-!> @param[in]   self         The gencube_ps_type instance reference.
-!-------------------------------------------------------------------------------
-subroutine rotate_mesh(self)
-
-  use coord_transform_mod, only: xyz2ll, ll2xyz, rodrigues_rotation
-  use cross_product_mod,   only: cross_product
-  use constants_mod,       only: PI
-
-  implicit none
-
-  class(gencube_ps_type),   intent(inout)  :: self
-
-  real(r_def)    :: x_vec(3)     ! Cartesian vector of points
-  real(r_def)    :: rot_vec(3)   ! Cartesian axis of rotation
-  real(r_def)    :: new_north(3) ! Cartesian vector for new 'North'
-  real(r_def)    :: alpha_rot    ! Angle of rotation about rot_vec
-  integer(i_def) :: icell, nverts
-  real(r_def)    :: lat, lon
-
-  logical        :: rotate_the_pole   ! To determine if we want a new north
-  logical        :: rotate_about_pole ! To determine if we want to rotate about north
-
-  nverts = size(self%vert_coords, dim=2)
-
-  ! First set up axis of rotation
-  ! NB dot_product(TRUE_NORTH, TRUE_NORTH)=1
-  ! We leave it in case this changes.
-  call ll2xyz( self%target_pole(1),        &
-               self%target_pole(2),        &
-               new_north(1), new_north(2), &
-               new_north(3) )
-
-  rot_vec   = cross_product( TRUE_NORTH, new_north )
-  alpha_rot = acos( dot_product( TRUE_NORTH, new_north ) / &
-              sqrt( dot_product(  new_north, new_north ) * &
-                    dot_product( TRUE_NORTH, TRUE_NORTH ) ) )
-
-  ! If angle is less than ~ 0.0001 degrees (i.e. norm2(rot_vec) < 1.e-6)
-  ! Then don't change axis
-  rotate_the_pole = .true.
-  if ( norm2(rot_vec) < 1.e-6 ) rotate_the_pole = .false.
-
-  ! If rotation_angle < 0.0001 degress, then don't rotate
-  rotate_about_pole   = .true.
-  if ( abs(self%rotation_angle) < 0.0001 ) rotate_about_pole = .false.
-
-  if (rotate_the_pole .or. rotate_about_pole) then
-
-    do icell = 1, nverts
-
-      lon = self%vert_coords(1,icell)
-      lat = self%vert_coords(2,icell)
-
-      call ll2xyz(lon, lat, x_vec(1), x_vec(2), x_vec(3))
-
-      ! First rotate by rotation_angle
-      if (rotate_about_pole) then
-        x_vec = rodrigues_rotation( x_vec, TRUE_NORTH, &
-                                    self%rotation_angle )
-      end if
-
-      ! Next rotate to new North
-      if (rotate_the_pole) then
-        x_vec = rodrigues_rotation(x_vec, rot_vec, alpha_rot)
-      end if
-
-      ! convert back to lat, lon and send back to vert_coords
-      call xyz2ll( x_vec(1), x_vec(2), x_vec(3), &
-                   self%vert_coords(1,icell),    &
-                   self%vert_coords(2,icell))
-    end do
-
-  end if
-
-end subroutine rotate_mesh
-
-!-------------------------------------------------------------------------------
 !> @brief   Apply the Schmidt transform to the generation of the cubedsphere.
 !> @details Attracts points to the north (<1) or south (>1) pole according
 !>          to the value in self%stretch_factor. This gives a variable
@@ -1382,11 +1300,14 @@ subroutine generate(self)
 
   call orient_lfric(self, PANEL_ROTATIONS)
 
+  ! Stretching and smoothing of the mesh should be done before
+  ! any rotations are done.
   if (self%nsmooth > 0_i_def) call smooth(self)
 
-  if (self%rotate_mesh) call rotate_mesh(self)
-
   if (self%stretch_factor /= 1.0_r_def) call stretch_mesh(self)
+
+  if (self%rotate_mesh) call rotate_mesh_coords(self%vert_coords, &
+                                                self%north_pole)
 
   call calc_cell_centres(self)
 
@@ -1835,23 +1756,27 @@ end subroutine calc_cell_centres
 !-----------------------------------------------------------------------------
 !> @brief Returns mesh metadata information.
 !>
-!> @param[out, optional]  mesh_name          Name of mesh instance to generate
-!> @param[out, optional]  geometry           Mesh domain surface type.
-!> @param[out, optional]  topology           Mesh boundary/connectivity type
-!> @param[out, optional]  npanels            Number of panels use to describe mesh
-!> @param[out, optional]  coord_sys          Coordinate system to position nodes.
-!> @param[out, optional]  edge_cells_x       Number of panel edge cells (x-axis).
-!> @param[out, optional]  edge_cells_y       Number of panel edge cells (y-axis).
-!> @param[out, optional]  constructor_inputs Inputs used to create this mesh from
+!> @param[out]  mesh_name          Optional, Name of mesh instance to generate
+!> @param[out]  geometry           Optional, Mesh domain surface type.
+!> @param[out]  topology           Optional, Mesh boundary/connectivity type
+!> @param[out]  npanels            Optional, Number of panels use to describe mesh
+!> @param[out]  coord_sys          Optional, Coordinate system to position nodes.
+!> @param[out]  edge_cells_x       Optional, Number of panel edge cells (x-axis).
+!> @param[out]  edge_cells_y       Optional, Number of panel edge cells (y-axis).
+!> @param[out]  constructor_inputs Optional, Inputs used to create this mesh from
 !>                                           the this ugrid_generator_type
-!> @param[out, optional]  nmaps              Number of maps to create with this mesh
+!> @param[out]  nmaps              Optional, Number of maps to create with this mesh
 !>                                           as source mesh
-!> @param[out, optional]  target_mesh_names  Mesh names of the target meshes that
+!> @param[out]  target_mesh_names  Optional, Mesh names of the target meshes that
 !>                                           this mesh has maps for.
-!> @param[out, optional]  maps_edge_cells_x  Number of panel edge cells (x-axis) of
+!> @param[out]  maps_edge_cells_x  Optional, Number of panel edge cells (x-axis) of
 !>                                           target mesh(es) to create map(s) for.
-!> @param[out, optional]  maps_edge_cells_y  Number of panel edge cells (y-axis) of
+!> @param[out]  maps_edge_cells_y  Optional, Number of panel edge cells (y-axis) of
 !>                                           target mesh(es) to create map(s) for.
+!> @param[out]  north_pole         Optional, [Longitude, Latitude] of north pole
+!>                                           used for domain orientation (degrees)
+!> @param[out]  null_island        Optional, [Longitude, Latitude] of null
+!>                                           island used for domain orientation (degrees)
 !-----------------------------------------------------------------------------
 subroutine get_metadata( self,               &
                          mesh_name,          &
@@ -1867,8 +1792,9 @@ subroutine get_metadata( self,               &
                          nmaps,              &
                          target_mesh_names,  &
                          maps_edge_cells_x,  &
-                         maps_edge_cells_y )
-
+                         maps_edge_cells_y,  &
+                         north_pole,         &
+                         null_island     )
 
   implicit none
 
@@ -1894,6 +1820,9 @@ subroutine get_metadata( self,               &
   integer(i_def),     allocatable, optional,intent(out) :: maps_edge_cells_x(:)
   integer(i_def),     allocatable, optional,intent(out) :: maps_edge_cells_y(:)
 
+  real(r_def),    optional, intent(out) :: north_pole(2)
+  real(r_def),    optional, intent(out) :: null_island(2)
+
   if (present(mesh_name)) mesh_name = trim(self%mesh_name)
   if (present(geometry))  geometry  = key_from_geometry(self%geometry)
   if (present(topology))  topology  = key_from_topology(self%topology)
@@ -1905,8 +1834,6 @@ subroutine get_metadata( self,               &
 
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
   if (present(nmaps)) nmaps = self%nmaps
-
-
 
   if (self%nmaps > 0) then
     if (present(target_mesh_names)) target_mesh_names  = self%target_mesh_names
@@ -1920,6 +1847,10 @@ subroutine get_metadata( self,               &
   ! cubdedsphere and planar mesh are extensions of.
   if (present(periodic_x)) periodic_x = .false.
   if (present(periodic_y)) periodic_y = .false.
+
+  ! Convert to degrees for cf-compliance
+  if (present(north_pole))  north_pole(:)  = self%north_pole(:) * radians_to_degrees
+  if (present(null_island)) null_island(:) = self%null_island(:) * radians_to_degrees
 
   return
 end subroutine get_metadata
@@ -2094,7 +2025,5 @@ subroutine set_partition_parameters( xproc, yproc, &
   end if
 
 end subroutine set_partition_parameters
-
-
 
 end module gencube_ps_mod

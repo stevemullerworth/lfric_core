@@ -16,7 +16,7 @@
 program summarise_ugrid
 
   use cli_mod,         only : get_initial_filename
-  use constants_mod,   only : i_def, str_def, str_long, str_longlong, l_def
+  use constants_mod,   only : i_def, r_def, str_def, str_long, str_longlong, l_def
   use, intrinsic :: iso_fortran_env, only : output_unit
   use ncdf_quad_mod,   only : ncdf_quad_type
   use ugrid_2d_mod,    only : ugrid_2d_type
@@ -50,7 +50,11 @@ program summarise_ugrid
   character(str_long)     :: target_mesh_names_str
   character(str_def), allocatable :: target_mesh_names(:)
 
+  real(r_def)    :: north_pole(2)
+  real(r_def)    :: null_island(2)
+
   character(str_def) :: fmt_str
+  character(str_def) :: tmp_str
 
   integer(i_def) :: nodes, edges, faces
   integer(i_def) :: nodes_per_face, edges_per_face
@@ -107,7 +111,9 @@ program summarise_ugrid
                       nmaps              = nmaps,              &
                       target_mesh_names  = target_mesh_names,  &
                       periodic_x         = periodic_x,         &
-                      periodic_y         = periodic_y )
+                      periodic_y         = periodic_y,         &
+                      north_pole         = north_pole,         &
+                      null_island        = null_island )
     else
       call infile%get_metadata(                                &
                       mesh_name          = mesh_name,          &
@@ -117,7 +123,9 @@ program summarise_ugrid
                       max_stencil_depth  = max_stencil_depth,  &
                       constructor_inputs = constructor_inputs, &
                       periodic_x         = periodic_x,         &
-                      periodic_y         = periodic_y )
+                      periodic_y         = periodic_y,         &
+                      north_pole         = north_pole,         &
+                      null_island        = null_island )
     end if
 
     call infile%get_dimensions( nodes, edges, faces,            &
@@ -200,6 +208,23 @@ program summarise_ugrid
            '  Maps to:', trim(adjustl(target_mesh_names_str))
       call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
       deallocate(target_mesh_names)
+
+    end if
+
+    if ( trim(geometry)  == 'spherical' .and. &
+         trim(coord_sys) == 'll' ) then
+
+      fmt_str = '("[",F10.2,",",F10.2,"]")'
+
+      write(tmp_str, fmt_str) north_pole
+      write( log_scratch_space, '(A)' ) &
+         '  North pole [lon,lat]: '//trim(tmp_str)
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+      write(tmp_str, fmt_str) null_island
+      write( log_scratch_space, '(A)' ) &
+         '  Null Island [lon,lat]: '//trim(tmp_str)
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
     end if
 

@@ -21,6 +21,8 @@ program cubedsphere_mesh_generator
   use gencube_ps_mod,    only: gencube_ps_type,          &
                                set_partition_parameters, &
                                NPANELS
+  use rotation_mod,      only: get_target_north_pole,    &
+                               get_target_null_island
   use global_mesh_mod,   only: global_mesh_type
 
   use io_utility_mod,    only: open_file, close_file
@@ -58,7 +60,12 @@ program cubedsphere_mesh_generator
                                          geometry_spherical,         &
                                          key_from_geometry
   use partitioning_config_mod,     only: max_stencil_depth
-  use rotation_config_mod,         only: target_pole, rotation_angle
+  use rotation_config_mod,         only: target_north_pole,           &
+                                         target_null_island,          &
+                                         rotation_target,             &
+                                         ROTATION_TARGET_NULL_ISLAND, &
+                                         ROTATION_TARGET_NORTH_POLE
+  use coord_transform_mod,         only: rebase_longitude_range
 
   implicit none
 
@@ -113,10 +120,11 @@ program cubedsphere_mesh_generator
   character(str_def) :: check_mesh(2)
   integer(i_def)     :: first_mesh_edge_cells
   integer(i_def)     :: second_mesh_edge_cells
+  real(kind=r_def)   :: set_north_pole(2)
+  real(kind=r_def)   :: set_null_island(2)
 
   character(str_def) :: lon_str
   character(str_def) :: lat_str
-  character(str_def) :: temp_str
 
   ! Counters
   integer(i_def)    :: i, j, k, l, n_voids
@@ -451,22 +459,52 @@ program cubedsphere_mesh_generator
   end if
 
   if (rotate_mesh) then
+
     write(log_scratch_space, '(A)') &
         '  Rotation of mesh requested with: '
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
-    write(lon_str,'(F10.2)') target_pole(1)
-    write(lat_str,'(F10.2)') target_pole(2)
-    write(log_scratch_space,'(A)')       &
-        '    Target pole [lon,lat]: ['// &
-        trim(adjustl(lon_str)) // ','//  &
-        trim(adjustl(lat_str)) // ']'
+    select case( rotation_target )
+    case ( ROTATION_TARGET_NULL_ISLAND )
+      ! Use the domain_centre (Null Island) rather than pole as input
+      set_north_pole(:)  = get_target_north_pole(target_null_island)
+      set_null_island(:) = target_null_island(:)
+      write(log_scratch_space,'(A)')       &
+         '    Target pole will be derived from Null Island.'
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+      write(lon_str,'(F10.2)') set_null_island(1)
+      write(lat_str,'(F10.2)') set_null_island(2)
+      write(log_scratch_space,'(A)')         &
+         '    Null Island [lon,lat]: ['  //  &
+         trim(adjustl(lon_str)) // ',' //    &
+         trim(adjustl(lat_str)) // ']'
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+    case ( ROTATION_TARGET_NORTH_POLE )
+      set_north_pole(:)  = target_north_pole(:)
+      set_null_island(:) = get_target_null_island(target_north_pole)
+    end select
+
+    ! Ensure the requested target longitudes are in the range -180,180
+    set_null_island(1) = rebase_longitude_range( set_null_island(1), -180.0_r_def)
+    set_north_pole(1)  = rebase_longitude_range( set_north_pole(1), -180.0_r_def)
+
+    write(lon_str,'(F10.2)') set_north_pole(1)
+    write(lat_str,'(F10.2)') set_north_pole(2)
+    write(log_scratch_space,'(A)')      &
+       '    North pole [lon,lat]: [' // &
+       trim(adjustl(lon_str)) // ',' // &
+       trim(adjustl(lat_str)) // ']'
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
-    write(temp_str,'(F10.2)') rotation_angle
-    write(log_scratch_space, '(A)') &
-        '    Rotation about pole:   '// trim(adjustl(temp_str))
+    write(lon_str,'(F10.2)') set_null_island(1)
+    write(lat_str,'(F10.2)') set_null_island(2)
+    write(log_scratch_space,'(A)')       &
+       '    Null island [lon,lat]: [' // &
+       trim(adjustl(lon_str)) // ','  // &
+       trim(adjustl(lat_str)) // ']'
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
   end if
 
   write(log_scratch_space, '(A)') &
@@ -510,13 +548,13 @@ program cubedsphere_mesh_generator
     ! 6.4 Call generation stratedgy
     if (n_targets == 0 .or. n_meshes == 1 ) then
       ! No mesh maps required for this mesh
-      mesh_gen(i) = gencube_ps_type( mesh_name=mesh_names(i),       &
-                                     edge_cells=edge_cells(i),      &
-                                     nsmooth=smooth_passes,         &
-                                     coord_sys=coord_sys,           &
-                                     rotate_mesh=rotate_mesh,       &
-                                     target_pole=target_pole,       &
-                                     rotation_angle=rotation_angle, &
+      mesh_gen(i) = gencube_ps_type( mesh_name=mesh_names(i),            &
+                                     edge_cells=edge_cells(i),           &
+                                     nsmooth=smooth_passes,              &
+                                     coord_sys=coord_sys,                &
+                                     rotate_mesh=rotate_mesh,            &
+                                     target_north_pole=set_north_pole,   &
+                                     target_null_island=set_null_island, &
                                      stretch_factor=stretch_factor )
 
     else if (n_meshes > 1) then
@@ -540,13 +578,13 @@ program cubedsphere_mesh_generator
       mesh_gen(i) = gencube_ps_type(                         &
                         mesh_name=mesh_names(i),             &
                         edge_cells=edge_cells(i),            &
-                        target_mesh_names=target_mesh_names, &
-                        target_edge_cells=target_edge_cells, &
                         nsmooth=smooth_passes,               &
                         coord_sys=coord_sys,                 &
                         rotate_mesh=rotate_mesh,             &
-                        target_pole=target_pole,             &
-                        rotation_angle=rotation_angle,       &
+                        target_north_pole=set_north_pole,    &
+                        target_null_island=set_null_island,  &
+                        target_mesh_names=target_mesh_names, &
+                        target_edge_cells=target_edge_cells, &
                         stretch_factor=stretch_factor )
 
     else

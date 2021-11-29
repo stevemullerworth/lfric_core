@@ -20,7 +20,7 @@ module constants_mod
   public :: c_def, c_native,                                             &
             dp_native, dp_xios,                                          &
             i_byte, i_def, i_halo_index, i_long, i_medium, i_native,     &
-            i_timestep, i_um,                                            &
+            i_timestep, i_um, i_ncdf,                                    &
             l_def, l_native,                                             &
             r_def, r_double, r_ncdf, r_native, r_second, r_single, r_um, &
             r_solver,                                                    &
@@ -98,6 +98,7 @@ module constants_mod
   integer, parameter :: i_long       = int64       !< Explicit long integer.
   integer, parameter :: i_medium     = int32       !< Explicit midsize integer.
   integer, parameter :: i_native     = kind(i_val) !< Native kind for integer.
+  integer, parameter :: i_ncdf       = int32       !< Default int kind used in netcdf get and put.
   integer, parameter :: i_short      = int16       !< Explicit short integer.
   integer, parameter :: i_timestep   = int32       !< Kind for timestep counts.
   integer, parameter :: i_um         = int32       !< Default integer kind used by the UM.

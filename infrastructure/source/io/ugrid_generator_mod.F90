@@ -97,6 +97,10 @@ abstract interface
   !>                                           target mesh(es) to create map(s) for.
   !> @param[out, optional]  maps_edge_cells_y  Number of panel edge cells (y-axis) of
   !>                                           target mesh(es) to create map(s) for.
+  !> @param[out, optional] north_pole          [Longitude, Latitude] of north pole
+  !>                                           used in for domain orientation (degrees)
+  !> @param[out, optional] null_island         [Longitude, Latitude] of null
+  !>                                           island used for domain orientation (degrees)
   !-----------------------------------------------------------------------------
   subroutine get_metadata_interface ( self, mesh_name,                       &
                                       geometry, topology, coord_sys,         &
@@ -104,9 +108,10 @@ abstract interface
                                       edge_cells_x, edge_cells_y,            &
                                       constructor_inputs, nmaps,             &
                                       target_mesh_names,                     &
-                                      maps_edge_cells_x, maps_edge_cells_y )
+                                      maps_edge_cells_x, maps_edge_cells_y,  &
+                                      north_pole, null_island  )
 
-    import :: ugrid_generator_type, i_def, str_def, str_longlong, l_def
+    import :: ugrid_generator_type, i_def, str_def, str_longlong, l_def, r_def
 
     implicit none
 
@@ -132,6 +137,9 @@ abstract interface
     integer(i_def), optional, intent(out) :: nmaps
     integer(i_def), optional, intent(out) :: edge_cells_x
     integer(i_def), optional, intent(out) :: edge_cells_y
+
+    real(r_def),    optional, intent(out) :: north_pole(2)
+    real(r_def),    optional, intent(out) :: null_island(2)
 
   end subroutine get_metadata_interface
 
@@ -227,4 +235,3 @@ abstract interface
 end interface
 
 end module ugrid_generator_mod
-

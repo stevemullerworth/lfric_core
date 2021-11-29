@@ -23,6 +23,8 @@ program planar_mesh_generator
   use gen_planar_mod,    only: gen_planar_type,          &
                                set_partition_parameters, &
                                NPANELS
+  use rotation_mod,      only: get_target_north_pole,    &
+                               get_target_null_island
   use global_mesh_mod,   only: global_mesh_type
   use io_utility_mod,    only: open_file, close_file
   use local_mesh_mod,    only: local_mesh_type
@@ -55,7 +57,7 @@ program planar_mesh_generator
                                      topology,                   &
                                      topology_non_periodic,      &
                                      topology_periodic,          &
-                                     topology_channel,      &
+                                     topology_channel,           &
                                      key_from_topology,          &
                                      geometry, geometry_planar,  &
                                      geometry_spherical,         &
@@ -64,12 +66,16 @@ program planar_mesh_generator
   use planar_mesh_config_mod,  only: edge_cells_x, edge_cells_y, &
                                      periodic_x, periodic_y,     &
                                      domain_x, domain_y,         &
+                                     first_node,                 &
                                      create_lbc_mesh,            &
                                      lbc_rim_depth,              &
                                      lbc_parent_mesh
-  use rotation_config_mod,     only: target_pole,    &
-                                     rotation_angle, &
-                                     first_node
+  use rotation_config_mod,     only: target_north_pole,           &
+                                     target_null_island,          &
+                                     rotation_target,             &
+                                     ROTATION_TARGET_NULL_ISLAND, &
+                                     ROTATION_TARGET_NORTH_POLE
+  use coord_transform_mod,     only: rebase_longitude_range
 
   implicit none
 
@@ -120,6 +126,8 @@ program planar_mesh_generator
   character(str_def) :: check_mesh(2)
   integer(i_def)     :: first_mesh_edge_cells_x, first_mesh_edge_cells_y
   integer(i_def)     :: second_mesh_edge_cells_x,second_mesh_edge_cells_y
+  real(kind=r_def)   :: set_north_pole(2)
+  real(kind=r_def)   :: set_null_island(2)
 
   character(str_def) :: name
   logical(l_def)     :: lbc_generated
@@ -470,26 +478,55 @@ program planar_mesh_generator
     allocate( target_edge_cells_y_tmp(n_mesh_maps*2) )
   end if
 
-  if (rotate_mesh) then
-    write(log_scratch_space, '(A)') &
-       '  Rotation of mesh requested with: '
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+  if ( geometry == geometry_spherical .and. &
+       coord_sys == coord_sys_ll ) then
+    if (rotate_mesh) then
 
-    write(lon_str,'(F10.2)') target_pole(1)
-    write(lat_str,'(F10.2)') target_pole(2)
-    write(log_scratch_space,'(A)')       &
-        '  Target pole [lon,lat]: ['  // &
-        trim(adjustl(lon_str)) // ',' // &
-        trim(adjustl(lat_str)) // ']'
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+      write(log_scratch_space, '(A)') &
+         '  Rotation of mesh requested with: '
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
-    write(lon_str,'(F10.2)') first_node(1)
-    write(lat_str,'(F10.2)') first_node(2)
-    write(log_scratch_space,'(A)')       &
-        '  First node [lon,lat]:  ['  // &
-        trim(adjustl(lon_str)) // ',' // &
-        trim(adjustl(lat_str)) // ']'
-    call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+      select case ( rotation_target )
+      case ( ROTATION_TARGET_NULL_ISLAND )
+        ! Use the domain_centre (Null Island) rather than pole as input
+        set_north_pole(:) = get_target_north_pole(target_null_island)
+        set_null_island(:) = target_null_island
+        write(log_scratch_space,'(A)')       &
+           '    Target pole will be derived from Null Island.'
+        call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+        write(lon_str,'(F10.2)') set_null_island(1)
+        write(lat_str,'(F10.2)') set_null_island(2)
+        write(log_scratch_space,'(A)')        &
+           '    Null Island [lon,lat]: ['  // &
+           trim(adjustl(lon_str)) // ',' //   &
+           trim(adjustl(lat_str)) // ']'
+        call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+      case ( ROTATION_TARGET_NORTH_POLE )
+        set_north_pole(:)  = target_north_pole(:)
+        set_null_island(:) = get_target_null_island(target_north_pole)
+      end select
+
+      ! Ensure the requested target longitudes are in the range -180,180
+      set_null_island(1) = rebase_longitude_range( set_null_island(1), -180.0_r_def)
+      set_north_pole(1)  = rebase_longitude_range( set_north_pole(1), -180.0_r_def)
+
+      write(lon_str,'(F10.2)') set_north_pole(1)
+      write(lat_str,'(F10.2)') set_north_pole(2)
+      write(log_scratch_space,'(A)')        &
+         '    Target pole [lon,lat]: ['  // &
+         trim(adjustl(lon_str)) // ',' //   &
+         trim(adjustl(lat_str)) // ']'
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+
+      write(lon_str,'(F10.2)') first_node(1)
+      write(lat_str,'(F10.2)') first_node(2)
+      write(log_scratch_space,'(A)')        &
+         '    First node  [lon,lat]: ['  // &
+         trim(adjustl(lon_str)) // ',' //   &
+         trim(adjustl(lat_str)) // ']'
+      call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
+    end if
   end if
 
   do i=1, n_meshes
@@ -529,15 +566,22 @@ program planar_mesh_generator
     ! 6.4 Call generation strategy
     if (n_targets == 0 .or. n_meshes == 1 ) then
 
-      mesh_gen(i) = gen_planar_type(                      &
-                        cube_element, mesh_names(i),      &
-                        geometry, topology, coord_sys,    &
-                        edge_cells_x(i), edge_cells_y(i), &
-                        periodic_x, periodic_y,           &
-                        domain_x, domain_y,               &
-                        rotate_mesh = rotate_mesh,        &
-                        target_pole = target_pole,        &
-                        first_node  = first_node )
+      mesh_gen(i) = gen_planar_type(                          &
+                        reference_element  = cube_element,    &
+                        mesh_name          = mesh_names(i),   &
+                        geometry           = geometry,        &
+                        topology           = topology,        &
+                        coord_sys          = coord_sys,       &
+                        edge_cells_x       = edge_cells_x(i), &
+                        edge_cells_y       = edge_cells_y(i), &
+                        periodic_x         = periodic_x,      &
+                        periodic_y         = periodic_y,      &
+                        domain_x           = domain_x,        &
+                        domain_y           = domain_y,        &
+                        rotate_mesh        = rotate_mesh,     &
+                        target_north_pole  = set_north_pole,  &
+                        target_null_island = set_null_island, &
+                        first_node         = first_node )
 
     else if (n_meshes > 1) then
 
@@ -573,7 +617,8 @@ program planar_mesh_generator
                         target_edge_cells_x = target_edge_cells_x, &
                         target_edge_cells_y = target_edge_cells_y, &
                         rotate_mesh         = rotate_mesh,         &
-                        target_pole         = target_pole,         &
+                        target_north_pole   = set_north_pole,      &
+                        target_null_island  = set_null_island,     &
                         first_node          = first_node )
 
     else

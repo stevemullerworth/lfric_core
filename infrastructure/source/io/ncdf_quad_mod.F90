@@ -9,7 +9,8 @@
 module ncdf_quad_mod
 
 use constants_mod,  only : r_def, i_def, l_def, str_def, str_long,             &
-                           str_longlong, str_max_filename, r_ncdf, i_native
+                           str_longlong, str_max_filename, r_ncdf, i_ncdf,     &
+                           i_native, rmdi
 use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
 use global_mesh_map_mod,            only: global_mesh_map_type
 use ugrid_file_mod, only : ugrid_file_type
@@ -22,8 +23,8 @@ use netcdf,         only : nf90_max_name, nf90_open, nf90_write, nf90_noerr,   &
                            nf90_inq_attname, nf90_inquire_attribute,           &
                            nf90_redef, nf90_close, nf90_put_att,               &
                            nf90_64bit_offset
-use log_mod,        only : log_event, log_scratch_space, LOG_LEVEL_ERROR
-
+use log_mod,        only : log_event, log_scratch_space, LOG_LEVEL_ERROR,      &
+                           LOG_LEVEL_WARNING
 implicit none
 
 private
@@ -116,6 +117,13 @@ type, extends(ugrid_file_type), public :: ncdf_quad_type
   integer(i_def), allocatable :: mesh_mesh_links_id(:)
                                          !< NetCDF-assigned ID for the mesh-mesh connectivity
 
+  ! Information about the mesh rotation
+  real(r_def)    :: north_pole(2) = [rmdi, rmdi]  !< [Longitude,Latitude] of
+                                                  !< north pole for domain
+                                                  !< orientation (degrees)
+  real(r_def)    :: null_island(2) = [rmdi, rmdi] !< [Longitude,Latitude] of
+                                                  !< null island for domain
+                                                  !< orientation (degrees)
 contains
 
   procedure :: read_mesh
@@ -665,6 +673,21 @@ subroutine assign_attributes(self)
                        trim(self%mesh_name)//'_face_links' )
   call check_err(ierr, routine, cmess)
 
+  ! Only present for spherical lon-lat domains (geometry=spherical, coord_sys=ll)
+  if ( trim(self%coord_sys) == 'll' .and. &
+       trim(self%geometry)  == 'spherical' ) then
+    attname = 'north_pole'
+    cmess   = 'Adding global attribute "'//trim(attname)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         self%north_pole )
+    call check_err(ierr, routine, cmess)
+
+    attname = 'null_island'
+    cmess   = 'Adding global attribute "'//trim(attname)//'"'
+    ierr = nf90_put_att( self%ncid, id, trim(attname), &
+                         self%null_island )
+    call check_err(ierr, routine, cmess)
+  end if
 
   !===================================================================
   ! 2.0 Add attributes for mesh face nodes variable
@@ -1109,12 +1132,12 @@ end subroutine inquire_ids
 !>  @details Checks the error code returned by the NetCDF file. If an error is
 !>           detected, the relevant error message is passed to the logger.
 !>
-!>  @param[in] ierr    The error code to check.
-!>  @param[in] routine The routine name that call the error check
-!>  @param[in] cmess   Comment message for the error report
+!>  @param[in] ierr      The error code to check.
+!>  @param[in] routine   The routine name that call the error check
+!>  @param[in] cmess     Comment message for the error report
+!>  @param(in] log_level [optional] Logging behaviour for this call
 !-------------------------------------------------------------------------------
-
-subroutine check_err(ierr, routine, cmess)
+subroutine check_err(ierr, routine, cmess, log_level)
   implicit none
 
   ! Arguments
@@ -1122,11 +1145,29 @@ subroutine check_err(ierr, routine, cmess)
   character(*),        intent(in) :: routine
   character(str_long), intent(in) :: cmess
 
+  integer(i_def),      intent(in), optional :: log_level
+
+  integer(i_def) :: local_log_level = log_level_error
 
   if (ierr /= NF90_NOERR) then
-    write(log_scratch_space,*) 'Error in ncdf_quad ['//routine//']: '//  &
-        trim(cmess) // ' ' // trim(nf90_strerror(ierr))
-    call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
+
+    if (present(log_level)) local_log_level = log_level
+
+    select case ( local_log_level )
+    case( log_level_error )
+      write(log_scratch_space,*)                   &
+          'Error in ncdf_quad ['//routine//']: '// &
+          trim(cmess) // ' ' // trim(nf90_strerror(ierr))
+
+    case( log_level_warning )
+      write(log_scratch_space,*) &
+          'Warning: Error reported in ncdf_quad [' &
+          //routine//']: '// trim(cmess) // ' ' // &
+          trim(nf90_strerror(ierr))
+    end select
+
+    call log_event(log_scratch_space, log_level)
+
   end if
 
   return
@@ -1283,6 +1324,10 @@ end subroutine get_dimensions
 !>  @param[out]     face_face_connectivity   Faces adjoining each face (links).
 !>  @param[out]     num_targets              Number of mesh maps from mesh.
 !>  @param[out]     target_mesh_names        Mesh(es) that this mesh has maps for.
+!>  @param[out]     north_pole               [Longitude, Latitude] of north pole
+!>                                           for domain orientation (degrees)
+!>  @param[out]     null_island              [Longitude, Latitude] of null
+!>                                           island for domain orientation (degrees)
 !-------------------------------------------------------------------------------
 
 subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
@@ -1292,7 +1337,8 @@ subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
                       coord_units_x, coord_units_y,                   &
                       face_node_connectivity, edge_node_connectivity, &
                       face_edge_connectivity, face_face_connectivity, &
-                      num_targets, target_mesh_names )
+                      num_targets, target_mesh_names,                 &
+                      north_pole, null_island )
   implicit none
 
   ! Arguments
@@ -1321,12 +1367,17 @@ subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
 
   character(str_def),  intent(out), allocatable :: target_mesh_names(:)
 
+  ! Information about the domain orientation
+  real(r_def),         intent(out) :: north_pole(2)
+  real(r_def),         intent(out) :: null_island(2)
+
   ! Internal variables
   integer(i_def) :: ierr, upper_bound, i
 
   character(*), parameter :: routine = 'read_mesh'
   character(str_long) :: cmess
   character(str_long) :: target_mesh_names_str
+  character(str_long) :: attname
 
   ! We need to ensure that netcdf receives data with the appropriate
   ! precision to create temporary arrays to hold real data
@@ -1336,6 +1387,11 @@ subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
 
   integer(i_def) :: lower1, upper1
   integer(i_def) :: lower2, upper2
+
+  integer(i_ncdf) :: arr_len
+
+  real(r_ncdf), allocatable :: north_pole_ncdf(:)
+  real(r_ncdf), allocatable :: null_island_ncdf(:)
 
   character(str_def) :: lchar_px
   character(str_def) :: lchar_py
@@ -1509,6 +1565,26 @@ subroutine read_mesh( self, mesh_name, geometry, topology, coord_sys, &
   ierr = nf90_get_var( self%ncid, self%mesh_face_links_id, &
                        face_face_connectivity(:,:))
   call check_err(ierr, routine, cmess)
+
+  attname = 'north_pole'
+  cmess = 'Getting North Pole for mesh "'//trim(mesh_name)//'"'
+  ierr = nf90_inquire_attribute(self%ncid, self%mesh_id, trim(attname), len=arr_len)
+  call check_err(ierr, routine, cmess, log_level=log_level_warning)
+  if (ierr == NF90_NOERR) then
+    allocate(north_pole_ncdf(arr_len))
+    ierr = nf90_get_att(self%ncid, self%mesh_id, trim(attname), north_pole_ncdf)
+    north_pole(1:2) = real(north_pole_ncdf(1:2), kind=r_def)
+  end if
+
+  attname = 'null_island'
+  cmess = 'Getting Null Island for mesh "'//trim(mesh_name)//'"'
+  ierr = nf90_inquire_attribute(self%ncid, self%mesh_id, trim(attname), len=arr_len)
+  call check_err(ierr, routine, cmess, log_level=log_level_warning)
+  if (ierr == NF90_NOERR) then
+    allocate(null_island_ncdf(arr_len))
+    ierr = nf90_get_att(self%ncid, self%mesh_id, trim(attname), null_island_ncdf)
+    null_island(1:2) = real(null_island_ncdf(1:2), kind=r_def)
+  end if
 
   ! Pass back to r_def arrays and deallocate
   node_coordinates(:,:) = real( node_coordinates_ncdf(:,:), kind=r_def )
@@ -1693,6 +1769,10 @@ end subroutine read_map
 !>  @param[in]      num_targets              Number of mesh maps from mesh
 !>  @param[in]      target_mesh_names        Mesh(es) that this mesh has maps for
 !>  @param[in]      target_mesh_maps         Mesh maps from this mesh to target mesh(es)
+!>  @param[in]      north_pole               [Longitude, Latitude] of north pole
+!>                                           for domain orientation
+!>  @param[in]      null_island              [Longitude, Latitude] of null
+!>                                           island for domain orientation
 !-------------------------------------------------------------------------------
 
 subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys,    &
@@ -1703,7 +1783,8 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys,    &
                        coord_units_x, coord_units_y,                      &
                        face_node_connectivity, edge_node_connectivity,    &
                        face_edge_connectivity, face_face_connectivity,    &
-                       num_targets, target_mesh_names, target_mesh_maps )
+                       num_targets, target_mesh_names, target_mesh_maps,  &
+                       north_pole, null_island )
   implicit none
 
   ! Arguments
@@ -1737,6 +1818,10 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys,    &
   character(str_def),  intent(in), allocatable :: target_mesh_names(:)
   type(global_mesh_map_collection_type), &
                        intent(in) :: target_mesh_maps
+
+  ! Information about the mesh rotation
+  real(r_def),         intent(in) :: north_pole(2)
+  real(r_def),         intent(in) :: null_island(2)
 
   ! Internal variables
   integer(i_def)      :: ierr, i, ratio_x, ratio_y, cell
@@ -1805,6 +1890,9 @@ subroutine write_mesh( self, mesh_name, geometry, topology, coord_sys,    &
     end do
 
   end if
+
+  self%north_pole(:) = north_pole(:)
+  self%null_island(:) = null_island(:)
 
   ! Set up NetCDF header
   call define_dimensions (self)
@@ -1956,6 +2044,10 @@ end function is_mesh_present
 !>  @param[in]      num_targets              Number of mesh maps from mesh
 !>  @param[in]      target_mesh_names        Mesh(es) that this mesh has maps for
 !>  @param[in]      target_mesh_maps         Mesh maps from this mesh to target mesh(es)
+!>  @param[in]      north_pole               [Longitude, Latitude] of norht pole
+!>                                           for domain orientation (degrees)
+!>  @param[in]      null_island              [Longitude, Latitude] of null
+!>                                           island for domain orientation (degrees)
 !-------------------------------------------------------------------------------
 subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
                         periodic_x, periodic_y, max_stencil_depth,         &
@@ -1965,7 +2057,8 @@ subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
                         coord_units_x, coord_units_y,                      &
                         face_node_connectivity, edge_node_connectivity,    &
                         face_edge_connectivity, face_face_connectivity,    &
-                        num_targets, target_mesh_names, target_mesh_maps )
+                        num_targets, target_mesh_names, target_mesh_maps,  &
+                        north_pole, null_island )
   implicit none
 
   ! Arguments
@@ -1996,6 +2089,10 @@ subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
                            allocatable :: target_mesh_names(:)
   type(global_mesh_map_collection_type),  &
                          intent(in)    :: target_mesh_maps
+
+  ! Information about the domain orientation
+  real(r_def),         intent(in) :: north_pole(2)
+  real(r_def),         intent(in) :: null_island(2)
 
   ! Internal variables
   character(*), parameter :: routine = 'append_mesh'
@@ -2038,7 +2135,9 @@ subroutine append_mesh( self, mesh_name, geometry, topology, coord_sys,    &
       face_face_connectivity = face_face_connectivity, &
       num_targets       = num_targets,                 &
       target_mesh_names = target_mesh_names,           &
-      target_mesh_maps  = target_mesh_maps )
+      target_mesh_maps  = target_mesh_maps,            &
+      north_pole = north_pole,                         &
+      null_island = null_island  )
   return
 end subroutine append_mesh
 
@@ -2152,4 +2251,3 @@ subroutine scan_for_topologies(self, mesh_names, n_meshes)
 end subroutine scan_for_topologies
 
 end module ncdf_quad_mod
-
