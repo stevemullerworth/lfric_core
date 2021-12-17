@@ -84,6 +84,8 @@ contains
     integer(i_native)  :: rc
     character(str_def) :: error_message
 
+    error_message = 'No message was set'
+
     if (present(use_unit)) then
       unit = use_unit
     else
@@ -91,7 +93,7 @@ contains
     end if
     open( unit, file=filename, action='read', iostat=rc, iomsg=error_message )
     if (rc /= 0) then
-      write( log_scratch_space, '(A)' ) error_message
+      write( log_scratch_space, '(A)' ) trim(error_message)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
@@ -115,9 +117,10 @@ contains
     integer(i_native)  :: rc
     character(str_def) :: error_message
 
+    error_message = 'No message was set'
     close( unit, iostat=rc, iomsg=error_message )
     if (rc /= 0) then
-      write( log_scratch_space, '("Unable to close file: ", A)'  ) error_message
+      write( log_scratch_space, '("Unable to close file: ", A)'  ) trim(error_message)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
@@ -144,12 +147,13 @@ contains
     integer(i_native)  :: rc
     character(str_def) :: error_message
 
+    error_message = 'No message was set'
     read( unit, '(A)', iostat=rc, iomsg=error_message ) buffer
     if (is_iostat_end( rc )) then
       read_line = .False.
       return
     else if (rc /= 0) then
-      write( log_scratch_space, '("Unable to read file: ", A)' ) error_message
+      write( log_scratch_space, '("Unable to read file: ", A)' ) trim(error_message)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
     read_line = .True.
