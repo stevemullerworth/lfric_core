@@ -245,12 +245,11 @@ subroutine write_vector_diagnostic( field_name, field, &
                                           level, field_name_new, projected_field(i), &
                                           mesh_id, .false.)
 
-        ! Call write routine
-        call nodal_write_field(nodal_coordinates, level, output_field(i), &
-                               1, nodal_output_unit, fname)
+         ! Call write routine
+         call nodal_write_field(nodal_coordinates, level, output_field(i), &
+                                1, nodal_output_unit, fname)
+       end do
 
-
-      end do
 
     end if
 
@@ -345,4 +344,3 @@ end subroutine write_vector_diagnostic
 
 
 end module diagnostics_io_mod
-

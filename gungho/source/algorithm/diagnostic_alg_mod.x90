@@ -283,7 +283,7 @@ contains
 
   !> @details Generic diagnostic processing for a scalar field to nodal format
   !>          Allows optional projection to W3
-  !> @param[in,out] output_field      The output field
+  !> @param[in,out] output_field      The output field. A 1-element array to satisfy project_output API
   !> @param[in,out] nodal_coordinates Coordinates of the output field
   !> @param[in,out] level             Levels of the output field
   !> @param[in] field_name            Name of the field to be output
@@ -297,7 +297,7 @@ contains
     implicit none
 
     type(field_type), intent(inout) :: nodal_coordinates(3)
-    type(field_type), intent(inout) :: output_field(3)
+    type(field_type), intent(inout) :: output_field(1)
     type(field_type), intent(inout) :: level
     character(len=*), intent(in)    :: field_name
     type(field_type), intent(in)    :: field
