@@ -41,6 +41,8 @@ LDFLAGS_COMPILER =
 
 FPPFLAGS = -P
 
+utilities/traceback_mod.o utilities/traceback_mod.mod: export FFLAGS += -fall-intrinsics
+
 # TODO - Remove the -fallow-arguments-mismatch flag when MPICH no longer fails
 #        to build as a result of its mismatched arguments (see ticket summary 
 #        for #2549 for reasoning).

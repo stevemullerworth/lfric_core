@@ -57,6 +57,7 @@ module log_mod
 
   integer, private :: log_unit_number = 10
   logical, private :: is_parallel = .false.
+  logical, private :: warning_trace = .false.
   character(len=:), allocatable :: petno
 
 contains
@@ -134,14 +135,19 @@ contains
   !> @param total_ranks The total number pf ranks in the job
   !> @param app_name The name of the application. This will form part of the
   !>                 log file name(s)
-  subroutine initialise_logging(this_rank, total_ranks, app_name)
+  subroutine initialise_logging(this_rank, total_ranks, app_name, trace_on_warnings)
     implicit none
     integer, intent(in) :: this_rank, total_ranks
     character(len=*), intent(in) :: app_name
+    logical, optional, intent(in) :: trace_on_warnings
     integer :: ios
     integer :: ilen
     character(len=:), allocatable :: logfilename
     character(len=12) :: fmt
+
+    if (present(trace_on_warnings)) then
+      if (trace_on_warnings) warning_trace = .true.
+    end if
 
     if (total_ranks > 1 ) then
       is_parallel = .true.
@@ -190,6 +196,7 @@ contains
   subroutine log_event(message, level)
 
     use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
+    use traceback_mod, only : traceback
 
     implicit none
 
@@ -203,6 +210,9 @@ contains
     character (5)  :: zone_string
 
     logical :: abort_run = .false.
+    logical :: trace
+
+    trace = .false.
 
     if (level >= logging_level) then
 
@@ -219,9 +229,11 @@ contains
         case ( LOG_LEVEL_WARNING : LOG_LEVEL_ERROR - 1)
           unit = alert_unit
           tag  = 'WARN '
+          if(warning_trace) trace = .true.
         case ( LOG_LEVEL_ERROR : LOG_LEVEL_ALWAYS - 1)
           unit = alert_unit
           tag  = 'ERROR'
+          trace = .true.
           abort_run = .true.
         case ( LOG_LEVEL_ALWAYS : )
           unit = info_unit
@@ -237,6 +249,10 @@ contains
       else
         write (unit, '(A,A,A,":",A,": ",A)') &
                    date_string, time_string, zone_string, tag, trim( message )
+      end if
+
+      if(trace) then
+        call traceback()
       end if
 
       ! If the severity level of the event is serious enough, stop the code.
