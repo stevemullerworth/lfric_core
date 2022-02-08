@@ -11,7 +11,7 @@
 module lfric_xios_read_mod
 
   use constants_mod,        only: i_def, dp_xios, str_def, r_def, &
-                                  r_solver
+                                  r_solver, r_tran
   use field_mod,            only: field_type, field_proxy_type
   use field_collection_iterator_mod, &
                             only: field_collection_iterator_type
@@ -23,6 +23,8 @@ module lfric_xios_read_mod
                                   integer_field_proxy_type
   use r_solver_field_mod,   only: r_solver_field_type, &
                                   r_solver_field_proxy_type
+  use r_tran_field_mod,     only: r_tran_field_type, &
+                                  r_tran_field_proxy_type
   use io_mod,               only: ts_fname
   use log_mod,              only: log_event,         &
                                   log_scratch_space, &
@@ -168,7 +170,7 @@ subroutine read_field_edge(xios_field_name, field_proxy)
   call xios_recv_field(xios_field_name, recv_field)
 
   ! Reshape the data to what we require for the LFRic field
-  ! Note the conversion from dp_xios to r_def or i_def
+  ! Note the conversion from dp_xios to r_def, i_def, r_solver or r_tran
   select type(field_proxy)
 
     type is (field_proxy_type)
@@ -187,6 +189,12 @@ subroutine read_field_edge(xios_field_name, field_proxy)
     do i = 0, axis_size-1
       field_proxy%data( i+1 : undf : axis_size )  = &
                real(recv_field( i*(domain_size)+1 : (i+1)*domain_size ), r_solver)
+    end do
+
+    type is (r_tran_field_proxy_type)
+    do i = 0, axis_size-1
+      field_proxy%data( i+1 : undf : axis_size )  = &
+               real(recv_field( i*(domain_size)+1 : (i+1)*domain_size ), r_tran)
     end do
 
     class default
@@ -237,7 +245,7 @@ subroutine read_field_face(xios_field_name, field_proxy)
 
   ! Different field kinds are selected to access data, which is arranged to get the
   ! correct data layout for the LFRic field - the reverse of what is done for writing
-  ! Note the conversion from dp_xios to r_def, i_def or r_solver
+  ! Note the conversion from dp_xios to r_def, i_def, r_solver or r_tran
   select type(field_proxy)
 
     type is (field_proxy_type)
@@ -256,6 +264,12 @@ subroutine read_field_face(xios_field_name, field_proxy)
     do i = 0, axis_size-1
       field_proxy%data(i+1:undf:axis_size) = &
              real( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_solver)
+    end do
+
+    type is (r_tran_field_proxy_type)
+    do i = 0, axis_size-1
+      field_proxy%data(i+1:undf:axis_size) = &
+             real( recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_tran)
     end do
 
     class default
@@ -310,7 +324,7 @@ subroutine read_field_single_face(xios_field_name, field_proxy)
   select type(field_proxy)
 
     ! Pass the correct data from the recieved field to the field proxy data
-    ! Note the conversion from dp_xios to r_def, i_def or r_solver
+    ! Note the conversion from dp_xios to r_def, i_def, r_solver or r_tran
     type is (field_proxy_type)
     do i = 0, ndata-1
       field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
@@ -327,6 +341,12 @@ subroutine read_field_single_face(xios_field_name, field_proxy)
     do i = 0, ndata-1
       field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
               real(recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_solver)
+    end do
+
+    type is (r_tran_field_proxy_type)
+    do i = 0, ndata-1
+      field_proxy%data(i+1:(ndata*domain_size)+i:ndata) = &
+              real(recv_field(i*(domain_size)+1:(i*(domain_size)) + domain_size), r_tran)
     end do
 
     class default
@@ -532,6 +552,23 @@ subroutine read_state(state, prefix, suffix)
         end if
 
       type is (r_solver_field_type)
+        if ( fld%can_read() ) then
+          call log_event( 'Reading '//trim(adjustl(fld%get_name())), &
+            LOG_LEVEL_INFO)
+
+          ! Construct the XIOS field ID from the LFRic field name and optional
+          ! arguments
+          xios_field_id = trim(adjustl(fld%get_name()))
+          if ( present(prefix) ) xios_field_id = trim(adjustl(prefix)) // trim(adjustl(xios_field_id))
+          if ( present(suffix) ) xios_field_id = trim(adjustl(xios_field_id)) // trim(adjustl(suffix))
+
+          call fld%read_field(xios_field_id)
+        else
+          call log_event( 'Read method for  '// trim(adjustl(fld%get_name())) // &
+                          ' not set up', LOG_LEVEL_INFO )
+        end if
+
+      type is (r_tran_field_type)
         if ( fld%can_read() ) then
           call log_event( 'Reading '//trim(adjustl(fld%get_name())), &
             LOG_LEVEL_INFO)

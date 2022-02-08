@@ -22,6 +22,7 @@ module lfric_xios_write_mod
   use io_mod,               only: ts_fname
   use integer_field_mod,    only: integer_field_type, integer_field_proxy_type
   use r_solver_field_mod,   only: r_solver_field_type, r_solver_field_proxy_type
+  use r_tran_field_mod,     only: r_tran_field_type, r_tran_field_proxy_type
   use log_mod,              only: log_event,         &
                                   log_scratch_space, &
                                   LOG_LEVEL_INFO,    &
@@ -88,6 +89,9 @@ subroutine checkpoint_write_xios(xios_field_name, file_name, field_proxy)
     type is (r_solver_field_proxy_type)
     send_field = field_proxy%data(1:undf)
 
+    type is (r_tran_field_proxy_type)
+    send_field = field_proxy%data(1:undf)
+
     class default
     call log_event( "Invalid type for input field proxy", LOG_LEVEL_ERROR )
 
@@ -150,6 +154,12 @@ subroutine write_field_node(xios_field_name, field_proxy)
     end do
 
     type is (r_solver_field_proxy_type)
+    do i = 0, axis_size-1
+      send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
+                 field_proxy%data(i+1:undf:axis_size)
+    end do
+
+    type is (r_tran_field_proxy_type)
     do i = 0, axis_size-1
       send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
                  field_proxy%data(i+1:undf:axis_size)
@@ -226,6 +236,12 @@ subroutine write_field_edge(xios_field_name, field_proxy)
                    field_proxy%data(i+1:undf:axis_size)
       end do
 
+    type is (r_tran_field_proxy_type)
+      do i = 0, axis_size-1
+        send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
+                   field_proxy%data(i+1:undf:axis_size)
+      end do
+
     class default
       call log_event( "Invalid type for input field proxy", LOG_LEVEL_ERROR )
 
@@ -297,6 +313,12 @@ subroutine write_field_single_face(xios_field_name, field_proxy)
                               field_proxy%data(i+1:(ndata*domain_size)+i:ndata)
     end do
 
+    type is (r_tran_field_proxy_type)
+    do i = 0, ndata-1
+      send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
+                              field_proxy%data(i+1:(ndata*domain_size)+i:ndata)
+    end do
+
     class default
       call log_event( "Invalid type for input field proxy", LOG_LEVEL_ERROR )
 
@@ -335,6 +357,9 @@ subroutine write_field_face(xios_field_name, field_proxy)
     fs_id = field_proxy%vspace%which()
 
     type is (r_solver_field_proxy_type)
+    fs_id = field_proxy%vspace%which()
+
+    type is (r_tran_field_proxy_type)
     fs_id = field_proxy%vspace%which()
 
     class default
@@ -381,6 +406,12 @@ subroutine write_field_face(xios_field_name, field_proxy)
       end do
 
     type is (r_solver_field_proxy_type)
+      do i = 0, axis_size-1
+        send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
+                   field_proxy%data(i+1:undf:axis_size)
+      end do
+
+    type is (r_tran_field_proxy_type)
       do i = 0, axis_size-1
         send_field(i*(domain_size)+1:(i*(domain_size)) + domain_size) = &
                    field_proxy%data(i+1:undf:axis_size)
@@ -466,6 +497,26 @@ subroutine write_state(state, prefix, suffix)
         end if
 
       type is (r_solver_field_type)
+        if ( fld%can_write() ) then
+          write(log_scratch_space,'(3A,I6)') &
+              "Writing ", trim(adjustl(fld%get_name()))
+          call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+          ! Construct the XIOS field ID from the LFRic field name and optional
+          ! arguments
+          xios_field_id = trim(adjustl(fld%get_name()))
+          if ( present(prefix) ) xios_field_id = trim(adjustl(prefix)) // trim(adjustl(xios_field_id))
+          if ( present(suffix) ) xios_field_id = trim(adjustl(xios_field_id)) // trim(adjustl(suffix))
+
+          call fld%write_field(xios_field_id)
+        else
+
+          call log_event( 'Write method for '// trim(adjustl(fld%get_name())) // &
+                      ' not set up', LOG_LEVEL_INFO )
+
+        end if
+
+      type is (r_tran_field_type)
         if ( fld%can_write() ) then
           write(log_scratch_space,'(3A,I6)') &
               "Writing ", trim(adjustl(fld%get_name()))

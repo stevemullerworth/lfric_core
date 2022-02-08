@@ -20,6 +20,8 @@ module field_collection_mod
                                      integer_field_pointer_type
   use r_solver_field_mod,      only: r_solver_field_type, &
                                      r_solver_field_pointer_type
+  use r_tran_field_mod,        only: r_tran_field_type, &
+                                     r_tran_field_pointer_type
   use pure_abstract_field_mod, only: pure_abstract_field_type
   use log_mod,                 only: log_event, log_scratch_space, &
                                      LOG_LEVEL_ERROR
@@ -54,6 +56,7 @@ module field_collection_mod
     procedure, public :: get_field
     procedure, public :: get_integer_field
     procedure, public :: get_r_solver_field
+    procedure, public :: get_r_tran_field
     procedure, public :: get_length
     procedure, public :: get_name
     procedure, public :: clear
@@ -118,6 +121,14 @@ subroutine add_field(self, field)
         '] is an invalid field name, please choose a unique field name.'
         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end if
+    type is (r_tran_field_type)
+      if ( trim(infield%get_name()) == 'none' .OR. &
+                                  trim(infield%get_name()) == 'unset') then
+        write(log_scratch_space, '(3A)') &
+        'Field name [', trim(infield%get_name()), &
+        '] is an invalid field name, please choose a unique field name.'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
     type is (field_pointer_type)
       if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
                                   trim(infield%field_ptr%get_name()) == 'unset') then
@@ -135,6 +146,14 @@ subroutine add_field(self, field)
         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end if
      type is (r_solver_field_pointer_type)
+      if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
+                                  trim(infield%field_ptr%get_name()) == 'unset') then
+        write(log_scratch_space, '(3A)') &
+        'Field name [', trim(infield%field_ptr%get_name()), &
+        '] is an invalid field name, please choose a unique field name.'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+     type is (r_tran_field_pointer_type)
       if ( trim(infield%field_ptr%get_name()) == 'none' .OR. &
                                   trim(infield%field_ptr%get_name()) == 'unset') then
         write(log_scratch_space, '(3A)') &
@@ -167,6 +186,13 @@ subroutine add_field(self, field)
           '] already exists in field collection: ', trim(self%name)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
+    type is (r_tran_field_type)
+      if ( self%field_exists( trim(infield%get_name()) ) ) then
+        write(log_scratch_space, '(4A)') &
+          'Field [', trim(infield%get_name()), &
+          '] already exists in field collection: ', trim(self%name)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+      end if
     type is (field_pointer_type)
       if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
         write(log_scratch_space, '(4A)') &
@@ -182,6 +208,13 @@ subroutine add_field(self, field)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end if
     type is (r_solver_field_pointer_type)
+      if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
+        write(log_scratch_space, '(4A)') &
+          'Field [', trim(infield%field_ptr%get_name()), &
+          '] already exists in field collection: ', trim(self%name)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+    type is (r_tran_field_pointer_type)
       if ( self%field_exists( trim(infield%field_ptr%get_name()) ) ) then
         write(log_scratch_space, '(4A)') &
           'Field [', trim(infield%field_ptr%get_name()), &
@@ -254,6 +287,16 @@ function field_exists(self, field_name) result(exists)
           exists=.true.
           exit
       end if
+      type is (r_tran_field_type)
+      if ( trim(field_name) == trim(listfield%get_name()) ) then
+          exists=.true.
+          exit
+      end if
+      type is (r_tran_field_pointer_type)
+      if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
+          exists=.true.
+          exit
+      end if
     end select
 
     loop => loop%next
@@ -264,9 +307,9 @@ end function field_exists
 !> Adds a pointer to a field into the field collection. The pointer will point
 !> to a field held elsewhere. If that field is destroyed, the pointer will
 !> become an orphan.
-!> @param [in] field_ptr : A pointer to the field (real, integer or r_solver)
+!> @param [in] field_ptr : A pointer to the field (real, integer, r_solver or r_tran)
 !>                         that is to be referenced in the collection.
-! The routine accepts a pointer to a field (real, integer or r_solver). It
+! The routine accepts a pointer to a field (real, integer, r_solver or r_tran). It
 ! packages it up into a field pointer object and calls the routine to add this
 ! to the collection
 subroutine add_reference_to_field(self, field_ptr)
@@ -282,6 +325,8 @@ subroutine add_reference_to_field(self, field_ptr)
   type(integer_field_pointer_type)   :: integer_field_pointer
   type(r_solver_field_type), pointer :: r_solver_fld_ptr
   type(r_solver_field_pointer_type)  :: r_solver_field_pointer
+  type(r_tran_field_type), pointer   :: r_tran_fld_ptr
+  type(r_tran_field_pointer_type)    :: r_tran_field_pointer
 
   select type(field_ptr)
     type is (field_type)
@@ -299,6 +344,11 @@ subroutine add_reference_to_field(self, field_ptr)
       r_solver_fld_ptr => field_ptr
       call r_solver_field_pointer%r_solver_field_pointer_initialiser(r_solver_fld_ptr)
       call self%add_field( r_solver_field_pointer )
+    type is (r_tran_field_type)
+      ! Create an r_tran field pointer object that just contains a field ptr
+      r_tran_fld_ptr => field_ptr
+      call r_tran_field_pointer%r_tran_field_pointer_initialiser(r_tran_fld_ptr)
+      call self%add_field( r_tran_field_pointer )
   end select
 
 end subroutine add_reference_to_field
@@ -345,6 +395,11 @@ subroutine remove_field(self, field_name)
           call self%field_list%remove_item(loop)
           exit
         end if
+      type is (r_tran_field_type)
+        if ( trim(field_name) == trim(listfield%get_name()) ) then
+          call self%field_list%remove_item(loop)
+          exit
+        end if
       type is (field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
           call self%field_list%remove_item(loop)
@@ -356,6 +411,11 @@ subroutine remove_field(self, field_name)
           exit
         end if
       type is (r_solver_field_pointer_type)
+        if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
+          call self%field_list%remove_item(loop)
+          exit
+        end if
+      type is (r_tran_field_pointer_type)
         if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
           call self%field_list%remove_item(loop)
           exit
@@ -522,6 +582,53 @@ function get_r_solver_field(self, field_name) result(field)
 
 end function get_r_solver_field
 
+!> Access an r_tran field from the collection
+!> @param [in] field_name The name of the intager field to be accessed
+!> @return field Pointer to the r_tran field that is extracted
+function get_r_tran_field(self, field_name) result(field)
+
+  implicit none
+
+  class(field_collection_type), intent(in) :: self
+
+  character(*), intent(in) :: field_name
+  type(r_tran_field_type), pointer :: field
+
+  ! Pointer to linked list - used for looping through the list
+  type(linked_list_item_type), pointer :: loop => null()
+
+  ! start at the head of the mesh collection linked list
+  loop => self%field_list%get_head()
+
+  do
+    ! If list is empty or we're at the end of list and we didn't find the
+    ! field, fail with an error
+    if ( .not. associated(loop) ) then
+      write(log_scratch_space, '(4A)') 'No r_tran field [', trim(field_name), &
+         '] in field collection: ', trim(self%name)
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+    ! otherwise search list for the name of field we want
+
+    ! 'cast' to the r_tran_field_type
+    select type(listfield => loop%payload)
+      type is (r_tran_field_type)
+      if ( trim(field_name) == trim(listfield%get_name()) ) then
+          field => listfield
+          exit
+      end if
+      type is (r_tran_field_pointer_type)
+      if ( trim(field_name) == trim(listfield%field_ptr%get_name()) ) then
+          field => listfield%field_ptr
+          exit
+      end if
+    end select
+
+    loop => loop%next
+  end do
+
+end function get_r_tran_field
+
 !> Returns the size of the field collection
 function get_length(self) result(length)
 
@@ -608,11 +715,15 @@ subroutine copy_collection(self, dest, name)
           call dest%add_field(item)
         type is (r_solver_field_type)
           call dest%add_field(item)
+        type is (r_tran_field_type)
+          call dest%add_field(item)
         type is (field_pointer_type)
           call dest%add_field(item)
         type is (integer_field_pointer_type)
           call dest%add_field(item)
         type is (r_solver_field_pointer_type)
+          call dest%add_field(item)
+        type is (r_tran_field_pointer_type)
           call dest%add_field(item)
       end select
       field_item => field_item%next

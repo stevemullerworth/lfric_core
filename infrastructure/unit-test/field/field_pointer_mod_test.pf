@@ -116,6 +116,7 @@ contains
     use field_mod,         only: field_type, field_pointer_type
     use integer_field_mod, only: integer_field_type, integer_field_pointer_type
     use r_solver_field_mod, only: r_solver_field_type, r_solver_field_pointer_type
+    use r_tran_field_mod,  only: r_tran_field_type, r_tran_field_pointer_type
 
     implicit none
 
@@ -132,6 +133,10 @@ contains
     type(r_solver_field_type), target  :: f3
     type(r_solver_field_type), pointer :: f3_ptr
     type(r_solver_field_pointer_type)  :: r_solver_field_pointer
+
+    type(r_tran_field_type), target  :: f4
+    type(r_tran_field_type), pointer :: f4_ptr
+    type(r_tran_field_pointer_type)  :: r_tran_field_pointer
 
     ! ===== Test real field pointers =====
 
@@ -171,6 +176,17 @@ contains
     ! Check that the pointer held in the object is the same as the original
     @assertEqual ( .true., associated( r_solver_field_pointer%field_ptr, f3_ptr ) )
 
+    ! ===== Test r_tran field pointers =====
+
+    ! Create a field and a pointer to it
+    call f4%initialise( vector_space = this%w2_fs, name='f4' )
+    f4_ptr => f4
+
+    ! Make a field pointer object based on the above field
+    call r_tran_field_pointer%r_tran_field_pointer_initialiser( f4_ptr )
+
+    ! Check that the pointer held in the object is the same as the original
+    @assertEqual ( .true., associated( r_tran_field_pointer%field_ptr, f4_ptr ) )
 
   end subroutine test_field_pointer
 

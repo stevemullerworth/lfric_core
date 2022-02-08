@@ -75,6 +75,10 @@ export PRE_PROCESS_MACROS += RDEF_PRECISION=$(RDEF_PRECISION)
 R_SOLVER_PRECISION ?= 64
 # export PRE_PROCESS_MACROS += R_SOLVER_PRECISION=$(R_SOLVER_PRECISION)
 
+# Set the r_tran precision for reals
+R_TRAN_PRECISION ?= 64
+# export PRE_PROCESS_MACROS += R_TRAN_PRECISION=$(R_TRAN_PRECISION)
+
 # The compile options file overrides compile options based on file-name pattern matching.
 # Use the miniapp-specific file if it exists. Otherwise use the infrastructure file.
 ifeq (,$(wildcard $(PROJECT_DIR)/build/compile_options.mk))
@@ -341,7 +345,7 @@ do-integration-tests:
 	            SOURCE_DIR=$(SOURCE_DIR) \
 	            TEST_DIR=$(TEST_DIR) \
 	            WORKING_DIR=$(WORKING_DIR) \
-	            TEST_RUN_DIR=$(BIN_DIR)/test_files	            
+	            TEST_RUN_DIR=$(BIN_DIR)/test_files
 
 .PHONY: do-integration-test/%
 do-integration-test/detect: $(if $(ANY_TESTS), \

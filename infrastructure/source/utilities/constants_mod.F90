@@ -23,15 +23,17 @@ module constants_mod
             i_timestep, i_um, i_ncdf,                                    &
             l_def, l_native,                                             &
             r_def, r_double, r_ncdf, r_native, r_second, r_single, r_um, &
-            r_solver,                                                    &
+            r_solver, r_tran,                                            &
             CMDI, UNSET_KEY, EMDI, IMDI, RMDI,                           &
-            real_type, r_solver_real_type, integer_type, logical_type,   &
+            real_type, r_solver_real_type, r_tran_real_type,             &
+            integer_type, logical_type,                                  &
             EPS, tiny_eps,                                               &
             str_def, str_long, str_max_filename, str_short,              &
             str_longlong,                                                &
             LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
             xios_max_int, PI, degrees_to_radians, radians_to_degrees,    &
-            cache_block, PRECISION_REAL, PRECISION_R_SOLVER
+            cache_block, PRECISION_REAL, PRECISION_R_SOLVER,             &
+            PRECISION_R_TRAN
 
   ! Define default application-defined kinds for all intrinsic data types
 
@@ -64,9 +66,21 @@ module constants_mod
   character(3), parameter :: PRECISION_R_SOLVER = '64'
 #endif
 
+  ! Default real kind for r_tran.
+#if (R_TRAN_PRECISION == 32)
+  integer,      parameter :: r_tran = real32
+  character(3), parameter :: PRECISION_R_TRAN = '32'
+#elif (R_TRAN_PRECISION == 128)
+  integer,      parameter :: r_tran = real128
+  character(3), parameter :: PRECISION_R_TRAN = '128'
+#else
+  integer,      parameter :: r_tran = real64
+  character(3), parameter :: PRECISION_R_TRAN = '64'
+#endif
 
   integer, parameter :: real_type          = 1 !< A parameter used to indicate a real data typa
   integer, parameter :: r_solver_real_type = 1 !< A parameter used to indicate a r_solver data type
+  integer, parameter :: r_tran_real_type   = 1 !< A parameter used to indicate a r_tran data type
   integer, parameter :: integer_type       = 2 !< A parameter used to indicate an integer data type
   integer, parameter :: logical_type       = 3 !< A parameter used to indicate a logical data type
 
