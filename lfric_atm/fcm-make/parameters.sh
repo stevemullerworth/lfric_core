@@ -16,13 +16,13 @@
 # changes were committed to the project's trunk
 export casim_rev=um12.1
 export casim_sources=
-export jules_rev=22360
+export jules_rev=22379
 export jules_sources=
 export shumlib_rev=um12.1
 export shumlib_sources=
 export socrates_rev=1166
 export socrates_sources=branches/dev/jamesmanners/r1166_cloud_diag_fix@1170
-export um_rev=106937
+export um_rev=106960
 export um_sources=
 
 

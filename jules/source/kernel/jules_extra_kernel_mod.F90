@@ -276,8 +276,8 @@ contains
                                 progs, trifctltype, jules_vars,               &
                                 fluxes,                                       &
                                 lake_vars,                                    &
-                                forcing
-                                !rivers, &
+                                forcing,                                      &
+                                rivers
                                 !veg3_parm, &
                                 !veg3_field, &
                                 !chemvars
@@ -691,10 +691,10 @@ contains
     ! JULES TYPES containing field data
     crop_vars, psparms, toppdm, fire_vars, ainfo, trif_vars, soilecosse,      &
     urban_param, progs, trifctltype, jules_vars,                              &
-    fluxes, &
-    lake_vars, &
-    forcing &
-    !rivers, &
+    fluxes,                                                                   &
+    lake_vars,                                                                &
+    forcing,                                                                  &
+    rivers                                                                    &
     !veg3_parm, &
     !veg3_field, &
     !chemvars

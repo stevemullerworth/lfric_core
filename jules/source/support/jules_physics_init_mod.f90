@@ -104,7 +104,7 @@ module jules_physics_init_mod
                                       fluxes_data, fluxes,                    &
                                       lake_data, lake_vars,                   &
                                       forcing_data, forcing,                  &
-                                      !rivers_data, rivers, &
+                                      rivers_data, rivers,                    &
                                       !veg3_parm_data, veg3_parm, &
                                       !veg3_field_data, veg3_field, &
                                       chemvars_data, chemvars
@@ -125,7 +125,7 @@ module jules_physics_init_mod
   use fluxes_mod,              only : fluxes_assoc
   use lake_mod,                only: lake_assoc
   use jules_forcing_mod,       only: forcing_assoc
-! use jules_rivers_mod,        only: rivers_assoc
+  use jules_rivers_mod,        only: rivers_assoc
 ! use veg3_parm_mod,           only: in_dev
 ! use veg3_field_mod,          only: in_dev
   use jules_chemvars_mod,      only: chemvars_assoc
@@ -520,10 +520,10 @@ contains
                                fluxes_data,                                    &
                                lake_data,                                      &
                                forcing_data,                                   &
-                              !rivers_data, &
+                               rivers_data,                                    &
                               !veg3_parm_data, &
                               !veg3_field_data, &
-                               chemvars_data &
+                               chemvars_data                                   &
                                )
 
     ! Reset pdims_s
@@ -549,7 +549,7 @@ contains
     call fluxes_assoc(fluxes,fluxes_data)
     call lake_assoc(lake_vars,lake_data)
     call forcing_assoc(forcing,forcing_data)
-    !call rivers_assoc(rivers,rivers_data)
+    call rivers_assoc(rivers,rivers_data)
     !call in_dev
     !call in_dev
     call chemvars_assoc(chemvars,chemvars_data)
