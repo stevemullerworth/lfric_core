@@ -27,7 +27,10 @@ use initial_wind_config_mod,  only: profile_none,                      &
                                     profile_NL_case_3,                 &
                                     profile_NL_case_4,                 &
                                     profile_hadley_like_dcmip,         &
-                                    profile_curl_free_reversible
+                                    profile_curl_free_reversible,      &
+                                    profile_sbr_with_vertical,         &
+                                    profile_dcmip_101,                 &
+                                    profile_vertical_deformation
 use planet_config_mod,        only: scaled_radius
 use log_mod,                  only: log_event,                         &
                                     log_scratch_space,                 &
@@ -376,6 +379,8 @@ end function curl_free_reversible
 !> @result u Result wind field vector (u,v,w)
 function analytic_wind(chi, time, choice, num_options, option_arg) result(u)
 
+  use extrusion_config_mod,   only : domain_top
+
   implicit none
 
   real(kind=r_def),           intent(in) :: chi(3)
@@ -390,7 +395,17 @@ function analytic_wind(chi, time, choice, num_options, option_arg) result(u)
   real(kind=r_def)             :: s, r_on_a
   real(kind=r_def)             :: pressure, temperature, density
   real(kind=r_def)             :: lat_pole, lon_pole
-  real(kind=r_def)             :: k_z ! vertical wavenumber
+  real(kind=r_def)             :: k_z                 ! vertical wavenumber
+  real(kind=r_def)             :: z                   ! height in spherical coordinates
+  real(kind=r_def)             :: long_dash           ! translated longitude
+  real(kind=r_def)             :: end_time            ! length of simulation
+  real(kind=r_def)             :: u0, w0              ! hardwired velocity values
+  real(kind=r_def)             :: u_d                 ! divergence correcting velocity
+  real(kind=r_def)             :: p, ptop, b, rhoz    ! pressure variables for DCMIP 1.1
+  real(kind=r_def), parameter  :: p0 = 100000.0_r_def ! surface pressure for DCMIP 1.1
+  real(kind=r_def), parameter  :: Rd = 287.0_r_def    ! gas constant for DCMIP 1.1
+  real(kind=r_def), parameter  :: T0 = 300.0_r_def    ! ref temperature for DCMIP 1.1
+  real(kind=r_def), parameter  :: g  = 9.80616_r_def  ! gravity for DCMIP 1.1
 
   if ( .not. present(option_arg) ) then
     option(:) = 0.0_r_def
@@ -472,7 +487,75 @@ function analytic_wind(chi, time, choice, num_options, option_arg) result(u)
       u = hadley_like_dcmip(chi(2),chi(3),time)
     case ( profile_curl_free_reversible )
       u = curl_free_reversible(chi(1), chi(3), time)
-
+    case (profile_sbr_with_vertical)
+      ! Solid body rotation around equator with vertical motion transport test.
+      ! Set test case constants
+      end_time  = 1036800.0_r_def
+      u0        = 2.0_r_def * pi * scaled_radius / end_time
+      w0        = 0.025_r_def
+      ! Get height
+      z         = chi(3) - scaled_radius
+      ! Translated longitude
+      long_dash = chi(1) - 2.0_r_def * pi * time / end_time
+      ! Set divergent correction velocity
+      u_d = - scaled_radius * cos(chi(2)) * w0 * pi / domain_top &
+            * cos(pi * z / domain_top) * sin(long_dash)          &
+            * cos(2.0_r_def * pi * time / end_time)
+      ! Set velocity
+      u(1) = u0 *  cos(chi(2)) + u_d
+      u(2) = 0.0_r_def
+      u(3) = w0 * sin(pi * z / domain_top) * cos(long_dash) &
+             * cos(2.0_r_def * pi * time / end_time)
+    case (profile_dcmip_101)
+      ! DCMIP 1.1 transport test.
+      ! Set test case constants
+      end_time  = 1036800.0_r_def
+      u0        = 10.0_r_def * scaled_radius / end_time
+      w0        = 23000.0_r_def * pi / end_time
+      b         = 0.2_r_def
+      ! Get height
+      z         = chi(3) - scaled_radius
+      ! Translated longitude
+      long_dash = chi(1) - 2.0_r_def * pi * time / end_time
+      ! Pressure related variables
+      p         = p0*exp(-g * z / ( Rd * T0 ))
+      ptop      = p0*exp(-g * domain_top / ( Rd * T0 ))
+      rhoz      = p / ( Rd * T0 )
+      ! Set divergent correction velocity
+      u_d = scaled_radius * w0 / (b * ptop) * cos(chi(2)) * cos(chi(2))      &
+            * cos(long_dash) * cos(2.0_r_def * pi * time / end_time)         &
+            * ( -exp( (p - p0)/(b * ptop) ) + exp( (ptop - p)/(b * ptop) ) )
+      ! Set velocity
+      u(1) = u0 * sin(long_dash) * sin(long_dash) * sin(2.0_r_def * chi(2))  &
+                * cos(pi * time / end_time) + u_d                            &
+                + 2.0_r_def * pi * scaled_radius / end_time * cos(chi(2))
+      u(2) = u0 * sin(2.0_r_def * long_dash) * cos(chi(2)) * cos(pi * time / end_time)
+      u(3) = - w0 / ( g*rhoz) * cos(chi(2)) * sin(long_dash)                           &
+                * cos(2.0_r_def * pi * time / end_time)                                &
+                * ( 1.0_r_def + exp( (ptop-p0) / (b*ptop) ) - exp( (p-p0) / (b*ptop) ) &
+                - exp( (ptop-p) / (b*ptop) ) )
+    case (profile_vertical_deformation)
+      ! Vertical deformation transport test.
+      ! Set test case constants
+      w0        = 0.02_r_def
+      end_time  = 1036800.0_r_def
+      ! Get height
+      z         = chi(3) - scaled_radius
+      ! Translated longitude
+      long_dash = chi(1) - 2.0_r_def * pi * time / end_time
+      ! Set divergent correction velocity
+      u_d = 2.0_r_def * sin(2.0_r_def * pi *( z / domain_top - 0.5_r_def )) *              &
+            sin(pi * z / domain_top) - cos(2.0_r_def * pi *( z / domain_top - 0.5_r_def )) &
+            * cos(pi * z / domain_top)
+      ! Set velocity
+      u(1) = scaled_radius * w0 * pi / domain_top                     &
+             * sin(long_dash) * sin(long_dash)                        &
+             * cos(pi * time / end_time) * cos(chi(2))  * cos(chi(2)) &
+             * u_d + 2.0_r_def * pi * scaled_radius / end_time * cos(chi(2))
+      u(2) = 0.0_r_def
+      u(3) = w0 * sin(2.0_r_def * long_dash)                       &
+                * cos(2.0_r_def * pi *( z / domain_top - 0.5_r_def )) &
+                * sin(pi * z / domain_top) * cos(pi * time / end_time) * cos(chi(2))
     case default
       write( log_scratch_space, '(A)' )  'Invalid velocity profile choice, stopping'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )

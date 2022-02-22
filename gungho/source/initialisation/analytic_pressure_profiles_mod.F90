@@ -20,6 +20,7 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_warm_bubble_3d,          &
                                        test_gaussian_hill,           &
                                        test_cosine_hill,             &
+                                       test_cosine_bell,             &
                                        test_yz_cosine_hill,          &
                                        test_slotted_cylinder,        &
                                        test_constant_field,          &
@@ -245,6 +246,7 @@ contains
       pressure = vortex_field(lat,long,radius,time)
 
     case( test_yz_cosine_hill,       &
+          test_cosine_bell,          &
           test_hadley_like_dcmip,    &
           test_eternal_fountain,     &
           test_curl_free_reversible, &

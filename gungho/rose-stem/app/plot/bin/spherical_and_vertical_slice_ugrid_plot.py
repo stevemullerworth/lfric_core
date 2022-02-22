@@ -80,7 +80,8 @@ def make_figures(filein, plotpath, field_list, slice_list,
         zmin = 0.0
         zmax = 2400.
 
-    elif testname in ['baroclinic', 'aquaplanet', 'spherical', 'lam_gw']:
+    elif testname in ['baroclinic', 'aquaplanet', 'spherical', 'lam_gw',
+                      'sbr', 'dcmip101', 'vert_def']:
         spherical = True
 
         if testname == 'spherical':
@@ -90,6 +91,9 @@ def make_figures(filein, plotpath, field_list, slice_list,
         elif testname == 'lam_gw':
             zmin = 0.0
             zmax = 10000.0  # A 10 km lid
+        elif testname in ['sbr', 'dcmip101', 'vert_def']:
+            zmin = 0.0
+            zmax = 12000.0 # A 12 km lid
         elif spherical:
             zmin = 0.0
             zmax = 30000.   # Assume 30 km lid
@@ -119,6 +123,10 @@ def make_figures(filein, plotpath, field_list, slice_list,
         cube = read_ugrid_data(filein, 'buoyancy')
     levels_name = cube.dim_coords[-1].name()
     nz_full = len(cube.coord(levels_name).points)
+
+    # Set plot_level for certain tests
+    if testname in ['sbr', 'dcmip101', 'vert_def']:
+        plot_level = int(np.floor(nz_full/2))
 
     # Find max horizontal extent for non-spherical domains
     try:
@@ -342,7 +350,8 @@ def make_figures(filein, plotpath, field_list, slice_list,
                 # Special contours for our known tests
                 if ((testname in ['cylinder', 'div_free',
                                  'eternal_fountain', 'rotational',
-                                 'translational']
+                                 'translational', 'sbr',
+                                 'dcmip101', 'vert_def']
                     and field in ['theta', 'density', 'rho', 'm_v', 'tracer'])
                     or (testname == 'curl_free' and field in ['theta', 'm_v'])):
 

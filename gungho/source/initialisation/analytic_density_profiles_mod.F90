@@ -22,6 +22,7 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_warm_bubble_3d,          &
                                        test_gaussian_hill,           &
                                        test_cosine_hill,             &
+                                       test_cosine_bell,             &
                                        test_yz_cosine_hill,          &
                                        test_slotted_cylinder,        &
                                        test_constant_field,          &
@@ -45,13 +46,14 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_rotational,              &
                                        test_translational,           &
                                        test_vertical_cylinder
-use initial_density_config_mod, only : r1, x1, y1, z1, r2, x2, y2, z2,         &
+use initial_density_config_mod, only : r1, x1, y1, z1, r2, x2, y2, z2, &
                                        tracer_max, tracer_background
 use base_mesh_config_mod,       only : geometry, &
                                        geometry_spherical
 use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius
 use reference_profile_mod,      only : reference_profile
-use analytic_temperature_profiles_mod, only: analytic_temperature
+use analytic_temperature_profiles_mod, &
+                                only : analytic_temperature
 use deep_baroclinic_wave_mod,   only : deep_baroclinic_wave
 use domain_size_config_mod,     only : planar_domain_max_x
 use extrusion_config_mod,       only : domain_top
@@ -175,6 +177,7 @@ function analytic_density(chi, choice, time) result(density)
                                   ZR = 2000.0_r_def
   real(kind=r_def)             :: long, lat, radius
   real(kind=r_def)             :: l1, l2
+  real(kind=r_def)             :: d1, d2
   real(kind=r_def)             :: h1, h2
   real(kind=r_def)             :: pressure, temperature
   real(kind=r_def)             :: t0
@@ -239,6 +242,15 @@ function analytic_density(chi, choice, time) result(density)
       h2 = tracer_background
     end if
     density = h1+h2
+
+  case( test_cosine_bell )
+    bubble_height = domain_top/12.0_r_def
+    d1 = min( 1.0_r_def, ( l1 / 0.5_r_def )**2 + &
+         ( ( radius - scaled_radius - domain_top/2.0_r_def ) / bubble_height )**2 )
+    d2 = min( 1.0_r_def, ( l2 / 0.5_r_def )**2 + &
+         ( ( radius - scaled_radius - domain_top/2.0_r_def ) / bubble_height )**2 )
+    density = tracer_background + ( (tracer_max - tracer_background) / 2.0_r_def ) * &
+              ( ( 1.0_r_def + cos( pi*d1 ) ) + ( 1.0_r_def + cos( pi*d2 ) ) )
 
   case( test_yz_cosine_hill )
 
