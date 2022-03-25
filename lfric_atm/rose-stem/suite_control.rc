@@ -260,15 +260,14 @@
                                        },
                          }
                      )',
-
-   'run_application("lfric_atm", "basic_ral_setup", checkkgo=False,
-	             resolutions=[("n96_lam",120.)],
-	             env={"crun":3, "nrun":20,
-	             "directives":{"default":{"mpi_parts":4,
-	                                      "threads":1,
-	                                      "use_xios":"True",
-	                                      "wallclock":"0:30:00"} } },
-	             plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+    'run_application("lfric_atm", "basic_ral_setup",
+                     resolutions=[("n96_lam", 600.)],
+ 		     env={"crun":2, "nrun":18,
+ 		     "directives":{"default":{"mpi_parts":4,
+ 		                              "threads":1,
+ 		                              "use_xios":"True",
+ 		                              "wallclock":"0:10:00"} } },
+ 		     plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
     'check_compilers("lfric_atm", "basic_gal7_copy", "full-debug",
                      resolution=("C12",1800.0))',
     'canned_test("lfric_atm")'
@@ -423,4 +422,14 @@
                      plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR"
                      )',
   ],
+  'basic-ral-demo': [
+   'run_application("lfric_atm", "basic_ral_nemo_1p5km",
+ 		    resolutions=[("point_nemo_1p5km",30.,)],
+ 		    env={"crun":6, "nrun":60,
+ 		    "directives":{"default":{"mpi_parts":972,
+ 		                             "threads":1,
+ 		                             "use_xios":"True",
+ 		                             "wallclock":"01:00:00"} } },
+ 		    plotstr="plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR")',
+		     ],
 } %}

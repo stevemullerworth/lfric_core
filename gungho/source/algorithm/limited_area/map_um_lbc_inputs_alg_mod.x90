@@ -62,7 +62,6 @@ contains
     call height_w3%copy_field_properties( radius_w3 )
 
     call invoke( a_plus_X( radius_w3, radius, height_w3 ), &
-                 setval_c( radius_w3, radius ),            &
                  X_divideby_Y( rho, rho_r2, radius_w3 ),   &
                  inc_X_divideby_Y( rho, radius_w3 ) )
 

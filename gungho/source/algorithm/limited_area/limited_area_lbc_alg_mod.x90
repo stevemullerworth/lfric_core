@@ -15,7 +15,8 @@ module limited_area_lbc_alg_mod
   use formulation_config_mod,         only: moisture_formulation,    &
                                             moisture_formulation_dry
   use mesh_mod,                       only: mesh_type
-  use mr_indices_mod,                 only: nummr, mr_names
+  use mr_indices_mod,                 only: nummr, mr_names, imr_v, &
+                                            imr_cl, imr_ci, imr_r
   use mesh_mod,                       only: mesh_type
   use limited_area_constants_mod,     only: get_boundary_mask, &
                                             get_blend_mask,    &
@@ -24,6 +25,10 @@ module limited_area_lbc_alg_mod
   use limited_area_masks_alg_mod,     only: rim_width
   use fs_continuity_mod,              only: W2, W3, Wtheta
   use constants_mod,                  only: i_def, str_def, r_def
+  use initialization_config_mod,      only: lbc_option,                  &
+                                            lbc_option_analytic,         &
+                                            lbc_option_gungho_file,      &
+                                            lbc_option_um2lfric_file
   implicit none
 
   private :: blend_field
@@ -88,6 +93,8 @@ contains
   !> @param[in,out] mr         Current LAM field for mr, mixing ratios
   !> @param[in]     lbc_fields Field collection containing LBC data
   subroutine lam_blend_lbc( state_u, state_p, state_d, state_t, mr, lbc_fields )
+    use log_mod,                 only: log_event,         &
+                                       LOG_LEVEL_INFO
 
     implicit none
 
@@ -97,24 +104,50 @@ contains
                                                   state_t
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_collection_type), intent(in)    :: lbc_fields
-    character(len=*), parameter                :: name_u = 'lbc_u',     &
-                                                  name_p = 'lbc_exner', &
-                                                  name_d = 'lbc_rho',   &
-                                                  name_t = 'lbc_theta'
+    character(len=*), parameter                :: name_u    = 'lbc_u',     &
+                                                  name_p    = 'lbc_exner', &
+                                                  name_d    = 'lbc_rho',   &
+                                                  name_t    = 'lbc_theta', &
+                                                  name_m_v  = 'lbc_m_v',   &
+                                                  name_m_cl = 'lbc_m_cl',  &
+                                                  name_m_ci = 'lbc_m_ci',  &
+                                                  name_m_r  = 'lbc_m_r'
     character(str_def)                         :: name_mr
     integer(i_def)                             :: imr
 
-    call blend_field( state_u, lbc_fields, name_u )
-    call blend_field( state_p, lbc_fields, name_p )
-    call blend_field( state_d, lbc_fields, name_d )
-    call blend_field( state_t, lbc_fields, name_t )
 
-    if ( moisture_formulation /= moisture_formulation_dry ) then
-      do imr = 1, nummr
-        name_mr = trim( 'lbc_' // adjustl(mr_names (imr)) )
-        call blend_field( mr(imr), lbc_fields, name_mr )
-      enddo
-    end if
+    select case( lbc_option )
+    case ( lbc_option_analytic, lbc_option_gungho_file )
+      ! For analytic LBCs we relax back the full prognostic fields
+      call log_event( "Blending analytic LBC data...", LOG_LEVEL_INFO )
+
+      call blend_field( state_u, lbc_fields, name_u )
+      call blend_field( state_p, lbc_fields, name_p )
+      call blend_field( state_d, lbc_fields, name_d )
+      call blend_field( state_t, lbc_fields, name_t )
+
+      if ( moisture_formulation /= moisture_formulation_dry ) then
+        do imr = 1, nummr
+          name_mr = trim( 'lbc_' // adjustl(mr_names (imr)) )
+          call blend_field( mr(imr), lbc_fields, name_mr )
+        enddo
+      end if
+
+    case ( lbc_option_um2lfric_file )
+      ! For LBCs from a UM driving file, we only have
+      ! a subset of moisture fields
+      call log_event( "Blending um2lfric LBC data...", LOG_LEVEL_INFO )
+
+      call blend_field( state_u, lbc_fields, name_u )
+      call blend_field( state_p, lbc_fields, name_p )
+      call blend_field( state_d, lbc_fields, name_d )
+      call blend_field( state_t, lbc_fields, name_t )
+
+      call blend_field( mr(imr_v), lbc_fields, name_m_v )
+      call blend_field( mr(imr_cl), lbc_fields, name_m_cl )
+      call blend_field( mr(imr_ci), lbc_fields, name_m_ci )
+      call blend_field( mr(imr_r), lbc_fields, name_m_r )
+    end select
 
   end subroutine lam_blend_lbc
 
