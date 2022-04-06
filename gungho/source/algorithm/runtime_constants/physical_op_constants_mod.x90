@@ -41,10 +41,13 @@ module physical_op_constants_mod
   use base_mesh_config_mod,               only: f_lat
 
   ! Other algorithms
-  use geometric_constants_mod,            only: get_dA_at_w2, get_height
+  use geometric_constants_mod,            only: get_dA_at_w2, get_height, &
+                                                get_latitude
   use fem_constants_mod,                  only: get_detj_at_w2, get_qr
   use runtime_tools_mod,                  only: find_mesh_index, &
-                                                primary_mesh_label
+                                                primary_mesh_label, &
+                                                twod_mesh_label
+
 
   ! PsyKAl PSYClone kernels
   use calc_delta_at_wtheta_kernel_mod,    only: calc_delta_at_wtheta_kernel_type
@@ -53,6 +56,11 @@ module physical_op_constants_mod
   use compute_coriolis_matrix_kernel_mod, only: compute_coriolis_matrix_kernel_type
   use compute_geopotential_kernel_mod,    only: compute_geopotential_kernel_type
   use compute_map_u_operators_kernel_mod, only: compute_map_u_operators_kernel_type
+
+#ifdef UM_PHYSICS
+  use get_Pnm_star_kernel_mod,            only: get_Pnm_star_kernel_type
+  use stochastic_physics_config_mod,      only: use_spt, spt_spectral_dim, spt_n_max
+#endif
 
   implicit none
 
@@ -68,6 +76,9 @@ module physical_op_constants_mod
   type(field_collection_type) :: rdz_fd1_collection
   type(field_collection_type) :: dz_at_wtheta_collection
   type(field_collection_type) :: max_diff_wtheta_collection
+#ifdef UM_PHYSICS
+  type(field_collection_type) :: Pnm_star_collection
+#endif
 
   ! TODO: following #2827 these should be changed
   ! by #2790 to an operator_collection_type
@@ -91,6 +102,9 @@ module physical_op_constants_mod
   public :: get_u_lon_map
   public :: get_u_lat_map
   public :: get_u_up_map
+#ifdef UM_PHYSICS
+  public :: get_Pnm_star
+#endif
 
 contains
 
@@ -136,6 +150,12 @@ contains
     type(field_type)                    :: rdz_fd1
     type(field_type)                    :: dz_at_wtheta
     type(field_type)                    :: max_diff_wtheta
+#ifdef UM_PHYSICS
+    type(function_space_type),  pointer :: w_Pnm_star_fs => null()
+    type(field_type),           pointer :: latitude => null()
+    type(field_type)                    :: Pnm_star
+#endif
+
 
     real(kind=r_def)          :: diffusion_const
     integer(kind=i_def)       :: num_meshes, i
@@ -316,6 +336,27 @@ contains
 
       end if ! Mesh label
 
+      ! ================= Add Pnm_star for stochastic physics ==============!
+#ifdef UM_PHYSICS
+      if (use_spt) then
+        if (label_list(i) == twod_mesh_label) then
+          call Pnm_star_collection%initialise(name="Pnm_start", table_len=100)
+          w_Pnm_star_fs => function_space_collection%get_fs(mesh, 0, W3, spt_spectral_dim)
+          latitude  => get_latitude(mesh%get_id())
+          field_name = trim("Pnm_star_") // adjustl(mesh_number)
+          call Pnm_star%initialise(vector_space= w_Pnm_star_fs, name=field_name)
+
+          call invoke( setval_c(Pnm_star,  0.0_r_def),              &
+                       get_Pnm_star_kernel_type(Pnm_star, latitude, spt_n_max))
+
+          call Pnm_star_collection%add_field( Pnm_star )
+
+          nullify( latitude )
+          nullify( w_Pnm_star_fs )
+
+        end if
+      end if
+#endif
     end do ! Loop through meshes
 
     nullify( w1_k0_fs  )
@@ -446,7 +487,22 @@ contains
     dz => dz_at_wtheta_collection%get_field(field_name)
 
   end function get_dz_at_wtheta
+#ifdef UM_PHYSICS
+  !> @brief Returns the Legendre Polynomials times the SH amplitude
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Pnm_max field
+    function get_Pnm_star(mesh_id) result(Pnm_star)
+      implicit none
+      integer(kind=i_def), intent(in) :: mesh_id
+      type(field_type),       pointer :: Pnm_star
+      character(len=str_short)        :: mesh_number
+      character(len=str_def)          :: field_name
 
+      write(mesh_number, '(I8)') mesh_id
+      field_name = trim('Pnm_star_') // adjustl(mesh_number)
+      Pnm_star => Pnm_star_collection%get_field(field_name)
+  end function get_Pnm_star
+#endif
   !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The max_diff_wtheta field
@@ -520,6 +576,9 @@ contains
     call dtrdz_fd2_collection%clear()
     call rdz_fd1_collection%clear()
     call dz_at_wtheta_collection%clear()
+#ifdef UM_PHYSICS
+    call Pnm_star_collection%clear()
+#endif
     call max_diff_wtheta_collection%clear()
     if (allocated(coriolis_collection)) deallocate(coriolis_collection)
     if (allocated(u_lon_map_collection)) deallocate(u_lon_map_collection)

@@ -1119,6 +1119,7 @@
 	<field field_ref="aerosol__acc_ins_du" />
 	<field field_ref="aerosol__cor_ins_du" />
 	<field field_ref="aerosol__cloud_drop_no_conc" />
+	<field field_ref="stochastic__fp_spt"/>
       </file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">

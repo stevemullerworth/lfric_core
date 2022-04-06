@@ -86,7 +86,7 @@ use constants_mod,        only: r_def, i_def
   if (use_spt) then
     ! FP generation will be sorted in #2681 (SKEB) and #2682 (FP)
     ! and the call below moved outside the SPT if statement.
-    call stph_fp_main_alg(fp_spt)
+    call stph_fp_main_alg(fp_spt,microphysics_fields)
 
     !Call FP
     call spt_main_alg(dtheta_stph, dmv_stph, dtheta, mv,     &

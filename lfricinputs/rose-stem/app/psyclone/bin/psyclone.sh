@@ -33,7 +33,7 @@ kernel_src_flag[1]=
 
 # Declare project algorithm directories
 declare -a alg_src_dir
-alg_src_dir[0]="${BASE_SRC_DIR}lfric/gungho/source/algorithm ${BASE_SRC_DIR}lfric/infrastructure/source/field ${BASE_SRC_DIR}lfric/components/science/source/algorithm ${BASE_SRC_DIR}lfric/components/lfric-xios/source"
+alg_src_dir[0]="${BASE_SRC_DIR}lfric/infrastructure/source/field ${BASE_SRC_DIR}lfric/components/science/source/algorithm ${BASE_SRC_DIR}lfric/components/lfric-xios/source"
 alg_src_dir[1]="${BASE_SRC_DIR}lfric/lfricinputs/source/scintelapi/generators/toolset ${BASE_SRC_DIR}lfric/lfricinputs/source/scintelapi/generators/analytic"
 
 # Psyclone input files are labelled ".x90"; for each algorithm file we find

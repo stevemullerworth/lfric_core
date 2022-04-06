@@ -402,4 +402,101 @@ contains
     !
   end subroutine invoke_bl_imp_du_kernel_type
 
+  !---------------------------------------------------------------------
+  !> Contains the Psy-layer to build the stochastic physics
+  !> forcing pattern. At the moment it requires to pass the arrays
+  !> stph_spectral_coeffc and stph_spectral_coeffs via the kernel argument.
+  !> Psyclone does not recognize arrays in the argument yet 
+  !> this functionality is being developed in PSyclone ticket 1312
+  !> at https://github.com/stfc/PSyclone/issues/1312
+  !> Hence this module could be removed once the PSyclone ticket is 
+  !> completed
+  subroutine invoke_spectral_2_cs_kernel_type(fp_spt, longitude, pnm_star, height_wth, &
+    stph_spectral_coeffc, stph_spectral_coeffs, &
+    spt_level_bottom, spt_level_top, &
+    spt_n_max, spt_spectral_dim)
+
+  use spectral_2_cs_kernel_mod, ONLY: spectral_2_cs_code
+  use mesh_mod, ONLY: mesh_type
+  integer(KIND=i_def), intent(in) :: spt_level_bottom, spt_level_top, spt_n_max, spt_spectral_dim
+  type(field_type), intent(in) :: fp_spt, longitude, pnm_star, height_wth
+  integer(KIND=i_def) cell
+  integer(KIND=i_def) nlayers
+  type(field_proxy_type) fp_spt_proxy, longitude_proxy, pnm_star_proxy, height_wth_proxy
+  integer(KIND=i_def), pointer :: map_adspc1_longitude(:,:) => null(), map_adspc2_pnm_star(:,:) => null(), &
+  &map_wtheta(:,:) => null()
+  integer(KIND=i_def) ndf_wtheta, undf_wtheta, ndf_adspc1_longitude, undf_adspc1_longitude, ndf_adspc2_pnm_star, &
+  &undf_adspc2_pnm_star
+  type(mesh_type), pointer :: mesh => null()
+
+  ! Add arrays stph_spectral_coeffc & stph_spectral_coeffs by hand
+  real(kind=r_def), intent(in), dimension(:) :: stph_spectral_coeffc
+  real(kind=r_def), intent(in), dimension(:) :: stph_spectral_coeffs
+  integer(kind=i_def), parameter :: nranks_array = rank(stph_spectral_coeffc)
+  integer(kind=i_def), dimension(nranks_array) :: dims_array
+
+  ! Get the upper bound for each rank of each scalar array
+  ! Do dims_array for coeffc and coeffs?
+  dims_array = shape(stph_spectral_coeffc)
+
+  !
+  ! Initialise field and/or operator proxies
+  !
+  fp_spt_proxy     = fp_spt%get_proxy()
+  longitude_proxy  = longitude%get_proxy()
+  pnm_star_proxy   = pnm_star%get_proxy()
+  height_wth_proxy = height_wth%get_proxy()
+  !
+  ! Initialise number of layers
+  !
+  nlayers = fp_spt_proxy%vspace%get_nlayers()
+  !
+  ! Create a mesh object
+  !
+  mesh => fp_spt_proxy%vspace%get_mesh()
+  !
+  ! Look-up dofmaps for each function space
+  !
+  map_wtheta           => fp_spt_proxy%vspace%get_whole_dofmap()
+  map_adspc1_longitude => longitude_proxy%vspace%get_whole_dofmap()
+  map_adspc2_pnm_star  => pnm_star_proxy%vspace%get_whole_dofmap()
+  !
+  ! Initialise number of DoFs for wtheta
+  !
+  ndf_wtheta  = fp_spt_proxy%vspace%get_ndf()
+  undf_wtheta = fp_spt_proxy%vspace%get_undf()
+  !
+  ! Initialise number of DoFs for adspc1_longitude
+  !
+  ndf_adspc1_longitude  = longitude_proxy%vspace%get_ndf()
+  undf_adspc1_longitude = longitude_proxy%vspace%get_undf()
+  !
+  ! Initialise number of DoFs for adspc2_pnm_star
+  !
+  ndf_adspc2_pnm_star  = pnm_star_proxy%vspace%get_ndf()
+  undf_adspc2_pnm_star = pnm_star_proxy%vspace%get_undf()
+  !
+  ! Call kernels and communication routines
+  !
+  do cell=1,mesh%get_last_edge_cell()
+      call spectral_2_cs_code(nlayers, &
+                              ! Add fields
+                              fp_spt_proxy%data, longitude_proxy%data, pnm_star_proxy%data, height_wth_proxy%data, &
+                              ! Add arrays
+                              nranks_array, dims_array, stph_spectral_coeffc, stph_spectral_coeffs, &
+                              ! Add SPT scalars
+                              spt_level_bottom, spt_level_top, spt_n_max, spt_spectral_dim, &
+                              ! Add fields' assoc. space variables
+                              ndf_wtheta, undf_wtheta, map_wtheta(:,cell), &
+                              ndf_adspc1_longitude, undf_adspc1_longitude, map_adspc1_longitude(:,cell), &
+                              ndf_adspc2_pnm_star, undf_adspc2_pnm_star, map_adspc2_pnm_star(:,cell))
+  end do
+  !
+  ! Set halos dirty/clean for fields modified in the above loop
+  !
+  call fp_spt_proxy%set_dirty()
+  !
+  !
+  end subroutine invoke_spectral_2_cs_kernel_type
+
 end module psykal_lite_phys_mod
