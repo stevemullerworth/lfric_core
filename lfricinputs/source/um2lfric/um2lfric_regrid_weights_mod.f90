@@ -74,7 +74,8 @@ IF (horiz_grid_code == u_points) THEN
   ELSE IF (TRIM(interp_method) == 'bilinear' .AND. winds_on_w3) THEN
     weights => grid_u_to_mesh_face_centre_bilinear
   ELSE
-    WRITE(log_scratch_space, '(A)') 'Unsupported interpolation method for U points'
+    WRITE(log_scratch_space, '(A)')                                            &
+                                'Unsupported interpolation method for U points'
     CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
   END IF
 
@@ -85,7 +86,8 @@ ELSE IF (horiz_grid_code == v_points) THEN
   ELSE IF (TRIM(interp_method) == 'bilinear' .AND. winds_on_w3) THEN
     weights => grid_v_to_mesh_face_centre_bilinear
   ELSE
-    WRITE(log_scratch_space, '(A)') 'Unsupported interpolation method for V points'
+    WRITE(log_scratch_space, '(A)')                                            &
+                                'Unsupported interpolation method for V points'
     CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
   END IF
 
@@ -121,7 +123,8 @@ ELSE IF (horiz_grid_code == p_points .OR.   &
    ELSE IF (TRIM(interp_method) == 'bilinear') THEN
      weights => grid_p_to_mesh_face_centre_bilinear
    ELSE
-     WRITE(log_scratch_space, '(A)') 'Unsupported interpolation method for P points'
+     WRITE(log_scratch_space, '(A)')                                           &
+                                 'Unsupported interpolation method for P points'
      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
    ENDIF
 
@@ -129,14 +132,16 @@ ELSE IF (horiz_grid_code == p_points .OR.   &
 
 ELSE
 
-  WRITE(log_scratch_space, '(2(A,I0))') "Unsupported horizontal grid type code: ", &
+  WRITE(log_scratch_space, '(2(A,I0))')                                        &
+       "Unsupported horizontal grid type code: ",                              &
        horiz_grid_code, " encountered during regrid of stashcode", stashcode
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 
 END IF
 
 IF (.NOT. ALLOCATED(weights%remap_matrix)) THEN
-  CALL log_event("Attempted to select unallocated weights matrix", LOG_LEVEL_ERROR)
+  CALL log_event("Attempted to select unallocated weights matrix",             &
+                 LOG_LEVEL_ERROR)
 END IF
 
 END FUNCTION get_weights
@@ -218,8 +223,8 @@ SUBROUTINE create_w2h_copy_maps()
 ! regrid weight type) for each UM grid P point index, find the corresponding
 ! LFRic cell index at the base of the LFRic mesh.
 !
-! 2) For each reference element W-edge index of the LFRic cell, connect it to the
-! corresponding UM U point index which is just west of the UM P point. The
+! 2) For each reference element W-edge index of the LFRic cell, connect it to
+! the corresponding UM U point index which is just west of the UM P point. The
 ! edge index of the LFRic cell is found using the W2H dofmap. Special care
 ! needs to be taken to ensure only dofs belonging to the current partition are
 ! considered. The UM grid U point index is found using the fact that the UM grid
@@ -302,7 +307,8 @@ fs_w2h => function_space_collection % get_fs(mesh, element_order, W2H)
 map_w2h => fs_w2h % get_whole_dofmap()
 no_layers = fs_w2h % get_nlayers()
 base_last_dof_owned =  (fs_w2h % get_last_dof_owned() / no_layers ) + 1
-WRITE(log_scratch_space, '(A,I0)') 'Maximum base dof index = ', base_last_dof_owned
+WRITE(log_scratch_space, '(A,I0)') 'Maximum base dof index = ',                &
+                                   base_last_dof_owned
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 ! Allocate tempory source and destination arrays to rough maximum possible size
@@ -345,7 +351,8 @@ DO lnk = 1, num_links_p
 END DO
 ALLOCATE(grid_u_to_w2h_map % src_address_2d(num_links_u,2))
 ALLOCATE(grid_u_to_w2h_map % dst_address(num_links_u))
-grid_u_to_w2h_map % src_address_2d(1:num_links_u,:) = src_address_2d(1:num_links_u,:)
+grid_u_to_w2h_map % src_address_2d(1:num_links_u,:) =                          &
+                                                src_address_2d(1:num_links_u,:)
 grid_u_to_w2h_map % dst_address(1:num_links_u) = dst_address(1:num_links_u)
 
 ! Fill V to W2H remap weights src and dst arrays
@@ -382,7 +389,8 @@ DO lnk = 1, num_links_p
 END DO
 ALLOCATE(grid_v_to_w2h_map % src_address_2d(num_links_v,2))
 ALLOCATE(grid_v_to_w2h_map % dst_address(num_links_v))
-grid_v_to_w2h_map % src_address_2d(1:num_links_v,:) = src_address_2d(1:num_links_v,:)
+grid_v_to_w2h_map % src_address_2d(1:num_links_v,:) =                          &
+                                                src_address_2d(1:num_links_v,:)
 grid_v_to_w2h_map % dst_address(1:num_links_v) = dst_address(1:num_links_v)
 
 ! Deallocate temporary arrays and nullify pointers
@@ -414,8 +422,8 @@ END SUBROUTINE create_w2h_copy_maps
 
 SUBROUTINE partition_weights(weights)
 
-  ! Description: Set local weights indices so that the weights type on each partition
-  !  only contains indices relevant to that local_mesh.
+  ! Description: Set local weights indices so that the weights type on each
+  ! partition only contains indices relevant to that local_mesh.
 
   ! Intrinsic modules
   USE, INTRINSIC :: iso_fortran_env, ONLY : int32, real64
@@ -457,18 +465,20 @@ SUBROUTINE partition_weights(weights)
   DO i_link = 1, weights%num_links
     ! The call to get_lid_from_gid will return -1 if the global id is not
     ! known to this partition. Also the partition will also contain halo cells.
-    ! However, we only want to select cells wholy owned by this partition. So reject
-    ! any addresses that are -1 or greater than ncells_2D
+    ! However, we only want to select cells wholy owned by this partition. So
+    ! reject any addresses that are -1 or greater than ncells_2D
     IF ( local_mesh % get_lid_from_gid(weights%dst_address(i_link)) /= -1 .AND.&
          local_mesh % get_lid_from_gid(weights%dst_address(i_link)) <=         &
            mesh % get_ncells_2d() ) THEN
       local_links = local_links + 1
-      dst_address_local_tmp(local_links) = &
-                        local_mesh % get_lid_from_gid(weights%dst_address(i_link))
+      dst_address_local_tmp(local_links) =                                     &
+                      local_mesh % get_lid_from_gid(weights%dst_address(i_link))
       ! Weights and source address also need filtering
       src_address_local_tmp(local_links) = weights%src_address(i_link)
-      src_address_local_2D_tmp(local_links, 1) = weights%src_address_2D(i_link, 1)
-      src_address_local_2D_tmp(local_links, 2) = weights%src_address_2D(i_link, 2)
+      src_address_local_2D_tmp(local_links, 1) =                               &
+                                              weights%src_address_2D(i_link, 1)
+      src_address_local_2D_tmp(local_links, 2) =                               &
+                                              weights%src_address_2D(i_link, 2)
       DO w = 1, weights%num_wgts
         remap_matrix_local_tmp(w, local_links) = weights%remap_matrix(w, i_link)
       END DO

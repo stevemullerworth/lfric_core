@@ -89,11 +89,6 @@
 	<field id="tstar_sea" name="tstar_sea" long_name="Sea surface temperature" unit="K" domain_ref="face" />
       </field_group>
 
-      <!-- Checkpoint group is compulsory -->
-      <!-- Checkpoint group -->
-      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-      </field_group>
-
     </field_definition>
 
     <file_definition
@@ -142,10 +137,6 @@
 	<field field_ref="tile_temperature"/>
 	<field field_ref="tstar_sea_ice"/>
 	<field field_ref="sea_ice_temperature"/>
-      </file>
-
-      <!-- Definition of "lfric_diag" file is compulsory even if not used -->
-      <file id="lfric_diag" name="lfric_diag" output_freq="10ts" convention="UGRID" enabled=".FALSE.">
       </file>
 
       <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">

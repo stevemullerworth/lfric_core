@@ -44,15 +44,14 @@ TYPE(config) :: lfric2um_config
 ! Namelist filenames read from command line
 CHARACTER(LEN=fnamelen), PUBLIC :: lfric_nl_fname
 CHARACTER(LEN=fnamelen), PUBLIC :: lfric2um_nl_fname
+CHARACTER(LEN=fnamelen), PUBLIC :: io_nl_fname
 
 INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 
-CHARACTER(*), PARAMETER  :: required_lfric_namelists(7) = ['finite_element  ', &
+CHARACTER(*), PARAMETER  :: required_lfric_namelists(5) = ['finite_element  ', &
                                                            'base_mesh       ', &
                                                            'planet          ', &
                                                            'extrusion       ', &
-                                                           'io              ', &
-                                                           'files           ', &
                                                            'domain_size     ']
 
 CONTAINS

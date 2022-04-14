@@ -43,24 +43,24 @@ CALL mpi_comm_rank(comm, local_rank, ierr)
 
 IF (local_rank == 0) THEN
 
-  iodef_calendar_definition =  '<calendar type = "'                              &
-                               // TRIM(calendar) //                              &
-                               '" start_date = "'                                &
-                               // TRIM(start_date) //                            &
-                               '" time_origin = "'                               &
-                               // TRIM(time_origin) //                           &
-                               '"/>' 
+  iodef_calendar_definition =  '<calendar type = "'                            &
+                               // TRIM(calendar) //                            &
+                               '" start_date = "'                              &
+                               // TRIM(start_date) //                          &
+                               '" time_origin = "'                             &
+                               // TRIM(time_origin) //                         &
+                               '"/>'
 
   CALL get_free_unit(unit_number)
   OPEN(UNIT=unit_number, FILE=iodef_file_name, IOSTAT=stat, IOMSG=message)
   IF (stat /= 0) CALL log_event(message, LOG_LEVEL_ERROR)
   num_lines = 0
-  DO 
+  DO
     READ(unit_number,'(A)', IOSTAT=stat) dummy_line
     IF (stat /= 0) EXIT
     IF (INDEX(dummy_line, 'calendar type') /= 0) THEN
       idx = INDEX(dummy_line, '<')
-      dummy_line(idx:) = ADJUSTL(iodef_calendar_definition) 
+      dummy_line(idx:) = ADJUSTL(iodef_calendar_definition)
     END IF
     num_lines = num_lines + 1
     line(num_lines) = dummy_line
@@ -69,7 +69,7 @@ IF (local_rank == 0) THEN
 
   CALL log_event('Set calendar definition in iodef file', LOG_LEVEL_INFO)
   CALL get_free_unit(unit_number)
-  OPEN(UNIT=unit_number, FILE=iodef_file_name, IOSTAT=stat, IOMSG=message)                 
+  OPEN(UNIT=unit_number, FILE=iodef_file_name, IOSTAT=stat, IOMSG=message)
   IF (stat /= 0) CALL log_event(message, LOG_LEVEL_ERROR)
   DO i = 1, num_lines
     WRITE(unit_number,'(A)') TRIM(line(i))

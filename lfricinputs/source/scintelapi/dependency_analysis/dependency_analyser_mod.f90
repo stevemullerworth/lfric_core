@@ -187,8 +187,8 @@ IF (l_output_not_unique) THEN
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 
-! 3) Check every dependency graph input field has a defined method of generation,
-! i.e its in the list of all dependency graph output fields.
+! 3) Check every dependency graph input field has a defined method of
+!    generation, i.e its in the list of all dependency graph output fields.
 l_input_field_not_generated = .false. ! Assume all input fields has a method of
                                       ! generation
 
@@ -295,7 +295,8 @@ DO j = 1, no_dependency_graphs ! Loop over all dependency graphs J
 END DO ! Loop over all dependency graphs J
 
 ! Find/set order in which to create fields
-CALL resolve_dependency(no_dependency_graphs, dep_graph_matrix, generation_order)
+CALL resolve_dependency(no_dependency_graphs, dep_graph_matrix,                &
+                        generation_order)
 !
 ! Done with tasks 4 and 5
 !

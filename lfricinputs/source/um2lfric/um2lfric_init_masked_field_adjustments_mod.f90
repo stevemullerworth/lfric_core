@@ -81,8 +81,8 @@ END IF
 !
 IF (ALLOCATED(um_maritime_mask) .AND. ALLOCATED(lfric_maritime_mask)) THEN
 
-  ! Find indices of maritime points on LFRic mesh that will require adjustment to
-  ! UM NN maritime point values
+  ! Find indices of maritime points on LFRic mesh that will require adjustment
+  ! to UM NN maritime point values
   CALL maritime_field_adjustments%find_adjusted_points_src_2d_dst_1d(          &
                                       src_mask=um_maritime_mask,               &
                                       dst_mask=lfric_maritime_mask,            &

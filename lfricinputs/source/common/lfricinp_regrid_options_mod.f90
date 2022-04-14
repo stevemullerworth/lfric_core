@@ -53,19 +53,19 @@ IF (status /= 0) CALL log_event(message, LOG_LEVEL_ERROR)
 READ(unit_number, NML=regrid_options, IOSTAT=status, IOMSG=message)
 IF (status /= 0) CALL log_event(message, LOG_LEVEL_ERROR)
 
-IF ( (TRIM(interp_method) /= 'bilinear') .AND.                                 & 
+IF ( (TRIM(interp_method) /= 'bilinear') .AND.                                 &
      (TRIM(interp_method) /= 'copy') ) THEN
   WRITE(log_scratch_space, '(A)') 'Interpolation method: '                     &
-                                  // TRIM(interp_method) // ' not recognised.' 
-  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)                        
+                                  // TRIM(interp_method) // ' not recognised.'
+  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 
-IF ( (TRIM(regrid_type) /= 'global_to_global') .AND.                           & 
+IF ( (TRIM(regrid_type) /= 'global_to_global') .AND.                           &
      (TRIM(regrid_type) /= 'lam_to_lam') .AND.                                 &
      (TRIM(regrid_type) /= 'lbc_to_lbc') ) THEN
   WRITE(log_scratch_space, '(A)') 'Regridding type: ' // TRIM(regrid_type) //  &
-                                  ' not recognised.' 
-  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)                        
+                                  ' not recognised.'
+  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 
 IF ( (TRIM(interp_method) == 'copy') .AND.                                     &
@@ -73,19 +73,20 @@ IF ( (TRIM(interp_method) == 'copy') .AND.                                     &
       TRIM(regrid_type) /= 'lbc_to_lbc') ) THEN
   WRITE(log_scratch_space, '(A)') 'The copy interpolation method is only ' //  &
                                   'valid for LAM to LAM or LBC to LBC ' //     &
-                                  'regridding' 
+                                  'regridding'
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 
 IF ( (TRIM(interp_method) == 'bilinear') .AND.                                 &
      (.NOT. winds_on_w3) ) THEN
   WRITE(log_scratch_space, '(A)') 'For bilinear interpolation method winds ' //&
-                                  'must be placed on W3' 
+                                  'must be placed on W3'
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 
 IF ( (TRIM(interp_method) == 'copy') .AND. winds_on_w3 ) THEN
-  WRITE(log_scratch_space, '(A)') 'For copying method winds must not be placed on W3' 
+  WRITE(log_scratch_space, '(A)')                                              &
+                            'For copying method winds must not be placed on W3'
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END IF
 

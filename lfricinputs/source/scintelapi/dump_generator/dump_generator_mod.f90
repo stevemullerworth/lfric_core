@@ -10,7 +10,7 @@ MODULE dump_generator_mod
 ! write the fields to dump.
 !
 
-USE field_list_mod,    ONLY: field_list, field_io_id_list, no_fields,          &
+USE field_list_mod,    ONLY: field_list, field_io_name_list, no_fields,        &
                              get_field_index
 USE log_mod,           ONLY: log_event, log_scratch_space, LOG_LEVEL_INFO
 
@@ -161,7 +161,7 @@ DO i = 1, no_dependency_graphs ! Loop over all dependency graphs.
   DO l = 1, output_field_no
 
     global_field_index =  get_field_index(output_field_name(l))
-    IF (TRIM(field_io_id_list(global_field_index)) /= empty_string) THEN
+    IF (TRIM(field_io_name_list(global_field_index)) /= empty_string) THEN
       CALL dump_write(global_field_index)
     END IF
 
@@ -189,8 +189,8 @@ END SUBROUTINE dump_generator
 
 SUBROUTINE dump_write(global_field_index)
 !
-! This routine writes a field in the global field list, which has their write_name
-! parameter set, to the target dump.
+! This routine writes a field in the global field list, which has their
+! write_name parameter set, to the target dump.
 !
 
 USE lfric_xios_write_mod, ONLY: write_field_face, write_field_single_face
@@ -245,7 +245,7 @@ END IF
 
 ! Write the field to dump
 CALL field_list(global_field_index) %                                          &
-                       write_field(TRIM(field_io_id_list(global_field_index)))
+           write_field('write_' // TRIM(field_io_name_list(global_field_index)))
 
 ! Nullify IO procedure pointers
 NULLIFY(tmp_write_ptr_2d, tmp_write_ptr_3d)

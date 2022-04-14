@@ -254,7 +254,7 @@ WRITE(log_scratch_space, '(A,F0.6)') "|  v_origin_x: ", self%v_origin_x
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 WRITE(log_scratch_space, '(A,F0.6)') "|  v_origin_y: ", self%v_origin_y
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-WRITE(log_scratch_space, '(A)')      "|==========================================|"
+WRITE(log_scratch_space, '(A)')   "|==========================================|"
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 END SUBROUTINE print_grid_coords

@@ -13,10 +13,12 @@ USE log_mod,                   ONLY: log_event, log_scratch_space,             &
                                      initialise_logging, finalise_logging,     &
                                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 USE scintelapi_namelist_mod,   ONLY: scintelapi_namelist_from_cl, lfric_nl,    &
-                                     scintelapi_nl, required_lfric_namelists
-USE constants_def_mod,         ONLY: func_space_name_len, field_name_len,      &
+                                     scintelapi_nl, required_lfric_namelists,  &
+                                     io_nl
+USE constants_def_mod,         ONLY: field_kind_name_len, field_name_len,      &
                                      gen_id_len, genpar_len, field_dim_len,    &
-                                     field_id_list_max_size, empty_string
+                                     field_id_list_max_size, empty_string, rmdi
+USE lfricinp_setup_io_mod,     ONLY: init_io_setup
 USE lfricinp_datetime_mod,     ONLY: datetime_type
 
 IMPLICIT NONE
@@ -44,6 +46,9 @@ LOGICAL                    :: l_advance
 
 ! Read namelist file names from command line
 CALL scintelapi_namelist_from_cl()
+
+! Set up IO file configuration
+CALL init_io_setup(io_nl)
 
 ! Load date and time information
 CALL datetime % initialise()
@@ -94,7 +99,7 @@ CALL lfricinp_finalise_lfric()
 END SUBROUTINE scintelapi_finalise
 
 
-SUBROUTINE scintelapi_add_field(field_id, func_space, field_dim, write_name)
+SUBROUTINE scintelapi_add_field(field_id, field_kind, n_data, write_name)
 !
 ! This routine is used to add a field to the internally stored global field
 ! list. It also performs several checks on the input for validity and
@@ -105,9 +110,9 @@ USE finite_element_config_mod,      ONLY: element_order
 USE function_space_collection_mod , ONLY: function_space_collection
 USE fs_continuity_mod,              ONLY: W3, Wtheta
 USE lfricinp_lfric_driver_mod,      ONLY: mesh, twod_mesh
-USE field_mod,                      ONLY: field_type
 USE field_list_mod,                 ONLY: no_fields, field_list,               &
-                                          field_io_id_list
+                                          field_io_name_list
+USE field_mod,                      ONLY: field_proxy_type
 USE mesh_mod,                       ONLY: mesh_type
 
 IMPLICIT NONE
@@ -118,11 +123,14 @@ IMPLICIT NONE
 ! Field identifier of new field to be added to list
 CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: field_id
 
-! Function space identifier of function space on which this field is defined
-CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: func_space
+! Field type identifier
+CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: field_kind
 
-! 2D or 3D field identifier
-CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: field_dim
+! Field non-spatial dimension size
+INTEGER, OPTIONAL, INTENT(IN)          :: n_data
+
+! Field proxy
+TYPE(field_proxy_type)                 :: field_proxy
 
 ! XIOS write identifier to use as defined in iodef.xml file
 CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: write_name
@@ -136,12 +144,16 @@ TYPE(mesh_type), pointer :: tmp_mesh => null()
 ! Function space to use
 INTEGER :: Fspace
 
+! ndata
+INTEGER :: ndata
+
 ! Iterable
 INTEGER :: l
 
-! Logical used
+! Logicals used
 LOGICAL :: l_field_id_exists, l_write_name_exists, l_field_id_present,         &
-           l_write_name_present, l_field_dim_present, l_func_space_present
+           l_write_name_present, l_field_kind_present
+LOGICAL :: ndata_first
 
 ! User feedback
 WRITE(log_scratch_space,'(A)') 'Attempt to add ' // TRIM(field_id) //          &
@@ -189,7 +201,7 @@ IF (l_write_name_present) THEN
 
   l_write_name_exists = .false.
   DO l = 1, no_fields
-    IF (TRIM(field_io_id_list(l)) == TRIM(write_name)) THEN
+    IF (TRIM(field_io_name_list(l)) == TRIM(write_name)) THEN
       l_write_name_exists = .true.
       EXIT
     END IF
@@ -205,51 +217,53 @@ IF (l_write_name_present) THEN
 
 END IF
 
-! Set the mesh id based of field dimension
-l_field_dim_present = .false.
-IF (PRESENT(field_dim)) THEN
-  IF (TRIM(field_dim) /= empty_string) l_field_dim_present = .true.
+! Set size of non-spatial dimension based on input provided
+IF (PRESENT(n_data)) THEN
+  ndata = n_data
+ELSE
+  ndata = 1
+END if
+
+! Set mesh type, function space, etc based on field type provided
+l_field_kind_present = .false.
+IF (PRESENT(field_kind)) THEN
+  IF (TRIM(field_kind) /= empty_string) l_field_kind_present = .true.
 END IF
 
-IF (l_field_dim_present) THEN
+IF (l_field_kind_present) THEN
 
-  IF (TRIM(field_dim) == '3D') THEN
-   tmp_mesh => mesh
-  ELSE IF (TRIM(field_dim) == '2D') THEN
-   tmp_mesh => twod_mesh
-  ELSE
-    WRITE(log_scratch_space,'(A,A)') "Unrecognised field dimension for field ",&
-                                     field_id
-    CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
-  END IF
+  SELECT CASE (TRIM(field_kind))
+
+    CASE('W3_field')
+      tmp_mesh => mesh
+      Fspace = W3
+      ndata_first = .FALSE.
+
+    CASE('Wtheta_field')
+      tmp_mesh => mesh
+      Fspace = Wtheta
+      ndata_first = .FALSE.
+
+    CASE('W3_field_2d')
+      tmp_mesh => twod_mesh
+      Fspace = W3
+      ndata_first = .FALSE.
+
+    CASE('W3_soil_field')
+      tmp_mesh => twod_mesh
+      Fspace = W3
+      ndata_first = .TRUE.
+
+    CASE DEFAULT
+      WRITE(log_scratch_space, '(A,A,A)')                                      &
+         "Field type ", TRIM(field_kind), " not recognised"
+      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+  END SELECT
 
 ELSE
 
-CALL log_event('No field dimension provided', LOG_LEVEL_ERROR)
-
-END IF
-
-! Set function space based on function space id provided
-l_func_space_present = .false.
-IF (PRESENT(func_space)) THEN
-  IF (TRIM(func_space) /= empty_string) l_func_space_present = .true.
-END IF
-
-IF (l_func_space_present) THEN
-
-  IF (TRIM(func_space) == 'Wtheta') THEN
-    Fspace = Wtheta
-  ELSE IF (TRIM(func_space) == 'W3') THEN
-    Fspace = W3
-  ELSE
-    WRITE(log_scratch_space,'(A,A)') "Unsupported function space for field ",  &
-                                      field_id
-    CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
-  END IF
-
-ELSE
-
-CALL log_event('No function space provided', LOG_LEVEL_ERROR)
+CALL log_event('No field type provided', LOG_LEVEL_ERROR)
 
 END IF
 
@@ -265,13 +279,19 @@ CALL field_list(l) % initialise(vector_space =                                 &
                                 function_space_collection%get_fs(              &
                                                                 tmp_mesh,      &
                                                                 element_order, &
-                                                                Fspace         &
+                                                                Fspace,        &
+                                                                ndata = ndata  &
                                                                 ),             &
-                                name = field_id)
+                                name         = field_id,                       &
+                                ndata_first  = ndata_first)
+
+! Initialise new field data to rmdi
+field_proxy = field_list(l) % get_proxy()
+field_proxy % data(:) = rmdi
 
 ! Set write id of the new field, if defined
 IF (l_write_name_present) THEN
-  field_io_id_list(l) = write_name
+  field_io_name_list(l) = write_name
 END IF
 
 ! Update the number of defined fields
@@ -288,8 +308,8 @@ SUBROUTINE scintelapi_add_dependency_graph(input_fields, output_fields,        &
                                           generator, genpar)
 !
 ! This routine is used to add a dependency graph to the internally stored global
-! dependency graph list. It also performs several checks on the input for validity
-! and consistency.
+! dependency graph list. It also performs several checks on the input for
+! validity and consistency.
 !
 
 USE dependency_graph_list_mod, ONLY: no_dependency_graphs, dependency_graph_list
@@ -387,7 +407,8 @@ IF (l_output_fields_present) THEN
   DO i = 1, SIZE(output_fields)
 
     DO j = 1, SIZE(output_fields)
-      IF ( (TRIM(output_fields(j)) == TRIM(output_fields(i))) .AND. j /= i ) THEN
+      IF ( (TRIM(output_fields(j)) == TRIM(output_fields(i)))                  &
+          .AND. j /= i ) THEN
         WRITE(log_scratch_space, '(A)') 'Repeated field ids in output list'
         CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
       END IF
@@ -500,13 +521,13 @@ INTEGER :: nml_unit
 
 ! Input string declarations used in namelists
 CHARACTER(LEN=field_name_len)      :: field_id
-CHARACTER(LEN=func_space_name_len) :: func_space
-CHARACTER(LEN=field_dim_len)       :: field_dim
+CHARACTER(LEN=field_kind_name_len) :: field_kind
+INTEGER                            :: n_data
 CHARACTER(LEN=field_name_len)      :: write_name
 CHARACTER(LEN=1)                   :: write_to_dump
 
 ! Field definition namelist
-NAMELIST /field_definitions/ field_id, func_space, field_dim, write_name,      &
+NAMELIST /field_definitions/ field_id, field_kind, n_data, write_name,      &
                              write_to_dump
 
 ! Read namelist file for field definitions, and add said fields to internal
@@ -518,8 +539,8 @@ DO ! Loop over all field_definitions namelists
 
   ! Initialise field definition items
   field_id   = empty_string
-  func_space = empty_string
-  field_dim  = empty_string
+  field_kind = empty_string
+  n_data     = 1
   write_name = empty_string
 
   ! Read namelist items. Exit loop if EOF is reached
@@ -545,8 +566,8 @@ DO ! Loop over all field_definitions namelists
 
   ! Add field to global field list
   CALL scintelapi_add_field(field_id      = field_id,                          &
-                            func_space    = func_space,                        &
-                            field_dim     = field_dim,                         &
+                            field_kind    = field_kind,                        &
+                            n_data        = n_data,                            &
                             write_name    = write_name)
 
 END DO ! End of loop over namelists

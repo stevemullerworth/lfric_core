@@ -48,8 +48,8 @@ INTEGER(KIND=int64) :: ix_start_o, iy_start_o, ix_end_o, iy_end_o
 INTEGER(KIND=int64) :: search_point_num, num_on_mask_points
 INTEGER(KIND=int64), ALLOCATABLE :: search_points(:,:)
 
-! Allocate array that will contain UM grid (mask) indices that needs to be checked
-! during each iteration of the spiral search.
+! Allocate array that will contain UM grid (mask) indices that needs to be
+! checked during each iteration of the spiral search.
 num_on_mask_points = SIZE((um_mask .eqv. .TRUE.))
 ALLOCATE(search_points(num_on_mask_points,2))
 
@@ -128,11 +128,11 @@ DO
 
   ! If current nearest neighbour distance estimate is GREATER than the current
   ! search circle radius, then adjust the search circle radius appropriately.
-  ! Note this usually occur during the first number of iterations where no on mask
-  ! points are found within the search radius. This can also happen when an on
-  ! mask point is found on the bounding box, but it lies outside the search
-  ! circle itself, e.g. if the on mask point lies on a corner of the bounding
-  ! box.
+  ! Note this usually occur during the first number of iterations where no on
+  ! mask points are found within the search radius. This can also happen when
+  ! an on mask point is found on the bounding box, but it lies outside the
+  ! search circle itself, e.g. if the on mask point lies on a corner of the
+  ! bounding box.
   !
   ! If current nearest neighbour distance estimate is LESS than the current
   ! search circle radius, that means the NN on mask point has successfully been
@@ -141,9 +141,9 @@ DO
     ! Adjust the search radius. It is done so that the search radius initially
     ! increases rapidly, from a presumably small value - circle_ang_rad_o - and
     ! plateaus to not more than 20% of its current value. However if the current
-    ! best nearest NN candidate is closer, then the search radius is increased to
-    ! only slightly above the current best NN distance, as there is no need to
-    ! look at larger distances.
+    ! best nearest NN candidate is closer, then the search radius is increased
+    ! to only slightly above the current best NN distance, as there is no need
+    ! to look at larger distances.
     delta_ang_rad = MAX(0.20*circle_ang_rad, circle_ang_rad_o)
     IF ( (phi_min-circle_ang_rad) > delta_ang_rad) THEN
       circle_ang_rad = circle_ang_rad + delta_ang_rad
@@ -271,11 +271,11 @@ ELSE
 
 END IF
 
-! Note the maximum change in longitude away from the centre of the search circle,
-! here denoted by phi_x has not been strictly verified. This needs to be independently
-! confirmed in future. For now it appears to work. The corresponding variable for
-! latitude, phi_y, is self-evident however as latitudes are strictly measured along
-! a meridian which is a great circle.
+! Note the maximum change in longitude away from the centre of the search
+! circle, here denoted by phi_x has not been strictly verified. This needs to
+! be independently confirmed in future. For now it appears to work. The
+! corresponding variable for latitude, phi_y, is self-evident however as
+! latitudes are strictly measured along a meridian which is a great circle.
 phi_x = (ASIN(circle_ang_rad) / COS(lat)) * radians_to_degrees
 phi_y = circle_ang_rad * radians_to_degrees
 
@@ -283,10 +283,10 @@ phi_y = circle_ang_rad * radians_to_degrees
 ! circle. Note if the search cicle includes a pole the WHOLE longitude range
 ! is used. Also these "relative" longitude indices can be negative. An out of
 ! range (e.g negative) index simply indicates the circle has crossed the prime
-! meridian. This is not "corrected", to preserve the implied ORDERING when looping
-! over the indices. The calling routine will have to "wrap" the out of range indices
-! back on to the proper UM grid index range, e.g. when they are used inside the body
-! of said loop for instance
+! meridian. This is not "corrected", to preserve the implied ORDERING when
+! looping over the indices. The calling routine will have to "wrap" the out of
+! range indices back on to the proper UM grid index range, e.g. when they are
+! used inside the body of said loop for instance
 IF ( ((lat_deg+phi_y) > 90.0) .OR. ((lat_deg-phi_y) < -90.0) ) THEN
   ix_start = 1
   ix_end   = nx

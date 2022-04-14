@@ -35,10 +35,10 @@
   "lfric2um-spice_ifort_gcc_safe-aquaplanet_C48L38_N48L38"           : BASE~"_t2337",
   "lfric2um-spice_ifort_gcc_rigorous-aquaplanet_C48L38_N48L38"       : BASE~"_t2337n",
 
-  "scintelapi-spice_gfortran_gcc_rigorous-aquaplanet_C48L38_C48L38"  : BASE~"_t2752",
-  "scintelapi-spice_gfortran_gcc_safe-aquaplanet_C48L38_C48L38"      : BASE~"_t2752",
-  "scintelapi-spice_ifort_gcc_rigorous-aquaplanet_C48L38_C48L38"     : BASE~"_t2752",
-  "scintelapi-spice_ifort_gcc_safe-aquaplanet_C48L38_C48L38"         : BASE~"_t2752",
+  "scintelapi-spice_gfortran_gcc_rigorous-basic_C48L38_C48L38"       : BASE~"_t2917",
+  "scintelapi-spice_gfortran_gcc_safe-basic_C48L38_C48L38"           : BASE~"_t2917",
+  "scintelapi-spice_ifort_gcc_rigorous-basic_C48L38_C48L38"          : BASE~"_t2917",
+  "scintelapi-spice_ifort_gcc_safe-basic_C48L38_C48L38"              : BASE~"_t2917",
 
   "integration-spice_gfortran_gcc_safe-um2um"                        : BASE~"_t2337",
   "integration-spice_gfortran_gcc_rigorous-um2um"                    : BASE~"_t2337n",
@@ -77,10 +77,10 @@
   "lfric2um-xc40_ifort_icc_safe-aquaplanet_C48L38_N48L38"            : BASE~"_t2337",
   "lfric2um-xc40_ifort_icc_rigorous-aquaplanet_C48L38_N48L38"        : BASE~"_t2337n",
 
-  "scintelapi-xc40_crayftn_craycc_safe-aquaplanet_C48L38_C48L38"     : BASE,
-  "scintelapi-xc40_crayftn_craycc_rigorous-aquaplanet_C48L38_C48L38" : BASE,
-  "scintelapi-xc40_ifort_icc_safe-aquaplanet_C48L38_C48L38"          : BASE~"_t2752",
-  "scintelapi-xc40_ifort_icc_rigorous-aquaplanet_C48L38_C48L38"      : BASE~"_t2752",
+  "scintelapi-xc40_crayftn_craycc_safe-basic_C48L38_C48L38"          : BASE,
+  "scintelapi-xc40_crayftn_craycc_rigorous-basic_C48L38_C48L38"      : BASE,
+  "scintelapi-xc40_ifort_icc_safe-basic_C48L38_C48L38"               : BASE~"_t2917",
+  "scintelapi-xc40_ifort_icc_rigorous-basic_C48L38_C48L38"           : BASE~"_t2917",
 
   "integration-xc40_ifort_icc_safe-um2um"                            : BASE~"_t2337n",
   "integration-xc40_ifort_icc_rigorous-um2um"                        : BASE~"_t2337n",

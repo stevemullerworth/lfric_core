@@ -61,34 +61,48 @@ def load_data_and_extract_field(datapath, field_name, level, time_idx=0):
         # Get dimensions objects
         dims = field.get_dims()
         if "time" in dataset.variables:
-            print('Source is a timeseries data file')
+            is_timeseries = True
             if len(dims) == 2:
                 num_levels = 1
             else:
                 num_levels= len(dims[1])
         else:
+            is_timeseries = False
             if len(dims) == 1:
                 num_levels = 1 # 2d field only have xy dims
             else:
                 num_levels = len(dims[0]) #3d fields levels is first dim
 
+        print("Number of levels is {0}".format(num_levels))
+
         # Sanity check
         if level > num_levels:
             raise ValueError(
                 "Requested level is greater than number of levels of field")
+
+        # Read in field data and clip to UM_RMDI to cater for fields containing
+        # LFRic RMDI values
         if len(dims) == 1:
             level_data = field[:]
         else:
-            level_data = field[time_idx, level, :]
+            if is_timeseries:
+                level_data = field[time_idx, level, :]
+            else:
+                level_data = field[level, :]
+        level_data[level_data < UM_RMDI] = UM_RMDI
+
+        # Set lattitude and longitude and number of data points        
         level_lon = longitudes[:]
         level_lat = latitudes[:]
         num_points = level_data.shape[0]
 
         # Mask data using UM_RMDI value
         level_data = ma.masked_values(level_data, UM_RMDI, copy=False)
+
         # Copy masks to lat/lon arrays
         level_lon.mask = level_data.mask
         level_lat.mask = level_data.mask
+
         # Remove masked points from arrays
         level_data = level_data.compressed()
         level_lon = level_lon.compressed()

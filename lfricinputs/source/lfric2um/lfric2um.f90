@@ -9,10 +9,11 @@ PROGRAM lfric2um
 USE lfricinp_finalise_lfric_mod, ONLY: lfricinp_finalise_lfric
 USE lfricinp_read_command_line_args_mod, ONLY: lfricinp_read_command_line_args
 USE lfricinp_create_lfric_fields_mod,  ONLY: lfricinp_create_lfric_fields
+USE lfricinp_setup_io_mod,  ONLY: init_io_setup
 
 ! lfric2um modules
-USE lfric2um_namelists_mod, ONLY: lfric2um_nl_fname, lfric_nl_fname, &
-     lfric2um_config, required_lfric_namelists
+USE lfric2um_namelists_mod, ONLY: lfric2um_nl_fname, lfric_nl_fname,           &
+     io_nl_fname, lfric2um_config, required_lfric_namelists
 USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, mesh, &
      twod_mesh, lfric_fields
 USE lfric2um_initialise_um_mod, ONLY: lfric2um_initialise_um, um_output_file
@@ -27,7 +28,11 @@ IMPLICIT NONE
 TYPE(datetime_type) :: datetime
 
 ! Read command line args
-CALL lfricinp_read_command_line_args(lfric2um_nl_fname, lfric_nl_fname)
+CALL lfricinp_read_command_line_args(lfric2um_nl_fname, lfric_nl_fname,        &
+                                     io_nl_fname)
+
+! Set up IO file configuration
+CALL init_io_setup(io_nl_fname)
 
 ! Read in global regrid options
 CALL lfricinp_init_regrid_options(lfric2um_nl_fname)

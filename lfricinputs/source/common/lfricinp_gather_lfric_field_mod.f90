@@ -113,9 +113,9 @@ ELSE
 END IF
 
 ! Gather data from all ranks onto rank 0
-CALL mpi_gatherv(local_data, local_size_2d, mpi_double_precision, &
-     temp_global_data, rank_sizes, displacements, mpi_double_precision, rank_0, &
-     comm, err)
+CALL mpi_gatherv(local_data, local_size_2d, mpi_double_precision,              &
+     temp_global_data, rank_sizes, displacements, mpi_double_precision,        &
+     rank_0, comm, err)
 IF (err /= mpi_success) THEN
   CALL log_event('Call to mpi_gatherv failed in MPI error.', &
        LOG_LEVEL_ERROR )

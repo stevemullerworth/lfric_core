@@ -5,7 +5,8 @@
 ! *****************************COPYRIGHT*******************************
 MODULE um2lfric_masked_field_adjustments_mod
 
-USE lfricinp_masked_field_adjust_type_mod, ONLY: lfricinp_masked_field_adjust_type
+USE lfricinp_masked_field_adjust_type_mod, ONLY:                               &
+                                              lfricinp_masked_field_adjust_type
 
 IMPLICIT NONE
 

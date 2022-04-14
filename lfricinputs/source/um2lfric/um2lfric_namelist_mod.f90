@@ -43,12 +43,11 @@ INTEGER(KIND=int64), PARAMETER :: max_stash_list = 999
 ! Input namelist configuration
 TYPE(config) :: um2lfric_config
 
-CHARACTER(*), PARAMETER :: required_lfric_namelists(6) =  &
+CHARACTER(*), PARAMETER :: required_lfric_namelists(5) =  &
     ['finite_element      ', &
      'base_mesh           ', &
      'planet              ', &
      'extrusion           ', &
-     'io                  ', &
      'domain_size         ']
 
 CONTAINS

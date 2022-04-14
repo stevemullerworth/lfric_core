@@ -13,7 +13,6 @@ USE field_collection_mod,           ONLY: field_collection_type
 USE field_mod,                      ONLY : field_type
 USE field_parent_mod,               ONLY : read_interface, &
                                            write_interface
-USE io_config_mod,                  ONLY : use_xios_io
 use lfric_xios_read_mod,            ONLY : read_field_face, &
                                            read_field_single_face
 use lfric_xios_write_mod,           ONLY : write_field_face, &

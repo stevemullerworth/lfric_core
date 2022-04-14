@@ -94,20 +94,22 @@ ENDIF
 horiz_grid_code = get_stashmaster_item(stashcode, grid)
 
 SELECT CASE(horiz_grid_code)
-CASE( u_points ) 
-  weights => mesh_face_centre_to_grid_u_bilinear 
+CASE( u_points )
+  weights => mesh_face_centre_to_grid_u_bilinear
 CASE( v_points )
-  weights => mesh_face_centre_to_grid_v_bilinear 
-CASE( p_points, ozone_points ) 
-   weights => mesh_face_centre_to_grid_p_bilinear 
+  weights => mesh_face_centre_to_grid_v_bilinear
+CASE( p_points, ozone_points )
+   weights => mesh_face_centre_to_grid_p_bilinear
 CASE DEFAULT
-  WRITE(log_scratch_space, '(2(A,I0))') "Unsupported horizontal grid type code: ", &
-       horiz_grid_code, " encountered during regrid of stashcode", stashcode
+  WRITE(log_scratch_space, '(2(A,I0))')                                        &
+        "Unsupported horizontal grid type code: ",                             &
+        horiz_grid_code, " encountered during regrid of stashcode", stashcode
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END SELECT
 
 IF (.NOT. ALLOCATED(weights%remap_matrix)) THEN
-  CALL log_event("Attempted to select unallocated weights matrix", LOG_LEVEL_ERROR)
+  CALL log_event("Attempted to select unallocated weights matrix",             &
+                  LOG_LEVEL_ERROR)
 END IF
 
 END FUNCTION get_weights

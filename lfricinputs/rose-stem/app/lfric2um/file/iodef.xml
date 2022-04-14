@@ -48,27 +48,10 @@
       </grid>
     </grid_definition>
 
-    <field_definition prec="8" >
-
-      <!-- Checkpoint group is compulsory -->
-      <!-- Checkpoint group -->
-      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-      </field_group>
-
-    </field_definition>
-
     <file_definition
 	type="one_file"
 	par_access="collective"
 	time_counter="none">
-
-      <!-- Definition of "lfric_diag" file is compulsory even if not used -->
-      <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-      </file>
-
-      <!-- File definition for lfric checkpoint write -->
-      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
-      </file>
 
       <!-- File definition for lfric checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">

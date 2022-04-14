@@ -16,7 +16,7 @@ USE log_mod,              ONLY: log_event, LOG_LEVEL_ERROR
 IMPLICIT NONE
 
 ! Number of generators
-INTEGER, PARAMETER :: no_generators = 11
+INTEGER, PARAMETER :: no_generators = 13
 
 ! Generator array containing all generators
 TYPE(field_generator), TARGET :: generator_list(no_generators)
@@ -27,9 +27,9 @@ SUBROUTINE init_generator_lib()
 !
 ! This routine creates/defines the generator library
 !
-
+! Basic tranforms
 USE init_field_mod,      ONLY: init_field
-USE read_from_dump_mod,  ONLY: read_from_dump
+USE read_from_file_mod,  ONLY: read_from_file
 USE copy_field_data_mod, ONLY: copy_field_data
 USE a_times_X_mod,       ONLY: a_times_X
 USE X_plus_Y_mod,        ONLY: X_plus_Y
@@ -39,66 +39,89 @@ USE X_times_Y_mod,       ONLY: X_times_Y
 USE X_divideby_Y_mod,    ONLY: X_divideby_Y
 USE X_powint_n_mod,      ONLY: X_powint_n
 USE X_powreal_a_mod,     ONLY: X_powreal_a
+! Science transforms
+USE soil_moist_content_to_soil_moist_stress_mod, ONLY:                         &
+                                     soil_moist_content_to_soil_moist_stress
+USE soil_moist_stress_to_soil_moist_content_mod, ONLY:                         &
+                                     soil_moist_stress_to_soil_moist_content
 
 IMPLICIT NONE
 
 ! Iterable
 INTEGER :: l
 
+!
+! Basic transforms
+!
+
 ! init field operator
 l = 1
-generator_list(l)%identifier = 'init_field                    '
+generator_list(l)%identifier = 'init_field                              '
 generator_list(l)%generator => init_field
 
 ! read from dump
 l = 2
-generator_list(l)%identifier = 'read_from_dump                '
-generator_list(l)%generator => read_from_dump
+generator_list(l)%identifier = 'read_from_file                          '
+generator_list(l)%generator => read_from_file
 
 ! Copy data between fields
 l = 3
-generator_list(l)%identifier = 'copy_field_data               '
+generator_list(l)%identifier = 'copy_field_data                         '
 generator_list(l)%generator => copy_field_data
 
 ! scale field operator
 l = 4
-generator_list(l)%identifier = 'a_times_X                     '
+generator_list(l)%identifier = 'a_times_X                               '
 generator_list(l)%generator => a_times_X
 
 ! Add two fields
 l = 5
-generator_list(l)%identifier = 'X_plus_Y                      '
+generator_list(l)%identifier = 'X_plus_Y                                '
 generator_list(l)%generator => X_plus_Y
 
 ! Linearly combine two fields
 l = 6
-generator_list(l)%identifier = 'aX_plus_bY                    '
+generator_list(l)%identifier = 'aX_plus_bY                              '
 generator_list(l)%generator => aX_plus_bY
 
 ! Subtract two fields
 l = 7
-generator_list(l)%identifier = 'X_minus_Y                     '
+generator_list(l)%identifier = 'X_minus_Y                               '
 generator_list(l)%generator => X_minus_Y
 
 ! Multiply two fields
 l = 8
-generator_list(l)%identifier = 'X_times_Y                     '
+generator_list(l)%identifier = 'X_times_Y                               '
 generator_list(l)%generator => X_times_Y
 
 ! Divide two fields
 l = 9
-generator_list(l)%identifier = 'X_divideby_Y                  '
+generator_list(l)%identifier = 'X_divideby_Y                            '
 generator_list(l)%generator => X_divideby_Y
 
 ! Raise field to power n, where n is an integer)
 l = 10
-generator_list(l)%identifier = 'X_powint_n                    '
+generator_list(l)%identifier = 'X_powint_n                              '
 generator_list(l)%generator => X_powint_n
 
 ! Raise field to power n, where n is a real
 l = 11
-generator_list(l)%identifier = 'X_powreal_a                   '
+generator_list(l)%identifier = 'X_powreal_a                             '
 generator_list(l)%generator => X_powreal_a
+
+!
+! Science transforms
+!
+
+! Soil moisture content to soil moisture stress conversion
+l = 12
+generator_list(l)%identifier = 'soil_moist_content_to_soil_moist_stress '
+generator_list(l)%generator => soil_moist_content_to_soil_moist_stress
+
+! Soil moisture content to soil moisture stress conversion
+l = 13
+generator_list(l)%identifier = 'soil_moist_stress_to_soil_moist_content '
+generator_list(l)%generator => soil_moist_stress_to_soil_moist_content
 
 END SUBROUTINE init_generator_lib
 

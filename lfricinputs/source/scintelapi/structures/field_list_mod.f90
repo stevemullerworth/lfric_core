@@ -20,7 +20,7 @@ IMPLICIT NONE
 TYPE(field_type), TARGET :: field_list(max_no_fields)
 
 ! Field write id array
-CHARACTER(LEN=field_name_len) :: field_io_id_list(max_no_fields)
+CHARACTER(LEN=field_name_len) :: field_io_name_list(max_no_fields)
 
 ! Actual number of fields in field list
 INTEGER :: no_fields
@@ -46,7 +46,7 @@ no_fields = 0
 ! Set associated field array that contains the field dump write names to blank
 ! strings.
 DO l = 1, max_no_fields
-  field_io_id_list(l) = REPEAT(' ', field_name_len)
+  field_io_name_list(l) = REPEAT(' ', field_name_len)
 END DO
 
 END SUBROUTINE init_field_list

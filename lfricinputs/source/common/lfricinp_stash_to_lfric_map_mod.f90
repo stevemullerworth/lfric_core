@@ -72,62 +72,68 @@ field_counter = 0
 
 ! PLEASE KEEP THIS LIST OF SUPPORTED STASHCODES IN NUMERICAL ORDER
 IF (winds_on_w3) THEN
-  CALL map_field_name(stashcode_u, 'ew_wind')                            ! stash 2
-  CALL map_field_name(stashcode_v, 'ns_wind')                            ! stash 3
+  CALL map_field_name(stashcode_u, 'ew_wind')                        ! stash 2
+  CALL map_field_name(stashcode_v, 'ns_wind')                        ! stash 3
 ELSE
-  CALL map_field_name(stashcode_u, 'h_wind')                             ! stash 2 and 3 combined into single W2H field
+  CALL map_field_name(stashcode_u, 'h_wind')                         ! stash 2&3
+                                                 !combined into single W2H field
   CALL map_field_name(stashcode_v, 'h_wind')
 ENDIF
-CALL map_field_name(stashcode_theta, 'theta')                            ! stash 4
-CALL map_field_name(stashcode_soil_moist, 'soil_moisture')               ! stash 9
-CALL map_field_name(stashcode_q, 'q')                                    ! stash 10
-CALL map_field_name(stashcode_qcf, 'qcf')                                ! stash 12
-CALL map_field_name(stashcode_soil_temp, 'soil_temperature')             ! stash 20
-CALL map_field_name(stashcode_tstar, 'tstar')                            ! stash 24
-CALL map_field_name(stashcode_bl_depth, 'zh')                            ! stash 25
-CALL map_field_name(stashcode_orog, 'surface_altitude')                  ! stash 33
-CALL map_field_name(stashcode_ozone, 'ozone')                            ! stash 60
-CALL map_field_name(stashcode_z0, 'z0msea')                              ! stash 26
-CALL map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')       ! stash 49
-CALL map_field_name(stashcode_w, 'upward_wind')                          ! stash 150
-CALL map_field_name(stashcode_can_conduct, 'surface_conductance')        ! stash 213
-CALL map_field_name(stashcode_unfrozen_soil, 'unfrozen_soil_moisture')   ! stash 214
-CALL map_field_name(stashcode_frozen_soil, 'frozen_soil_moisture')       ! stash 215
-CALL map_field_name(stashcode_snow_soot_tile, 'snow_soot')               ! stash 221
-CALL map_field_name(stashcode_can_water_tile, 'tile_canopy_water')       ! stash 229
-CALL map_field_name(stashcode_rgrain, 'tile_snow_rgrain')                ! stash 231
-CALL map_field_name(stashcode_tstar_tile, 'tile_temperature')            ! stash 233
-CALL map_field_name(stashcode_snow_tile , 'tile_snow_mass')              ! stash 240
-CALL map_field_name(stashcode_snow_grnd, 'tile_snow_under_canopy')       ! stash 242
-CALL map_field_name(stashcode_rhor2, 'rho_r2')                           ! stash 253
-CALL map_field_name(stashcode_qcl, 'qcl')                                ! stash 254
-CALL map_field_name(stashcode_area_cf, 'area_fraction')                  ! stash 265
-CALL map_field_name(stashcode_bulk_cf, 'bulk_fraction')                  ! stash 266
-CALL map_field_name(stashcode_liquid_cf, 'liquid_fraction')              ! stash 267
-CALL map_field_name(stashcode_frozen_cf, 'frozen_fraction')              ! stash 268
-CALL map_field_name(stashcode_qrain, 'qrain')                            ! stash 272
-CALL map_field_name(stashcode_fsat, 'soil_sat_frac')                     ! stash 279
-CALL map_field_name(stashcode_fwetl, 'soil_wet_frac')                    ! stash 280
-CALL map_field_name(stashcode_zw, 'water_table')                         ! stash 278
-CALL map_field_name(stashcode_sthzw, 'wetness_under_soil')               ! stash 281
-CALL map_field_name(stashcode_snowdep_grd_tile, 'tile_snow_depth')       ! stash 376
-CALL map_field_name(stashcode_snowpack_bk_dens, 'tile_snowpack_density') ! stash 377
-CALL map_field_name(stashcode_nsnow_layrs_tiles, 'tile_n_snow_layers')   ! stash 380
-CALL map_field_name(stashcode_snow_laythk_tiles, &                       ! stash 381
+CALL map_field_name(stashcode_theta, 'theta')                        ! stash 4
+CALL map_field_name(stashcode_soil_moist, 'soil_moisture')           ! stash 9
+CALL map_field_name(stashcode_q, 'q')                                ! stash 10
+CALL map_field_name(stashcode_qcf, 'qcf')                            ! stash 12
+CALL map_field_name(stashcode_soil_temp, 'soil_temperature')         ! stash 20
+CALL map_field_name(stashcode_tstar, 'tstar')                        ! stash 24
+CALL map_field_name(stashcode_bl_depth, 'zh')                        ! stash 25
+CALL map_field_name(stashcode_orog, 'surface_altitude')              ! stash 33
+CALL map_field_name(stashcode_ozone, 'ozone')                        ! stash 60
+CALL map_field_name(stashcode_z0, 'z0msea')                          ! stash 26
+CALL map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')   ! stash 49
+CALL map_field_name(stashcode_w, 'upward_wind')                      ! stash 150
+CALL map_field_name(stashcode_can_conduct, 'surface_conductance')    ! stash 213
+CALL map_field_name(stashcode_unfrozen_soil, 'unfrozen_soil_moisture')
+                                                                     ! stash 214
+CALL map_field_name(stashcode_frozen_soil, 'frozen_soil_moisture')   ! stash 215
+CALL map_field_name(stashcode_snow_soot_tile, 'snow_soot')           ! stash 221
+CALL map_field_name(stashcode_can_water_tile, 'tile_canopy_water')   ! stash 229
+CALL map_field_name(stashcode_rgrain, 'tile_snow_rgrain')            ! stash 231
+CALL map_field_name(stashcode_tstar_tile, 'tile_temperature')        ! stash 233
+CALL map_field_name(stashcode_snow_tile , 'tile_snow_mass')          ! stash 240
+CALL map_field_name(stashcode_snow_grnd, 'tile_snow_under_canopy')   ! stash 242
+CALL map_field_name(stashcode_rhor2, 'rho_r2')                       ! stash 253
+CALL map_field_name(stashcode_qcl, 'qcl')                            ! stash 254
+CALL map_field_name(stashcode_area_cf, 'area_fraction')              ! stash 265
+CALL map_field_name(stashcode_bulk_cf, 'bulk_fraction')              ! stash 266
+CALL map_field_name(stashcode_liquid_cf, 'liquid_fraction')          ! stash 267
+CALL map_field_name(stashcode_frozen_cf, 'frozen_fraction')          ! stash 268
+CALL map_field_name(stashcode_qrain, 'qrain')                        ! stash 272
+CALL map_field_name(stashcode_fsat, 'soil_sat_frac')                 ! stash 279
+CALL map_field_name(stashcode_fwetl, 'soil_wet_frac')                ! stash 280
+CALL map_field_name(stashcode_zw, 'water_table')                     ! stash 278
+CALL map_field_name(stashcode_sthzw, 'wetness_under_soil')           ! stash 281
+CALL map_field_name(stashcode_snowdep_grd_tile, 'tile_snow_depth')   ! stash 376
+CALL map_field_name(stashcode_snowpack_bk_dens, 'tile_snowpack_density')
+                                                                     ! stash 377
+CALL map_field_name(stashcode_nsnow_layrs_tiles, 'tile_n_snow_layers')
+                                                                     ! stash 380
+CALL map_field_name(stashcode_snow_laythk_tiles,                    &! stash 381
      'tile_snow_layer_thickness')
-CALL map_field_name(stashcode_snow_liq_tile, 'tile_snow_layer_liq_mass') ! stash 383
-CALL map_field_name(stashcode_snow_ice_tile, 'tile_snow_layer_ice_mass') ! stash 382
-CALL map_field_name(stashcode_snow_T_tile, 'tile_snow_layer_temp')       ! stash 384
-CALL map_field_name(stashcode_snow_grnsiz_tiles, &                       ! stash 386
+CALL map_field_name(stashcode_snow_liq_tile, 'tile_snow_layer_liq_mass')
+                                                                     ! stash 383
+CALL map_field_name(stashcode_snow_ice_tile, 'tile_snow_layer_ice_mass')
+                                                                     ! stash 382
+CALL map_field_name(stashcode_snow_T_tile, 'tile_snow_layer_temp')   ! stash 384
+CALL map_field_name(stashcode_snow_grnsiz_tiles,                    &! stash 386
      'tile_snow_layer_rgrain')
-CALL map_field_name(stashcode_dry_rho, 'rho')                            ! stash 389
-CALL map_field_name(stashcode_mv, 'm_v')                                 ! stash 391
-CALL map_field_name(stashcode_mcl, 'm_cl')                               ! stash 392
-CALL map_field_name(stashcode_mcf, 'm_cf')                               ! stash 393
-CALL map_field_name(stashcode_mr, 'm_r')                                 ! stash 394
-CALL map_field_name(stashcode_ddmfx , 'dd_mf_cb')                        ! stash 493
-CALL map_field_name(stashcode_tstar_sea, 'tstar_sea')                    ! stash 507
-CALL map_field_name(stashcode_tstar_sice, 'tstar_sea_ice')               ! stash 508
+CALL map_field_name(stashcode_dry_rho, 'rho')                        ! stash 389
+CALL map_field_name(stashcode_mv, 'm_v')                             ! stash 391
+CALL map_field_name(stashcode_mcl, 'm_cl')                           ! stash 392
+CALL map_field_name(stashcode_mcf, 'm_cf')                           ! stash 393
+CALL map_field_name(stashcode_mr, 'm_r')                             ! stash 394
+CALL map_field_name(stashcode_ddmfx , 'dd_mf_cb')                    ! stash 493
+CALL map_field_name(stashcode_tstar_sea, 'tstar_sea')                ! stash 507
+CALL map_field_name(stashcode_tstar_sice, 'tstar_sea_ice')           ! stash 508
 ! PLEASE KEEP THIS LIST OF SUPPORTED STASHCODES IN NUMERICAL ORDER
 
 END SUBROUTINE lfricinp_init_stash_to_lfric_map
@@ -191,21 +197,21 @@ IF ((stashcode == stashcode_u .OR. stashcode == stashcode_v) .AND.     &
   lfric_field_kind = w2h_field
 
 ELSE IF (level_code == rho_levels) THEN
-  lfric_field_kind = w3_field 
+  lfric_field_kind = w3_field
 
 ELSE IF (level_code == theta_levels) THEN
-  lfric_field_kind = wtheta_field 
+  lfric_field_kind = wtheta_field
 
 ELSE IF (level_code == single_level) THEN
-  lfric_field_kind = w3_field_2d 
+  lfric_field_kind = w3_field_2d
 
 ELSE IF (level_code == soil_levels) THEN
-  lfric_field_kind = w3_soil_field 
+  lfric_field_kind = w3_soil_field
 
 ELSE
 
-  WRITE(log_scratch_space, '(A,I0,A)') "Stashcode ", stashcode, & 
-       " is not mapped to a lfric field type" 
+  WRITE(log_scratch_space, '(A,I0,A)') "Stashcode ", stashcode, &
+       " is not mapped to a lfric field type"
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 
 END IF

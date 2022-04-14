@@ -27,7 +27,7 @@ SUBROUTINE um2lfric_regrid_fields(fctime)
 !  the next horizontal point.
 !
 !  In this current UM2LFRic code we use a serial implementation of the LFRic
-!  infrastructure. This means that there are no complications from the 
+!  infrastructure. This means that there are no complications from the
 !  MPI partitioning or from field stencils.
 !
 !  Simple example of a 2 layer mesh, with 4 points on each layer and both
@@ -39,10 +39,10 @@ SUBROUTINE um2lfric_regrid_fields(fctime)
 !             Layer 1                                  Layer 2
 !
 !
-! x  regridded_1      x  regridded_3       x  regridded_1       x  regridded_3     
+! x  regridded_1      x  regridded_3       x  regridded_1       x  regridded_3
 !    LFRIC_1             LFRIC_5              LFRIC_2              LFRIC_6
 !
-! x  regridded_2      x  regridded_4       x  regridded_2       x  regridded_4  
+! x  regridded_2      x  regridded_4       x  regridded_2       x  regridded_4
 !    LFRIC_3             LFRIC_7              LFRIC_4              LFRIC_8
 
 ! 2D array field containing the regridded data. First dimension corresponds
@@ -60,7 +60,7 @@ USE lfricinp_lfric_driver_mod, ONLY: lfric_fields
 USE lfricinp_regrid_options_mod, ONLY: regrid_type
 
 ! um2lfric modules
-USE um2lfric_namelist_mod,       ONLY: um2lfric_config                           
+USE um2lfric_namelist_mod,       ONLY: um2lfric_config
 USE lfricinp_initialise_um_mod,  ONLY: um_input_file
 USE um2lfric_regrid_weights_mod, ONLY: get_weights
 USE um2lfric_post_process_fields_mod, ONLY: um2lfric_post_process_fields
@@ -128,7 +128,7 @@ WRITE(log_scratch_space, '(A,I0,A)') 'Will process ', &
 CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 DO i_field = 1, um2lfric_config%num_fields
-     
+
   stashcode = um2lfric_config%stash_list(i_field)
   WRITE(log_scratch_space, '(A,I0)') 'Processing/regrid STASH code: ',         &
                                      stashcode
@@ -145,17 +145,17 @@ DO i_field = 1, um2lfric_config%num_fields
                 stashcode = stashcode, lbproc = 0_int64,                       &
                 fctime = fctime), ignore_warning = true_cbool,                 &
                 errorstatus = errorstatus)
-  
+
   IF (errorstatus /= 0) THEN ! Field has not been found in dump
 
     WRITE(log_scratch_space,'(A,I0,A)') 'WARNING: stashcode ', stashcode,      &
                                         'not found in input dump. Data set '// &
-                                        'to zero in LFRic output field.'    
+                                        'to zero in LFRic output field.'
     CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
     IF (ALLOCATED(um_input_fields)) DEALLOCATE(um_input_fields)
 
   ELSE ! Field has sucessfully been found
-                
+
     num_levels = SIZE(um_input_fields)
 
     !---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ DO i_field = 1, um2lfric_config%num_fields
     !---------------------------------------------------------------------------
     lfric_field => lfric_fields % get_field(get_field_name(stashcode))
     lfric_field_fs => lfric_field % get_function_space()
-  
+
     !---------------------------------------------------------------------------
     ! Allocate and set dimensions of intermediate regridded field data array
     !---------------------------------------------------------------------------
@@ -177,11 +177,11 @@ DO i_field = 1, um2lfric_config%num_fields
                                      get_field_name(stashcode) //              &
                                      ' not currently supported in regridding'
       CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
-    END IF  
+    END IF
     num_dofs_per_level = lfric_field_fs % get_undf() /                         &
                          (num_lfric_levels * lfric_field_fs % get_ndata())
     ALLOCATE(regridded_field(num_dofs_per_level, num_levels))
-  
+
     !---------------------------------------------------------------------------
     ! Get required regridding weights
     !---------------------------------------------------------------------------
@@ -217,7 +217,7 @@ DO i_field = 1, um2lfric_config%num_fields
     ! Do any final post-processing to field, if required
     !---------------------------------------------------------------------------
     CALL um2lfric_post_process_fields(regridded_field, stashcode)
-    ! Update number of levels for field if it changed during post-processing 
+    ! Update number of levels for field if it changed during post-processing
     num_levels = SIZE(regridded_field, 2)
 
     !---------------------------------------------------------------------------
@@ -238,7 +238,7 @@ DO i_field = 1, um2lfric_config%num_fields
        len_regridded_field = SIZE(regridded_field, 1)
        ! Split up the data here and insert it into the LFRic field in the
        ! correct place. Loop over all points in the 2D regridded field that
-       ! represents a single level. The first lfric array index will match the 
+       ! represents a single level. The first lfric array index will match the
        ! current level number
        lfric_index = level
        DO regridded_index = 1, len_regridded_field

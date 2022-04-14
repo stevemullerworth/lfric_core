@@ -36,7 +36,7 @@ IMPLICIT NONE
 
 ! LFRic mesh and local mesh
 TYPE(mesh_type), POINTER :: mesh
-TYPE(local_mesh_type), POINTER :: local_mesh 
+TYPE(local_mesh_type), POINTER :: local_mesh
 
 ! Ancil fields
 TYPE(lfric_field_type), POINTER :: ancil_field
@@ -61,18 +61,19 @@ CALL shumlib("um2lfric::find_fields_in_file",                                  &
                                                lbproc = 0_int64),              &
              ignore_warning=true_cbool, errorstatus=err)
 
-! Check that both the source and destination land area fraction fields are available
-! source from start dump via shumlib and destination from lfric ancil
+! Check that both the source and destination land area fraction fields are
+! available. Source from start dump via shumlib and destination from lfric ancil
 IF (err /= 0 .OR. .NOT. l_land_area_fraction) THEN
 
   IF (err /=0 ) THEN
     log_scratch_space = 'Error encountered when trying to read UM land mask. '
   ELSE IF (.NOT. l_land_area_fraction) THEN
-    log_scratch_space = 'l_land_area_fraction set to FALSE. Land fraction '// &
+    log_scratch_space = 'l_land_area_fraction set to FALSE. Land fraction '//  &
          'ancil not available. '
   END IF
-  log_scratch_space = TRIM(log_scratch_space) // 'Post regridding adjustments '// &
-       'on land and maritime compressed fields will be ignored.'
+  log_scratch_space = TRIM(log_scratch_space) //                               &
+                      'Post regridding adjustments '//                         &
+                      'on land and maritime compressed fields will be ignored.'
   CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 ELSE

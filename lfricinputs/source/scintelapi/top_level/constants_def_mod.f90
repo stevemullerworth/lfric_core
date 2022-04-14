@@ -11,14 +11,16 @@ MODULE constants_def_mod
 !
 
 ! Use some constants from LFRic infrastructure
-USE constants_mod, ONLY: lfric_r_def => r_def, lfric_i_def => i_def, real_missing_data_indicator => rmdi
+USE constants_mod, ONLY: lfric_r_def => r_def,                                 &
+                         lfric_i_def => i_def,                                 &
+                         real_missing_data_indicator => rmdi
 
 IMPLICIT NONE
 
 ! Input string size definitions
-INTEGER, PARAMETER :: func_space_name_len = 10
+INTEGER, PARAMETER :: field_kind_name_len = 20
 INTEGER, PARAMETER :: field_name_len = 64
-INTEGER, PARAMETER :: gen_id_len = 30
+INTEGER, PARAMETER :: gen_id_len = 40
 INTEGER, PARAMETER :: genpar_len = 1000
 INTEGER, PARAMETER :: field_dim_len = 2
 INTEGER, PARAMETER :: file_name_len = 512

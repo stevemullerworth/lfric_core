@@ -6,7 +6,7 @@
 MODULE um2lfric_regrid_and_output_data_mod
 
 ! Intrinsic modules
-USE, INTRINSIC :: iso_fortran_env, ONLY: real64, int64 
+USE, INTRINSIC :: iso_fortran_env, ONLY: real64, int64
 
 ! lfricinputs modules
 USE lfricinp_lfric_driver_mod,               ONLY: io_context, lfric_fields
@@ -35,9 +35,9 @@ PUBLIC :: um2lfric_regrid_and_output_data
 CONTAINS
 
 SUBROUTINE um2lfric_regrid_and_output_data(datetime)
-! 
+!
 ! This routine, for each forecast time, regrids a set of UM fields to a lfric
-! field collection followed by a write to the data output file/stream. In a 
+! field collection followed by a write to the data output file/stream. In a
 ! final step it calls the time axis adjustment routine, which will correct the
 ! time axis values if needed.
 !
@@ -50,8 +50,8 @@ CHARACTER(LEN=32)            :: xios_current_date_str
 REAL(KIND=real64)            :: fctime
 INTEGER(KIND=int64)          :: time_step
 LOGICAL                      :: l_advance
- 
-! NOTE: For the logic below the calendar/clock time step is one unit  ahead of 
+
+! NOTE: For the logic below the calendar/clock time step is one unit  ahead of
 ! the actual forecast time. This will be corrected in a post-processing step.
 ! This is a current work around the fact that XIOS does not appear allow fields
 ! to be written before time step 1.
@@ -72,7 +72,7 @@ DO time_step = datetime % first_step, datetime % last_step
   WRITE(log_scratch_space,*) 'Regrid fields for forecast time: ',              &
                               fctime,                                          &
                               '... where current xios date is: ',              &
-                              TRIM(xios_current_date_str)                             
+                              TRIM(xios_current_date_str)
   CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
   CALL um2lfric_regrid_fields(fctime = fctime)
   CALL write_state(lfric_fields)
@@ -94,10 +94,10 @@ END SUBROUTINE um2lfric_regrid_and_output_data
 
 SUBROUTINE adjust_time_axis(time_axis_offset)
 !
-! This routine adjusts the time-axis values in the output file by the 
+! This routine adjusts the time-axis values in the output file by the
 ! given input time duration. It is assumed the time duration has the same units
-! as the time axis values, and the time axis is named 'time'. If no time axis 
-! variable with that name is found a warning message will be reported to that 
+! as the time axis values, and the time axis is named 'time'. If no time axis
+! variable with that name is found a warning message will be reported to that
 ! effect, and the output file will remain unaltered.
 !
 
@@ -114,36 +114,36 @@ USE constants_mod,      ONLY: i_def, r_second
 USE lfricinp_check_stat_ncdf_mod, ONLY: check_stat_ncdf
 
 ! Path to output file
-USE lfricinp_setup_io_mod, ONLY: checkpoint_write_fname
+USE lfricinp_setup_io_mod, ONLY: checkpoint_write_file
 
   IMPLICIT NONE
-  
+
   REAL(KIND=r_second),     INTENT(IN) :: time_axis_offset
-  
+
   INTEGER(KIND=i_def)                 :: local_rank
   INTEGER                             :: ncid, varid, dimid, dim_size,         &
                                          check_time_axis_status
   CHARACTER(LEN=:),       ALLOCATABLE :: file_path
   REAL(KIND=r_second),    ALLOCATABLE :: temp_time(:), temp_time_bounds(:,:)
-  
+
   local_rank = get_comm_rank()
-  
+
   IF (local_rank == 0) THEN
-  
-    file_path = TRIM(ADJUSTL(checkpoint_write_fname)) // '.nc'
-  
+
+    file_path = TRIM(ADJUSTL(checkpoint_write_file)) // '.nc'
+
     WRITE(log_scratch_space,*) 'NetCDF file to be processed: ', file_path
     CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-  
+
     ! Open NetCDF file
     CALL check_stat_ncdf(nf90_open(path=file_path, mode=nf90_write, ncid=ncid))
-  
+
     ! Check is time variable exist in file
     check_time_axis_status = nf90_inq_varid(ncid, 'time', varid)
 
     ! Based on whether time axis variable exist, update axis or do nothing
     IF (check_time_axis_status == nf90_noerr) THEN ! Time axis found
-      
+
       ! Get size of dimension named "time"
       CALL check_stat_ncdf(nf90_inq_dimid(ncid, 'time', dimid))
       CALL check_stat_ncdf(nf90_inquire_dimension(ncid, dimid, len=dim_size))
@@ -157,19 +157,19 @@ USE lfricinp_setup_io_mod, ONLY: checkpoint_write_fname
 
       ! Allocate temporary time_bounds data array
       ALLOCATE(temp_time_bounds(dim_size, SIZE(temp_time)))
-  
+
       ! Get "time" variable id
       CALL check_stat_ncdf(nf90_inq_varid(ncid, 'time', varid))
-       
+
       ! Get data for "time" variable using variable id
       CALL check_stat_ncdf(nf90_get_var(ncid, varid, temp_time))
-    
+
       ! Shift time data values
       temp_time = temp_time - time_axis_offset
 
       ! Write shifted values back to file
       CALL check_stat_ncdf(nf90_put_var(ncid, varid, temp_time))
-      
+
       ! Get "time_bounds" variable id
       CALL check_stat_ncdf(nf90_inq_varid(ncid, 'time_bounds', varid))
 
@@ -180,23 +180,23 @@ USE lfricinp_setup_io_mod, ONLY: checkpoint_write_fname
       temp_time_bounds = temp_time_bounds - time_axis_offset
 
       ! Write shifted values back to file
-      CALL check_stat_ncdf(nf90_put_var(ncid, varid, temp_time_bounds)) 
-   
+      CALL check_stat_ncdf(nf90_put_var(ncid, varid, temp_time_bounds))
+
       ! Deallocate temporary arrays
       DEALLOCATE(temp_time, temp_time_bounds)
-  
+
     ELSE ! Time axis variable not found
-      
+
       WRITE(log_scratch_space,*) 'No time variable found in file'
       CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-  
+
     END IF
-  
+
     ! Close NetCDF file
     CALL check_stat_ncdf(nf90_close(ncid))
-  
-  END IF                           
-  
+
+  END IF
+
   END SUBROUTINE adjust_time_axis
 
 END MODULE um2lfric_regrid_and_output_data_mod

@@ -18,6 +18,7 @@ USE lfricinp_initialise_um_mod, ONLY: lfricinp_initialise_um,                  &
 USE lfricinp_regrid_options_mod, ONLY: lfricinp_init_regrid_options
 USE lfricinp_datetime_mod, ONLY : datetime_type
 USE lfricinp_read_um_time_data_mod, ONLY: lfricinp_read_um_time_data
+USE lfricinp_setup_io_mod,          ONLY: init_io_setup
 
 ! um2lfric modules
 USE um2lfric_namelist_mod, ONLY: um2lfric_config, required_lfric_namelists
@@ -33,9 +34,12 @@ USE log_mod,         ONLY: log_event, LOG_LEVEL_INFO
 IMPLICIT NONE
 
 TYPE(datetime_type)        :: datetime
-CHARACTER(LEN=fnamelen)    :: lfric_fname, um2lfric_fname
+CHARACTER(LEN=fnamelen)    :: lfric_fname, um2lfric_fname, io_fname
 
-CALL lfricinp_read_command_line_args(um2lfric_fname, lfric_fname)
+CALL lfricinp_read_command_line_args(um2lfric_fname, lfric_fname, io_fname)
+
+! Set up IO file configuration
+CALL init_io_setup(io_fname)
 
 ! Read um2lfric configuration namelist
 CALL um2lfric_config%load_namelist(um2lfric_fname)

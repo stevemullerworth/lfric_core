@@ -24,8 +24,8 @@ SUBROUTINE gen_io_check(dep_graph, input_field_no, input_field_fs,             &
 ! This is a service routine to be called from within a generator. It verifies
 ! whether the data (field definitions and parameter list) in the dependency
 ! graph is consistent with what the dependency graph generator expects.
-! The actual set of checks performed is determined by the arguments supplied when
-! calling this routine from within the generator.
+! The actual set of checks performed is determined by the arguments supplied
+! when calling this routine from within the generator.
 !
 
 IMPLICIT NONE

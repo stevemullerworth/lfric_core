@@ -117,7 +117,8 @@ lookup_int(lbhrd) = fixed_length_header(t1_hour)
 lookup_int(lbmind) = fixed_length_header(t1_minute)
 lookup_int(lbsecd) = fixed_length_header(t1_second)
 lookup_int(lbtim) = 1  ! hardcode to proleptic gregorian
-lookup_int(lbft) = 0 ! Forecast time, difference between datatime and validity time
+lookup_int(lbft) = 0 ! Forecast time, difference between datatime and
+                     ! validity time
 
 lookup_int(lbcode) = 1 ! harcode to lat/long non-rotated
 lookup_int(lbhem) = 0 ! Hardcode to global
@@ -160,9 +161,9 @@ lookup_int(lbrel) = 3 ! UM version 8.1 onwards
 lookup_int(lbfc) = get_stashmaster_item(stashcode, ppfc) ! field code
 lookup_int(lbcfc) = 0  ! Always set to 0 for UM files
 lookup_int(lbproc) = 0 ! No field processing done
-lookup_int(lbvc) = get_stashmaster_item(stashcode, sm_lbvc) ! vertical coord type
+lookup_int(lbvc) = get_stashmaster_item(stashcode, sm_lbvc) !vertical coord type
 lookup_int(lbrvc) = 0 ! Always zero in UM
-lookup_int(lbtyp) = get_stashmaster_item(stashcode, cfff) ! Fieldsfile field type
+lookup_int(lbtyp) = get_stashmaster_item(stashcode, cfff) !Fieldsfile field type
 
 ! The level index of the field array is indexed from 1. for fields
 ! with a "zeroth" level on the surface then level_number = level_index - 1
@@ -234,10 +235,10 @@ ELSE IF (lookup_int(lbvc) == 65) THEN ! Standard hybrid height levels
     ! When referencing theta arrays need to add 1 to the level number as level
     ! numbers start at 0 but array start at 1
     IF (level_number == integer_constants(ih_model_levels)) THEN ! top level
-      lookup_real_tmp(bulev) =  level_dep_c(level_number+1, ldc_zsea_theta) * 2.0   &
-                                - level_dep_c(level_number, ldc_zsea_rho)
-      lookup_real_tmp(bhulev)=   level_dep_c(level_number+1, ldc_c_theta) * 2.0   &
-                                   -    level_dep_c(level_number,ldc_c_rho)
+      lookup_real_tmp(bulev) =  level_dep_c(level_number+1, ldc_zsea_theta)    &
+                                * 2.0 - level_dep_c(level_number, ldc_zsea_rho)
+      lookup_real_tmp(bhulev)=   level_dep_c(level_number+1, ldc_c_theta)      &
+                                * 2.0 - level_dep_c(level_number,ldc_c_rho)
     ELSE
       lookup_real_tmp(bulev) = level_dep_c(level_number+1, ldc_zsea_rho)
       lookup_real_tmp(bhulev)= level_dep_c(level_number+1, ldc_c_rho)
@@ -256,11 +257,12 @@ ELSE IF (lookup_int(lbvc) == 65) THEN ! Standard hybrid height levels
 
   ELSE IF (level_code == rho_levels) THEN ! rho level (u,v)
 
-    IF (level_number >  integer_constants(ih_model_levels)) THEN ! ie exner above top level
-      lookup_real_tmp(bulev) = level_dep_c(level_number+1, ldc_zsea_theta) * 2.0   &
-                                  - level_dep_c(level_number-1, ldc_zsea_rho)
-      lookup_real_tmp(bhulev)=    level_dep_c(level_number+1, ldc_c_theta) * 2.0   &
-                                   -   level_dep_c(level_number-1, ldc_c_rho)
+    ! if exner above top level
+    IF (level_number >  integer_constants(ih_model_levels)) THEN
+      lookup_real_tmp(bulev) = level_dep_c(level_number+1, ldc_zsea_theta)     &
+                               * 2.0 - level_dep_c(level_number-1, ldc_zsea_rho)
+      lookup_real_tmp(bhulev)= level_dep_c(level_number+1, ldc_c_theta)        &
+                               * 2.0 - level_dep_c(level_number-1, ldc_c_rho)
       lookup_real_tmp(blev) = lookup_real_tmp(bulev)
       lookup_real_tmp(bhlev)= lookup_real_tmp(bhulev)
     ELSE

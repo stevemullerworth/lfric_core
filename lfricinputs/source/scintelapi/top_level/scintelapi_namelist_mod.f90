@@ -23,13 +23,14 @@ CHARACTER(LEN=file_name_len), PUBLIC :: lfric_nl
 ! Science Intelligence input namelist file
 CHARACTER(LEN=file_name_len), PUBLIC :: scintelapi_nl
 
+! IO input namelist file
+CHARACTER(LEN=file_name_len), PUBLIC :: io_nl
+
 ! Array containing required LFRic configuration namelists
-CHARACTER(*), PARAMETER  :: required_lfric_namelists(7) = ['finite_element',   &
+CHARACTER(*), PARAMETER  :: required_lfric_namelists(5) = ['finite_element',   &
                                                            'base_mesh     ',   &
                                                            'planet        ',   &
                                                            'extrusion     ',   &
-                                                           'io            ',   &
-                                                           'files         ',   &
                                                            'domain_size   ']
 
 CONTAINS
@@ -96,6 +97,28 @@ CASE (-1)
 CASE DEFAULT
   log_scratch_space =                                                          &
        'Unknown error reading Science Intel namelist file from command line.'
+  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+END SELECT
+
+! Read io namelist filename from command line
+CALL GET_COMMAND_ARGUMENT(3, io_nl, arglen, errcode)
+SELECT CASE(errcode)
+CASE (0)
+  CONTINUE
+CASE (1)
+  log_scratch_space =                                                          &
+       'No IO namelist filename provided on command line'
+  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+CASE (-1)
+  log_scratch_space =                                                          &
+             'The filename and path to the namelist file is too long '//       &
+             'for currently compiled string declaration. Please '     //       &
+             'recompile with a larger filenamelength parameter or '   //       &
+             'reconsider location of the provided namelist.'
+  CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+CASE DEFAULT
+  log_scratch_space =                                                          &
+       'Unknown error reading IO namelist file from command line.'
   CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
 END SELECT
 

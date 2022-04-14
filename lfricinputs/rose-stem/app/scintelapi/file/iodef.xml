@@ -3,7 +3,6 @@
 
   <!-- In this version we have ONE context  -->
 
-
   <context id = "gungho_atm">
 
    <calendar type = "Gregorian" />
@@ -12,6 +11,7 @@
     <axis id="vert_axis_half_levels" name="half_levels"/>
     <axis id="vert_axis_full_levels" name="full_levels"/>
     <axis id="radiation_levels" name="radiation_levels"/>
+    <axis id="soil_levels" name="soil_levels" n_glo="4"/>
    </axis_definition>
 
    <grid_definition>
@@ -33,30 +33,6 @@
     </grid>
    </grid_definition>
 
-   <field_definition prec="8" >
-
-     <!-- SCINTELAPI fields used in dumps -->
-     <field_group id="physics_fd_fields" freq_op="1ts" operation="once" enabled=".TRUE." >
-       <field id="ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
-       <field id="theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-       <field id="ozone_in_wtheta" name="ozone_in_wtheta" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" />
-       <field id="upward_wind_in_wtheta" name="upward_wind_in_wtheta" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
-       <field id="dry_rho_in_w3" name="dry_rho_in_w3" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
-       <field id="mv_in_wtheta" name="mv_in_wtheta" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="mcf_in_wtheta" name="mcf_in_wtheta" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
-       <field id="tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" />
-     </field_group>
-
-     <!-- Checkpoint group is compulsory -->
-     <!-- Checkpoint group -->
-     <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-     </field_group>
-
-
-   </field_definition>
-
    <file_definition
       type="one_file"
       par_access="collective"
@@ -64,16 +40,18 @@
 
       <!-- File definition for lfric checkpoint write  -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
-       <field field_ref="ew_wind_in_w3" />
-       <field field_ref="ns_wind_in_w3" />
-       <field field_ref="theta_in_wtheta" />
-       <field field_ref="ozone_in_wtheta" />
-       <field field_ref="upward_wind_in_wtheta" />
-       <field field_ref="dry_rho_in_w3" />
-       <field field_ref="mv_in_wtheta" />
-       <field field_ref="mcl_in_wtheta" />
-       <field field_ref="mcf_in_wtheta" />
-       <field field_ref="tstar" />
+       <field id="write_ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
+       <field id="write_ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
+       <field id="write_theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_ozone_in_wtheta" name="ozone_in_wtheta" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_upward_wind_in_wtheta" name="upward_wind_in_wtheta" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_dry_rho_in_w3" name="dry_rho_in_w3" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" prec="8" />
+       <field id="write_mv_in_wtheta" name="mv_in_wtheta" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_mcf_in_wtheta" name="mcf_in_wtheta" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" prec="8" />
+       <field id="write_soil_moisture_content" name="soil_moisture_content" long_name="Soil moisture content" unit="kg m-2" domain_ref="face" axis_ref="soil_levels" operation="once" prec="8" />
+       <field id="write_soil_moisture_stress" name="soil_moisture_stress" long_name="Soil moisture stress" unit="1" domain_ref="face" axis_ref="soil_levels" operation="once" prec="8" />
       </file>
 
       <!-- File definition for lfric checkpoint read -->
@@ -90,10 +68,16 @@
        <field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
       </file>
 
-      <!-- Definition of "lfric_diag" file is compulsory even if not used -->
-      <file id="lfric_diag" name="lfric_diag" output_freq="10ts" convention="UGRID" enabled=".FALSE.">
+      <!-- File definition for land area fraction read -->
+      <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="read_land_area_fraction" name="land_area_fraction" long_name="land_area_fraction" unit="1" operation="once" domain_ref="face"/>
       </file>
 
+       <!-- File definition for soil_param_ancil read -->
+      <file id="soil_param_ancil" name="soil_param_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="read_vol_frac_con_water_wilt_point" name="volume_fraction_of_condensed_water_in_soil_at_wilting_point" long_name="volume_fraction_of_condensed_water_in_soil_at_wilting_point" unit="1" operation="once" domain_ref="face"/>
+        <field id="read_vol_frac_con_water_crit_point" name="volume_fraction_of_condensed_water_in_soil_at_critical_point" long_name="volume_fraction_of_condensed_water_in_soil_at_critical_point" unit="1" operation="once" domain_ref="face"/>
+      </file>
 
     </file_definition>
 

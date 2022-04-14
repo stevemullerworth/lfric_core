@@ -49,12 +49,6 @@
        <field id="tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" />
      </field_group>
 
-     <!-- Checkpoint group is compulsory -->
-     <!-- Checkpoint group -->
-     <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-     </field_group>
-
-
    </field_definition>
 
    <file_definition
@@ -75,12 +69,6 @@
 	<field field_ref="m_cf"/>
 	<field field_ref="tstar"/>
       </file>
-
-
-      <!-- Definition of "lfric_diag" file is compulsory even if not used -->
-      <file id="lfric_diag" name="lfric_diag" output_freq="10ts" convention="UGRID" enabled=".FALSE.">
-      </file>
-
 
     </file_definition>
 

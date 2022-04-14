@@ -23,7 +23,7 @@ SUBROUTINE lfricinp_read_um_time_data(datetime, um_file, stash_list)
 !
 ! This routine reads, for a list of stash codes, the forecast and validity times
 ! associated with those stash codes from a UM dump/fieldsfile and forms a list
-! of unique forecast and validity times and stores the results in a LFRic Inputs 
+! of unique forecast and validity times and stores the results in a LFRic Inputs
 ! datetime type
 
 ! LFRic modules
@@ -65,18 +65,18 @@ LOGICAL(KIND=C_BOOL) :: true_cbool
 
 true_cbool = LOGICAL(.TRUE., KIND=C_BOOL)
 
-! Get forecast and validity times present in the um file for requested 
+! Get forecast and validity times present in the um file for requested
 ! stashlist, sorting them from smallest forecast to greatest forecast time
 ! as we go along.
 !
 time_idx = 0
 l_new_fct = .FALSE.
 DO i_field = 1, SIZE(stash_list)
-  
-  stashcode = stash_list(i_field)                                             
 
-  CALL shumlib("um2lfric::find_fields_in_file",                                &                          
-                um_file%find_fields_in_file(um_input_fields,                   &                          
+  stashcode = stash_list(i_field)
+
+  CALL shumlib("um2lfric::find_fields_in_file",                                &
+                um_file%find_fields_in_file(um_input_fields,                   &
                 stashcode = stashcode, lbproc = 0_int64),                      &
                 ignore_warning = true_cbool, errorstatus = errorstatus)
 
@@ -93,17 +93,17 @@ DO i_field = 1, SIZE(stash_list)
                   um_input_fields(level) % get_real_fctime(fctime))
     CALL shumlib("um2lfric::get_timestring",                                   &
                   um_input_fields(level) % get_timestring(timestring))
-    
-    ! Check if forecast time is already in current stored list of forecast 
+
+    ! Check if forecast time is already in current stored list of forecast
     ! times. If not insert new forecast time into array, preserving ordering.
     l_new_fct = (.NOT. ANY(ABS(datetime%fctimes - fctime) <= tol_fct))
-    IF (l_new_fct .OR. time_idx == 0) THEN 
+    IF (l_new_fct .OR. time_idx == 0) THEN
       WRITE(log_scratch_space,*) ' STASH code: ', stashcode,                   &
                                  ' has a forecast time of: ', fctime, ' and',  &
                                  ' validity time of: ', timestring
       CALL log_event(log_scratch_space, LOG_LEVEL_INFO)
-      
-      ! Note: For very first entry the following two loops will be skipped by 
+
+      ! Note: For very first entry the following two loops will be skipped by
       ! default for the initial values of time_idx = 0 and time_idx_insert = 1
 
       ! Find location where to insert new forecast time in the array.
@@ -111,27 +111,27 @@ DO i_field = 1, SIZE(stash_list)
       DO t_idx = 1, time_idx
         IF (fctime > datetime % fctimes(t_idx)) time_idx_insert = t_idx + 1
       END DO
-      
-      ! Shift existing longer forecast time entries one index up in the array 
-      DO t_idx = time_idx+1, time_idx_insert+1,-1 
+
+      ! Shift existing longer forecast time entries one index up in the array
+      DO t_idx = time_idx+1, time_idx_insert+1,-1
         datetime % fctimes(t_idx) = datetime % fctimes(t_idx-1)
         datetime % validity_times(t_idx) = datetime % validity_times(t_idx-1)
       END DO
-      
+
       ! Now insert existing entry into the array
       datetime % fctimes(time_idx_insert) = fctime
       datetime % validity_times(time_idx_insert) =                             &
             timestring(1:4)//'-'//timestring(5:6)//'-'//timestring(7:8)//' '// &
             timestring(10:11)//':'//timestring(12:13)//':'//timestring(14:15)
-      
+
       ! Update number of newly found forecast times
       time_idx = time_idx + 1
     ENDIF
 
   END DO
-                                                                                              
-  IF (ALLOCATED(um_input_fields)) DEALLOCATE(um_input_fields)                                 
- 
+
+  IF (ALLOCATED(um_input_fields)) DEALLOCATE(um_input_fields)
+
 END DO
 
 ! Set number of unique forecast/validity times
@@ -146,13 +146,13 @@ datetime % first_validity_time = datetime % validity_times(1)
 CALL shumlib(routinename//'::get_fixed_length_header_by_index',                &
      um_file % get_fixed_length_header_by_index(calendar, calendar_type))
 SELECT CASE(calendar_type)
-  CASE(calendar_gregorian) 
+  CASE(calendar_gregorian)
     datetime % calendar = 'Gregorian'
   CASE(calendar_360)
     datetime % calendar = '360'
   CASE(calendar_365)
     datetime % calendar = '365'
-  CASE DEFAULT  
+  CASE DEFAULT
     CALL log_event('Unrecognised calendar type', LOG_LEVEL_ERROR)
 END SELECT
 

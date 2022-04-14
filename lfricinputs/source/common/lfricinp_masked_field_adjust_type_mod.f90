@@ -29,9 +29,9 @@ PUBLIC :: lfricinp_masked_field_adjust_type
 
 TYPE :: lfricinp_masked_field_adjust_type
 
-  ! Number of destination points that do not have a full weight contribution from the source
-  ! points of the same field mask type. ie some contributions come from points with different
-  ! field mask type
+  ! Number of destination points that do not have a full weight contribution
+  ! from the source points of the same field mask type. ie some contributions
+  ! come from points with different field mask type
   INTEGER(KIND=int32) :: num_adjusted_points
 
   ! Indices of adjusted points on the destination grid/mesh

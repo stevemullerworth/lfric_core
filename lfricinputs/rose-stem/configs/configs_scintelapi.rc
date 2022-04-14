@@ -2,7 +2,7 @@
 
 {% do scintelapi_configs.update({
 
-"aquaplanet_C48L38_C48L38" : {
+"basic_C48L38_C48L38"      : {
                                "app"                : "scintelapi",
                                "opt_config"         : "",
                                "source_grid_res"    : "C48",
