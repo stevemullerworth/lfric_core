@@ -25,7 +25,7 @@ module pressure_operator_alg_mod
   use vector_mod,                         only: abstract_vector_type
   use field_mod,                          only: field_type
   use field_vector_mod,                   only: field_vector_type
-  use constants_mod,                      only: i_def, r_def
+  use constants_mod,                      only: i_def, r_def, l_def
   use log_mod,                            only: log_event,       &
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
@@ -183,6 +183,7 @@ contains
     real(kind=r_def),    parameter :: one = 1.0_r_def
     integer(kind=i_def), parameter :: one_int = 1_i_def
     integer(kind=i_def)            :: mesh_id
+    logical(kind=l_def)            :: lam_mesh
 
     if ( subroutine_timers ) call timer('helmholtz lhs')
 
@@ -192,17 +193,18 @@ contains
       select type (y)
       type is (field_vector_type)
         ! Compute M3*p + H[ D{\theta*}*p ]
-        ! If limited_area then apply_helmholtz_operator_kernel_type stencils
-        ! will currently go out of bounds. #2957 records the technical
-        ! debt associated with this.
-        if ( element_order == 0 .and. &
-           .not. (limited_area .and. topology==topology_non_periodic) ) then
+        if ( element_order == 0 ) then
           Helmholtz_operator => get_helmholtz_operator(self%level)
+
+          lam_mesh=.false.
+          if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
+
           call invoke( name="apply_H",&
                        apply_helmholtz_operator_kernel_type(y%vector(1), &
                                                             x%vector(1), &
                                                             one_int,     &
-                                                            Helmholtz_operator) )
+                                                            Helmholtz_operator, &
+                                                            lam_mesh) )
           nullify( Helmholtz_operator )
         else
           m3_exner_star   => get_m3_exner_star(self%level)
