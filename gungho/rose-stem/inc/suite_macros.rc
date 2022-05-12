@@ -317,17 +317,18 @@
 {# meto-spice), the call is ignored. This allows suite_control.rc to encode  #}
 {# for different task sets in meto-spice and meto-xc40.                      #}
 {#- ##########################################################################}
-{%- macro check_compilers( appName, configuration, compiler, build, compilers,
+{%- macro check_compilers( appName, configuration, compiler, build,
                            resolution=(''), precisions=[rdef_default],
                            publish=False ) %}
       [[[R1]]]
 {%-   set perform_run = [] %}
+{%-   set all_compilers = target[PRIMARY_TARGET['platform']]['setup']['compiler'].keys() %}
 {%-   set compilers = [] %}
 {%-   set appLabel = appName + '_' + configuration %}
 {%-   set science_key = appName + '_' + configuration + '_' + science_label %}
 {%-   set environment = scheduledTasksDict[science_key] %}
 
-{%-   if compiler in compilers %} {# for valid single compilier #}
+{%-   if compiler in all_compilers %}
 {%-     do compilers.append( compiler ) %}
 {%-     for precision in precisions %}
 {%-       set application_key = appName + '_' + configuration + '_'
@@ -335,8 +336,8 @@
                               + build %}
 {%-       do scheduledTasksDict.update({application_key: environment}) %}
 {%-     endfor %} {# rdef_precision #}
-{%-   elif compiler =='all' %} {# otherwise, do all #}
-{%-     for compiler in compilers %}
+{%-   elif compiler == 'all' %} {# otherwise, do all #}
+{%-     for compiler in all_compilers %}
 {%-       do compilers.append( compiler ) %}
 {%-       for precision in precisions %}
 {%-         set application_key = appName + '_' + configuration + '_'
@@ -370,14 +371,12 @@
 
 {%-       set label = (compiler|lower + '_' + precision + '-bit_' + build|lower) %}
 
+{{        unit_tests_graph( compiler, precision ) }}
 {%-       if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
             export_source => integration_test_with_{{label}}
 {%-       endif %}
             export_source => compile_{{projectName}}_with_{{label}}
             export_source => compile_mesh_tools_with_{{mesh_label}}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
-            export_source => unit_test_with_{{label}}
-{%-       endif %}
 {%-       if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
             publish_{{label}}_compile:finish => publish_node

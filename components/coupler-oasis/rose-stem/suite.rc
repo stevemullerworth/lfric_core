@@ -267,59 +267,34 @@
 ##############################################################################
 
 {%- for compiler in target[PRIMARY_TARGET['platform']]['setup']['compiler'].keys() -%}
-{%-   for build in build_profiles %}
-{%-     for precision in rdef_build_precisions %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
-{%-       set family = label | upper %}
-
-{%-       if 'export_source' in scheduledTasks %}
-{%-         if family not in rose_suite_gui_headers %}
-{%-           do rose_suite_gui_headers.append(family) %}
-  [[{{family}}]]
+{%-   for precision in rdef_build_precisions %}
+{%-     set compiler_label = compiler | lower + '_' + precision + '-bit' %}
+{%-     set compiler_family = compiler_label | upper %}
+  [[{{compiler_family}}]]
     [[[environment]]]
       SOURCE_DIRECTORY      = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
-      BIN_DIR               = $DESTINATION_DIRECTORY/bin
+      BIN_DIR               = $OUTPUT_ROOT/{{compiler_label}}/bin
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{compiler_label}}
       COMPILER              = {{compiler}}
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
-{%-         endif %}
-{%-       endif %}
 
-{%-       if 'unit_test_with_' + label in scheduledTasks %}
-  [[unit_test_with_{{label}}]]
-    inherit = {{family}}, TARGET
+  [[TEST_WITH_{{compiler_family}}]]
+    inherit = {{compiler_family}}, TARGET
 
-    {{scripting(
-          PRIMARY_TARGET,
-          ['base', 'compiler', 'build', 'tech'],
-          ['base'],
-          script="""UNIT_TESTS=\"\"
-if [[ -d $SOURCE_DIRECTORY/unit-test ]] ; then
-    UNIT_TESTS=$(find $SOURCE_DIRECTORY/unit-test -name \"*test.pf\")
-fi
-if [[ \"${UNIT_TESTS}\" != \"\" ]] ; then
-    rose task-run --app-key=compile
-else
-    echo \"No unit-tests to process\"
-fi""",
-          postscript=deleteDirectory('$WORKING_DIR')
-      )}}
+{{      unit_test_tasks( 'TEST_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision ) }}
+
+{%-     for build in build_profiles %}
+{%-       set label = compiler_label + '_' + build | lower %}
+{%-       set family = label | upper %}
+  [[{{family}}]]
+    inherit = {{compiler_family}}
 
     [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/unit-test
-      TARGET           = unit-tests
-      PROFILE          = {{build}}
-      MAKE_THREADS     = 4
-      RDEF_PRECISION   = {{precision}}
-{%-         if fix_enums %}
-      FIX_ENUMS        = 1
-{%-         endif %}
-
-{{ directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %}
-
+      BIN_DIR               = $OUTPUT_ROOT/{{label}}/bin
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
+      {#- We can't define WORKING_DIR here as it may contain    #}
+      {#- target specific variables not existing on the local machine #}
 
 {# INTEGRATION TESTS #}
 {%-       if 'integration_test_with_' + label in scheduledTasks %}

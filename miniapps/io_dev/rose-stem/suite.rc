@@ -319,25 +319,30 @@
 # COMPILE {{projectName|upper}} PROJECT
 ##############################################################################
 {%- for compiler in compilers -%}
-{%-   for build in build_profiles %}
-{%-     for precision in rdef_build_precisions %}
-{%-       set label      = (compiler|lower + '_' + precision + '-bit_' + build|lower) %}
-{%-       set family     = (label|upper) %}
-
-{%-       if 'export_source' in scheduledTasks %}
-{%-         if family not in rose_suite_gui_headers %}
-{%-           do rose_suite_gui_headers.append(family) %}
-    [[{{family}}]]
+{%-   for precision in rdef_build_precisions %}
+{%-     set compiler_label = compiler|lower + '_' + precision + '-bit' %}
+{%-     set compiler_family = compiler_label|upper %}
+    [[{{compiler_family}}]]
         [[[environment]]]
+            BIN_DIR               = $OUTPUT_ROOT/{{compiler_label}}/bin
+            COMPILER              = {{compiler}}
+            DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{compiler_label}}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
+            {#- We can't define WORKING_DIR here as it may contain          #}
+            {#- target specific variables not existing on the local machine #}
+
+{%-     for build in build_profiles %}
+{%-       set label = compiler_label + '_' + build|lower %}
+{%-       set family = label|upper %}
+    [[{{family}}]]
+        inherit = {{compiler_family}}
+
+        [[[environment]]]
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
             BIN_DIR               = $OUTPUT_ROOT/{{label}}/bin
             COMPILER              = {{compiler}}
             {#- We can't define WORKING_DIR here as it may contain          #}
             {#- target specific variables not existing on the local machine #}
-
-{%-         endif %}
-{%-       endif %}
 
 {%-       if 'compile_' + projectName + '_with_' + label in scheduledTasks %}
 
@@ -400,8 +405,8 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
             execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
 {%-       endif %}
 
-{%-     endfor %} {# rdef_precision #}
-{%-   endfor %} {# build #}
+{%-     endfor %} {# build #}
+{%-   endfor %} {# rdef_precision #}
 {%- endfor %} {# compile #}
 
 
@@ -412,16 +417,6 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
                        mesh_rdef + '-bit_' +
                        mesh_build|lower) %}
 {%- set mesh_family = (mesh_label|upper) %}
-
-{%- if mesh_family not in rose_suite_gui_headers %}
-{%-   do rose_suite_gui_headers.append(mesh_family) %}
-    [[{{mesh_family}}]]
-        [[[environment]]]
-            COMPILER = {{TARGET_MESH_COMPILER}}
-            {#- We can't define WORKING_DIR here as it may contain          #}
-            {#- target specific variables not existing on the local machine #}
-
-{%- endif %}
 
 {%- if 'compile_mesh_tools_with_' + mesh_label in scheduledTasks %}
     [[compile_mesh_tools_with_{{mesh_label}}]]
@@ -438,6 +433,7 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
 
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
+            COMPILER              = {{TARGET_MESH_COMPILER}}
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
             MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
             BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
@@ -458,53 +454,19 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
 # UNIT, INTEGRATION & CANNED TESTS
 ##############################################################################
 {%- for compiler in compilers %}
-{%-   for build in build_profiles %}
-{%-     for precision in rdef_build_precisions %}
+{%-   for precision in rdef_build_precisions %}
+{%-     set compiler_label = compiler | lower + '_' + precision + '-bit' %}
+{%-     set compiler_family = compiler_label | upper %}
+    [[TESTING_WITH_{{compiler_family}}]]
+        inherit = {{compiler_family}}, TARGET
 
-{%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
+{{      unit_test_tasks( 'TESTING_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision ) }}
+
+{%-     for build in build_profiles %}
+{%-       set label = compiler_label + '_' + build | lower %}
 {%-       set family = label | upper %}
 
-{# UNIT TESTS #}
-{%-       if 'unit_test_with_' + label in scheduledTasks %}
-    [[unit_test_with_{{label}}]]
-        inherit = {{family}}, TARGET
-
-        {{scripting(
-              PRIMARY_TARGET,
-              ['base', 'compiler.'+compiler, 'build', 'tech'],
-              ['base'],
-              prescript=deleteDirectory('$WORKING_DIR'),
-              script="""UNIT_TESTS=\"\"
-if [[ -d $SOURCE_DIRECTORY/unit-test ]] ; then
-    UNIT_TESTS=$(find $SOURCE_DIRECTORY/unit-test -name \"*test.pf\")
-fi
-if [[ \"${UNIT_TESTS}\" != \"\" ]] ; then
-    rose task-run --app-key=compile
-else
-    echo \"No unit-tests to process\"
-fi""",
-              finalscript=deleteDirectory('$WORKING_DIR')
-          )}}
-
-        [[[environment]]]
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
-            WORKING_DIR           = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}
-            TARGET                = unit-tests
-            PROFILE               = {{build}}
-            LFRIC_TARGET_PLATFORM = {{TARGET_OPT}}
-            MAKE_THREADS          = 4
-            RDEF_PRECISION        = {{precision}}
-{%-         if fix_enums %}
-            FIX_ENUMS             = 1
-{%-         endif %}
-
-{{          directives(PRIMARY_TARGET, 'build')}}
-
-        [[[job]]]
-            execution retry delays = 3*PT10S
-{%-       endif %}
-
-{# #############################################################################}
+{#############################################################################}
 {# INTEGRATION TESTS #}
 {%-       if 'integration_test_with_' + label in scheduledTasks %}
     [[integration_test_with_{{label}}]]
@@ -561,7 +523,6 @@ fi""",
 
         [[[environment]]]
             APP_NAME         = {{appName}}
-            BIN_DIR          = $DESTINATION_DIRECTORY/bin
 {%-           if 'canned_processes' in variables %}
             PROCESSES        = {{variables['canned_processes']}}
 {%-           endif %}
@@ -571,8 +532,8 @@ fi""",
 {%-         endif %}
 {%-       endfor %} {# canned configs #}
 
-{%-     endfor %} {# rdef_precision #}
-{%-   endfor %}  {# build #}
+{%-     endfor %}  {# build #}
+{%-   endfor %} {# rdef_precision #}
 {%- endfor %}  {# compiler #}
 
 {# #############################################################################}
@@ -801,7 +762,6 @@ mv $CYLC_TASK_WORK_DIR/timer.txt $DESTINATION_DIRECTORY/"+pathFragment+"/results
 {%-                   endif %} {# configuration_label #}
 
             MESH_DIR          = $OUTPUT_ROOT/{{mesh_label}}/meshes
-            BIN_DIR           = $DESTINATION_DIRECTORY/bin
             APP_NAME          = {{appName}}
             RUN_METHOD        = {{get_target_property(PRIMARY_TARGET, 'queue.run.launcher')}}
             TARGET_PLATFORM   = {{TARGET_OPT}}
@@ -989,8 +949,6 @@ mv $CYLC_TASK_WORK_DIR/timer.txt $DESTINATION_DIRECTORY/"+pathFragment+"/results
     [[GENERATE_MESHES_{{mesh_family}}]]
 
         inherit = {{mesh_family}}, TARGET
-
-{{    directives(PRIMARY_TARGET, 'tech')}}
 {%- endif %}
 
 {%- for mesh_name in mesh_names|sort %}
@@ -1010,8 +968,8 @@ mv $CYLC_TASK_WORK_DIR/timer.txt $DESTINATION_DIRECTORY/"+pathFragment+"/results
         [[[environment]]]
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{mesh_label}}
-            MESH_DIR              = $DESTINATION_DIRECTORY/meshes
-            BIN_DIR               = $DESTINATION_DIRECTORY/bin
+            MESH_DIR              = $OUTPUT_ROOT/{{mesh_label}}/meshes
+            BIN_DIR               = $OUTPUT_ROOT/{{mesh_label}}/bin
             OUTPUT_FILE           = $MESH_DIR/mesh_{{mesh_name}}.nc
 
 {{      directives( PRIMARY_TARGET, 'tech' ) }}

@@ -30,8 +30,8 @@ export ROOT_DIR    ?= ..
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
 
-META_VN       ?= HEAD
-META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
+META_VN             ?= HEAD
+export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: build
@@ -188,33 +188,15 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source \
-                                           $(ROOT_DIR)/components/driver/source \
-                                           $(ROOT_DIR)/components/science/source \
-                                           $(ROOT_DIR)/coupler-oasis/source \
-                                           $(ROOT_DIR)/components/lfric-xios/source
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS += DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export PROGRAMS = lfric_atm_unit_tests
-unit-tests: export PROJECT = lfric_atm 
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
+unit-tests:
+	$(call MESSAGE,Testing,"There are no unit tests.")
 
 
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export PROJECT =lfric_atm 
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = unit-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: do-integration-tests
+integration-tests:
+	$(call MESSAGE,Testinmg,"There are no integration tests.")
 
 
 ##############################################################################

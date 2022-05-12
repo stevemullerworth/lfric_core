@@ -134,18 +134,15 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
-unit-tests: export BIN_DIR ?= test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = rose-meta/lfric-mesh_tools/HEAD
-unit-tests: export PROGRAMS = mesh_tools_unit_tests
-unit-tests: export PROJECT = mesh_tools
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: do-unit-tests
-	$(Q)echo > /dev/null
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
+unit-tests/%: export BIN_DIR ?= test
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-mesh_tools/HEAD
+unit-tests/%: export PROGRAMS = mesh_tools_unit_tests
+unit-tests/%: export PROJECT = mesh_tools
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
+unit-tests: unit-tests/run
 
 
 ##############################################################################

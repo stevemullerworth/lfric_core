@@ -264,58 +264,37 @@
 
 {%- for compiler in get_target_property(PRIMARY_TARGET,
                                         'setup')['compiler'].keys() -%}
-{%-   for build in build_profiles %}
-{%-     for precision in rdef_build_precisions %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
+{%-   for precision in rdef_build_precisions %}
+{%-     set compiler_label = compiler | lower + '_' + precision %}
+{%-     set compiler_family = compiler_label | upper %}
+  [[{{compiler_family}}]]
+    [[[environment]]]
+      SOURCE_DIRECTORY      = $SOURCE_ROOT/components/{{projectName}}
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{compiler_label}}
+      BIN_DIR               = $OUTPUT_ROOT/{{compiler_label}}/bin
+      COMPILER              = {{compiler}}
+      {#- We can't define WORKING_DIR here as it may contain    #}
+      {#- target specific variables not existing on the local machine #}
+
+  [[TEST_WITH_{{compiler_family}}]]
+    inherit = {{compiler_family}}, TARGET
+
+{{      unit_test_tasks('TEST_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision) }}
+
+{%-     for build in build_profiles %}
+{%-       set label = compiler_label + '-bit_' + build | lower %}
 {%-       set family = label | upper %}
 
 {%-       if 'export_source' in scheduledTasks %}
 {%-         if family not in rose_suite_gui_headers %}
 {%-           do rose_suite_gui_headers.append(family) %}
   [[{{family}}]]
+    inherit = {{compiler_family}}
+
     [[[environment]]]
-      SOURCE_DIRECTORY      = $SOURCE_ROOT/components/{{projectName}}
       DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
-      BIN_DIR               = $DESTINATION_DIRECTORY/bin
-      COMPILER              = {{compiler}}
-      {#- We can't define WORKING_DIR here as it may contain    #}
-      {#- target specific variables not existing on the local machine #}
 {%-         endif %}
 {%-       endif %}
-
-{%-       if 'unit_test_with_' + label in scheduledTasks %}
-  [[unit_test_with_{{label}}]]
-    inherit = {{family}}, TARGET
-
-    {{scripting(
-          PRIMARY_TARGET,
-          ['base', 'compiler.'+compiler, 'build', 'tech'],
-          ['base'],
-          script="""UNIT_TESTS=\"\"
-if [[ -d $SOURCE_DIRECTORY/unit-test ]] ; then
-    UNIT_TESTS=$(find $SOURCE_DIRECTORY/unit-test -name \"*test.pf\")
-fi
-if [[ \"${UNIT_TESTS}\" != \"\" ]] ; then
-    rose task-run --app-key=compile
-else
-    echo \"No unit-tests to process\"
-fi"""
-      )}}
-
-    [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/unit-test
-      TARGET           = unit-tests
-      PROFILE          = {{build}}
-      MAKE_THREADS     = 4
-      RDEF_PRECISION   = {{precision}}
-{%-         if fix_enums %}
-      FIX_ENUMS        = 1
-{%-         endif %}
-
-{{ directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %}
-
 
 {# INTEGRATION TESTS #}
 {%-       if 'integration_test_with_' + label in scheduledTasks %}
@@ -352,8 +331,8 @@ fi"""
 {{ directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %}   {# integration_tests #}
 
-{%-     endfor %}  {# rdef_precision #}
-{%-   endfor %}  {# build #}
+{%-     endfor %}  {# build #}
+{%-   endfor %}  {# rdef_precision #}
 {%- endfor %}  {# compiler #}
 
 ##############################################################################

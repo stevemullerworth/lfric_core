@@ -28,8 +28,8 @@ export ROOT_DIR    ?= ../..
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
 
-META_VN       ?= HEAD
-META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
+META_VN             ?= HEAD
+export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
 .PHONY: default
 default: build unit-tests integration-tests
@@ -186,18 +186,17 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source \
-                                           $(ROOT_DIR)/components/science/source/kernel
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = rose-meta/lfric-skeleton/HEAD
-unit-tests: export PROGRAMS = $(PROJECT_NAME)_unit_tests
-unit-tests: export PROJECT = $(PROJECT_NAME)
-unit-tests: export SOURCE_DIR = source/kernel
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: do-unit-tests
+unit-tests/%: export ADDITIONAL_EXTRACTION            \
+                  = $(ROOT_DIR)/infrastructure/source \
+                    $(ROOT_DIR)/components/science/source/kernel
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-skeleton/HEAD
+unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
+unit-tests/%: export PROJECT = $(PROJECT_NAME)
+unit-tests/%: export SOURCE_DIR = source/kernel
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
+unit-tests: unit-tests/run
 
 
 ##############################################################################

@@ -73,6 +73,7 @@
 {%- set groups = {
   'developer': [
     'check_style_graph()',
+    'unit_tests_graph("intel", "64")',
     'run_application("lfric_coupled", "nwp_gal9",
                      resolutions=[("C48",720.0)],
                      env={"crun":1, "nrun":60,

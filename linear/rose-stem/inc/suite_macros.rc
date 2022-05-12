@@ -250,9 +250,7 @@
 {%-          do rdef_build_precisions.append(precision) -%}
 {%-       endif %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
-    export_source => unit_test_with_{{label}}
-{%-       endif %}
+{{        unit_tests_graph( compiler, precision ) }}
 {%-       if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
     export_source => integration_test_with_{{label}}
 {%-       endif %}

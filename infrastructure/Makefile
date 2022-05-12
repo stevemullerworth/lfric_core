@@ -112,16 +112,14 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = rose-meta/lfric-infrastructure/HEAD
-unit-tests: export PROGRAMS = infrastructure_unit_tests
-unit-tests: export PROJECT = infrastructure
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
+unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-infrastructure/HEAD
+unit-tests/%: export PROGRAMS      = infrastructure_unit_tests
+unit-tests/%: export PROJECT       = infrastructure
+unit-tests/%: export SOURCE_DIR    = source
+unit-tests/%: export TEST_DIR      = unit-test
+unit-tests/%: export WORKING_DIR  := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 
 ##############################################################################

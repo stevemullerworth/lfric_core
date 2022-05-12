@@ -46,7 +46,6 @@ META_FILE_DIR  = $(ROOT_DIR)/infrastructure/rose-meta/lfric-infrastructure/$(MET
 
 .PHONY: default
 default: unit-tests
-	$(Q)echo > /dev/null
 
 .PHONY: documentation doc docs
 documentation doc docs: document-uml document-api
@@ -76,19 +75,14 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export CXX_LINK = TRUE
-unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = $(ROOT_DIR)/infrastructure/rose-meta/lfric-infrastructure/HEAD
-unit-tests: export PROGRAMS = diagnostics_infrastructure_unit_tests
-unit-tests: export PROJECT = diagnostics_infrastructure
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export PROGRAMS = diagnostics_infrastructure_unit_tests
+unit-tests/%: export PROJECT = diagnostics_infrastructure
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 ##############################################################################
 # Test suite rules

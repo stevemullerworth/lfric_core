@@ -37,6 +37,58 @@ err-script = """
              """
 {%- endmacro %}
 
+{# UNIT TEST MACROS #}
+{#---------------------------------------------------------------------------#}
+{%- macro unit_tests_graph( compiler, precision ) %}
+{%-   if compiler in UNIT_TEST_WITH %}
+{%-     set label = compiler | lower + '_' + precision + '-bit' %}
+    [[[R1]]]
+    export_source => build_unit_tests_with_{{label}}
+    build_unit_tests_with_{{label}} => run_unit_tests_with_{{label}}
+{%-   endif %}
+{%- endmacro %}
+
+
+{%- macro unit_test_tasks( family, target, compiler, precision ) %}
+{%-   set label = compiler | lower + '_' + precision + '-bit' %}
+{%-   if 'build_unit_tests_with_'+label in scheduledTasks %}
+  [[build_unit_tests_with_{{label}}]]
+    inherit = {{family}}
+
+    {{scripting(
+          target,
+          ['base', 'compiler.'+compiler, 'build'],
+          ['base'],
+          script='make -C $SOURCE_DIRECTORY -j 6 unit-tests/build'
+      )}}
+
+    [[[environment]]]
+        WORKING_DIR    = {{get_target_property(target, 'build_root')}}/{{label}}/unit-test
+        RDEF_PRECISION = {{precision}}
+
+{{      directives(target, 'build') }}
+{%-   endif %}
+
+{%-   if 'run_unit_tests_with_'+label in scheduledTasks %}
+  [[run_unit_tests_with_{{label}}]]
+    inherit = {{family}}
+
+    {{scripting(
+          target,
+          ['base', 'compiler.'+compiler, 'tech'],
+          ['base'],
+          script='make -C $SOURCE_DIRECTORY -j 6 unit-tests/rerun'
+      )}}
+
+    [[[environment]]]
+      WORKING_DIR = {{get_target_property(target,
+                                          'build_root')}}/{{label}}/unit-test
+
+{{      directives(target, 'tech') }}
+{%-   endif %}
+{%- endmacro %}
+
+
 {# CHECK STYLE MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro check_style_graph() %}
@@ -343,7 +395,8 @@ echo $RELATIVE_LOG_ROOT > $DOCUMENT_DIR/api.log.path
 
 {#- UNIT TEST MACROS #}
 {#---------------------------------------------------------------------------#}
-{%- macro unit_test_graph(componentName, build='fast-debug', precisions=[rdef_default], publish=False) %}
+{#- This to be removed once it is no longer needed. #}
+{%- macro unit_test_graph(componentName, precisions=[rdef_default], publish=False) %}
 [[[R1]]]
   graph = """
 {%-   for compiler in compilers %}
@@ -351,9 +404,8 @@ echo $RELATIVE_LOG_ROOT > $DOCUMENT_DIR/api.log.path
 {%-       if precision not in rdef_build_precisions %}
 {%-          do rdef_build_precisions.append(precision) -%}
 {%-       endif %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
 {%-       if compiler in UNIT_TEST_WITH %}
-    export_source => {{componentName}}_unit_test_with_{{label}}
+{{          unit_tests_graph( compiler, precision ) }}
 {%-       endif %}
 {%-     endfor %} {# precisions #}
 {%-   endfor %} {# compiler #}

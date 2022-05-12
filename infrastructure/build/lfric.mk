@@ -276,50 +276,15 @@ configuration:
 ##############################################################################
 # Run unit tests.
 #
-.PHONY: do-unit-tests
-do-unit-tests:
+.PHONY: unit-tests/%
+unit-tests/%: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
+unit-tests/%:
 	# We recurse into the make file here in order to reify all the target
 	# specific variables. They only appear in recipes and we need them to
 	# make decissions. This does mean we reload the makefile in order to
 	# log a message in the case where there is nothing to test.
 	#
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk                              \
-	          $(if $(strip $(shell find $(TEST_DIR) -name *test.pf)), \
-	               do-unit-test/found, do-unit-test/none)
-
-.PHONY: do-unit-test/%
-do-unit-test/none:
-	$Q$(call MESSAGE,Unit tests,'None to run')
-
-do-unit-test/found: export EXTERNAL_STATIC_LIBRARIES += pfunit
-do-unit-test/found: do-unit-test/build
-	$(call MESSAGE,Running,$(PROGRAMS))
-	$Qcd $(WORKING_DIR); \
-            mpiexec -n 4 $(BIN_DIR)/$(PROGRAMS) $(DOUBLE_VERBOSE_ARG)
-
-do-unit-test/build: WITHOUT_PROGRAMS = 1
-do-unit-test/build: do-unit-test/generate \
-                    $(addsuffix /extract, $(TEST_DIR))
-	$Qmkdir -p $(WORKING_DIR)
-	$Qif [ -d $(TEST_DIR)/data ] ; then \
-	        cp -r $(TEST_DIR)/data $(WORKING_DIR); fi
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
-	            SOURCE_DIR=$(TEST_DIR) WORKING_DIR=$(WORKING_DIR)
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$Q$(MAKE) $(QUIET_ARG) \
-                    -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-                    PRE_PROCESS_MACROS=$(PRE_PROCESS_MACROS)
-
-# Ensure all extraction is performed before PSyclone otherwise kernel files may
-# not have arrived when they are needed.
-#
-do-unit-test/generate: do-unit-test/extract configuration
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk           \
-	          $(addsuffix /psyclone, $(SOURCE_DIR) \
-	                                 $(ADDITIONAL_EXTRACTION))
-
-do-unit-test/extract: $(addsuffix /extract, $(SOURCE_DIR) \
-                                            $(ADDITIONAL_EXTRACTION))
+	$Q$(MAKE) -f $(LFRIC_BUILD)/tests.mk do-unit-test/$*
 
 
 ##############################################################################

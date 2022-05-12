@@ -383,9 +383,7 @@
 {%-       endif %}
             export_source => compile_{{projectName}}_with_{{label}}
             export_source => compile_mesh_tools_with_{{mesh_label}}
-{%-       if compiler in TARGET_PERFORM_UNIT_TESTS %}
-            export_source => unit_test_with_{{label}}
-{%-       endif %}
+{{        unit_tests_graph( compiler, precision ) }}
 {%-       if publish %}
             compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
             publish_{{label}}_compile:finish => publish_node

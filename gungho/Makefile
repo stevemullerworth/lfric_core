@@ -180,21 +180,19 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
-                                           $(ROOT_DIR)/components/driver/source  \
-                                           $(ROOT_DIR)/components/science/source \
-                                           $(ROOT_DIR)/components/lfric-xios/source
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export CXX_LINK = true
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = rose-meta/lfric-gungho/HEAD
-unit-tests: export PROGRAMS = gungho_unit_tests
-unit-tests: export PROJECT = gungho
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
+                                             $(ROOT_DIR)/components/driver/source  \
+                                             $(ROOT_DIR)/components/science/source \
+                                             $(ROOT_DIR)/components/lfric-xios/source
+unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+unit-tests/%: export CXX_LINK      = true
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-gungho/HEAD
+unit-tests/%: export PROGRAMS      = gungho_unit_tests
+unit-tests/%: export PROJECT       = gungho
+unit-tests/%: export SOURCE_DIR    = source
+unit-tests/%: export TEST_DIR      = unit-test
+unit-tests/%: export WORKING_DIR  := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 
 ##############################################################################

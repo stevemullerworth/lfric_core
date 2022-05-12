@@ -94,25 +94,23 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source/utilities \
-                                           $(ROOT_DIR)/gungho/source/kernel
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source/utilities \
+                                             $(ROOT_DIR)/gungho/source/kernel
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 #
 # It should not be necessary to explicitly link the pfunit library as it is
 # done for you by the build system. This just adds a second "-lpfunit"
 # argument straight after that one. However it doesn't link without it and
 # the current ticket needs to go on sooner rather than later.
 #
-unit-tests: export EXTERNAL_STATIC_LIBRARIES = pfunit
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
-unit-tests: export PROGRAMS = $(PROJECT_NAME)_unit_tests
-unit-tests: export PROJECT = $(PROJECT_NAME)
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: do-unit-tests
+unit-tests/%: export EXTERNAL_STATIC_LIBRARIES = pfunit
+unit-tests/%: export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
+unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
+unit-tests/%: export PROJECT = $(PROJECT_NAME)
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
+unit-tests: unit-tests/run
 
 
 ##############################################################################

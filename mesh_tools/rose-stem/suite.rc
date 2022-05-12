@@ -222,9 +222,26 @@
 
 {%- for compiler in get_target_property(PRIMARY_TARGET,
                                         'setup')['compiler'].keys() -%}
-{%-   for build in build_profiles %}
-{%-     for precision in rdef_build_precisions %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
+{%-   for precision in rdef_build_precisions %}
+{%-     set compiler_label = compiler | lower + '_' + precision + '-bit' %}
+{%-     set compiler_family = compiler_label | upper %}
+  [[{{compiler_family}}]]
+    [[[environment]]]
+      BIN_DIR               = $OUTPUT_ROOT/{{compiler_label}}/bin
+      COMPILER              = {{compiler}}
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{compiler_label}}
+      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
+      TARGET_OPT            = {{PRIMARY_TARGET['platform']}}
+      {#- We can't define WORKING_DIR here as it may contain    #}
+      {#- target specific variables not existing on the local machine #}
+
+  [[TEST_WITH_{{compiler_family}}]]
+    inherit = {{compiler_family}}, TARGET
+
+{{      unit_test_tasks( 'TEST_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision ) }}
+
+{%-     for build in build_profiles %}
+{%-       set label = compiler_label + '_' + build | lower %}
 {%-       set family = label | upper %}
 
 {%-       if 'export_source' in scheduledTasks %}
@@ -232,11 +249,12 @@
 {%-           do rose_suite_gui_headers.append(family) %}
 
   [[{{family}}]]
+    inherit = {{compiler_family}}
+
     [[[environment]]]
-      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
-      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
-      BIN_DIR               = $DESTINATION_DIRECTORY/bin
+      BIN_DIR               = $OUTPUT_ROOT/{{label}}/bin
       COMPILER              = {{compiler}}
+      DESTINATION_DIRECTORY = $OUTPUT_ROOT/{{label}}
       TARGET_OPT            = {{PRIMARY_TARGET['platform']}}
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
@@ -262,7 +280,6 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
       )}}
 
     [[[environment]]]
-      SOURCE_DIRECTORY      = $SOURCE_ROOT/{{projectName}}
       WORKING_DIR           = {{ get_target_property(PRIMARY_TARGET, 'build_root') }}/{{label}}/mesh_tools
       BUILD_TARGET          = {{build}}
       LFRIC_TARGET_PLATFORM = {{PRIMARY_TARGET['platform']}}
@@ -274,7 +291,7 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
       FIX_ENUMS             = 1
 {%-         endif %}
 
-{{ directives(PRIMARY_TARGET, 'build') }}
+{{          directives(PRIMARY_TARGET, 'build') }}
 {%-       endif %} {#- if 'compile_'+ projectName + '_with_' + label in scheduledTasks #}
 
 
@@ -293,40 +310,6 @@ echo $CYLC_TASK_LOG_ROOT > $DESTINATION_DIRECTORY/lfric.mesher."+compiler+".log
           execution retry delays = PT5S, 10*PT1M
 {%-       endif %} {#- if 'publish_' + label + '_compile' in scheduledTasks #}
 
-
-{%-       if 'unit_test_with_' + label in scheduledTasks %}
-  [[unit_test_with_{{label}}]]
-    inherit = {{family}}, TARGET
-
-    {{scripting(
-          PRIMARY_TARGET,
-          ['base', 'compiler.'+compiler, 'tech', 'build'],
-          ['base'],
-          script="""UNIT_TESTS=\"\"
-if [[ -d $SOURCE_DIRECTORY/unit-test ]] ; then
-    UNIT_TESTS=$(find $SOURCE_DIRECTORY/unit-test -name \"*test.pf\")
-fi
-if [[ \"${UNIT_TESTS}\" != \"\" ]] ; then
-    rose task-run --app-key=compile
-else
-    echo \"No unit-tests to process\"
-fi""",
-          postscript=deleteDirectory('$WORKING_DIR')
-      )}}
-
-    [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{ get_target_property(PRIMARY_TARGET, 'build_root') }}/{{label}}/unit-test
-      TARGET           = unit-tests
-      PROFILE          = {{build}}
-      MAKE_THREADS     = 6
-      RDEF_PRECISION   = {{precision}}
-{%-         if fix_enums %}
-      FIX_ENUMS        = 1
-{%-         endif %}
-
-{{ directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %} {#- 'unit_test_with_' + label in scheduledTasks #}
 
 {%-       for mesh in mesh_types %}
 {%-         if 'generate_' + mesh + '_' + label in scheduledTasks %}
@@ -347,7 +330,7 @@ fi""",
     [[[environment]]]
       OUTPUT_FILE = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
 
-{{ directives(PRIMARY_TARGET, 'run') }}
+{{            directives(PRIMARY_TARGET, 'run') }}
 {%-         endif %} {#- 'generate_' + mesh + '_' + label in scheduledTasks #}
 
 
@@ -367,7 +350,7 @@ fi""",
       MESH_FILE    = $DESTINATION_DIRECTORY/meshes/{{mesh}}.nc
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
-{{ directives(PRIMARY_TARGET, 'tech') }}
+{{            directives(PRIMARY_TARGET, 'tech') }}
 {%-         endif %}
 
 
@@ -391,7 +374,7 @@ rose task-run --app-key=check_summary"""
       SUMMARY_KGO  = summary_{{mesh}}_ugrid.kgo.txt
       SUMMARY_FILE = $DESTINATION_DIRECTORY/summary_{{mesh}}_ugrid.txt
 
-{{ directives( PRIMARY_TARGET, 'tech') }}
+{{            directives( PRIMARY_TARGET, 'tech') }}
 {%-         endif %} {#- 'summarise_' + mesh + '_' + label in scheduledTasks #}
 
 
@@ -414,8 +397,8 @@ rose task-run --app-key=check_summary"""
       MESH_DIR   = $DESTINATION_DIRECTORY/meshes
       MESH_FILE  = {{mesh}}.nc
 
-{{ directives(PRIMARY_TARGET, 'tech') }}
-{%-         endif %} {#- 'check_mesh_' + mesh + '_' + label in scheduledTasks #}
+{{            directives(PRIMARY_TARGET, 'tech') }}
+{%-         endif %} {#- f'check_mesh_{mesh}_{label}' in scheduledTasks #}
 {%-       endfor %} {#- mesh in mesh_type #}
 
 {%-     endfor %}  {# precision #}

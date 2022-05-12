@@ -31,7 +31,7 @@ PROJECT_NAME = um_physics
 
 PROFILE ?= fast-debug
 
-export IGNORE_DEPENDENCIES = MPI pfunit_mod yaxt
+export IGNORE_DEPENDENCIES = mod_wait MPI netcdf pfunit_mod xios yaxt
 export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c
 export EXTERNAL_STATIC_LIBRARIES = 
 
@@ -45,7 +45,7 @@ all: default
 default: unit-tests
 	$(Q)echo > /dev/null
 
-META_VN       ?= HEAD
+META_VN ?= HEAD
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 
@@ -53,19 +53,19 @@ include $(ROOT_DIR)/infrastructure/build/lfric.mk
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source"
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export EXTERNAL_STATIC_LIBRARIES += pfunit
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
-unit-tests: export PROGRAMS = um_physics_unit_tests
-unit-tests: export PROJECT = um_physics
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: create_rose-meta do-unit-tests
-	$(Q)echo > /dev/null
+unit-tests/%: export ADDITIONAL_EXTRACTION                   \
+                  = $(ROOT_DIR)/infrastructure/source        \
+                    $(ROOT_DIR)/components/driver/source     \
+                    $(ROOT_DIR)/components/lfric-xios/source \
+                    $(ROOT_DIR)/components/science/source
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export EXTERNAL_STATIC_LIBRARIES += pfunit
+unit-tests/%: export PROGRAMS = um_physics_unit_tests
+unit-tests/%: export PROJECT = um_physics
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 ##############################################################################
 # Create a consolidated rose-meta file for um_physics

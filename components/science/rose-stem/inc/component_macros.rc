@@ -1,35 +1,3 @@
-{# CHECK STYLE MACROS #}
-{#---------------------------------------------------------------------------#}
-{%- macro check_style_graph( componentName ) %}
-
-{%-   if 'check_style' in RUN_TECHNICAL %}
-    [[[R1]]]
-    export_source => check_style_for_{{componentName}}
-{%-   endif %}
-{%- endmacro %}
-
-{%- macro check_style_task( componentName, family, setup ) %}
-
-{%-   if 'check_style_for_' + componentName in scheduledTasks %}
-  [[check_style_for_{{componentName}}]]
-
-    inherit = {{family}}
-    pre-script = """
-                 {{ '\n'
-                    | command_list( setup['base'],
-                                    setup['tech'],
-                                    setup['reveal'] ) }}
-                 """
-    script = stylist -verbose $SOURCE_DIRECTORY/{{componentName}}
-
-    [[[environment]]]
-      PYTHONPATH = $CYLC_SUITE_SHARE_DIR/source/infrastructure/tools/lib-python:${PYTHONPATH:-}
-      PATH = $CYLC_SUITE_SHARE_DIR/source/infrastructure/tools/bin:$PATH
-
-{%-   endif %}
-{%- endmacro %}
-
-
 {# NULL TASK MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro null_task_graph() %}
@@ -220,24 +188,6 @@
 
 {# TESTING MACROS #}
 {#---------------------------------------------------------------------------#}
-
-{%- macro unit_tests( componentName, build='fast-debug', precisions=[rdef_default], publish=False ) %}
-[[[R1]]]
-  graph = """
-{%-   for compiler in get_target_property(PRIMARY_TARGET,
-                                          'setup')['compiler'].keys() %}
-{%-     for precision in precisions %}
-{%-       if precision not in rdef_build_precisions %}
-{%-          do rdef_build_precisions.append(precision) -%}
-{%-       endif %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
-{%-       if compiler in UNIT_TEST_WITH %}
-    export_source => {{componentName}}_unit_test_with_{{label}}
-{%-       endif %}
-{%-     endfor %} {# precisions #}
-{%-   endfor %} {# compiler #}
-          """
-{%- endmacro %}
 
 {%- macro integration_tests( componentName, build='fast-debug', precisions=[rdef_default], publish=False ) %}
 [[[R1]]]

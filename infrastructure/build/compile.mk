@@ -68,7 +68,7 @@ include $(LFRIC_BUILD)/fortran.mk
 include $(LFRIC_BUILD)/cxx.mk
 -include $(COMPILE_OPTIONS)
 
-BIN_DIR   ?= $(ROOT)/bin
+BIN_DIR ?= $(ROOT)/bin
 
 # If the compiler produces module files, tell it where to put them
 #

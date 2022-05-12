@@ -191,16 +191,14 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export PROGRAMS = $(PROJECT_NAME)_unit_tests
-unit-tests: export PROJECT = $(PROJECT_NAME)
-unit-tests: export SOURCE_DIR = $(PROJECT_DIR)/source
-unit-tests: export TEST_DIR = $(PROJECT_DIR)/unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)
-unit-tests: do-unit-tests
-	$(Q)echo > /dev/null
+unit-tests:
+	$Qecho "Solver" application has no unit tests.
+
+unit-tests/build:
+	$Qecho No unit tests to build.
+
+unit-tests/rerun:
+	$Qecho No unit tests to run.
 
 
 ##############################################################################

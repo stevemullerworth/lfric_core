@@ -18,7 +18,7 @@
 
 {%- set groups = {'developer': ['api_documentation_graph(publish=True)',
                                 'check_style_graph()',
-                                'unit_test_graph("driver")'],
+                                'unit_test_graph("components/driver")'],
                   'nightly'  : ['null_task_graph()']
                  }
 %}

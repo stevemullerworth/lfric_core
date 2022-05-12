@@ -44,9 +44,7 @@
 
 {%-       if compiler in perform_run %}
 
-{%-         if compiler in UNIT_TEST_WITH %}
-            export_source => unit_test_with_{{label}}
-{%-         endif %}
+{{          unit_tests_graph( compiler, precision ) }}
 
 {%-         for mesh in mesh_types %}
             compile_{{projectName}}_with_{{label}} => generate_{{mesh}}_{{label}}

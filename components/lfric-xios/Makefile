@@ -73,19 +73,17 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source \
-                                           $(ROOT_DIR)/components/science/source
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export FFLAGS += -D UNIT_TEST
-unit-tests: export META_FILE_DIR = rose-meta/lfric-xios/HEAD
-unit-tests: export PROGRAMS = lfric_xios_unit_tests
-unit-tests: export PROJECT = lfric_xios
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source \
+                                             $(ROOT_DIR)/components/science/source
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export FFLAGS += -D UNIT_TEST
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-xios/HEAD
+unit-tests/%: export PROGRAMS = lfric_xios_unit_tests
+unit-tests/%: export PROJECT = lfric_xios
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 
 ##############################################################################

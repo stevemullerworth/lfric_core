@@ -39,7 +39,6 @@ default: build unit-tests integration-tests
 documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
-include $(ROOT_DIR)/infrastructure/build/lfric.mk
 -include $(PROJECT_DIR)/build/project.mk
 
 ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
@@ -205,16 +204,12 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export PROGRAMS = $(PROJECT_NAME)_unit_tests
-unit-tests: export PROJECT = $(PROJECT_NAME)
-unit-tests: export SOURCE_DIR = $(PROJECT_DIR)/source
-unit-tests: export TEST_DIR = $(PROJECT_DIR)/unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)
-unit-tests: do-unit-tests
-	$(Q)echo > /dev/null
+unit-tests:
+	$Qecho There are no unit tests for "Transport".
+unit-tests/build:
+	$Qecho No unit tests to build.
+unit-tests/rerun:
+	$Qecho No unit tests to run.
 
 
 ##############################################################################
@@ -242,3 +237,8 @@ clean: ALWAYS
 	$(call MESSAGE,Removing,"$(PROJECT_NAME) binaries")
 	$(Q)-if [ -d bin ] ; then rm -r bin ; fi
 	$(Q)-if [ -d test ] ; then rm -r test ; fi
+
+###############################################################################
+# Build system
+#
+include $(ROOT_DIR)/infrastructure/build/lfric.mk

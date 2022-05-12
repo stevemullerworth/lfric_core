@@ -182,22 +182,20 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
-                                           $(ROOT_DIR)/components/driver/source  \
-                                           $(ROOT_DIR)/components/science/source \
-                                           $(ROOT_DIR)/gungho/unit-test/support  \
-                                           $(ROOT_DIR)/components/lfric-xios/source
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export META_FILE_DIR = rose-meta/lfric-io_dev/HEAD
-unit-tests: export PROGRAMS = $(PROJECT_NAME)_unit_tests
-unit-tests: export PROJECT = $(PROJECT_NAME)
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: do-unit-tests
-				$(Q)echo > /dev/null
+unit-tests/%: export ADDITIONAL_EXTRACTION                \
+                  = $(ROOT_DIR)/infrastructure/source     \
+                    $(ROOT_DIR)/components/driver/source  \
+                    $(ROOT_DIR)/components/science/source \
+                    $(ROOT_DIR)/gungho/unit-test/support  \
+                    $(ROOT_DIR)/components/lfric-xios/source
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-io_dev/HEAD
+unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
+unit-tests/%: export PROJECT = $(PROJECT_NAME)
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
+unit-tests: unit-tests/run
 
 
 ##############################################################################

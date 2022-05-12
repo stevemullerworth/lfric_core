@@ -75,20 +75,17 @@ document-api: api-documentation
 ##############################################################################
 # Unit tests
 #
-.PHONY: unit-tests
-unit-tests: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source"
-unit-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests: export CXX_LINK = TRUE
-unit-tests: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
-unit-tests: export FFLAGS += -D UNIT_TEST
-unit-tests: export META_FILE_DIR = rose-meta/lfric-driver/HEAD
-unit-tests: export PROGRAMS = driver_unit_tests
-unit-tests: export PROJECT = driver
-unit-tests: export SOURCE_DIR = source
-unit-tests: export TEST_DIR = unit-test
-unit-tests: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: do-unit-tests
-	$(Q)echo > /dev/null
+unit-tests/%: export ADDITIONAL_EXTRACTION = "$(ROOT_DIR)/infrastructure/source"
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export CXX_LINK = TRUE
+unit-tests/%: export FFLAGS += -D UNIT_TEST
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-driver/HEAD
+unit-tests/%: export PROGRAMS = driver_unit_tests
+unit-tests/%: export PROJECT = driver
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
 
 ##############################################################################
 # Integration tests
