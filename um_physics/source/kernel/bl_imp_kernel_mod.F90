@@ -419,23 +419,36 @@ contains
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
-    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat
-    use atm_fields_bounds_mod, only: pdims
+    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat,           &
+                          nsurft, nsoilt, dim_cslayer, rad_nband, nmasst
+    use atm_fields_bounds_mod, only: pdims, pdims_s
     use atm_step_local, only: dim_cs1, dim_cs2
     use c_kappai, only: kappai, de
     use csigma, only: sbcon
     use dust_parameters_mod, only: ndiv, ndivh
-    use jules_sea_seaice_mod, only: nice_use, emis_sea
-    use jules_snow_mod, only: cansnowtile, rho_snow_const, l_snowdep_surf
-    use jules_surface_types_mod, only: npft, ntype, lake, nnvg
-    use jules_vegetation_mod, only: can_model
-    use nlsizes_namelist_mod, only: row_length, rows, land_field, &
-         sm_levels, ntiles, bl_levels, tr_vars
+    use jules_deposition_mod, only: l_deposition
+    use jules_irrig_mod, only: irr_crop, irr_crop_doell
+    use jules_sea_seaice_mod, only: nice, nice_use, emis_sea
+    use jules_snow_mod, only: cansnowtile, rho_snow_const, l_snowdep_surf,nsmax
+    use jules_surface_types_mod, only: npft, ntype, lake, nnvg, ncpft, nnpft
+    use jules_surface_mod, only: l_flake_model
+    use jules_vegetation_mod, only: can_model, l_crop, l_triffid, l_phenol,    &
+                                    can_rad_mod, l_acclim
+    use jules_radiation_mod, only: l_albedo_obs
+    use jules_soil_mod, only: ns_deep, l_bedrock
+    use jules_soil_biogeochem_mod, only: dim_ch4layer, soil_bgc_model,         &
+                                         soil_model_ecosse, l_layeredc
+    use nlsizes_namelist_mod, only: row_length, rows, land_field,              &
+                                    sm_levels, ntiles, bl_levels, tr_vars
     use pftparm, only: emis_pft
     use planet_constants_mod, only: p_zero, kappa, planet_radius, two_omega
     use nvegparm, only: emis_nvg
     use rad_input_mod, only: co2_mmr
     use timestep_mod, only: timestep
+    use theta_field_sizes, only: t_i_length, t_j_length, &
+                                 u_i_length,u_j_length,  &
+                                 v_i_length,v_j_length
+    use veg3_parm_mod, only: l_veg3
 
     ! spatially varying fields used from modules
     use level_heights_mod, only: r_theta_levels, r_rho_levels
@@ -454,15 +467,33 @@ contains
     !---------------------------------------
     ! JULES modules
     !---------------------------------------
-    use jules_fields_mod, only : crop_vars, ainfo, aerotype, progs, coast, &
-      jules_vars,                                                          &
-      fluxes,                                                              &
-      lake_vars,                                                           &
-      forcing
-      !rivers, &
-      !veg3_parm, &
-      !veg3_field, &
-      !chemvars
+    use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
+                                        crop_vars_alloc, crop_vars_assoc, &
+                                        crop_vars_nullify, crop_vars_dealloc
+    use prognostics,              only: progs_data_type, progs_type,           &
+                                        prognostics_alloc, prognostics_assoc,  &
+                                        prognostics_nullify, prognostics_dealloc
+    use jules_vars_mod,           only: jules_vars_type, jules_vars_data_type, &
+                                        jules_vars_alloc, jules_vars_assoc,    &
+                                        jules_vars_dealloc, jules_vars_nullify
+    use aero,                     only: aero_type, aero_data_type,             &
+                                        aero_alloc, aero_assoc, &
+                                        aero_nullify, aero_dealloc
+    use coastal,                  only: coastal_type, coastal_data_type,       &
+                                        coastal_assoc, coastal_alloc, &
+                                        coastal_dealloc, coastal_nullify
+    use lake_mod,                 only: lake_type, lake_data_type,             &
+                                        lake_assoc, lake_alloc, &
+                                        lake_dealloc, lake_nullify
+    use jules_forcing_mod,        only: forcing_type, forcing_data_type,       &
+                                        forcing_assoc, forcing_alloc,          &
+                                        forcing_nullify, forcing_dealloc
+    use ancil_info,               only: ainfo_type, ainfo_data_type,           &
+                                        ancil_info_assoc, ancil_info_alloc,    &
+                                        ancil_info_dealloc, ancil_info_nullify
+    use fluxes_mod,               only: fluxes_type, fluxes_data_type,         &
+                                        fluxes_alloc, fluxes_assoc,            &
+                                        fluxes_nullify, fluxes_dealloc
 
     implicit none
 
@@ -739,12 +770,91 @@ contains
 
     real(r_um) :: stashwork3(1), stashwork9(1)
 
+
+    !-----------------------------------------------------------------------
+    ! JULES Types
+    !-----------------------------------------------------------------------
+    type(crop_vars_type) :: crop_vars
+    type(crop_vars_data_type) :: crop_vars_data
+    type(progs_type) :: progs
+    type(progs_data_type) :: progs_data
+    type(jules_vars_type) :: jules_vars
+    type(jules_vars_data_type) :: jules_vars_data
+    type(aero_type) :: aerotype
+    type(aero_data_type) :: aero_data
+    type(coastal_type) :: coast
+    type(coastal_data_type) :: coastal_data
+    type(lake_type) :: lake_vars
+    type(lake_data_type) :: lake_data
+    type(ainfo_type) :: ainfo
+    type(ainfo_data_type) :: ainfo_data
+    type(forcing_type) :: forcing
+    type(forcing_data_type) :: forcing_data
+    type(fluxes_type) :: fluxes
+    type(fluxes_data_type) :: fluxes_data
+
+    !-----------------------------------------------------------------------
+    ! Initialisation of JULES data and pointer types
+    !-----------------------------------------------------------------------
+    call crop_vars_alloc(land_field, t_i_length, t_j_length,                  &
+                     nsurft, ncpft,nsoilt, sm_levels, l_crop, irr_crop,       &
+                     irr_crop_doell, crop_vars_data)
+
+    call crop_vars_assoc(crop_vars, crop_vars_data)
+
+    call prognostics_alloc(land_field, t_i_length, t_j_length,                &
+                      nsurft, npft, nsoilt, sm_levels, ns_deep, nsmax,        &
+                      dim_cslayer, dim_cs1, dim_ch4layer,                     &
+                      nice, nice_use, soil_bgc_model, soil_model_ecosse,      &
+                      l_layeredc, l_triffid, l_phenol, l_bedrock, l_veg3,     &
+                      nmasst, nnpft, l_acclim, progs_data)
+    call prognostics_assoc(progs,progs_data)
+
+    call jules_vars_alloc(land_field,ntype,nsurft,rad_nband,nsoilt,sm_levels, &
+                t_i_length, t_j_length, npft, bl_levels, pdims_s, pdims,      &
+                l_albedo_obs, cansnowtile, l_deposition,                      &
+                jules_vars_data)
+    call jules_vars_assoc(jules_vars,jules_vars_data)
+
+    if (can_rad_mod == 6) then
+      jules_vars%diff_frac = 0.4_r_um
+    else
+      jules_vars%diff_frac = 0.0_r_um
+    end if
+
+    call aero_alloc(land_field,t_i_length,t_j_length,                         &
+                nsurft,ndiv, aero_data)
+    call aero_assoc(aerotype, aero_data)
+
+    call coastal_alloc(land_field,t_i_length,t_j_length,                      &
+                   u_i_length,u_j_length,                                     &
+                   v_i_length,v_j_length,                                     &
+                   nice_use,nice,coastal_data)
+    call coastal_assoc(coast, coastal_data)
+
+    call lake_alloc(land_field, l_flake_model, lake_data)
+    call lake_assoc(lake_vars, lake_data)
+
+    call ancil_info_alloc(land_field,t_i_length,t_j_length,                   &
+                      nice,nsoilt,ntype,                                      &
+                      ainfo_data)
+    call ancil_info_assoc(ainfo, ainfo_data)
+
+    call forcing_alloc(t_i_length,t_j_length,u_i_length, u_j_length,          &
+                       v_i_length, v_j_length, forcing_data)
+    call forcing_assoc(forcing, forcing_data)
+
+    call fluxes_alloc(land_field, t_i_length, t_j_length,                     &
+                      nsurft, npft, nsoilt, sm_levels,                        &
+                      nice, nice_use,                                         &
+                      fluxes_data)
+    call fluxes_assoc(fluxes, fluxes_data)
     !-----------------------------------------------------------------------
     ! Initialisation of variables and arrays
     !-----------------------------------------------------------------------
     error_code=0
 
-    ! neutral wind diagnostics are calculated in bl_imp_du_kernel so set 
+    ! neutral wind diagnostics are calculated in bl_imp_du_kernel so set
     ! flags to false here (to avoid divide by zero at end of imp_solver)
     sf_diag%suv10m_n = .false.
     sf_diag%l_u10m_n  = sf_diag%suv10m_n
@@ -1690,6 +1800,33 @@ contains
 
     ! set this back to 1 before exit
     land_field = 1
+
+    call ancil_info_nullify(ainfo)
+    call ancil_info_dealloc(ainfo_data)
+
+    call forcing_nullify(forcing)
+    call forcing_dealloc(forcing_data)
+
+    call crop_vars_nullify(crop_vars)
+    call crop_vars_dealloc(crop_vars_data)
+
+    call lake_nullify(lake_vars)
+    call lake_dealloc(lake_data)
+
+    call coastal_nullify(coast)
+    call coastal_dealloc(coastal_data)
+
+    call aero_nullify(aerotype)
+    call aero_dealloc(aero_data)
+
+    call jules_vars_dealloc(jules_vars_data)
+    call jules_vars_nullify(jules_vars)
+
+    call prognostics_nullify(progs)
+    call prognostics_dealloc(progs_data)
+
+    call fluxes_nullify(fluxes)
+    call fluxes_dealloc(fluxes_data)
 
   end subroutine bl_imp_code
 

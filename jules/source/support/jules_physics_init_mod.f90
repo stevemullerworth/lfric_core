@@ -83,52 +83,20 @@ module jules_physics_init_mod
                                      buddy_sea_on, knl_in => knl
 
   ! UM modules used
-  use jules_surface_types_mod, only : npft, nnvg
+  use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
   use nlsizes_namelist_mod,    only : sm_levels, land_field, ntiles
-  use atm_fields_bounds_mod,   only : pdims_s, tdims
 
   ! JULES modules used
-  use jules_fields_mod,        only : crop_vars_data, crop_vars,              &
-                                      psparms_data, psparms,                  &
-                                      top_pdm_data, toppdm,                   &
-                                      fire_vars_data, fire_vars,              &
-                                      ainfo_data, ainfo,                      &
-                                      trif_vars_data, trif_vars,              &
-                                      soil_ecosse_vars_data, soilecosse,      &
-                                      aero_data, aerotype,                    &
-                                      urban_param_data, urban_param,          &
-                                      progs_data, progs,                      &
-                                      trifctl_data, trifctltype,              &
-                                      coastal_data, coast,                    &
-                                      jules_vars_data, jules_vars,            &
-                                      fluxes_data, fluxes,                    &
-                                      lake_data, lake_vars,                   &
-                                      forcing_data, forcing,                  &
-                                      rivers_data, rivers,                    &
-                                      !veg3_parm_data, veg3_parm, &
-                                      !veg3_field_data, veg3_field, &
-                                      chemvars_data, chemvars
+  use cropparm,                 only: cropparm_alloc
+  use c_z0h_z0m,                only: c_z0h_z0m_alloc
+  use jules_irrig_mod,          only: irrig_vars_alloc
+  use metstats_mod,             only: metstats_allocate
+  use nvegparm,                 only: nvegparm_alloc
+  use pftparm,                  only: pftparm_alloc
+  use trif,                     only: trif_alloc
+  use veg3_parm_mod,            only: veg3_parm_allocate
+  use veg3_field_mod,           only: veg3_field_allocate
 
-  use crop_vars_mod,           only : crop_vars_assoc
-  use p_s_parms,               only : psparms_assoc
-  use top_pdm,                 only : top_pdm_assoc
-  use fire_vars_mod,           only : fire_vars_assoc
-  use ancil_info,              only : ancil_info_assoc
-  use trif_vars_mod,           only : trif_vars_assoc
-  use soil_ecosse_vars_mod,    only : soil_ecosse_vars_assoc
-  use aero,                    only : aero_assoc
-  use urban_param_mod,         only : urban_param_assoc
-  use prognostics,             only : prognostics_assoc
-  use trifctl,                 only : trifctl_assoc
-  use coastal,                 only : coastal_assoc
-  use jules_vars_mod,          only : jules_vars_assoc
-  use fluxes_mod,              only : fluxes_assoc
-  use lake_mod,                only: lake_assoc
-  use jules_forcing_mod,       only: forcing_assoc
-  use jules_rivers_mod,        only: rivers_assoc
-! use veg3_parm_mod,           only: in_dev
-! use veg3_field_mod,          only: in_dev
-  use jules_chemvars_mod,      only: chemvars_assoc
   use derived_config_mod,      only: l_esm_couple
 
   implicit none
@@ -164,12 +132,13 @@ contains
   subroutine jules_physics_init()
 
     ! Jules modules containing things that need setting
-    use allocate_jules_arrays_mod, only: allocate_jules_arrays
+    use ancil_info, only: land_pts, nsurft, nmasst
     use bl_option_mod, only: on
     use c_kappai, only: kappai, kappai_snow, kappa_seasurf
     use c_z0h_z0m, only: z0h_z0m
     use jules_hydrology_mod, only: l_hydrology, check_jules_hydrology,      &
          l_top, l_var_rainfrac, nfita
+    use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
          l_embedded_snow, l_mask_snow_orog,                                 &
          l_spec_alb_bs, l_spec_albedo, l_spec_sea_alb, fixed_sea_albedo,    &
@@ -179,8 +148,8 @@ contains
     use jules_science_fixes_mod, only: l_dtcanfix, l_fix_alb_ice_thick,     &
          l_fix_albsnow_ts, ctile_orog_fix, l_fix_wind_snow,                 &
          l_accurate_rho, l_fix_osa_chloro, l_fix_ustar_dust, correct_sea_only
-    use jules_sea_seaice_mod, only: nice_use, iseasurfalg, emis_sea,        &
-         seasalinityfactor, nice, ip_ss_surf_div, z0sice,                   &
+    use jules_sea_seaice_mod, only: nice, nice_use, iseasurfalg, emis_sea,  &
+         seasalinityfactor, ip_ss_surf_div, z0sice,                   &
          z0h_z0m_sice, emis_sice, l_ctile, l_tstar_sice_new,                &
          l_sice_heatflux, check_jules_sea_seaice, z0h_z0m_miz,              &
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
@@ -198,7 +167,7 @@ contains
          i_relayer_opt
     use jules_soil_mod, only: dzsoil_io, l_dpsids_dsdz, l_soil_sat_down,    &
          l_vg_soil, soilhc_method, check_jules_soil, confrac, cs_min, zsmc, &
-         zst
+         zst, sm_levels
     use jules_soil_biogeochem_mod, only: const_ch4_cs,                      &
          check_jules_soil_biogeochem, diff_n_pft, bio_hum_cn, sorp,         &
          n_inorg_turnover, q10_soil, kaps_roth, kaps, q10_ch4_cs,           &
@@ -213,7 +182,7 @@ contains
          capped_lowhill, explicit_stress, l_vary_z0m_soil
     use jules_vegetation_mod, only: can_rad_mod, ilayers, l_vegcan_soilfx,  &
          photo_model, photo_collatz, check_jules_vegetation,                &
-         l_spec_veg_z0, l_limit_canhc
+         l_spec_veg_z0, l_limit_canhc, l_crop, l_triffid, l_phenol
     use nvegparm, only:                                                     &
          albsnc_nvg, albsnf_nvgu, albsnf_nvg, albsnf_nvgl, catch_nvg,       &
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg
@@ -227,11 +196,8 @@ contains
          omegal, omegau, omnir, omnirl, omniru, orient, q10_leaf, r_grow,   &
          rootd_ft, sigl, tleaf_of, tlow, tupp, vint, vsl, z0v, dust_veg_scj
 
-    implicit none
 
-    !Temp local storage of pdims to facilitate JULES array allocation
-    integer :: pdims_s_i_start_temp, pdims_s_i_end_temp,                    &
-               pdims_s_j_start_temp, pdims_s_j_end_temp
+    implicit none
 
     ! ----------------------------------------------------------------
     ! Jules hydrology settings - contained in module jules_hydrology
@@ -511,60 +477,25 @@ contains
     ! needs calling before the below parameters are set, because
     ! their arrays are allocated in here.
 
-    ! Set values of pdims_s temporarily for allocations inside jules_mod
-    ! This is due to different usage of dims types in LFRic vs UM and standalone
-    ! JULES
-    pdims_s_i_start_temp = pdims_s%i_start
-    pdims_s_i_end_temp   = pdims_s%i_end
-    pdims_s_j_start_temp = pdims_s%j_start
-    pdims_s_j_end_temp   = pdims_s%j_end
+    !Any dimension sizes should be set before we get here. Some special cases for
+    !UM mode can be found in surf_couple_allocate.
+    call irrig_vars_alloc(npft, l_irrig_dmd)
 
-    pdims_s%i_start = tdims%i_start - 1
-    pdims_s%i_end   = tdims%i_end + 1
-    pdims_s%j_start = tdims%j_start - 1
-    pdims_s%j_end   = tdims%j_end + 1
+    call cropparm_alloc(ncpft,l_crop)
 
-    call allocate_jules_arrays(crop_vars_data,psparms_data,top_pdm_data,       &
-                               fire_vars_data,ainfo_data,trif_vars_data,       &
-                               soil_ecosse_vars_data, aero_data,               &
-                               urban_param_data, progs_data, trifctl_data,     &
-                               coastal_data,jules_vars_data,                   &
-                               fluxes_data,                                    &
-                               lake_data,                                      &
-                               forcing_data,                                   &
-                               rivers_data,                                    &
-                              !veg3_parm_data, &
-                              !veg3_field_data, &
-                               chemvars_data                                   &
-                               )
+    call c_z0h_z0m_alloc(ntype)
 
-    ! Reset pdims_s
-    pdims_s%i_start = pdims_s_i_start_temp
-    pdims_s%i_end   = pdims_s_i_end_temp
-    pdims_s%j_start = pdims_s_j_start_temp
-    pdims_s%j_end   = pdims_s_j_end_temp
+    call metstats_allocate(land_pts)
 
-    ! Associate the JULES pointer types to the data types
-    call crop_vars_assoc(crop_vars, crop_vars_data)
-    call psparms_assoc(psparms, psparms_data)
-    call top_pdm_assoc(toppdm, top_pdm_data)
-    call fire_vars_assoc(fire_vars, fire_vars_data)
-    call ancil_info_assoc(ainfo, ainfo_data)
-    call trif_vars_assoc(trif_vars, trif_vars_data)
-    call soil_ecosse_vars_assoc(soilecosse, soil_ecosse_vars_data)
-    call aero_assoc(aerotype, aero_data)
-    call urban_param_assoc(urban_param, urban_param_data)
-    call prognostics_assoc(progs,progs_data)
-    call trifctl_assoc(trifctltype, trifctl_data)
-    call coastal_assoc(coast, coastal_data)
-    call jules_vars_assoc(jules_vars,jules_vars_data)
-    call fluxes_assoc(fluxes,fluxes_data)
-    call lake_assoc(lake_vars,lake_data)
-    call forcing_assoc(forcing,forcing_data)
-    call rivers_assoc(rivers,rivers_data)
-    !call in_dev
-    !call in_dev
-    call chemvars_assoc(chemvars,chemvars_data)
+    call nvegparm_alloc(nnvg)
+
+    call pftparm_alloc(npft)
+
+    call trif_alloc(npft,                                                         &
+                    l_triffid, l_phenol)
+
+    call veg3_parm_allocate(land_pts,nsurft,nnpft,npft)
+    call veg3_field_allocate(land_pts,nsurft,nnpft,nmasst)
 
     ! ----------------------------------------------------------------
     ! Jules non-vegetated tile settings - contained in module nvegparm
@@ -655,17 +586,6 @@ contains
     ! ----------------------------------------------------------------
     z0h_z0m(1:npft) = real(z0hm_ratio_pft, r_um)
     z0h_z0m(npft+1:npft+nnvg) = real(z0hm_ratio_nveg, r_um)
-
-    ! ----------------------------------------------------------------
-    ! Jules surface settings - contained in module jules_surface
-    ! ----------------------------------------------------------------
-    ! The following depends on a previously set variable from jules_vegetation
-    ! and the array is allocated in allocate_jules_arrays
-    if (can_rad_mod == 6) then
-      jules_vars%diff_frac = 0.4_r_um
-    else
-      jules_vars%diff_frac = 0.0_r_um
-    end if
 
   end subroutine jules_physics_init
 

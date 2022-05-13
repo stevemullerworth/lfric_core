@@ -687,10 +687,18 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   use timestep_mod, only: timestep
 
   ! JULES modules
-  use jules_surface_types_mod, only: npft
+  use jules_surface_types_mod, only: npft, ice, ntype
+  use jules_surface_mod,        only: l_urban2t
+  use jules_sea_seaice_mod, only: nice
+  use jules_urban_mod,           only: l_moruses
   use sparm_mod, only: sparm
   use tilepts_mod, only: tilepts
-  use jules_fields_mod, only: ainfo, urban_param
+  use ancil_info, only: ainfo_data_type, ainfo_type, ancil_info_alloc,         &
+          ancil_info_dealloc, ancil_info_nullify, ancil_info_assoc, nsoilt
+  use urban_param_mod, only: urban_param_data_type, urban_param_type,          &
+          urban_param_alloc, urban_param_assoc, urban_param_nullify,           &
+          urban_param_dealloc
+  use theta_field_sizes,        only: t_i_length, t_j_length
 
   ! UKCA API module
   use ukca_api_mod, only: ukca_step_control, ukca_maxlen_message,              &
@@ -872,7 +880,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_2d) :: dms_conc_ocean
   real(kind=r_def), intent(in), dimension(undf_dust) :: dust_flux 
   real(kind=r_def), intent(inout), dimension(undf_2d) :: surf_wetness
-  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass 
+  real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_om_biomass
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_so2_nat
   real(kind=r_def), intent(in), dimension(undf_2d) :: emiss_bc_biofuel
@@ -958,6 +966,11 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_um) :: catch_snow_surft( land_field, n_land_tile )
   real(r_um) :: catch_surft( land_field, n_land_tile )
   real(r_um) :: z0h_bare_surft( land_field, n_land_tile )
+
+  type(ainfo_data_type) :: ainfo_data
+  type(ainfo_type) :: ainfo
+  type(urban_param_data_type) :: urban_param_data
+  type(urban_param_type) :: urban_param
 
   ! surface wetness calculation
   real(r_def) :: tot_precip
@@ -1247,7 +1260,12 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     n_land_pts = 0
   end if
 
-  ! Set up JULES fields needed 
+!  ! Set up JULES fields needed
+  call ancil_info_alloc(land_field, t_i_length, t_j_length, nice, nsoilt,      &
+                        ntype, ainfo_data)
+  call ancil_info_assoc(ainfo, ainfo_data)
+  call urban_param_alloc(land_field, l_urban2t, l_moruses, urban_param_data)
+  call urban_param_assoc(urban_param, urban_param_data)
 
   if (l_land) then
     ! Tile fractions with respect to land area  
@@ -1271,6 +1289,11 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                 catch_snow_surft, catch_surft, z0_surft, z0h_bare_surft,       &
                 urban_param%ztm_gb )
   end if
+
+  call ancil_info_nullify(ainfo)
+  call ancil_info_dealloc(ainfo_data)
+  call urban_param_nullify(urban_param)
+  call urban_param_dealloc(urban_param_data)
 
   ! Drivers in scalar group
 

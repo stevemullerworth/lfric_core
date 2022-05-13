@@ -263,23 +263,88 @@ contains
     use jules_physics_init_mod, only: decrease_sath_cond
 
     ! Module imports for surf_couple_extra JULESvn5.4
-    use ancil_info, only: nsoilt, soil_pts, lice_pts
-    use atm_step_local, only: dim_cs1
-    use cderived_mod, only: delta_lambda, delta_phi
-    use jules_surface_types_mod, only: npft, ntype
-    use jules_snow_mod, only: nsmax
-    use jules_fields_mod, only: crop_vars, psparms, toppdm, fire_vars, ainfo, &
-                                trif_vars, soilecosse, aerotype, urban_param, &
-                                progs, trifctltype, jules_vars,               &
-                                fluxes,                                       &
-                                lake_vars,                                    &
-                                forcing,                                      &
-                                rivers
-                                !veg3_parm, &
-                                !veg3_field, &
-                                !chemvars
-    use nlsizes_namelist_mod, only: row_length, rows, land_pts => land_field, &
-                                    sm_levels, ntiles
+    use ancil_info,               only: nsoilt, soil_pts, lice_pts,            &
+                                        dim_cslayer, rad_nband,                &
+                                        dim_soil_n_pool, nmasst
+    use atm_step_local,           only: dim_cs1
+    use cderived_mod,             only: delta_lambda, delta_phi
+    use dust_parameters_mod,      only: ndiv
+    use jules_surface_types_mod,  only: npft, ntype
+    use jules_snow_mod,           only: nsmax
+    use jules_soil_mod,           only: ns_deep, l_bedrock
+    use jules_soil_biogeochem_mod, only: dim_ch4layer, soil_bgc_model,         &
+                                        soil_model_ecosse, l_layeredc
+    use jules_snow_mod,           only: nsmax, cansnowtile
+    use jules_sea_seaice_mod,     only: nice, nice_use
+    use jules_deposition_mod,     only: l_deposition
+    use jules_surface_mod,        only: l_urban2t, l_flake_model
+    use jules_urban_mod,          only: l_moruses
+    use jules_vegetation_mod,     only: l_crop, l_triffid,                     &
+                                        l_phenol, l_use_pft_psi, can_rad_mod,  &
+                                        l_acclim
+    use theta_field_sizes,        only: t_i_length, t_j_length, u_i_length,    &
+                                        u_j_length, v_i_length, v_j_length
+    use jules_surface_types_mod,  only: ncpft, nnpft
+    use jules_irrig_mod,          only: irr_crop, irr_crop_doell
+    use atm_fields_bounds_mod,    only: pdims_s, pdims
+    use jules_radiation_mod,      only: l_albedo_obs
+    use veg3_parm_mod,            only: l_veg3
+
+    use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
+                                        crop_vars_alloc, crop_vars_assoc, &
+                                        crop_vars_dealloc, crop_vars_nullify
+    use prognostics,              only: progs_data_type, progs_type,           &
+                                        prognostics_alloc, prognostics_assoc,  &
+                                        prognostics_nullify, prognostics_dealloc
+    use fire_vars_mod,            only: fire_vars_type, fire_vars_data_type,   &
+                                        fire_vars_alloc, fire_vars_assoc, &
+                                        fire_vars_dealloc, fire_vars_nullify
+    use jules_vars_mod,           only: jules_vars_type, jules_vars_data_type, &
+                                        jules_vars_alloc, jules_vars_assoc,    &
+                                        jules_vars_dealloc, jules_vars_nullify
+    use p_s_parms,                only: psparms_type, psparms_data_type,       &
+                                        psparms_alloc, psparms_assoc, &
+                                        psparms_dealloc, psparms_nullify
+    use top_pdm,                  only: top_pdm_type, top_pdm_data_type,       &
+                                        top_pdm_assoc, top_pdm_alloc, &
+                                        top_pdm_dealloc, top_pdm_nullify
+    use trif_vars_mod,            only: trif_vars_type, trif_vars_data_type,   &
+                                        trif_vars_alloc, trif_vars_assoc, &
+                                        trif_vars_nullify, trif_vars_dealloc
+    use soil_ecosse_vars_mod,     only: soil_ecosse_vars_type,                 &
+                                        soil_ecosse_vars_data_type,            &
+                                        soil_ecosse_vars_alloc,                &
+                                        soil_ecosse_vars_assoc, &
+                                        soil_ecosse_vars_dealloc, &
+                                        soil_ecosse_vars_nullify
+    use aero,                     only: aero_type, aero_data_type,             &
+                                        aero_alloc, aero_assoc, &
+                                        aero_dealloc, aero_nullify
+    use urban_param_mod,          only: urban_param_data_type,                 &
+                                        urban_param_type, &
+                                        urban_param_alloc, urban_param_assoc,  &
+                                        urban_param_dealloc, urban_param_nullify
+    use trifctl,                  only: trifctl_type, trifctl_data_type,       &
+                                        trifctl_alloc, trifctl_assoc,          &
+                                        trifctl_nullify, trifctl_dealloc
+    use lake_mod,                 only: lake_type, lake_data_type,             &
+                                        lake_alloc, lake_assoc,                &
+                                        lake_nullify, lake_dealloc
+    use ancil_info,               only: ainfo_type, ainfo_data_type,           &
+                                        ancil_info_assoc, ancil_info_alloc,    &
+                                        ancil_info_dealloc, ancil_info_nullify
+    use jules_forcing_mod,        only: forcing_type, forcing_data_type,       &
+                                        forcing_assoc, forcing_alloc,          &
+                                        forcing_nullify, forcing_dealloc
+    use fluxes_mod,               only: fluxes_type, fluxes_data_type,         &
+                                        fluxes_alloc, fluxes_assoc,            &
+                                        fluxes_nullify, fluxes_dealloc
+    use jules_rivers_mod,         only: rivers_type, rivers_data_type,         &
+                                        rivers_assoc, jules_rivers_alloc,      &
+                                        rivers_nullify, rivers_dealloc
+
+    use nlsizes_namelist_mod, only: row_length, rows, land_pts => land_field,  &
+                                    sm_levels, ntiles, bl_levels
     use UM_ParCore, only: nproc
 
     ! Spatially varying fields used from modules
@@ -438,6 +503,125 @@ contains
 
     real(r_um), dimension(land_pts, nsoilt, 1, dim_cs1) :: resp_s_soilt
 
+    !-----------------------------------------------------------------------
+    ! JULES Types
+    !-----------------------------------------------------------------------
+    type(crop_vars_type) :: crop_vars
+    type(crop_vars_data_type) :: crop_vars_data
+    type(progs_type) :: progs
+    type(progs_data_type) :: progs_data
+    type(fire_vars_type) :: fire_vars
+    type(fire_vars_data_type) :: fire_vars_data
+    type(jules_vars_type) :: jules_vars
+    type(jules_vars_data_type) :: jules_vars_data
+    type(psparms_type) :: psparms
+    type(psparms_data_type) :: psparms_data
+    type(top_pdm_type) :: toppdm
+    type(top_pdm_data_type) :: top_pdm_data
+    type(trif_vars_type) :: trif_vars
+    type(trif_vars_data_type) :: trif_vars_data
+    type(soil_ecosse_vars_type) :: soilecosse
+    type(soil_ecosse_vars_data_type) :: soil_ecosse_vars_data
+    type(aero_type) :: aerotype
+    type(aero_data_type) :: aero_data
+    type(urban_param_type) :: urban_param
+    type(urban_param_data_type) :: urban_param_data
+    type(trifctl_type) :: trifctltype
+    type(trifctl_data_type) :: trifctl_data
+    type(lake_type) :: lake_vars
+    type(lake_data_type) :: lake_data
+    type(ainfo_type) :: ainfo
+    type(ainfo_data_type) :: ainfo_data
+    type(forcing_type) :: forcing
+    type(forcing_data_type) :: forcing_data
+    type(fluxes_type) :: fluxes
+    type(fluxes_data_type) :: fluxes_data
+    type(rivers_type) :: rivers
+    type(rivers_data_type) :: rivers_data
+
+    !-----------------------------------------------------------------------
+    ! Initialisation of JULES data and pointer types
+    !-----------------------------------------------------------------------
+    call crop_vars_alloc(land_pts, t_i_length, t_j_length,                    &
+                     nsurft, ncpft,nsoilt, sm_levels, l_crop, irr_crop,       &
+                     irr_crop_doell, crop_vars_data)
+
+    call crop_vars_assoc(crop_vars, crop_vars_data)
+
+    call prognostics_alloc(land_pts, t_i_length, t_j_length,                  &
+                      nsurft, npft, nsoilt, sm_levels, ns_deep, nsmax,        &
+                      dim_cslayer, dim_cs1, dim_ch4layer,                     &
+                      nice, nice_use, soil_bgc_model, soil_model_ecosse,      &
+                      l_layeredc, l_triffid, l_phenol, l_bedrock, l_veg3,     &
+                      nmasst, nnpft, l_acclim, progs_data)
+    call prognostics_assoc(progs,progs_data)
+
+    call fire_vars_alloc(land_pts,npft, fire_vars_data)
+    call fire_vars_assoc(fire_vars, fire_vars_data)
+
+    call jules_vars_alloc(land_pts,ntype,nsurft,rad_nband,nsoilt,sm_levels,   &
+                t_i_length, t_j_length, npft, bl_levels, pdims_s, pdims,      &
+                l_albedo_obs, cansnowtile, l_deposition,                      &
+                jules_vars_data)
+    call jules_vars_assoc(jules_vars,jules_vars_data)
+
+    if (can_rad_mod == 6) then
+      jules_vars%diff_frac = 0.4_r_um
+    else
+      jules_vars%diff_frac = 0.0_r_um
+    end if
+
+    call psparms_alloc(land_pts,t_i_length,t_j_length,                        &
+                     nsoilt,sm_levels,dim_cslayer,nsurft,npft,                &
+                     soil_bgc_model,soil_model_ecosse,l_use_pft_psi,          &
+                     psparms_data)
+    call psparms_assoc(psparms, psparms_data)
+
+    call top_pdm_alloc(land_pts,nsoilt, top_pdm_data)
+    call top_pdm_assoc(toppdm, top_pdm_data)
+
+    call trif_vars_alloc(land_pts,                                            &
+                     npft,dim_cslayer,nsoilt,dim_cs1,                         &
+                     l_triffid, l_phenol, trif_vars_data)
+    call trif_vars_assoc(trif_vars, trif_vars_data)
+
+    call soil_ecosse_vars_alloc(land_pts,                                     &
+                            nsoilt,dim_cslayer,dim_soil_n_pool,sm_levels,     &
+                            soil_bgc_model,soil_model_ecosse,                 &
+                            soil_ecosse_vars_data)
+    call soil_ecosse_vars_assoc(soilecosse, soil_ecosse_vars_data)
+
+    call aero_alloc(land_pts,t_i_length,t_j_length,                           &
+                nsurft,ndiv, aero_data)
+    call aero_assoc(aerotype, aero_data)
+
+    call urban_param_alloc(land_pts, l_urban2t, l_moruses, urban_param_data)
+    call urban_param_assoc(urban_param, urban_param_data)
+
+    call trifctl_alloc(land_pts,                                              &
+                   npft,dim_cslayer,dim_cs1,nsoilt,trifctl_data)
+    call trifctl_assoc(trifctltype, trifctl_data)
+
+    call lake_alloc(land_pts, l_flake_model, lake_data)
+    call lake_assoc(lake_vars, lake_data)
+
+    call ancil_info_alloc(land_pts,t_i_length,t_j_length,                     &
+                      nice,nsoilt,ntype,                                      &
+                      ainfo_data)
+    call ancil_info_assoc(ainfo, ainfo_data)
+
+    call forcing_alloc(t_i_length,t_j_length,u_i_length, u_j_length,          &
+                       v_i_length, v_j_length, forcing_data)
+    call forcing_assoc(forcing, forcing_data)
+
+    call fluxes_alloc(land_pts, t_i_length, t_j_length,                       &
+                      nsurft, npft, nsoilt, sm_levels,                        &
+                      nice, nice_use,                                         &
+                      fluxes_data)
+    call fluxes_assoc(fluxes, fluxes_data)
+
+    call jules_rivers_alloc(land_pts, rivers_data)
+    call rivers_assoc(rivers,rivers_data)
     !-------------------------------------------------------------------
 
     ! Data from 2D fields
@@ -690,11 +874,7 @@ contains
     fluxes,                                                                   &
     lake_vars,                                                                &
     forcing,                                                                  &
-    rivers                                                                    &
-    !veg3_parm, &
-    !veg3_field, &
-    !chemvars
-    )
+    rivers)
 
   !---------------------------------------------------------------------------
   ! Return the updated prognostic values to jules_prognostics.
@@ -788,6 +968,51 @@ contains
     ! back to 1 so that variables are dimensioned correctly on the next
     ! kernel call.
     land_pts = 1
+
+    call ancil_info_nullify(ainfo)
+    call ancil_info_dealloc(ainfo_data)
+
+    call forcing_nullify(forcing)
+    call forcing_dealloc(forcing_data)
+
+    call crop_vars_nullify(crop_vars)
+    call crop_vars_dealloc(crop_vars_data)
+
+    call top_pdm_nullify(toppdm)
+    call top_pdm_dealloc(top_pdm_data)
+
+    call soil_ecosse_vars_nullify(soilecosse)
+    call soil_ecosse_vars_dealloc(soil_ecosse_vars_data)
+
+    call lake_nullify(lake_vars)
+    call lake_dealloc(lake_data)
+
+    call fire_vars_nullify(fire_vars)
+    call fire_vars_dealloc(fire_vars_data)
+
+    call trifctl_nullify(trifctltype)
+    call trifctl_dealloc(trifctl_data)
+
+    call urban_param_nullify(urban_param)
+    call urban_param_dealloc(urban_param_data)
+
+    call aero_nullify(aerotype)
+    call aero_dealloc(aero_data)
+
+    call trif_vars_nullify(trif_vars)
+    call trif_vars_dealloc(trif_vars_data)
+
+    call psparms_nullify(psparms)
+    call psparms_dealloc(psparms_data)
+
+    call jules_vars_dealloc(jules_vars_data)
+    call jules_vars_nullify(jules_vars)
+
+    call prognostics_nullify(progs)
+    call prognostics_dealloc(progs_data)
+
+    call fluxes_nullify(fluxes)
+    call fluxes_dealloc(fluxes_data)
 
   end subroutine jules_extra_code
 

@@ -7,7 +7,7 @@
 module bl_exp_kernel_mod
 
   use argument_mod,           only : arg_type,                   &
-                                     GH_FIELD, GH_REAL,          & 
+                                     GH_FIELD, GH_REAL,          &
                                      GH_INTEGER,                 &
                                      GH_READ, GH_WRITE,          &
                                      GH_READWRITE, CELL_COLUMN,  &
@@ -180,11 +180,11 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_INTEGER,  GH_WRITE,  ANY_DISCONTINUOUS_SPACE_9),&! bl_type_ind
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_3),&! snow_unload_rate
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_10),&! albedo_obs_scaling
-         arg_type(GH_FIELD, GH_INTEGER,  GH_WRITE,  ANY_DISCONTINUOUS_SPACE_1), &! level_ent 
-         arg_type(GH_FIELD, GH_INTEGER,  GH_WRITE,  ANY_DISCONTINUOUS_SPACE_1), &! level_ent_dsc 
+         arg_type(GH_FIELD, GH_INTEGER,  GH_WRITE,  ANY_DISCONTINUOUS_SPACE_1), &! level_ent
+         arg_type(GH_FIELD, GH_INTEGER,  GH_WRITE,  ANY_DISCONTINUOUS_SPACE_1), &! level_ent_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_we_lim
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_t_frac 
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_zrzi 
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_t_frac
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_zrzi
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_we_lim_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_t_frac_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_11),&! ent_zrzi_dsc
@@ -290,7 +290,7 @@ contains
   !> @param[in,out] rhokm_bl               Momentum eddy diffusivity on BL levels
   !> @param[in,out] surf_interp            Surface variables for regridding
   !> @param[in,out] rhokh_bl               Heat eddy diffusivity on BL levels
-  !> @param[in,out] tke_bl                 Turbulent kinetic energy (m2 s-2) 
+  !> @param[in,out] tke_bl                 Turbulent kinetic energy (m2 s-2)
   !> @param[in,out] ngstress_bl            Non-gradient stress function on BL levels
   !> @param[in,out] bq_bl                  Buoyancy parameter for moisture
   !> @param[in,out] bt_bl                  Buoyancy parameter for heat
@@ -347,7 +347,7 @@ contains
   !> @param[in] soil_clay_2d               Soil clay fraction
   !> @param[in] soil_sand_2d               Soil sand fraction
   !> @param[in] dust_div_mrel              Relative soil mass in CLASSIC size divisions
-  !> @param[in,out] dust_div_flux          Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1) 
+  !> @param[in,out] dust_div_flux          Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
   !> @param[in,out] zht                    Diagnostic: turb mixing height
   !> @param[in,out] z0h_eff                Diagnostic: Gridbox mean effective roughness length for scalars
   !> @param[in,out] oblen                  Diagnostic: Obukhov length
@@ -568,21 +568,36 @@ contains
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
-    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat, rad_nband
-    use atm_fields_bounds_mod, only: tdims, pdims_s, pdims_l
+    use ancil_info, only: ssi_pts, sea_pts, sice_pts, sice_pts_ncat,          &
+                          rad_nband, nsoilt, nsurft, dim_cslayer, nmasst
+    use atm_fields_bounds_mod, only: tdims, pdims_s, pdims_l, pdims
     use atm_step_local, only: dim_cs1, dim_cs2, co2_dim_len, co2_dim_row
     use c_kappai, only: kappai, de
-    use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,               &
+    use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,                &
                           cldbase_opt_dp, cldbase_opt_md
     use dust_parameters_mod, only: ndiv, ndivh
-    use jules_sea_seaice_mod, only: nice_use
-    use jules_snow_mod, only: nsmax
-    use jules_surface_types_mod, only: npft, ntype
-    use nlsizes_namelist_mod, only: row_length, rows, land_field,            &
+    use jules_deposition_mod, only: l_deposition
+    use jules_irrig_mod,          only: irr_crop, irr_crop_doell
+    use jules_radiation_mod,      only: l_albedo_obs
+    use jules_sea_seaice_mod, only: nice, nice_use
+    use jules_snow_mod, only: nsmax, cansnowtile
+    use jules_soil_mod, only: ns_deep, l_bedrock
+    use jules_soil_biogeochem_mod, only: dim_ch4layer, soil_bgc_model,        &
+                                        soil_model_ecosse, l_layeredc
+    use jules_surface_types_mod, only: npft, ntype, ncpft, nnpft
+    use jules_surface_mod,        only: l_urban2t, l_flake_model
+    use jules_vegetation_mod,     only: l_crop, l_triffid, l_phenol,          &
+                                        l_use_pft_psi, can_rad_mod, l_acclim
+    use nlsizes_namelist_mod, only: row_length, rows, land_field,             &
          sm_levels, ntiles, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius
     use rad_input_mod, only: co2_mmr
+    use jules_urban_mod,           only: l_moruses
     use timestep_mod, only: timestep
+    use theta_field_sizes,        only: t_i_length, t_j_length,               &
+                                        u_i_length,u_j_length,                &
+                                        v_i_length,v_j_length
+    use veg3_parm_mod,            only: l_veg3
 
     ! spatially varying fields used from modules
     use level_heights_mod, only: r_theta_levels, r_rho_levels
@@ -601,16 +616,49 @@ contains
     !---------------------------------------
     ! JULES modules
     !---------------------------------------
-    use jules_fields_mod, only : crop_vars, psparms, ainfo, trif_vars,         &
-                                 aerotype, urban_param, progs, trifctltype,    &
-                                 coast, jules_vars,                            &
-                                 fluxes,                                       &
-                                 lake_vars,                                    &
-                                 forcing,                                      &
-                                !rivers,                                       &
-                                !veg3_parm,                                    &
-                                !veg3_field,                                   &
-                                chemvars
+    use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
+                                        crop_vars_alloc, crop_vars_assoc,      &
+                                        crop_vars_dealloc, crop_vars_nullify
+    use prognostics,              only: progs_data_type, progs_type,           &
+                                        prognostics_alloc, prognostics_assoc,  &
+                                        prognostics_dealloc, prognostics_nullify
+    use jules_vars_mod,           only: jules_vars_type, jules_vars_data_type, &
+                                        jules_vars_alloc, jules_vars_assoc,    &
+                                        jules_vars_dealloc, jules_vars_nullify
+    use p_s_parms,                only: psparms_type, psparms_data_type,       &
+                                        psparms_alloc, psparms_assoc,          &
+                                        psparms_dealloc, psparms_nullify
+    use trif_vars_mod,            only: trif_vars_type, trif_vars_data_type,   &
+                                        trif_vars_assoc, trif_vars_alloc,      &
+                                        trif_vars_dealloc, trif_vars_nullify
+    use aero,                     only: aero_type, aero_data_type,             &
+                                        aero_assoc, aero_alloc,                &
+                                        aero_dealloc, aero_nullify
+    use urban_param_mod,          only: urban_param_type,                      &
+                                        urban_param_data_type,                 &
+                                        urban_param_assoc, urban_param_alloc,  &
+                                        urban_param_dealloc, urban_param_nullify
+    use trifctl,                  only: trifctl_type, trifctl_data_type,       &
+                                        trifctl_assoc, trifctl_alloc,          &
+                                        trifctl_dealloc, trifctl_nullify
+    use coastal,                  only: coastal_type, coastal_data_type,       &
+                                        coastal_assoc, coastal_alloc,          &
+                                        coastal_dealloc, coastal_nullify
+    use lake_mod,                 only: lake_type, lake_data_type,             &
+                                        lake_assoc, lake_alloc,                &
+                                        lake_dealloc, lake_nullify
+    use ancil_info,               only: ainfo_type, ainfo_data_type,           &
+                                        ancil_info_assoc, ancil_info_alloc,    &
+                                        ancil_info_dealloc, ancil_info_nullify
+    use jules_forcing_mod,        only: forcing_type, forcing_data_type,       &
+                                        forcing_assoc, forcing_alloc,          &
+                                        forcing_dealloc, forcing_nullify
+    use fluxes_mod,               only: fluxes_type, fluxes_data_type,         &
+                                        fluxes_alloc, fluxes_assoc,            &
+                                        fluxes_nullify, fluxes_dealloc
+    use jules_chemvars_mod,       only: chemvars_type, chemvars_data_type,     &
+                                        chemvars_alloc, chemvars_assoc,        &
+                                        chemvars_dealloc, chemvars_nullify
 
     implicit none
 
@@ -785,13 +833,13 @@ contains
                                                             gc_tile,          &
                                                             canhc_tile
 
-    integer(kind=i_def), dimension(undf_2d),   intent(inout)  :: level_ent 
-    integer(kind=i_def), dimension(undf_2d),   intent(inout)  :: level_ent_dsc 
-    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_we_lim 
-    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_t_frac 
+    integer(kind=i_def), dimension(undf_2d),   intent(inout)  :: level_ent
+    integer(kind=i_def), dimension(undf_2d),   intent(inout)  :: level_ent_dsc
+    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_we_lim
+    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_t_frac
     real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_zrzi
     real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_we_lim_dsc
-    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_t_frac_dsc 
+    real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_t_frac_dsc
     real(kind=r_def), dimension(undf_ent),  intent(inout)  :: ent_zrzi_dsc
 
     real(kind=r_def), dimension(undf_2d),   intent(in)     :: soil_clay_2d
@@ -969,6 +1017,107 @@ contains
     real(r_um), dimension(land_field,npft) :: resp_w_pft, g_leaf_acc_pft,    &
          npp_acc_pft, resp_w_acc_pft
 
+
+    !-----------------------------------------------------------------------
+    ! JULES Types
+    !-----------------------------------------------------------------------
+    type(crop_vars_type) :: crop_vars
+    type(crop_vars_data_type) :: crop_vars_data
+    type(progs_type) :: progs
+    type(progs_data_type) :: progs_data
+    type(psparms_type) :: psparms
+    type(psparms_data_type) :: psparms_data
+    type(trif_vars_type) :: trif_vars
+    type(trif_vars_data_type) :: trif_vars_data
+    type(aero_type) :: aerotype
+    type(aero_data_type) :: aero_data
+    type(urban_param_type) :: urban_param
+    type(urban_param_data_type) :: urban_param_data
+    type(trifctl_type) :: trifctltype
+    type(trifctl_data_type) :: trifctl_data
+    type(coastal_type) :: coast
+    type(coastal_data_type) :: coastal_data
+    type(lake_type) :: lake_vars
+    type(lake_data_type) :: lake_data
+    type(ainfo_type) :: ainfo
+    type(ainfo_data_type) :: ainfo_data
+    type(forcing_type) :: forcing
+    type(forcing_data_type) :: forcing_data
+    type(fluxes_type) :: fluxes
+    type(fluxes_data_type) :: fluxes_data
+    type(chemvars_type) :: chemvars
+    type(chemvars_data_type) :: chemvars_data
+    type(jules_vars_type) :: jules_vars
+    type(jules_vars_data_type), TARGET :: jules_vars_data
+
+    !-----------------------------------------------------------------------
+    ! Initialisation of JULES data and pointer types
+    !-----------------------------------------------------------------------
+    call crop_vars_alloc(land_field, t_i_length, t_j_length,                   &
+                     nsurft, ncpft,nsoilt, sm_levels, l_crop, irr_crop,        &
+                     irr_crop_doell, crop_vars_data)
+    call crop_vars_assoc(crop_vars, crop_vars_data)
+
+    call prognostics_alloc(land_field, t_i_length, t_j_length,                 &
+                      nsurft, npft, nsoilt, sm_levels, ns_deep, nsmax,         &
+                      dim_cslayer, dim_cs1, dim_ch4layer,                      &
+                      nice, nice_use, soil_bgc_model, soil_model_ecosse,       &
+                      l_layeredc, l_triffid, l_phenol, l_bedrock, l_veg3,      &
+                      nmasst, nnpft, l_acclim, progs_data)
+    call prognostics_assoc(progs,progs_data)
+
+    call psparms_alloc(land_field,t_i_length,t_j_length,                       &
+                   nsoilt,sm_levels,dim_cslayer,nsurft,npft,                   &
+                   soil_bgc_model,soil_model_ecosse,l_use_pft_psi,             &
+                   psparms_data)
+    call psparms_assoc(psparms, psparms_data)
+
+    call trif_vars_alloc(land_field,                                           &
+                     npft,dim_cslayer,nsoilt,dim_cs1,                          &
+                     l_triffid, l_phenol, trif_vars_data)
+    call trif_vars_assoc(trif_vars, trif_vars_data)
+
+    call aero_alloc(land_field,t_i_length,t_j_length,                          &
+                nsurft,ndiv, aero_data)
+    call aero_assoc(aerotype, aero_data)
+
+    call urban_param_alloc(land_field, l_urban2t, l_moruses, urban_param_data)
+    call urban_param_assoc(urban_param, urban_param_data)
+
+    call trifctl_alloc(land_field,                                             &
+                   npft,dim_cslayer,dim_cs1,nsoilt,trifctl_data)
+    call trifctl_assoc(trifctltype, trifctl_data)
+
+    call coastal_alloc(land_field,t_i_length,t_j_length,                       &
+                   u_i_length,u_j_length,                                      &
+                   v_i_length,v_j_length,                                      &
+                   nice_use,nice,coastal_data)
+    call coastal_assoc(coast, coastal_data)
+
+    call lake_alloc(land_field, l_flake_model, lake_data)
+    call lake_assoc(lake_vars, lake_data)
+
+    call ancil_info_alloc(land_field,t_i_length,t_j_length,                    &
+                      nice,nsoilt,ntype,                                       &
+                      ainfo_data)
+    call ancil_info_assoc(ainfo, ainfo_data)
+
+    call forcing_alloc(t_i_length,t_j_length,u_i_length, u_j_length,           &
+                        v_i_length, v_j_length, forcing_data)
+    call forcing_assoc(forcing, forcing_data)
+
+    call fluxes_alloc(land_field, t_i_length, t_j_length,                      &
+                      nsurft, npft, nsoilt, sm_levels,                         &
+                      nice, nice_use,                                          &
+                      fluxes_data)
+    call fluxes_assoc(fluxes, fluxes_data)
+
+    call chemvars_alloc(land_field,npft,chemvars_data)
+    call chemvars_assoc(chemvars, chemvars_data)
+
+    ! Note, jules_vars needs setting up after the change to pdims_s below so is
+    ! not with the rest of these allocations.
+
     !-----------------------------------------------------------------------
     ! Initialisation of variables and arrays
     !-----------------------------------------------------------------------
@@ -990,10 +1139,6 @@ contains
       l_spec_z0 = .false.
     end if
 
-    ! surf_hgt_surft needs to be initialised in this kernel so it has the
-    ! correct value for this grid-point when used within Jules
-    jules_vars%surf_hgt_surft = 0.0_r_um
-
     ! Size this with stencil for use in UM routines called
     pdims_s%i_start=0
     pdims_s%i_end=row_length+1
@@ -1012,6 +1157,21 @@ contains
     fluxes%fqw_surft = 0.0_r_um
     epot_surft       = 0.0_r_um
 
+    call jules_vars_alloc(land_field,ntype,nsurft,rad_nband,nsoilt,sm_levels,  &
+            t_i_length, t_j_length, npft, bl_levels, pdims_s, pdims,      &
+            l_albedo_obs, cansnowtile, l_deposition,                      &
+            jules_vars_data)
+    call jules_vars_assoc(jules_vars,jules_vars_data)
+
+    ! surf_hgt_surft needs to be initialised in this kernel so it has the
+    ! correct value for this grid-point when used within Jules
+    jules_vars%surf_hgt_surft = 0.0_r_um
+
+    if (can_rad_mod == 6) then
+      jules_vars%diff_frac = 0.4_r_um
+    else
+      jules_vars%diff_frac = 0.0_r_um
+    end if
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into UM variables
     !-----------------------------------------------------------------------
@@ -1491,10 +1651,7 @@ contains
          fluxes,                                                               &
          lake_vars,                                                            &
          forcing,                                                              &
-        !rivers,                                                               &
-        !veg3_parm,                                                            &
-        !veg3_field,                                                           &
-        chemvars,                                                              &
+         chemvars,                                                             &
     !     INOUT variables for TKE based turbulence schemes
          e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                         &
     !     INOUT variables from bdy_expl1 needed elsewhere
@@ -1637,10 +1794,7 @@ contains
          fluxes,                                                        &
          lake_vars,                                                     &
          forcing,                                                       &
-        !rivers,                                                        &
-        !veg3_parm,                                                     &
-        !veg3_field,                                                    &
-        chemvars,                                                       &
+         chemvars,                                                      &
     !     INOUT variables for TKE based turbulence schemes
          e_trb, tsq_trb, qsq_trb, cov_trb, zhpar_shcu,                  &
       ! INOUT variables from bdy_expl1 needed elsewhere
@@ -1754,12 +1908,12 @@ contains
     level_ent(map_2d(1)) = int( kent(1,1), i_def )
     level_ent_dsc(map_2d(1)) = int( kent_dsc(1,1), i_def )
     do k = 1, 3
-       ent_we_lim(map_ent(1) + k - 1) = real( we_lim(1,1,k), r_def ) 
-       ent_t_frac(map_ent(1) + k - 1) = real( t_frac(1,1,k), r_def ) 
-       ent_zrzi(map_ent(1) + k - 1) = real( zrzi(1,1,k), r_def ) 
-       ent_we_lim_dsc(map_ent(1) + k - 1) = real( we_lim_dsc(1,1,k), r_def ) 
-       ent_t_frac_dsc(map_ent(1) + k - 1) = real( t_frac_dsc(1,1,k), r_def ) 
-       ent_zrzi_dsc(map_ent(1) + k - 1) = real( zrzi_dsc(1,1,k), r_def ) 
+       ent_we_lim(map_ent(1) + k - 1) = real( we_lim(1,1,k), r_def )
+       ent_t_frac(map_ent(1) + k - 1) = real( t_frac(1,1,k), r_def )
+       ent_zrzi(map_ent(1) + k - 1) = real( zrzi(1,1,k), r_def )
+       ent_we_lim_dsc(map_ent(1) + k - 1) = real( we_lim_dsc(1,1,k), r_def )
+       ent_t_frac_dsc(map_ent(1) + k - 1) = real( t_frac_dsc(1,1,k), r_def )
+       ent_zrzi_dsc(map_ent(1) + k - 1) = real( zrzi_dsc(1,1,k), r_def )
     end do
 
     if (formdrag == formdrag_dist_drag) then
@@ -1984,6 +2138,48 @@ contains
     deallocate(r_rho_levels)
     allocate(r_theta_levels(row_length,rows,0:nlayers), source=rmdi)
     allocate(r_rho_levels(row_length,rows,nlayers), source=rmdi)
+
+    call ancil_info_nullify(ainfo)
+    call ancil_info_dealloc(ainfo_data)
+
+    call forcing_nullify(forcing)
+    call forcing_dealloc(forcing_data)
+
+    call crop_vars_nullify(crop_vars)
+    call crop_vars_dealloc(crop_vars_data)
+
+    call lake_nullify(lake_vars)
+    call lake_dealloc(lake_data)
+
+    call coastal_nullify(coast)
+    call coastal_dealloc(coastal_data)
+
+    call trifctl_nullify(trifctltype)
+    call trifctl_dealloc(trifctl_data)
+
+    call urban_param_nullify(urban_param)
+    call urban_param_dealloc(urban_param_data)
+
+    call aero_nullify(aerotype)
+    call aero_dealloc(aero_data)
+
+    call trif_vars_nullify(trif_vars)
+    call trif_vars_dealloc(trif_vars_data)
+
+    call psparms_nullify(psparms)
+    call psparms_dealloc(psparms_data)
+
+    call jules_vars_dealloc(jules_vars_data)
+    call jules_vars_nullify(jules_vars)
+
+    call prognostics_nullify(progs)
+    call prognostics_dealloc(progs_data)
+
+    call fluxes_nullify(fluxes)
+    call fluxes_dealloc(fluxes_data)
+
+    call chemvars_nullify(chemvars)
+    call chemvars_dealloc(chemvars_data)
 
   end subroutine bl_exp_code
 

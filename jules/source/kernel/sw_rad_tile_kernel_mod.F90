@@ -158,24 +158,62 @@ subroutine sw_rad_tile_code(nlayers,                                &
                             ndf_w3, undf_w3, map_w3,                &
                             ndf_wth, undf_wth, map_wth)
 
-  use socrates_init_mod, only: wavelength_short, wavelength_long, weight_blue
-  use jules_control_init_mod, only: &
-    n_surf_tile, n_land_tile, n_sea_tile, n_sea_ice_tile, &
-    first_sea_tile, first_sea_ice_tile
-  use surface_config_mod, only: albedo_obs
-  use nlsizes_namelist_mod, only: row_length, rows, land_field, ntiles
-  use jules_surface_types_mod, only: ntype, npft, ice
-  use jules_sea_seaice_mod, only: nice, nice_use
-  use jules_fields_mod, only: psparms, ainfo, urban_param, progs, coast, &
-    jules_vars, &
-    fluxes, &
-    lake_vars
-    !forcing, &
-    !rivers, &
-    !veg3_parm, &
-    !veg3_field, &
-    !chemvars
-  use ancil_info, only: sea_pts, sice_pts_ncat, rad_nband
+  use socrates_init_mod,        only: wavelength_short, wavelength_long,      &
+                                      weight_blue
+  use atm_step_local,           only: dim_cs1
+  use atm_fields_bounds_mod,    only: pdims_s, pdims
+  use jules_control_init_mod,   only: n_surf_tile, n_land_tile, n_sea_tile,   &
+                                      n_sea_ice_tile, first_sea_tile,         &
+                                      first_sea_ice_tile
+  use surface_config_mod,       only: albedo_obs
+  use nlsizes_namelist_mod,     only: row_length, rows, land_field, ntiles,   &
+                                  sm_levels, bl_levels
+  use jules_surface_types_mod,  only: ntype, npft, ice, nnpft
+  use jules_sea_seaice_mod,     only: nice, nice_use
+  use ancil_info,               only: sea_pts, sice_pts_ncat, rad_nband,      &
+                                      dim_cslayer, nsurft, nsoilt, nmasst
+  use theta_field_sizes,        only: t_i_length, t_j_length,                 &
+                                      u_i_length,u_j_length,                  &
+                                      v_i_length,v_j_length
+  use jules_vegetation_mod,     only: l_triffid, l_phenol, l_use_pft_psi,     &
+                                      can_rad_mod, l_acclim
+  use jules_soil_mod,           only: ns_deep, l_bedrock
+  use jules_soil_biogeochem_mod, only: dim_ch4layer, soil_bgc_model,          &
+                                        soil_model_ecosse, l_layeredc
+  use jules_radiation_mod,      only: l_albedo_obs
+  use jules_snow_mod,           only: nsmax, cansnowtile
+  use jules_deposition_mod,     only: l_deposition
+  use jules_surface_mod,        only: l_urban2t, l_flake_model
+  use jules_urban_mod,          only: l_moruses
+  use veg3_parm_mod,            only: l_veg3
+
+  use prognostics,              only: progs_data_type, progs_type,            &
+                                      prognostics_alloc, prognostics_assoc,   &
+                                      prognostics_nullify, prognostics_dealloc
+  use jules_vars_mod,           only: jules_vars_type, jules_vars_data_type,  &
+                                      jules_vars_alloc, jules_vars_assoc,     &
+                                      jules_vars_nullify, jules_vars_dealloc
+  use p_s_parms,                only: psparms_type, psparms_data_type,        &
+                                      psparms_alloc, psparms_assoc,           &
+                                      psparms_nullify, psparms_dealloc
+  use ancil_info,               only: ainfo_data_type, ainfo_type,            &
+                                      ancil_info_alloc, ancil_info_assoc,     &
+                                      ancil_info_nullify, ancil_info_dealloc
+  use coastal,                  only: coastal_type, coastal_data_type,        &
+                                      coastal_assoc, coastal_alloc,           &
+                                      coastal_nullify, coastal_dealloc
+  use urban_param_mod,          only: urban_param_data_type, urban_param_type, &
+                                      urban_param_alloc, urban_param_assoc,   &
+                                      urban_param_nullify, urban_param_dealloc
+  use lake_mod,                 only: lake_data_type, lake_type,              &
+                                      lake_assoc, lake_alloc, &
+                                      lake_nullify, lake_dealloc
+  use ancil_info,               only: ainfo_type, ainfo_data_type,            &
+                                      ancil_info_assoc, ancil_info_alloc,     &
+                                      ancil_info_dealloc, ancil_info_nullify
+  use fluxes_mod,               only: fluxes_type, fluxes_data_type,          &
+                                      fluxes_alloc, fluxes_assoc,             &
+                                      fluxes_nullify, fluxes_dealloc
 
   use tilepts_mod, only: tilepts
   use sparm_mod, only: sparm
@@ -255,6 +293,81 @@ subroutine sw_rad_tile_code(nlayers,                                &
     albobs_sc
   real(r_um), dimension(row_length, rows, 2, n_band) :: &
     open_sea_albedo
+
+  !-----------------------------------------------------------------------
+  ! JULES Types
+  !-----------------------------------------------------------------------
+  type(progs_type) :: progs
+  type(progs_data_type) :: progs_data
+  type(jules_vars_type) :: jules_vars
+  type(jules_vars_data_type) :: jules_vars_data
+  type(psparms_type) :: psparms
+  type(psparms_data_type) :: psparms_data
+  type(ainfo_type) :: ainfo
+  type(ainfo_data_type) :: ainfo_data
+  type(urban_param_type) :: urban_param
+  type(urban_param_data_type) :: urban_param_data
+  type(coastal_type) :: coast
+  type(coastal_data_type) :: coastal_data
+  type(lake_type) :: lake_vars
+  type(lake_data_type) :: lake_data
+  type(fluxes_type) :: fluxes
+  type(fluxes_data_type) :: fluxes_data
+
+  !-----------------------------------------------------------------------
+  ! Initialisation of JULES data and pointer types
+  !-----------------------------------------------------------------------
+  call prognostics_alloc(land_field, t_i_length, t_j_length,                  &
+                      nsurft, npft, nsoilt, sm_levels, ns_deep, nsmax,        &
+                      dim_cslayer, dim_cs1, dim_ch4layer,                     &
+                      nice, nice_use, soil_bgc_model, soil_model_ecosse,      &
+                      l_layeredc, l_triffid, l_phenol, l_bedrock, l_veg3,     &
+                      nmasst, nnpft, l_acclim, progs_data)
+  call prognostics_assoc(progs,progs_data)
+
+  call jules_vars_alloc(land_field,ntype,nsurft,rad_nband,nsoilt,sm_levels,   &
+                t_i_length, t_j_length, npft, bl_levels, pdims_s, pdims,      &
+                l_albedo_obs, cansnowtile, l_deposition,                      &
+                jules_vars_data)
+  call jules_vars_assoc(jules_vars,jules_vars_data)
+
+  if (can_rad_mod == 6) then
+    jules_vars%diff_frac = 0.4_r_um
+  else
+    jules_vars%diff_frac = 0.0_r_um
+  end if
+
+  call psparms_alloc(land_field,t_i_length,t_j_length,                        &
+                   nsoilt,sm_levels,dim_cslayer,nsurft,npft,                  &
+                   soil_bgc_model,soil_model_ecosse,l_use_pft_psi,            &
+                   psparms_data)
+  call psparms_assoc(psparms, psparms_data)
+
+  call ancil_info_alloc(land_field,t_i_length,t_j_length,                     &
+                      nice,nsoilt,ntype,                                      &
+                      ainfo_data)
+  call ancil_info_assoc(ainfo, ainfo_data)
+
+  call urban_param_alloc(land_field, l_urban2t, l_moruses, urban_param_data)
+  call urban_param_assoc(urban_param, urban_param_data)
+
+  call coastal_alloc(land_field,t_i_length,t_j_length,                        &
+                   u_i_length,u_j_length,                                     &
+                   v_i_length,v_j_length,                                     &
+                   nice_use,nice,coastal_data)
+  call coastal_assoc(coast, coastal_data)
+
+  call lake_alloc(land_field, l_flake_model, lake_data)
+  call lake_assoc(lake_vars, lake_data)
+
+  call fluxes_alloc(land_field, t_i_length, t_j_length,                       &
+                      nsurft, npft, nsoilt, sm_levels,                        &
+                      nice, nice_use,                                         &
+                      fluxes_data)
+  call fluxes_assoc(fluxes, fluxes_data)
+  ! ---------------------------------------------------------------------------
+  ! SW tile albedos
+  ! ---------------------------------------------------------------------------
 
   ! Land tile fractions
   flandg = 0.0_r_um
@@ -430,13 +543,7 @@ subroutine sw_rad_tile_code(nlayers,                                &
     albobs_sc, open_sea_albedo, &
     ! JULES types
     psparms, ainfo, urban_param, progs, coast, jules_vars, &
-    fluxes, lake_vars &
-    !forcing, &
-    !rivers, &
-    !veg3_parm, &
-    !veg3_field, &
-    !chemvars, &
-    )
+    fluxes, lake_vars)
 
   df_rtile = 0
   do i_band = 1, n_band
@@ -513,6 +620,30 @@ subroutine sw_rad_tile_code(nlayers,                                &
 
   ! set this back to 1 before exit
   land_field = 1
+
+  call ancil_info_nullify(ainfo)
+  call ancil_info_dealloc(ainfo_data)
+
+  call lake_nullify(lake_vars)
+  call lake_dealloc(lake_data)
+
+  call coastal_nullify(coast)
+  call coastal_dealloc(coastal_data)
+
+  call urban_param_nullify(urban_param)
+  call urban_param_dealloc(urban_param_data)
+
+  call psparms_nullify(psparms)
+  call psparms_dealloc(psparms_data)
+
+  call jules_vars_dealloc(jules_vars_data)
+  call jules_vars_nullify(jules_vars)
+
+  call prognostics_nullify(progs)
+  call prognostics_dealloc(progs_data)
+
+  call fluxes_nullify(fluxes)
+  call fluxes_dealloc(fluxes_data)
 
 end subroutine sw_rad_tile_code
 
