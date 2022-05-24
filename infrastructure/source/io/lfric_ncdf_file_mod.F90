@@ -12,7 +12,7 @@ module lfric_ncdf_file_mod
   use netcdf,        only: nf90_open, nf90_create, nf90_close,           &
                            nf90_write, nf90_nowrite, nf90_clobber,       &
                            nf90_strerror, nf90_noerr, nf90_64bit_offset, &
-                           nf90_enddef
+                           nf90_put_att, nf90_global, nf90_enddef
 
   implicit none
 
@@ -34,6 +34,7 @@ module lfric_ncdf_file_mod
     procedure, public  :: close_file
     procedure, public  :: get_id
     procedure, public  :: get_io_mode
+    procedure, public  :: set_attribute
     procedure, public  :: close_definition
 
   end type
@@ -112,7 +113,7 @@ contains
                         cmode=ior(nf90_clobber,nf90_64bit_offset), &
                         ncid=self%ncid )
 
-    call check_err(ierr, routine)
+    call check_err(ierr, routine, self%name)
 
     return
 
@@ -130,7 +131,7 @@ contains
 
     ierr = nf90_open( trim(self%name), self%mode, self%ncid )
 
-    call check_err(ierr, routine)
+    call check_err(ierr, routine, self%name)
 
     return
 
@@ -148,7 +149,7 @@ contains
 
     ierr = nf90_close( self%ncid )
 
-    call check_err(ierr, routine)
+    call check_err(ierr, routine, self%name)
 
     return
 
@@ -188,6 +189,30 @@ contains
 
   end function get_io_mode
 
+  !> @brief    Assigns global attributes to the NetCDF file.
+  !>
+  !> @param[in]  attr_name   The name of attribute to be set
+  !> @param[in]  attr_value  The value of the attribute
+  subroutine set_attribute(self, attr_name, attr_value)
+
+    implicit none
+
+    class(lfric_ncdf_file_type), intent(in) :: self
+    character(len=*),            intent(in) :: attr_name
+    character(len=*),            intent(in) :: attr_value
+
+    integer(kind=i_def)         :: ierr
+    character(len=*), parameter :: routine = 'set_attribute'
+
+    ierr = nf90_put_att(self%ncid, nf90_global, attr_name, &
+                        trim(attr_value))
+
+    call check_err(ierr, routine, self%name)
+
+    return
+
+  end subroutine set_attribute
+
   !> @brief  Closes the NetCDF file definition.
   subroutine close_definition(self)
 
@@ -200,7 +225,7 @@ contains
 
     ierr = nf90_enddef(self%ncid)
 
-    call check_err(ierr, routine)
+    call check_err(ierr, routine, self%name)
 
     return
 
@@ -210,18 +235,20 @@ contains
   !> @details  Checks the error code returned by the NetCDF file. If an error is
   !!           detected, the relevant error message is passed to the logger.
   !>
-  !> @param[in] ierr    The error code to check
-  !> @param[in] routine The routine name that call the error check
-  subroutine check_err(ierr, routine)
+  !> @param[in] ierr     The error code to check
+  !> @param[in] routine  The routine name that call the error check
+  !> @param[in] filename The file name that raised the error
+  subroutine check_err(ierr, routine, filename)
 
     implicit none
 
     integer(kind=i_def), intent(in) :: ierr
-    character(len=*),    intent(in) :: routine
+    character(len=*),    intent(in) :: routine, filename
 
     if ( ierr /= nf90_noerr ) then
-      write(log_scratch_space,*) "Error in lfric_ncdf_file ['//routine//']: "//&
-            trim(nf90_strerror(ierr))
+      write(log_scratch_space,*) "Error in lfric_ncdf_file_mod ['"//routine// &
+                                 "'] for file '"//trim(filename)//"': "//     &
+                                 trim(nf90_strerror(ierr))
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
     end if
 

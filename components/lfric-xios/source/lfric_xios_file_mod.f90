@@ -8,7 +8,8 @@
 !>
 module lfric_xios_file_mod
 
-  use constants_mod,  only: i_def, str_def, str_max_filename
+  use constants_mod,                 only: i_def, str_def, str_max_filename
+  use lfric_xios_process_output_mod, only: process_output_file
   use file_mod,       only: file_type
   use log_mod,        only: log_event, log_level_error
 
@@ -25,6 +26,8 @@ type, public, extends(file_type)  :: lfric_xios_file_type
   character(str_def)          :: xios_id
   !> Path to file
   character(str_max_filename) :: path
+  !> Flag denoting if file is to be read in
+  logical :: is_input_file
   !> File output frequency
   integer(i_def)              :: output_freq
   !> XIOS ID of associated field group
@@ -71,33 +74,45 @@ subroutine file_open(self, file_name)
 
 end subroutine file_open
 
-!> @brief  Closes the LFRic definition of an output file after it has been
-!!         closed by XIOS
+!> @brief  Performs final routines before closure of XIOS file
 subroutine file_close(self)
 
   implicit none
 
   class(lfric_xios_file_type), intent(inout) :: self
 
-  ! TODO process output
+  if (.not. self%is_input_file) then
+    call process_output_file(trim(self%path)//".nc")
+  end if
 
 end subroutine file_close
 
 !>  @brief  Configures a file object for use with XIOS
 !>
 !>  @param[in]           xios_id         The XIOS name for the file
+!>  @param[in,optional]  io_mode_read    Logical flag denoting that the file is
+!!                                       to be read into the model
 !>  @param[in,optional]  freq            The file output frequency
 !>  @param[in,optional]  field_group_id  The associated field group id
-subroutine configure(self, xios_id, freq, field_group_id)
+!>
+subroutine configure(self, xios_id, freq, io_mode_read, field_group_id)
 
   implicit none
 
   class(lfric_xios_file_type), intent(inout) :: self
   character(len=*),            intent(in)    :: xios_id
+  logical,          optional,  intent(in)    :: io_mode_read
   integer(i_def),   optional,  intent(in)    :: freq
   character(len=*), optional,  intent(in)    :: field_group_id
 
   self%xios_id = xios_id
+
+  ! XIOS default for file mode is "write"
+  if (present(io_mode_read)) then
+    self%is_input_file = io_mode_read
+  else
+    self%is_input_file = .false.
+  end if
 
   if (present(freq)) then
     if (freq < 1) then

@@ -87,7 +87,8 @@ module io_dev_init_files_mod
 
         ! Setup dump file
         call tmp_xios_file%file_new(dump_fname)
-        call tmp_xios_file%configure(xios_id="io_dev_dump_in")
+        call tmp_xios_file%configure(xios_id="io_dev_dump_in", &
+                                     io_mode_read=.TRUE.)
         call append_file_to_list(tmp_xios_file, files_list)
       end if
 
@@ -111,7 +112,8 @@ module io_dev_init_files_mod
                      trim(checkpoint_stem_name),"_", (ts_start - 1)
 
         call tmp_xios_file%file_new(checkpoint_read_fname)
-        call tmp_xios_file%configure(xios_id="io_dev_checkpoint_read")
+        call tmp_xios_file%configure(xios_id="io_dev_checkpoint_read", &
+                                     io_mode_read=.TRUE.)
         call append_file_to_list(tmp_xios_file, files_list)
       end if
 
@@ -121,14 +123,16 @@ module io_dev_init_files_mod
         write(input_fname,'(A)') trim(start_dump_directory)//'/'// &
                                  trim(time_varying_input_path)
         call tmp_xios_file%file_new(input_fname)
-        call tmp_xios_file%configure(xios_id="io_dev_time_varying_input")
+        call tmp_xios_file%configure(xios_id="io_dev_time_varying_input", &
+                                     io_mode_read=.TRUE.)
         call append_file_to_list(tmp_xios_file, files_list)
 
         ! Set time data input filename from namelist
         write(input_fname,'(A)') trim(start_dump_directory)//'/'// &
                                  trim(time_data_path)
         call tmp_xios_file%file_new(input_fname)
-        call tmp_xios_file%configure(xios_id="io_dev_times")
+        call tmp_xios_file%configure(xios_id="io_dev_times", &
+                                     io_mode_read=.TRUE.)
         call append_file_to_list(tmp_xios_file, files_list)
 
       end if

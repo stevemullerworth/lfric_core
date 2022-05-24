@@ -153,9 +153,15 @@ contains
 
     implicit none
 
-    type(lfric_xios_context_type), intent(in) :: this
+    type(lfric_xios_context_type), intent(inout) :: this
+
+    integer(i_native) :: i
 
     call xios_context_finalize()
+
+    do i = 1, size(this%filelist)
+      call this%filelist(i)%file_close()
+    end do
 
   end subroutine finalise
 

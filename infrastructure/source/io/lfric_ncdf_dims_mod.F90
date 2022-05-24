@@ -131,7 +131,7 @@ contains
     character(len=*),    intent(in) :: routine
 
     if ( ierr /= nf90_noerr ) then
-      write(log_scratch_space,*) "Error in lfric_ncdf_dims ['//routine//']: "//&
+      write(log_scratch_space,*) "Error in lfric_ncdf_dims ['"//routine//"']: "//&
         trim(nf90_strerror(ierr))
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
     end if

@@ -177,7 +177,7 @@ contains
   end subroutine initialise_infrastructure
 
   !> @brief Finalises infrastructure and constants used by the model
-  !> @param[in] program_name The model run identifier
+  !> @param[in]     program_name The model run identifier
   subroutine finalise_infrastructure(program_name)
 
     implicit none

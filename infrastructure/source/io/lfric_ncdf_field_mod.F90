@@ -140,8 +140,8 @@ contains
   !> @details  Adds additional information to NetCDF variables such as
   !!           variable names and descriptions.
   !>
-  !> @param[in]  attr_name   The name of attribute to be read
-  !> @param[in]  attr_value  The return value of the attribute
+  !> @param[in]  attr_name   The name of attribute to be set
+  !> @param[in]  attr_value  The value of the attribute
   subroutine set_attribute(self, attr_name, attr_value)
 
     implicit none
@@ -209,7 +209,7 @@ contains
     character(len=str_long), intent(in) :: cmess
 
     if ( ierr /= nf90_noerr ) then
-      write(log_scratch_space,*) "Error in lfric_ncdf_field ['//routine//']: "//&
+      write(log_scratch_space,*) "Error in lfric_ncdf_field ['"//routine//"']: "//&
         trim(cmess) // " " // trim(nf90_strerror(ierr))
       call log_event( trim(log_scratch_space), LOG_LEVEL_ERROR )
     end if

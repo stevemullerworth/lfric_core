@@ -67,8 +67,8 @@ CLASS(file_type), ALLOCATABLE, INTENT(OUT) :: files_list(:)
 TYPE(lfric_xios_file_type) :: tmp_file
 
 INTEGER, PARAMETER                     :: checkpoint_frequency = 1
-CHARACTER(LEN=str_max_filename)        :: ancil_xios_file_id,                  &
-                                          ancil_file_path,                     &
+CHARACTER(LEN=str_max_filename)        :: ancil_xios_file_id,                 &
+                                          ancil_file_path,                    &
                                           afm
 INTEGER                                :: split_idx, i
 
@@ -84,7 +84,8 @@ IF (ancil_read) THEN
     ancil_file_path = afm(split_idx+1:)
     ! Initial ancil file and insert file in file list
     CALL tmp_file%file_new(TRIM(ancil_file_path))
-    CALL tmp_file%configure(xios_id=TRIM(ancil_xios_file_id))
+    CALL tmp_file%configure(xios_id=TRIM(ancil_xios_file_id),                 &
+                            io_mode_read=.TRUE.)
     CALL append_file_to_list(tmp_file, files_list)
   END DO
 END IF
@@ -93,7 +94,7 @@ END IF
 IF (checkpoint_write) THEN
   ! Create checkpoint filename from stem and first timestep
   CALL tmp_file%file_new(TRIM(checkpoint_write_file))
-  CALL tmp_file%configure(xios_id="lfric_checkpoint_write",               &
+  CALL tmp_file%configure(xios_id="lfric_checkpoint_write",                    &
                           freq=checkpoint_frequency)
   CALL append_file_to_list(tmp_file, files_list)
 END IF
@@ -102,7 +103,8 @@ END IF
 IF (checkpoint_read) THEN
   ! Create checkpoint filename from stem
   CALL tmp_file%file_new(TRIM(checkpoint_read_file))
-  CALL tmp_file%configure(xios_id="lfric_checkpoint_read")
+  CALL tmp_file%configure(xios_id="lfric_checkpoint_read",                     &
+                          io_mode_read=.TRUE.)
   CALL append_file_to_list(tmp_file, files_list)
 END IF
 
