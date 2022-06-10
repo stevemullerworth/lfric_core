@@ -305,19 +305,19 @@ contains
       else if ( label_list(i) /= multigrid_mesh_label ) then
         ! Set up all mass matrices and operators
         ! Mass matrices
-        mm_w0(i)      = operator_type( w0_fs, w0_fs )
-        mm_w1(i)      = operator_type( w1_fs, w1_fs )
-        mm_w2(i)      = operator_type( w2_fs, w2_fs )
-        mm_w2b(i)     = operator_type( w2b_fs, w2b_fs )
-        mm_w3(i)      = operator_type( w3_fs, w3_fs )
-        mm_wtheta(i)  = operator_type( wtheta_fs, wtheta_fs )
+        call mm_w0(i)%initialise( w0_fs, w0_fs )
+        call mm_w1(i)%initialise( w1_fs, w1_fs )
+        call mm_w2(i)%initialise( w2_fs, w2_fs )
+        call mm_w2b(i)%initialise( w2b_fs, w2b_fs )
+        call mm_w3(i)%initialise( w3_fs, w3_fs )
+        call mm_wtheta(i)%initialise( wtheta_fs, wtheta_fs )
 
         ! Differential operators
-        div(i)        = operator_type( w3_fs, w2_fs )
-        grad(i)       = operator_type( w1_fs, w0_fs )
-        curl(i)       = operator_type( w2_fs, w1_fs )
-        broken_div(i) = operator_type( w3_fs, w2b_fs )
-        im3_div(i)    = operator_type( w3_fs, w2_fs )
+        call div(i)%initialise( w3_fs, w2_fs )
+        call grad(i)%initialise( w1_fs, w0_fs )
+        call curl(i)%initialise( w2_fs, w1_fs )
+        call broken_div(i)%initialise( w3_fs, w2b_fs )
+        call im3_div(i)%initialise( w3_fs, w2_fs )
 
         call invoke( name = "create_de_rham_matrices",                           &
                      compute_derham_matrices_kernel_type(mm_w0(i), mm_w1(i),     &
@@ -330,11 +330,11 @@ contains
                                                          qr) )
       else
         ! Multigrid mesh, so only set-up certain mass matrices and operators
-        mm_w2(i)     = operator_type( w2_fs, w2_fs )
-        mm_wtheta(i) = operator_type( wtheta_fs, wtheta_fs )
-        mm_w3(i)     = operator_type( w3_fs, w3_fs )
-        div(i)       = operator_type( w3_fs, w2_fs )
-        im3_div(i)   = operator_type( w3_fs, w2_fs )
+        call mm_w2(i)%initialise( w2_fs, w2_fs )
+        call mm_wtheta(i)%initialise( wtheta_fs, wtheta_fs )
+        call mm_w3(i)%initialise( w3_fs, w3_fs )
+        call div(i)%initialise( w3_fs, w2_fs )
+        call im3_div(i)%initialise( w3_fs, w2_fs )
 
         call invoke( name = "create_mg_de_rham_matrices",             &
                      mg_derham_mat_kernel_type( mm_w2(i), mm_w3(i),   &
@@ -347,7 +347,7 @@ contains
       !======================== Inverse W3 mass matrix ========================!
 
       if ( label_list(i) /= twod_mesh_label ) then
-        mm_w3_inv(i) = operator_type( w3_fs, w3_fs )
+        call mm_w3_inv(i)%initialise( w3_fs, w3_fs )
         call invoke( name = "create_W3_inv_mass_matrix", &
                      invert_local_operator_kernel_type(mm_w3_inv(i), mm_w3(i)) )
         call invoke( operator_x_times_y_kernel_type( im3_div(i), mm_w3_inv(i), div(i) ) )
@@ -358,8 +358,8 @@ contains
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == multigrid_mesh_label ) then
         ! Construct vertical- and horizontal-only weak divergence operator
-        div_v(i)  = operator_type( w3_fs, w2v_fs )
-        div_h(i)  = operator_type( w3_fs, w2h_fs )
+        call div_v(i)%initialise( w3_fs, w2v_fs )
+        call div_h(i)%initialise( w3_fs, w2h_fs )
         call invoke( name = "compute_vert_divergence_operator",                 &
                      compute_div_operator_kernel_type( div_v(i), chi_list(:,i), &
                                                        panel_id_list(i), qr ) )
@@ -368,8 +368,8 @@ contains
                                                        panel_id_list(i), qr ) )
 
         ! Construct vertical- and horizontal-only velocity mass matrices
-        mm_w2v(i) = operator_type( w2v_fs, w2v_fs )
-        mm_w2h(i) = operator_type( w2h_fs, w2h_fs )
+        call mm_w2v(i)%initialise( w2v_fs, w2v_fs )
+        call mm_w2h(i)%initialise( w2h_fs, w2h_fs )
         call invoke( name = "compute_W2_hori_mass_matrix",                         &
                      compute_mass_matrix_kernel_w2_type( mm_w2v(i), chi_list(:,i), &
                                                          panel_id_list(i), qr ) )
@@ -384,7 +384,7 @@ contains
           .and. label_list(i) /= shifted_mesh_label         &
           .and. label_list(i) /= double_level_mesh_label ) then
 
-        mm_dl(i) = operator_type( w2_fs, w2_fs )
+        call mm_dl(i)%initialise( w2_fs, w2_fs )
         ! Compute W2 mass matrix with damping layer
         ! Eventually this may be absorbed into the de Rham complex computations
         ! but until the final form is settled upon it is left separate
@@ -396,8 +396,8 @@ contains
       end if
 
       if ( label_list(i) == primary_mesh_label ) then
-        mm_w2_si(i) = operator_type( w2_fs, w2_fs )
-        coriolis    = operator_type( w2_fs, w2_fs )
+        call mm_w2_si(i)%initialise( w2_fs, w2_fs )
+        call coriolis%initialise( w2_fs, w2_fs )
 
         ! Compute temporary Coriolis operator
         if ( rotating ) then
@@ -623,9 +623,9 @@ contains
       !================== Projection operators from W3 to W2 ==================!
 
       if ( label_list(i) == primary_mesh_label ) then
-        project_xdot_to_w2(i) = operator_type( w2_fs, w3_fs )
-        project_ydot_to_w2(i) = operator_type( w2_fs, w3_fs )
-        project_zdot_to_w2(i) = operator_type( w2_fs, w3_fs )
+        call project_xdot_to_w2(i)%initialise( w2_fs, w3_fs )
+        call project_ydot_to_w2(i)%initialise( w2_fs, w3_fs )
+        call project_zdot_to_w2(i)%initialise( w2_fs, w3_fs )
         call invoke( project_ws_to_w2_operator_kernel_type(                   &
                                         project_xdot_to_w2(i), chi_list(:,i), &
                                         panel_id_list(i), xdirection, qr),    &

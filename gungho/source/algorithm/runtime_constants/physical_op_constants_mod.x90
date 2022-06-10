@@ -230,7 +230,7 @@ contains
         !=================== Compute Coriolis operator ========================!
 
         if ( rotating ) then
-          coriolis_collection(i) = operator_type( w2_fs, w2_fs )
+          call coriolis_collection(i)%initialise( w2_fs, w2_fs )
           call invoke( compute_coriolis_matrix_kernel_type(                   &
                                                       coriolis_collection(i), &
                                                       chi_list(:,i),          &
@@ -259,9 +259,9 @@ contains
 
           ! Operators needed to map finite difference physics winds to W2
           ! finite element winds
-          u_lon_map_collection(i) = operator_type( w2_fs, w3_fs )
-          u_lat_map_collection(i) = operator_type( w2_fs, w3_fs )
-          u_up_map_collection(i)  = operator_type( w2_fs, wtheta_fs )
+          call u_lon_map_collection(i)%initialise( w2_fs, w3_fs )
+          call u_lat_map_collection(i)%initialise( w2_fs, w3_fs )
+          call u_up_map_collection(i)%initialise( w2_fs, wtheta_fs )
 
           call invoke( compute_map_u_operators_kernel_type(u_lon_map_collection(i), &
                                                            u_lat_map_collection(i), &

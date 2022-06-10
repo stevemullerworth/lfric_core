@@ -2,32 +2,42 @@
 ' For further details please refer to the file LICENCE.original which you
 ' should have received as part of this distribution.
 
-abstract class operator_mod::base_operator_type{
+abstract class operator_parent_mod::operator_parent_type{
   -fs_from       : function_space_type <<pointer>>
   -fs_to         : function_space_type <<pointer>>
-  -ncell_3d      : integer
-  +which_from():integer
-  +which_to():integer
+  +operator_parent_initialiser( <<in>>fs_to: function_space_type, <<in>>fs_from: function_space_type )
+  +operator_parent_proxy_initialiser( <<inout>>operator_proxy: operator_parent_proxy_type )
+  +copy_operator_parent(<<in>>dest: operator_parent_type )
+  +get_fs_from():function_space_type
+  +get_fs_to():function_space_type
+  +which_fs_from():integer
+  +which_fs_to():integer
   +get_mesh():mesh_mod::mesh_type
-  +operator_final()
-  <<destroy>>+operator_destructor()
+  <<destroy>>+destroy_operator_parent()
 }
 
-class operator_mod::operator_type {
-  -local_stencil : real[:::] <<allocatable>>
-  <<create>>+operator_constructor( <<in>>fs_to: function_space_type, <<in>>fs_from: function_space_type ) : operator_type
-
-  +get_proxy()     : operator_proxy_type
-}
-
-class operator_mod::operator_proxy_type {
+abstract class operator_parent_mod::operator_parent_proxy_type{
   +fs_from       : function_space_type <<pointer>>
   +fs_to         : function_space_type <<pointer>>
-  +local_stencil : real[:::] <<pointer>>
-  +ncell_3d      : integer
+  <<destroy>>+destroy_operator_parent_proxy()
 }
 
-class operator_mod::columnwise_operator_type {
+class operator_r64_mod::operator_r64_type {
+  -local_stencil : real[:::] <<allocatable>>
+  +initialise( <<in>>fs_to: function_space_type, <<in>>fs_from: function_space_type ) : operator_r64_type
+  +get_proxy()     : operator_r64_proxy_type
+  +deep_copy() : operator_r64_type
+  +is_initialised() : logical
+  <<destroy>>+operator_r64_destructor()
+}
+
+class operator_r64_mod::operator_r64_proxy_type {
+  +local_stencil : real[:::] <<pointer>>
+  +ncell_3d      : integer
+  <<destroy>>+operator_r64_proxy_destructor()
+}
+
+class columnwise_operator_mod::columnwise_operator_type {
   __ private data __
   .. scalars ..
   -alpha   : integer
@@ -71,7 +81,7 @@ class operator_mod::columnwise_operator_type {
   +columnwise_operator_sum()
 }
 
-class operator_mod::columnwise_operator_proxy_type {
+class columnwise_operator_mod::columnwise_operator_proxy_type {
   +fs_from       : function_space_type <<pointer>>
   +fs_to         : function_space_type <<pointer>>
   +alpha   : integer
@@ -89,10 +99,7 @@ class operator_mod::columnwise_operator_proxy_type {
   +indirection_dofmap_from[:] : integer <<pointer>>
 }
 
-operator_mod::base_operator_type --|> operator_mod::operator_type
-operator_mod::base_operator_type --|> operator_mod::columnwise_operator_type
-operator_mod::operator_proxy_type -> operator_mod::operator_type : operator accessor
-
-
-operator_mod::columnwise_operator_proxy_type -> operator_mod::columnwise_operator_type : operator accessor
-
+operator_r64_mod::operator_r64_type --|> operator_parent_mod::operator_parent_type
+columnwise_operator_mod::columnwise_operator_type --|> operator_parent_mod::operator_parent_type
+operator_r64_mod::operator_r64_proxy_type --|> operator_parent_mod::operator_parent_proxy_type
+columnwise_operator_mod::columnwise_operator_proxy_type --|> operator_parent_mod::operator_parent_proxy_type

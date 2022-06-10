@@ -259,7 +259,7 @@ contains
                  X_divideby_Y(self%Mb_lumped_inv, ones, M_lumped) )
 
     ! Compute Q (projection) operator
-    self%Q = operator_type( wu, wb )
+    call self%Q%initialise( wu, wb )
     qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
     call invoke( compute_q_operator_type(self%Q, qr) )
 

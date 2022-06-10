@@ -39,6 +39,7 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
+  use columnwise_operator_mod,        only : columnwise_operator_type
   use constants_mod,                  only : i_def, r_def
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection, &
@@ -49,8 +50,7 @@ module cma_test_algorithm_mod
   use mesh_mod,                       only : mesh_type
   use quadrature_xyoz_mod,            only : quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,   only : quadrature_rule_gaussian_type
-  use operator_mod,                   only : operator_type, &
-                                             columnwise_operator_type
+  use operator_mod,                   only : operator_type
   use fs_continuity_mod,              only : W0,W1,W2,W2V,W2H,W3,Wchi
   use driver_coordinates_mod,         only : assign_coordinate_field
   use finite_element_config_mod,      only : element_order, &
@@ -229,12 +229,12 @@ contains
     call u_v_out_cma%initialise( fs_vel_v )
 
     ! Create and assemble mass matrices, divergence and gradient operator
-    mm_vel_v              = operator_type( fs_vel_v, fs_vel_v )
-    mm_vel_h              = operator_type( fs_vel_h, fs_vel_h )
-    mm_pressure           = operator_type( fs_pressure, fs_pressure )
-    div_v                 = operator_type( fs_pressure, fs_vel_v )
-    div_h                 = operator_type( fs_pressure, fs_vel_h )
-    grad_v                = operator_type( fs_vel_v, fs_pressure )
+    call mm_vel_v%initialise( fs_vel_v, fs_vel_v )
+    call mm_vel_h%initialise( fs_vel_h, fs_vel_h )
+    call mm_pressure%initialise( fs_pressure, fs_pressure )
+    call div_v%initialise( fs_pressure, fs_vel_v )
+    call div_h%initialise( fs_pressure, fs_vel_h )
+    call grad_v%initialise( fs_vel_v, fs_pressure )
     call mm_vel_v_diag%initialise( fs_vel_v )
     call mm_vel_h_diag%initialise( fs_vel_h )
 
@@ -266,20 +266,15 @@ contains
 
     ! Create and assemble CMA representations of operators
     ! Pressure mass matrix
-    mm_pressure_cma          = columnwise_operator_type( fs_pressure, &
-                                                         fs_pressure )
+    call mm_pressure_cma%initialise( fs_pressure, fs_pressure )
     ! Vertical divergence
-    div_v_cma                = columnwise_operator_type( fs_pressure, &
-                                                         fs_vel_v )
+    call div_v_cma%initialise( fs_pressure, fs_vel_v )
     ! Vertical gradient
-    grad_v_cma               = columnwise_operator_type( fs_vel_v, &
-                                                         fs_pressure )
+    call grad_v_cma%initialise( fs_vel_v, fs_pressure )
     ! Vertical velocity mass matrix
-    mm_vel_v_cma             = columnwise_operator_type( fs_vel_v, &
-                                                         fs_vel_v )
+    call mm_vel_v_cma%initialise( fs_vel_v, fs_vel_v )
     ! Vertical diagonal velocity mass matrix
-    mm_vel_v_inv_diag_cma    = columnwise_operator_type( fs_vel_v, &
-                                                         fs_vel_v, 1, 1, 0, 0)
+    call mm_vel_v_inv_diag_cma%initialise( fs_vel_v, fs_vel_v, 1, 1, 0, 0)
     ! Assemble CMA operators
     call invoke( columnwise_op_asm_kernel_type( mm_pressure, &
                                                 mm_pressure_cma ), &
@@ -738,7 +733,7 @@ contains
     ! Error: Symbol 'diag_dhmdht_cma_ncol' at (1) has no IMPLICIT type
 
     ! Build CMA representation of operator \f$diag(D_h M_{2,h,inv} D_h^T)\f$
-    diag_DhMDht_cma = columnwise_operator_type ( fs_pressure, fs_pressure )
+    call diag_DhMDht_cma%initialise( fs_pressure, fs_pressure )
     call invoke( columnwise_op_asm_diag_hmht_kernel_type( div_h,      &
                                                           mm_vel_h,   &
                                                           diag_DhMDhT_cma ) )

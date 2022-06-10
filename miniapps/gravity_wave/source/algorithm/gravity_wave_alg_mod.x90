@@ -182,7 +182,7 @@ contains
     call rhs_p%initialise( vector_space = p_fs )
 
     ! Create Q operator
-    Q = operator_type( u_fs, b_fs)
+    call Q%initialise( u_fs, b_fs)
     qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
     nlayers = mesh%get_nlayers()
     allocate ( dz(nlayers) )

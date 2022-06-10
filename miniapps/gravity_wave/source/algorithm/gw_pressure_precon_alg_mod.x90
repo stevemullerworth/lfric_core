@@ -27,9 +27,9 @@ module gw_pressure_precon_alg_mod
                                               LOG_LEVEL_INFO, &
                                               LOG_LEVEL_ERROR, &
                                               log_scratch_space
+  use columnwise_operator_mod,         only : columnwise_operator_type
   use constants_mod,                   only : i_def, r_def
-  use operator_mod,                    only : operator_type,             &
-                                              columnwise_operator_type
+  use operator_mod,                    only : operator_type
 
   ! Columnwise operator kernels
   use columnwise_op_app_kernel_mod,    only : columnwise_op_app_kernel_type
@@ -154,7 +154,7 @@ contains
 
     ! Set pointers to vertical operators
     div_v => get_div_v(mesh_id)
-    grad_v = operator_type( div_v%get_fs_from(), div_v%get_fs_to() )
+    call grad_v%initialise( div_v%get_fs_from(), div_v%get_fs_to() )
     div_h => get_div_h(mesh_id)
     mm_w3 => get_mass_matrix(W3, mesh_id)
     mm_w3_inv => get_inverse_w3_mass_matrix(mesh_id)
@@ -170,21 +170,21 @@ contains
     call invoke( transpose_matrix_kernel_type( div_v, grad_v ) )
 
     ! Build individual CMA operators
-    mm_w3_cma = columnwise_operator_type( mm_w3%get_fs_to(), &
-                                          mm_w3%get_fs_from() )
-    mm_w3_inv_cma = columnwise_operator_type( mm_w3_inv%get_fs_to(), &
-                                              mm_w3_inv%get_fs_from() )
-    mm_w2v_cma = columnwise_operator_type( mm_w2v%get_fs_to(), &
-                                           mm_w2v%get_fs_from() )
-    div_v_cma = columnwise_operator_type( div_v%get_fs_to(), &
-                                          div_v%get_fs_from() )
-    grad_v_cma  = columnwise_operator_type( grad_v%get_fs_to(), &
-                                            grad_v%get_fs_from() )
-    mm_w2v_inv_diag_cma = columnwise_operator_type( mm_w2v%get_fs_to(),   &
-                                                    mm_w2v%get_fs_from(), &
-                                                    1, 1, 0, 0)
-    diag_DhMDht_cma = columnwise_operator_type( mm_w3%get_fs_to(), &
-                                                mm_w3%get_fs_from() )
+    call mm_w3_cma%initialise( mm_w3%get_fs_to(), &
+                               mm_w3%get_fs_from() )
+    call mm_w3_inv_cma%initialise( mm_w3_inv%get_fs_to(), &
+                                   mm_w3_inv%get_fs_from() )
+    call mm_w2v_cma%initialise( mm_w2v%get_fs_to(), &
+                                mm_w2v%get_fs_from() )
+    call div_v_cma%initialise( div_v%get_fs_to(), &
+                               div_v%get_fs_from() )
+    call grad_v_cma%initialise( grad_v%get_fs_to(), &
+                                grad_v%get_fs_from() )
+    call mm_w2v_inv_diag_cma%initialise( mm_w2v%get_fs_to(),   &
+                                         mm_w2v%get_fs_from(), &
+                                         1, 1, 0, 0)
+    call diag_DhMDht_cma%initialise( mm_w3%get_fs_to(), &
+                                     mm_w3%get_fs_from() )
 
     call invoke(                                                       &
                  ! Pressure mass matrix M_3

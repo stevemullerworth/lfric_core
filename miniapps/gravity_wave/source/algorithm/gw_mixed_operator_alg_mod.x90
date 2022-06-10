@@ -120,7 +120,7 @@ contains
                                state%vector(igw_b)%which_function_space() )
 
     ! Construct projection operator \f$ Q \f$
-    self%Q = operator_type( u_fs, b_fs)
+    call self%Q%initialise( u_fs, b_fs)
     qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
     call invoke( compute_q_operator_type(self%Q, qr) )
 

@@ -105,8 +105,8 @@ contains
        fs_label = fv%vector(2)%which_function_space()
        fs_wb => function_space_collection%get_fs(mesh, elem, fs_label)
        ! make the operators
-       self%mass_w0 = operator_type(fs_wa, fs_wa)
-       self%mass_w3 = operator_type(fs_wb, fs_wb)
+       call self%mass_w0%initialise(fs_wa, fs_wa)
+       call self%mass_w3%initialise(fs_wb, fs_wb)
 
        call invoke(                                                                 &
          compute_mass_matrix_kernel_w_scalar_type(self%mass_w0, chi, panel_id, qr), &

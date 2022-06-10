@@ -7,6 +7,4 @@
 !include look.iuml
 !include field/operator_mod.iuml
 
-operator_mod : layout
-
 @enduml

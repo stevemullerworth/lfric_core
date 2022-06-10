@@ -229,23 +229,23 @@ contains
       call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
    end if
 
-   eliminated_q2t = operator_type( w2_fs, wt_fs )
+   call eliminated_q2t%initialise( w2_fs, wt_fs )
 
    do i = 1, multigrid_levels
 
        write(log_scratch_space,'(A,I0,A)') "si_ops[",i,"]:creating ops"
        call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
-       m3_rho_star(i)    = operator_type( w3_fs, w3_fs )
-       m3_exner_star(i)  = operator_type( w3_fs, w3_fs )
-       div_star(i)       = operator_type( w2_fs, w3_fs )
-       p2theta(i)        = operator_type( w2_fs, wt_fs )
-       ptheta2(i)        = operator_type( wt_fs, w2_fs )
-       ptheta2v(i)       = operator_type( wt_fs, w2_fs )
-       p3theta(i)        = operator_type( w3_fs, wt_fs )
-       compound_div(i)   = operator_type( w3_fs, w2_fs )
-       eliminated_q22(i) = operator_type( w2_fs, w2_fs )
-       eliminated_q32(i) = operator_type( w3_fs, w2_fs )
+       call m3_rho_star(i)%initialise( w3_fs, w3_fs )
+       call m3_exner_star(i)%initialise( w3_fs, w3_fs )
+       call div_star(i)%initialise( w2_fs, w3_fs )
+       call p2theta(i)%initialise( w2_fs, wt_fs )
+       call ptheta2(i)%initialise( wt_fs, w2_fs )
+       call ptheta2v(i)%initialise( wt_fs, w2_fs )
+       call p3theta(i)%initialise( w3_fs, wt_fs )
+       call compound_div(i)%initialise( w3_fs, w2_fs )
+       call eliminated_q22(i)%initialise( w2_fs, w2_fs )
+       call eliminated_q32(i)%initialise( w3_fs, w2_fs )
 
        call rho_at_u(i)%initialise(vector_space = w2_fs)
        if ( preconditioner == preconditioner_tridiagonal .or. &

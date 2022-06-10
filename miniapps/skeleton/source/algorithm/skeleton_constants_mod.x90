@@ -116,19 +116,19 @@ contains
 
     ! Set up all mass matrices and operators
     ! Mass matrices
-    mm_w0      = operator_type( w0_fs, w0_fs )
-    mm_w1      = operator_type( w1_fs, w1_fs )
-    mm_w2      = operator_type( w2_fs, w2_fs )
-    mm_w2b     = operator_type( w2b_fs, w2b_fs )
-    mm_w3      = operator_type( w3_fs, w3_fs )
-    mm_wtheta  = operator_type( wtheta_fs, wtheta_fs )
+    call mm_w0%initialise( w0_fs, w0_fs )
+    call mm_w1%initialise( w1_fs, w1_fs )
+    call mm_w2%initialise( w2_fs, w2_fs )
+    call mm_w2b%initialise( w2b_fs, w2b_fs )
+    call mm_w3%initialise( w3_fs, w3_fs )
+    call mm_wtheta%initialise( wtheta_fs, wtheta_fs )
 
     ! Differential operators
-    div        = operator_type( w3_fs, w2_fs )
-    grad       = operator_type( w1_fs, w0_fs )
-    curl       = operator_type( w2_fs, w1_fs )
-    broken_div = operator_type( w3_fs, w2b_fs )
-    im3_div    = operator_type( w3_fs, w2_fs )
+    call div%initialise( w3_fs, w2_fs )
+    call grad%initialise( w1_fs, w0_fs )
+    call curl%initialise( w2_fs, w1_fs )
+    call broken_div%initialise( w3_fs, w2b_fs )
+    call im3_div%initialise( w3_fs, w2_fs )
 
     call invoke( name = "create_de_rham_matrices",                      &
                  compute_derham_matrices_kernel_type(mm_w0, mm_w1,      &
