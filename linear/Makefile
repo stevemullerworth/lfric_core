@@ -23,7 +23,7 @@ export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/lfric-xios \
                                $(ROOT_DIR)/gungho
 
-LFRIC_TARGET_PLATFORM ?= generic-x86
+export LFRIC_TARGET_PLATFORM ?= generic-x86
 export OPTIMISATION_PATH ?= $(wildcard optimisation/$(LFRIC_TARGET_PLATFORM))
 
 
@@ -160,33 +160,33 @@ unit-tests/%: export ADDITIONAL_EXTRACTION                \
                     $(ROOT_DIR)/gungho/source             \
                     $(ROOT_DIR)/gungho/unit-test/support  \
                     $(ROOT_DIR)/components/lfric-xios/source
-unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-linear/HEAD
-unit-tests/%: export PROGRAMS = linear_unit_tests
-unit-tests/%: export PROJECT = linear
-unit-tests/%: export SOURCE_DIR = source
-unit-tests/%: export TEST_DIR = unit-test
-unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests/%: export PROGRAMS      = linear_unit_tests
+unit-tests/%: export PROJECT       = linear
+unit-tests/%: export SOURCE_DIR    = source
+unit-tests/%: export TEST_DIR      = unit-test
+unit-tests/%: export WORKING_DIR  := $(WORKING_DIR)/unit-tests
 unit-tests: unit-tests/run
 
 
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source     \
-                                                  $(ROOT_DIR)/components/driver/source  \
-                                                  $(ROOT_DIR)/components/science/source \
-                                                  $(ROOT_DIR)/gungho/source             \
-                                                  $(ROOT_DIR)/components/lfric-xios/source
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export CXX_LINK = true
-integration-tests: export META_FILE_DIR = rose-meta/lfric-linear/HEAD
-integration-tests: export PROJECT = linear
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: do-integration-tests
+integration-tests/%: export ADDITIONAL_EXTRACTION =            \
+                         $(ROOT_DIR)/infrastructure/source     \
+                         $(ROOT_DIR)/components/driver/source  \
+                         $(ROOT_DIR)/components/science/source \
+                         $(ROOT_DIR)/gungho/source             \
+                         $(ROOT_DIR)/components/lfric-xios/source
+integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+integration-tests/%: export CXX_LINK      = true
+integration-tests/%: export META_FILE_DIR = rose-meta/lfric-linear/HEAD
+integration-tests/%: export PROJECT       = linear
+integration-tests/%: export SOURCE_DIR    = source
+integration-tests/%: export TEST_DIR      = integration-test
+integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
+integration-tests: integration-tests/run
 
 
 ##############################################################################

@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 ##############################################################################
 # Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 # For further details please refer to the file LICENCE.original which you
@@ -36,13 +35,13 @@ class log_mod_error_serial_test( MpiTest ):
         raise TestFailed('Execution fault such as segmentation fault')
 
     try:
-      timestampString, level, report = err.split( ':', 3 )
+      timestampString, level, report = err.split( ':', 2 )
       timestampWithoutTimezone = timestampString[:-5]
 
       timestamp = datetime.datetime.strptime( timestampWithoutTimezone, \
                                               '%Y%m%d%H%M%S.%f' )
     except Exception as ex:
-      raise TestFailed( 'Unexpected log message: {}'.format( err ) )
+      raise TestFailed( f"Unable to get timestamp from message: {err}", ex )
 
     if timestamp < self._minimumTimestamp:
       message = 'Expected a timestamp after {} but read {}'

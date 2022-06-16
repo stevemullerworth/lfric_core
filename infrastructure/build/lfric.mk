@@ -276,61 +276,27 @@ configuration:
 ##############################################################################
 # Run unit tests.
 #
+# We recurse into the make file here in order to reify all the target
+# specific variables. They only appear in recipes and we need them to
+# make decisions.
+#
 .PHONY: unit-tests/%
 unit-tests/%: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
 unit-tests/%:
-	# We recurse into the make file here in order to reify all the target
-	# specific variables. They only appear in recipes and we need them to
-	# make decissions. This does mean we reload the makefile in order to
-	# log a message in the case where there is nothing to test.
-	#
-	$Q$(MAKE) -f $(LFRIC_BUILD)/tests.mk do-unit-test/$*
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/tests.mk do-unit-test/$*
 
 
 ##############################################################################
 # Run integration tests.
 #
-.PHONY: do-integration-tests
-do-integration-tests: ANY_TESTS = $(patsubst $(TEST_DIR)/%,%,$(basename $(shell find $(TEST_DIR) -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; 2>/dev/null)))
-do-integration-tests: export PROGRAMS = $(ANY_TESTS)
-do-integration-tests: export TEST_RUN_DIR = $(BIN_DIR)/test_files
 # We recurse into the make file here in order to reify all the target
 # specific variables. They only appear in recipes and we need them to
-# make decissions. This does mean we reload the makefile in order to
-# log a message in the case where there is nothing to test.
+# make decisions.
 #
-do-integration-tests:
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk                                   \
-	          $(if $(ANY_TESTS), $(ANY_TESTS:%=do-integration-test/run/%), \
-	                             do-integration-test/none)
-
-.PHONY: do-integration-test/%
-do-integration-test/none:
-	$Q$(call MESSAGE,Integration tests,'None to run')
-
-do-integration-test/run/%: export PYTHONPATH := $(PYTHONPATH):$(LFRIC_BUILD)
-do-integration-test/run/%: do-integration-test/build
-	$(call MESSAGE,Running,$*)
-	$Qcd $(TEST_RUN_DIR)/$(dir $*); \
-	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$(notdir $*))
-
-do-integration-test/build: do-integration-test/generate \
-                           $(addsuffix /extract, $(TEST_DIR))
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
-	$Qrsync -a $(TEST_DIR)/ $(TEST_RUN_DIR)
-
-# Ensure all extraction is performed before PSyclone otherwise kernel files may
-# not have arrived when they are needed.
-#
-do-integration-test/generate: do-integration-test/extract configuration
-	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk           \
-	          $(addsuffix /psyclone, $(SOURCE_DIR) \
-	                                 $(TEST_DIR)   \
-	                                 $(ADDITIONAL_EXTRACTION))
-
-do-integration-test/extract: $(addsuffix /extract, $(SOURCE_DIR) \
-                                                   $(ADDITIONAL_EXTRACTION))
+.PHONY: integration-tests/%
+integration-tests/%: export FFLAG_GROUPS = DEBUG NO_OPTIMISATION INIT UNIT_WARNINGS
+integration-tests/%:
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/tests.mk do-integration-tests/$*
 
 ###############################################################################
 # End

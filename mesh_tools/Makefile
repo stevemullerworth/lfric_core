@@ -141,16 +141,8 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export ADDITIONAL_EXTRACTION = $(ROOT_DIR)/infrastructure/source
-integration-tests: export BIN_DIR ?= test
-integration-tests: export META_FILE_DIR = rose-meta/lfric-mesh_tools/HEAD
-integration-tests: export PROJECT = gungho
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

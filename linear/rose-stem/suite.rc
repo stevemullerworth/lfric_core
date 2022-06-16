@@ -425,43 +425,14 @@ echo $RELATIVE_LOG_ROOT > $DESTINATION_DIRECTORY/compile.log.path
          inherit = {{compiler_family}}, TARGET
 
 {{        unit_test_tasks( 'TEST_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision ) }}
+{{        integration_test_tasks( 'TEST_WITH_'+compiler_family, PRIMARY_TARGET, compiler, precision ) }}
+
 {%-     for build in build_profiles %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_' + build | lower %}
 {%-       set family = label | upper %}
 
+
 {#############################################################################}
-{# INTEGRATION TESTS #}
-{%-       if 'integration_test_with_' + label in scheduledTasks %}
-    [[integration_test_with_{{label}}]]
-        inherit = {{family}}, TARGET
-
-        {{scripting(
-              PRIMARY_TARGET,
-              ['base', 'compiler.'+compiler, 'build', 'tech'],
-              ['base'],
-              script="""INTEGRATION_TESTS=\"\"
-if [[ -d $SOURCE_DIRECTORY/integration-test ]] ; then
-    INTEGRATION_TESTS=$(find $SOURCE_DIRECTORY/integration-test -name \"*.[Ff]90\" -exec egrep -l \"^\s*program\" {} \;)
-fi
-if [[ \"${INTEGRATION_TESTS}\" != \"\" ]] ; then
-    make -C $SOURCE_DIRECTORY -j 4 integration-tests
-else
-    echo \"No integration-tests to process\"
-fi""",
-              postscript=deleteDirectory('$WORKING_DIR')
-          )}}
-
-        [[[environment]]]
-            WORKING_DIR    = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/integration_{{label}}
-            RDEF_PRECISION = {{precision}}
-{%-         if fix_enums %}
-            FIX_ENUMS      = 1
-{%-         endif %}
-
-{{          directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %}
-
-{# #############################################################################}
 {# CANNED CONFIGURATIONS #}
 {%-       for appName in canned_configurations %}
 {%-         if 'run_' + appName + '_canned_test_' + label in scheduledTasks %}

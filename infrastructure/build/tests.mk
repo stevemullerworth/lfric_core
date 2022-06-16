@@ -5,13 +5,13 @@
 ##############################################################################
 # Unit tests
 ##############################################################################
-TEST_EXE = $(BIN_DIR)/$(firstword $(PROGRAMS))
+UNIT_TEST_EXE = $(BIN_DIR)/$(firstword $(PROGRAMS))
 
 .PHONY: do-unit-test/%
-do-unit-test/run: $(TEST_EXE)
+do-unit-test/run: $(UNIT_TEST_EXE)
 	$(call MESSAGE,Running,$(PROGRAMS))
 	$Qcd $(TEST_DIR); \
-	    mpiexec -n 6 $(TEST_EXE) $(DOUBLE_VERBOSE_ARG)
+	    mpiexec -n 6 $(UNIT_TEST_EXE) $(DOUBLE_VERBOSE_ARG)
 
 # The addition of this target is a bit messy but it allows us to guarantee that
 # no build will happen when running from a test suite.
@@ -19,14 +19,14 @@ do-unit-test/run: $(TEST_EXE)
 do-unit-test/rerun:
 	$(call MESSAGE,Running,$(PROGRAMS))
 	$Qcd $(TEST_DIR); \
-	    mpiexec -n 6 $(TEST_EXE) $(DOUBLE_VERBOSE_ARG)
+	    mpiexec -n 6 $(UNIT_TEST_EXE) $(DOUBLE_VERBOSE_ARG)
 
 
-do-unit-test/build: $(TEST_EXE)
+do-unit-test/build: $(UNIT_TEST_EXE)
 
-$(TEST_EXE): WITHOUT_PROGRAMS = 1
-$(TEST_EXE): export EXTERNAL_STATIC_LIBRARIES += pfunit
-$(TEST_EXE): do-unit-test/generate \
+$(UNIT_TEST_EXE): WITHOUT_PROGRAMS = 1
+$(UNIT_TEST_EXE): export EXTERNAL_STATIC_LIBRARIES += pfunit
+$(UNIT_TEST_EXE): do-unit-test/generate \
                   $(addsuffix /extract, $(TEST_DIR))
 	$Qmkdir -p $(WORKING_DIR)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
@@ -51,6 +51,50 @@ do-unit-test/get-source: $(addsuffix /extract, $(SOURCE_DIR) \
 ###############################################################################
 # Integration tests
 ###############################################################################
+
+ALL_INTEGRATION_TESTS = $(patsubst $(TEST_DIR)/%,%,$(basename               \
+                            $(shell find $(TEST_DIR) -name '*.[Ff]90'       \
+                                         -exec egrep -l "^\s*program" {} \; \
+                                         2>/dev/null)))
+.PHONY: do-integration-tests/%
+do-integration-tests/%: export PYTHONPATH  := $(PYTHONPATH):$(LFRIC_BUILD)
+do-integration-tests/%: export PROGRAMS     = $(ALL_INTEGRATION_TESTS)
+do-integration-tests/%: export TEST_RUN_DIR = $(BIN_DIR)/test_files
+
+do-integration-tests/run: $(foreach test,$(ALL_INTEGRATION_TESTS),do-integration-tests/run/$(test))
+
+do-integration-tests/run/%: do-integration-tests/build
+	$(call MESSAGE,Running,$*)
+	$Qcd $(TEST_RUN_DIR)/$(dir $*); \
+	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$(notdir $*))
+
+# The addition of this target is a bit messy but it allows us to guarantee that
+# no build will happen when running from a test suite.
+do-integration-tests/rerun: $(foreach test,$(ALL_INTEGRATION_TESTS),do-integration-tests/rerun/$(test))
+
+do-integration-tests/rerun/%:
+	$(call MESSAGE,Rerunning,$*)
+	$Qcd $(TEST_RUN_DIR)/$(dir $*); \
+	    ./$(notdir $(addsuffix .py,$*)) $(addprefix $(BIN_DIR)/,$(notdir $*))
+
+do-integration-tests/build: do-integration-tests/generate \
+                           $(addsuffix /extract, $(TEST_DIR))
+	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
+	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
+	$Qrsync -a $(TEST_DIR)/ $(TEST_RUN_DIR)
+
+# Extraction is performed before psyclone to ensure kernel files have arrived
+# before they are needed.
+#
+do-integration-tests/generate: do-integration-test/get-source \
+                               $(if $(META_FILE_DIR), configuration)
+	$Q$(MAKE) -f $(LFRIC_BUILD)/lfric.mk           \
+	          $(addsuffix /psyclone, $(SOURCE_DIR) \
+	                                 $(TEST_DIR)   \
+	                                 $(ADDITIONAL_EXTRACTION))
+
+do-integration-test/get-source: $(addsuffix /extract, $(SOURCE_DIR) \
+                                                      $(ADDITIONAL_EXTRACTION))
 
 ###############################################################################
 # Utilities

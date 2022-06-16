@@ -304,43 +304,6 @@
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
 
-{# INTEGRATION TESTS #}
-{%-       if projectName + '_integration_test_with_' + label in scheduledTasks %}
-  [[{{projectName}}_integration_test_with_{{label}}]]
-    inherit = {{family}}, TARGET
-
-    {{scripting(
-          PRIMARY_TARGET,
-          ['base', 'compiler', 'build', 'tech'],
-          ['base'],
-          script="""
-INTEGRATION_TESTS=''
-if [[ -d $SOURCE_DIRECTORY/integration-test ]] ; then
-    INTEGRATION_TESTS=`find $SOURCE_DIRECTORY/integration-test -name '*.[Ff]90' -exec egrep -l '^\s*program' {} \;`
-fi
-if [[ \"${INTEGRATION_TESTS}\" != \"\" ]] ; then
-    rose task-run --app-key=compile
-else
-    echo 'No integration-tests to process'
-fi
-                 """,
-          postscript=deleteDirectory('$WORKING_DIR')
-      )}}
-
-    [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/integration-test
-      TARGET           = integration-tests
-      PROFILE          = {{build}}
-      MAKE_THREADS     = 1
-      RDEF_PRECISION   = {{precision}}
-{%-         if fix_enums %}
-      FIX_ENUMS        = 1
-{%-         endif %}
-
-{{ directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %}   {# integration_tests #}
-
 {%-     endfor %}  {# build #}
 {%-   endfor %}  {# rdef_precision #}
 {%- endfor %}  {# compiler #}

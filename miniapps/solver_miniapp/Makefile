@@ -43,13 +43,6 @@ documentation doc docs: document-uml document-latex document-api
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
-ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
-                            find unit-test -name *test.pf ; \
-                          fi )
-ANY_INTEGRATION_TESTS := $(shell if [ -d integration-test ] ; then \
-                                   find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; ; \
-                                 fi )
-
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
 #
@@ -163,26 +156,14 @@ build: ALWAYS
 # Unit tests
 #
 unit-tests:
-	$Qecho "Solver" application has no unit tests.
-
-unit-tests/build:
-	$Qecho No unit tests to build.
-
-unit-tests/rerun:
-	$Qecho No unit tests to run.
+	$(call MESSAGE,Testing,"There are no unit tests.")
 
 
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export PROJECT = $(PROJECT_NAME)
-integration-tests: export SOURCE_DIR = $(PROJECT_DIR)/source
-integration-tests: export TEST_DIR = $(PROJECT_DIR)/integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests")
 
 
 ##############################################################################

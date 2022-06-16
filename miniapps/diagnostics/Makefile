@@ -38,13 +38,6 @@ include $(ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 -include $(PROJECT_DIR)/build/project.mk
 
-ANY_UNIT_TESTS := $(shell if [ -d unit-test ] ; then \
-                            find unit-test -name *test.pf ; \
-                          fi )
-ANY_INTEGRATION_TESTS := $(shell if [ -d integration-test ] ; then \
-                                   find integration-test -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \; ; \
-                                 fi )
-
 ##############################################################################
 # Launch gscan to monitor suites from this suite-group
 #
@@ -176,15 +169,8 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export META_FILE_DIR = rose-meta/lfric-diagnostics/HEAD
-integration-tests: export PROJECT = $(PROJECT_NAME)
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-test
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

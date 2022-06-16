@@ -296,43 +296,6 @@
       {#- We can't define WORKING_DIR here as it may contain    #}
       {#- target specific variables not existing on the local machine #}
 
-{# INTEGRATION TESTS #}
-{%-       if 'integration_test_with_' + label in scheduledTasks %}
-  [[integration_test_with_{{label}}]]
-    inherit = {{family}}, TARGET
-
-    {{scripting(
-          PRIMARY_TARGET,
-          ['base', 'compiler', 'build', 'etch'],
-          ['base'],
-          script="""
-INTEGRATION_TESTS=''
-if [[ -d \$SOURCE_DIRECTORY/integration-test ]] ; then
-    INTEGRATION_TESTS=`find \$SOURCE_DIRECTORY/integration-test -name '*.[Ff]90' -exec egrep -l '^\s*program' {} \;`
-fi
-if [[ \"\${INTEGRATION_TESTS}\" != \"\" ]] ; then
-    make -C \$SOURCE_DIRECTORY integration-tests
-else
-    echo 'No integration-tests to process'
-fi
-                 """,
-          postscript=deleteDirectory('$WORKING_DIR')
-      )}}
-
-    [[[environment]]]
-      SOURCE_DIRECTORY = $SOURCE_ROOT/{{appPathFragment}}{{projectName}}
-      WORKING_DIR      = {{get_target_property(PRIMARY_TARGET, 'build_root')}}/{{label}}/integration-test
-      BIN_DIR          = $CYLC_TASK_WORK_DIR
-      TARGET           = integration-tests
-      PROFILE          = {{build}}
-      MAKE_THREADS     = 1
-      RDEF_PRECISION   = {{precision}}
-{%-         if fix_enums %}
-      FIX_ENUMS        = 1
-{%-         endif %}
-
-{{ directives(PRIMARY_TARGET, 'build') }}
-{%-       endif %}   {# integration_tests #}
 
 {%-     endfor %}  {# rdef_precision #}
 {%-   endfor %}  {# build #}

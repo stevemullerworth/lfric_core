@@ -167,7 +167,7 @@ unit-tests:
 # Integration tests
 #
 integration-tests:
-	$(call MESSAGE,Testinmg,"There are no integration tests.")
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

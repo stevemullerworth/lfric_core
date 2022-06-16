@@ -173,13 +173,8 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export PROJECT = $(PROJECT_NAME)
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-test
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

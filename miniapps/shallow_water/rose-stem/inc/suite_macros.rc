@@ -254,7 +254,8 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
 {#- #########################################################################}
 {%- macro check_compilers( appName, configuration, build, resolution=(''),
-                           publish=False, checkkgo=True ) %}
+                           precisions=[rdef_default], publish=False,
+                           checkkgo=True ) %}
       [[[R1]]]
 
 {%-   set perform_run = [] %}
@@ -262,10 +263,15 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 
 {%-   set science_key = appName + '_' + configuration + '_' + science_label %}
 {%-   set environment = scheduledTasksDict[science_key] %}
-{%-   for compiler in compiler_setup.keys() %}
-{%-     set application_key = appName + '_' + configuration + '_' + compiler + '_' + build %}
-{%-     do scheduledTasksDict.update({application_key: environment}) %}
-{%-   endfor %}
+
+{%-   for compiler in compilers %}
+{%-     for precision in precisions %}
+{%-       set application_key = appName + '_' + configuration + '_'
+                                + compiler + '_' + precision + '_bit'
+                                + build %}
+{%-       do scheduledTasksDict.update({application_key: environment}) %}
+{%-     endfor %} {# precision #}
+{%-   endfor %} {# compiler #}
 
 {%-   if build == 'fast-debug' %}
 {%-     do perform_run.extend( TARGET_PERFORM_RUN ) %}
@@ -281,36 +287,40 @@ test -w "{{directory}}" -o ! -e "{{directory}}" && rm -rf {{directory}} || ( ech
 {%-     do appConfigsCompilerRuns[appLabel].extend(difference) %}
 {%-   endif%}
 
-{%-   for compiler in compiler_setup.keys() %}
-{%-     set label = compiler | lower + '_' + build | lower%}
-{%-     if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
-            export_source => integration_test_with_{{label}}
-{%-     endif %}
-            export_source => compile_{{projectName}}_with_{{label}}
-            export_source => compile_mesh_tools_with_{{label}}
-{%-     if compiler in TARGET_PERFORM_UNIT_TESTS %}
-            export_source => unit_test_with_{{label}}
-{%-     endif %}
-{%-     if publish %}
-            compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
-{%-     endif %}
+{%-   set mesh_label = TARGET_MESH_COMPILER|lower + '_'
+                       + mesh_rdef + '-bit_' + mesh_build|lower %}
 
-{%-     if compiler in perform_run %}
-{%-       set res_value, dt_values, res_label, dt_labels, res_opt = resolution | get_resolution_labels() %}
-{%-       for i in range(0, dt_values|length) %}
-{%-         set appLabel_res = appLabel ~ res_label ~ dt_labels[i] %}
+{%-   for compiler in compiler_setup.keys() %}
+{%-     for precision in precisisions %}
+
+{%-       set label = compiler|lower + '_' + precision + '-bit_' +build|lower %}
+            export_source => compile_{{projectName}}_with_{{label}}
+            export_source => compile_mesh_tools_with_{{mesh_label}}
+
+{{        unit_tests_graph( compiler, precision ) }}
+
+{%-       if publish %}
+            compile_{{projectName}}_with_{{label}}:finish => publish_{{label}}_compile
+            publish_{{label}}_compile => publish_node
+{%-       endif %}
+
+{%-       if compiler in perform_run %}
+{%-         set res_value, dt_values, res_label, dt_labels, res_opt = resolution | get_resolution_labels() %}
+{%-         for i in range(0, dt_values|length) %}
+{%-           set appLabel_res = appLabel ~ res_label ~ dt_labels[i] %}
             compile_mesh_tools_with_{{label}} => generate_mesh{{res_label}}_{{label}}
             generate_mesh{{res_label}}_{{label}} => run_{{appLabel_res}}_{{label}}
             compile_{{projectName}}_with_{{label}} => run_{{appLabel_res}}_{{label}}
-{%-         if publish %}
+{%-           if publish %}
             run_{{appLabel_res}}_{{label}}:finish => publish_{{appLabel_res}}_{{label}}
-{%-         endif %}
-{%-         if compiler in TARGET_PERFORM_KGO_TESTS %}
-{%-           if checkkgo %}
-            run_{{appLabel_res}}_{{label}} => check_{{appLabel_res}}_{{label}}
 {%-           endif %}
-{%-         endif %}
-{%-       endfor %} {# i #}
-{%-     endif %}
+{%-           if compiler in TARGET_PERFORM_KGO_TESTS %}
+{%-             if checkkgo %}
+            run_{{appLabel_res}}_{{label}} => check_{{appLabel_res}}_{{label}}
+{%-             endif %}
+{%-           endif %}
+{%-         endfor %} {# i #}
+{%-       endif %}
+{%-     endfor %} {# precision #}
 {%-   endfor %} {# compiler #}
 {%- endmacro %}

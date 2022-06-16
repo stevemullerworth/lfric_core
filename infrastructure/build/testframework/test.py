@@ -220,7 +220,6 @@ class LFRicLoggingTest(six.with_metaclass(ABCMeta, MpiTest)):
     Removes any old log files and runs the executable.
     '''
     # Remove any existing log files
-    print(os.getcwd())
     for filename in os.listdir('.'):
       if filename.startswith('PET'):
         try:

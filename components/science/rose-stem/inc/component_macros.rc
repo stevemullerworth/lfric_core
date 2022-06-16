@@ -186,28 +186,6 @@
 {%-   endif %}
 {%- endmacro %}
 
-{# TESTING MACROS #}
-{#---------------------------------------------------------------------------#}
-
-{%- macro integration_tests( componentName, build='fast-debug', precisions=[rdef_default], publish=False ) %}
-[[[R1]]]
-  graph = """
-{%-   for compiler in get_target_property(PRIMARY_TARGET,
-                                          'setup')['compiler'].keys() %}
-{%-     for precision in precisions %}
-{%-       if precision not in rdef_build_precisions %}
-{%-          do rdef_build_precisions.append(precision) -%}
-{%-       endif %}
-{%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
-{%-       if compiler in INTEGRATION_TEST_WITH %}
-    export_source => {{componentName}}_integration_test_with_{{label}}
-{%-       endif %}
-{%-     endfor %} {# precisions #}
-{%-   endfor %} {# compiler #}
-          """
-{%- endmacro %}
-
-
 {# SCRIPT MACROS #}
 {#---------------------------------------------------------------------------#}
 {%- macro verboseMake() %}

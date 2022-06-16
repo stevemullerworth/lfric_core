@@ -123,14 +123,13 @@ unit-tests: unit-tests/run
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export META_FILE_DIR = integration-test/configuration_test
-integration-tests: export PROJECT = infrastructure
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-tests
-integration-tests: do-integration-tests
+integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+integration-tests/%: export META_FILE_DIR = integration-test/configuration_test
+integration-tests/%: export PROJECT       = infrastructure
+integration-tests/%: export SOURCE_DIR    = source
+integration-tests/%: export TEST_DIR      = integration-test
+integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
+integration-tests: integration-tests/run
 
 
 ##############################################################################

@@ -19,7 +19,7 @@
 {%- set groups = {'developer': ['api_documentation_graph(publish=True)',
                                 'uml_documentation_graph(publish=True)',
                                 'check_style_graph()',
-                                'unit_test_graph("'+projectName+'")'],
+                                'check_unit_tests()'],
                   'nightly'  : ['null_task_graph()']
                  }
 %}

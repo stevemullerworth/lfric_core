@@ -108,7 +108,7 @@
             'tech' : {
                 'launcher' : 'mpiexec',
                 'directives' : [
-                    '--partition=rhel7', '--time=00:15:00', '--ntasks=1',
+                    '--partition=rhel7', '--time=00:15:00', '--ntasks=6',
                     '--mem-per-cpu=1G', '--export=NONE'
                 ]
             }

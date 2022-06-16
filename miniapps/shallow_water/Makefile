@@ -173,20 +173,13 @@ unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
 unit-tests: unit-tests/run
-	$(Q)echo > /dev/null
 
 
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export PROJECT = $(PROJECT_NAME)
-integration-tests: export SOURCE_DIR = $(PROJECT_DIR)/source
-integration-tests: export TEST_DIR = $(PROJECT_DIR)/integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

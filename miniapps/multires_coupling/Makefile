@@ -164,27 +164,14 @@ build: ALWAYS
 # Unit tests
 #
 unit-tests:
-	$Qecho The "Multires" application has no unit tests.
-
-unit-tests/build:
-	$Qecho No unit tests to build.
-
-unit-tests/rerun:
-	$Qecho No unit tests to run.
+	$(call MESSAGE,Testing,"There are no unit tests.")
 
 
 ##############################################################################
 # Integration tests
 #
-.PHONY: integration-tests
-integration-tests: export BIN_DIR ?= $(PROJECT_DIR)/test
-integration-tests: export META_FILE_DIR = rose-meta/lfric-multires_coupling/HEAD
-integration-tests: export PROJECT = $(PROJECT_NAME)
-integration-tests: export SOURCE_DIR = source
-integration-tests: export TEST_DIR = integration-test
-integration-tests: export WORKING_DIR := $(WORKING_DIR)/integration-test
-integration-tests: do-integration-tests
-	$(Q)echo > /dev/null
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 
 ##############################################################################

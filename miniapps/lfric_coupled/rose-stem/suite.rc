@@ -570,51 +570,8 @@
 {%-       set label = compiler_label + '_' + build | lower %}
 {%-       set family = label | upper %}
 
+
 {#############################################################################}
-{# INTEGRATION TESTS #}
-{%-       if 'integration_test_with_' + label in scheduledTasks %}
-    [[integration_test_with_{{label}}]]
-        inherit = {{family}}, TARGET
-        pre-script  = """
-                      {{'\n                     '|
-                        command_list( TARGET_BASE_SETUP,
-                                      compiler_setup[compiler],
-                                      TARGET_BUILD_SETUP,
-                                      TARGET_REVEAL_SETUP )}}
-                      """
-
-        script      = """
-                      INTEGRATION_TESTS=''
-                      if [[ -d $SOURCE_DIRECTORY/integration-test ]] ; then
-                        INTEGRATION_TESTS=`find $SOURCE_DIRECTORY/integration-test -name '*.[Ff]90' -exec egrep -l '^\s*program' {} \;`
-                      fi
-                      if [[ "${INTEGRATION_TESTS}" != "" ]] ; then
-                        make -C $SOURCE_DIRECTORY integration-tests
-                      else
-                        echo 'No integration-tests to process'
-                      fi
-                      """
-
-        post-script = """
-                      {{deleteDirectory('$WORKING_DIR')}}
-                      """
-
-        [[[environment]]]
-            WORKING_DIR    = {{TARGET_BUILD_ROOT}}/integration_{{label}}
-            RDEF_PRECISION = {{precision}}
-{%-         if fix_enums %}
-            FIX_ENUMS      = 1
-{%-         endif %}
-
-        [[[directives]]]
-{%-         for DIRECTIVE in TARGET_BUILD_BATCHER_DIRECTIVES %}
-            {{DIRECTIVE}}
-{%-         endfor %}
-        [[[job]]]
-            execution retry delays = 2*PT5S, 5*PT10S, 9*PT1M, 5*PT10M, 3*PT1H
-{%-       endif %}
-
-{# #############################################################################}
 {# CANNED CONFIGURATIONS #}
 {%-       for appName in canned_configurations %}
 {%-         if 'run_' + appName + '_canned_test_' + label in scheduledTasks %}

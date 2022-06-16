@@ -251,9 +251,8 @@
 {%-       endif %}
 {%-       set label = compiler | lower + '_' + precision + '-bit_'+ build | lower%}
 {{        unit_tests_graph( compiler, precision ) }}
-{%-       if compiler in TARGET_PERFORM_INTEGRATION_TESTS %}
-    export_source => integration_test_with_{{label}}
-{%-       endif %}
+{{        integration_tests_graph( compiler, precision ) }}
+
 {%-     endfor %} {# precisions #}
 {%-   endfor %} {# compiler #}
           """
