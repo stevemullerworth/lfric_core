@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
-!> @brief Kernel which computes vertical cell egdes value based on the monotone
+!> @brief Kernel which computes vertical cell edges value based on the monotone
 !!        Koren scheme.
 !> @details The kernel computes advective increment at Wtheta-points, using
 !!          edge-values at w3-points computed with the Koren scheme.
@@ -22,7 +22,7 @@ use argument_mod,         only : arg_type, GH_FIELD,     &
                                  GH_READWRITE,           &
                                  GH_READ, CELL_COLUMN
 use constants_mod,        only : r_def, i_def, l_def, tiny_eps, EPS
-use fs_continuity_mod,    only : W2, Wtheta
+use fs_continuity_mod,    only : W2v, Wtheta
 use kernel_mod,           only : kernel_type
 
 implicit none
@@ -35,13 +35,13 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: polyv_wtheta_koren_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                            &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta),                    &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    &
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                 &
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                                 &
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                                  &
+  type(arg_type) :: meta_args(6) = (/                                          &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta),                  &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2v),                     &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                  &
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                               &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                               &
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -65,10 +65,10 @@ contains
 !> @param[in]     ndf_wt       Number of degrees of freedom per cell
 !> @param[in]     undf_wt      Number of unique degrees of freedom for the tracer field
 !> @param[in]     map_wt       Cell dofmaps for the tracer space
-!> @param[in]     ndf_w2       Number of degrees of freedom per cell
-!> @param[in]     undf_w2      Number of unique degrees of freedom for the flux &
+!> @param[in]     ndf_w2v      Number of degrees of freedom per cell
+!> @param[in]     undf_w2v     Number of unique degrees of freedom for the flux &
 !!                             wind fields
-!> @param[in]     map_w2       Dofmap for the cell at the base of the column
+!> @param[in]     map_w2v      Dofmap for the cell at the base of the column
 
 subroutine polyv_wtheta_koren_code( nlayers,              &
                                     advective,            &
@@ -80,27 +80,27 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
                                     ndf_wt,               &
                                     undf_wt,              &
                                     map_wt,               &
-                                    ndf_w2,               &
-                                    undf_w2,              &
-                                    map_w2                )
+                                    ndf_w2v,              &
+                                    undf_w2v,             &
+                                    map_w2v               )
 
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                    :: nlayers
-  integer(kind=i_def), intent(in)                    :: ndf_wt
-  integer(kind=i_def), intent(in)                    :: undf_wt
-  integer(kind=i_def), intent(in)                    :: ndf_w2
-  integer(kind=i_def), intent(in)                    :: undf_w2
-  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
-  integer(kind=i_def), intent(in)                    :: ndata
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: ndf_wt
+  integer(kind=i_def), intent(in)                     :: undf_wt
+  integer(kind=i_def), intent(in)                     :: ndf_w2v
+  integer(kind=i_def), intent(in)                     :: undf_w2v
+  integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+  integer(kind=i_def), dimension(ndf_wt),  intent(in) :: map_wt
+  integer(kind=i_def), intent(in)                     :: ndata
 
-  real(kind=r_def), dimension(undf_wt), intent(inout) :: advective
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
-  logical(kind=l_def),                  intent(in)    :: reversible
-  logical(kind=l_def),                  intent(in)    :: logspace
+  real(kind=r_def), dimension(undf_wt),  intent(inout) :: advective
+  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
+  logical(kind=l_def),                   intent(in)    :: reversible
+  logical(kind=l_def),                   intent(in)    :: logspace
 
   !Internal variables
   real(kind=r_def), dimension(nlayers+1)   :: wind_1d, dtracerdz
@@ -111,7 +111,7 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
 
   !Extract vertical 1d-arrays from global data
   do k=0,nlayers
-        wind_1d(k+1) = wind(map_w2(5)+k)
+        wind_1d(k+1) = wind(map_w2v(1)+k)
       tracer_1d(k+1) = tracer(map_wt(1)+k)
   end do
   do k = 1,nlayers
@@ -180,7 +180,7 @@ subroutine polyv_wtheta_koren_code( nlayers,              &
 
   do k = 1, nlayers - 1
     advective(map_wt(1) + k ) = advective(map_wt(1) + k )   &
-                                + wind(map_w2(5) + k )      &
+                                + wind(map_w2v(1) + k )     &
                                 * dtracerdz(k+1)
   end do
 

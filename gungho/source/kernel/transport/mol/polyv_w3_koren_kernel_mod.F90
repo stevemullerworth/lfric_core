@@ -7,7 +7,7 @@
 !-------------------------------------------------------------------------------
 !> @brief Kernel which computes vertical cell egdes value based on the monotone
 !!        Koren scheme.
-!> @details The kernel computes vertical cell egdes at W2-points from
+!> @details The kernel computes vertical cell edges at W2v-points from
 !!          W3-field using the Koren scheme.
 !!  Ref.   Koren, B. (1993), "A robust upwind discretisation method for advection,
 !!         diffusion and source terms", in Vreugdenhil, C.B.; Koren, B. (eds.),
@@ -19,11 +19,10 @@ module polyv_w3_koren_kernel_mod
 use argument_mod,      only : arg_type, func_type,         &
                               GH_FIELD, GH_SCALAR,         &
                               GH_REAL, GH_INTEGER,         &
-                              GH_LOGICAL,                  &
-                              GH_INC, GH_READ, GH_BASIS,   &
-                              CELL_COLUMN, GH_EVALUATOR
+                              GH_LOGICAL, GH_WRITE,        &
+                              GH_READ, CELL_COLUMN
+use fs_continuity_mod, only : W2v, W3
 use constants_mod,     only : r_def, i_def, l_def, tiny_eps, EPS
-use fs_continuity_mod, only : W2, W3
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -37,18 +36,14 @@ private
 type, public, extends(kernel_type) :: polyv_w3_koren_kernel_type
   private
   type(arg_type) :: meta_args(6) = (/                                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_INC,   W2),                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2v),                       &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2v),                       &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3),                        &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                             &
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                              &
        /)
-  type(func_type) :: meta_funcs(1) = (/                                 &
-       func_type(W2, GH_BASIS)                                          &
-       /)
   integer :: operates_on = CELL_COLUMN
-  integer :: gh_shape = GH_EVALUATOR
 contains
   procedure, nopass :: polyv_w3_koren_code
 end type
@@ -68,11 +63,10 @@ contains
 !> @param[in]     ndata          Number of data points per dof location
 !> @param[in]     reversible     Use the reversible scheme
 !> @param[in]     logspace       Perform interpolation in log space;
-!> @param[in]     ndf_w2         Number of degrees of freedom per cell
-!> @param[in]     undf_w2        Number of unique degrees of freedom for the reconstruction &
-!!                               wind fields
-!> @param[in]     map_w2         Dofmap for the cell at the base of the column
-!> @param[in]     basis_w2       Basis function array evaluated at w2 nodes
+!> @param[in]     ndf_w2v        Number of degrees of freedom per cell
+!> @param[in]     undf_w2v       Number of unique degrees of freedom for the
+!!                               reconstrution and wind fields
+!> @param[in]     map_w2v        Dofmap for the cell at the base of the column
 !> @param[in]     ndf_w3         Number of degrees of freedom per cell
 !> @param[in]     undf_w3        Number of unique degrees of freedom for the tracer field
 !> @param[in]     map_w3         Cell dofmaps for the tracer space
@@ -84,10 +78,9 @@ subroutine polyv_w3_koren_code( nlayers,                           &
                                 ndata,                             &
                                 reversible,                        &
                                 logspace,                          &
-                                ndf_w2,                            &
-                                undf_w2,                           &
-                                map_w2,                            &
-                                basis_w2,                          &
+                                ndf_w2v,                            &
+                                undf_w2v,                           &
+                                map_w2v,                            &
                                 ndf_w3,                            &
                                 undf_w3,                           &
                                 map_w3                             )
@@ -95,21 +88,20 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                    :: nlayers
-  integer(kind=i_def), intent(in)                    :: ndata
-  integer(kind=i_def), intent(in)                    :: ndf_w3
-  integer(kind=i_def), intent(in)                    :: undf_w3
-  integer(kind=i_def), intent(in)                    :: ndf_w2
-  integer(kind=i_def), intent(in)                    :: undf_w2
-  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: ndata
+  integer(kind=i_def), intent(in)                     :: ndf_w3
+  integer(kind=i_def), intent(in)                     :: undf_w3
+  integer(kind=i_def), intent(in)                     :: ndf_w2v
+  integer(kind=i_def), intent(in)                     :: undf_w2v
+  integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+  integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
 
-  real(kind=r_def), dimension(undf_w2), intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: tracer
-  real(kind=r_def), dimension(3,ndf_w2,ndf_w2), intent(in) :: basis_w2
-  logical(kind=l_def), intent(in)                    :: reversible
-  logical(kind=l_def), intent(in)                    :: logspace
+  real(kind=r_def), dimension(undf_w2v), intent(inout) :: reconstruction
+  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_w3),  intent(in)    :: tracer
+  logical(kind=l_def), intent(in)                      :: reversible
+  logical(kind=l_def), intent(in)                      :: logspace
 
   ! Local variables
   integer(kind=i_def)                             :: k, k1, k2, k3
@@ -120,7 +112,7 @@ subroutine polyv_w3_koren_code( nlayers,                           &
 
   ! Extract the global data into 1d-array
   do k = 0,nlayers
-    wind_1d(k+1) = wind(map_w2(5)+k)
+    wind_1d(k+1) = wind(map_w2v(1)+k)
   end do
   do k = 0,nlayers - 1
     tracer_1d(k+1) = tracer(map_w3(1)+k)
@@ -182,7 +174,7 @@ subroutine polyv_w3_koren_code( nlayers,                           &
   end if
 
   do k = 0, nlayers
-     reconstruction(map_w2(5) + k ) =  tracer_edge(k+1)
+     reconstruction(map_w2v(1) + k ) =  tracer_edge(k+1)
   end do
 
 end subroutine polyv_w3_koren_code

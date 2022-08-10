@@ -15,7 +15,7 @@ use argument_mod,         only : arg_type, CELL_COLUMN, &
                                  GH_READWRITE, GH_READ, &
                                  ANY_DISCONTINUOUS_SPACE_1
 use constants_mod,        only : r_def, i_def, l_def, EPS
-use fs_continuity_mod,    only : W2, Wtheta
+use fs_continuity_mod,    only : W2v, Wtheta
 use kernel_mod,           only : kernel_type
 
 implicit none
@@ -30,9 +30,9 @@ type, public, extends(kernel_type) :: tl_poly1d_vert_adv_kernel_type
   private
   type(arg_type) :: meta_args(9) = (/                                            &
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, Wtheta),                    &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2v),                       &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2v),                       &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      Wtheta),                    &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                 &
@@ -66,10 +66,10 @@ contains
 !! @param[in]  undf_wt   Number of unique degrees of freedom for the tracer
 !!                       field
 !! @param[in]  map_wt    Cell dofmaps for the tracer space
-!! @param[in]  ndf_w2    Number of degrees of freedom per cell
-!! @param[in]  undf_w2   Number of unique degrees of freedom for the flux &
+!! @param[in]  ndf_w2v   Number of degrees of freedom per cell
+!! @param[in]  undf_w2v  Number of unique degrees of freedom for the flux &
 !!                       wind fields
-!! @param[in]  map_w2    Dofmap for the cell at the base of the column
+!! @param[in]  map_w2v   Dofmap for the cell at the base of the column
 !! @param[in]  ndf_c     Number of degrees of freedom per cell for the coeff
 !!                       space
 !! @param[in]  undf_c    Total number of degrees of freedom for the coeff space
@@ -87,9 +87,9 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
                                     ndf_wt,               &
                                     undf_wt,              &
                                     map_wt,               &
-                                    ndf_w2,               &
-                                    undf_w2,              &
-                                    map_w2,               &
+                                    ndf_w2v,              &
+                                    undf_w2v,             &
+                                    map_w2v,              &
                                     ndf_c,                &
                                     undf_c,               &
                                     map_c)
@@ -97,25 +97,25 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                    :: nlayers
-  integer(kind=i_def), intent(in)                    :: ndf_wt
-  integer(kind=i_def), intent(in)                    :: undf_wt
-  integer(kind=i_def), intent(in)                    :: ndf_w2
-  integer(kind=i_def), intent(in)                    :: undf_w2
-  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
-  integer(kind=i_def), intent(in)                    :: ndf_c
-  integer(kind=i_def), intent(in)                    :: undf_c
-  integer(kind=i_def), dimension(ndf_c),  intent(in) :: map_c
-  integer(kind=i_def), intent(in)                    :: ndata
-  integer(kind=i_def), intent(in)                    :: global_order
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: ndf_wt
+  integer(kind=i_def), intent(in)                     :: undf_wt
+  integer(kind=i_def), intent(in)                     :: ndf_w2v
+  integer(kind=i_def), intent(in)                     :: undf_w2v
+  integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+  integer(kind=i_def), dimension(ndf_wt),  intent(in) :: map_wt
+  integer(kind=i_def), intent(in)                     :: ndf_c
+  integer(kind=i_def), intent(in)                     :: undf_c
+  integer(kind=i_def), dimension(ndf_c),   intent(in) :: map_c
+  integer(kind=i_def), intent(in)                     :: ndata
+  integer(kind=i_def), intent(in)                     :: global_order
 
-  real(kind=r_def), dimension(undf_wt), intent(inout) :: advective
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: ls_wind
-  real(kind=r_def), dimension(undf_wt), intent(in)    :: ls_tracer
-  real(kind=r_def), dimension(undf_c),  intent(in)    :: coeff
+  real(kind=r_def), dimension(undf_wt),  intent(inout) :: advective
+  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
+  real(kind=r_def), dimension(undf_w2v), intent(in)    :: ls_wind
+  real(kind=r_def), dimension(undf_wt),  intent(in)    :: ls_tracer
+  real(kind=r_def), dimension(undf_c),   intent(in)    :: coeff
 
   logical(kind=l_def), intent(in) :: logspace
 
@@ -166,7 +166,7 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
     ! reconstructions only.
     ! if wind > 0 -> upwind_offset = 1
     ! if wind < 0 -> upwind_offset = 0
-    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2(5)+k))),i_def)
+    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2v(1)+k))),i_def)
     upwind_offset = use_upwind*upwind
     stencil = stencil - upwind_offset
 
@@ -201,8 +201,8 @@ subroutine tl_poly1d_vert_adv_code( nlayers,              &
     end if
 
     advective(map_wt(1)+ k) = advective(map_wt(1)+k) &
-                              + wind(map_w2(5)+k)*ls_dpdz &
-                              + ls_wind(map_w2(5)+k)*dpdz
+                              + wind(map_w2v(1)+k)*ls_dpdz &
+                              + ls_wind(map_w2v(1)+k)*dpdz
   end do
 end subroutine tl_poly1d_vert_adv_code
 

@@ -27,7 +27,7 @@ module tl_poly1d_vert_w3_reconstruction_kernel_mod_test
 
     real(r_def)            :: answer, use_tol
 
-    integer(i_def), allocatable :: map_w2(:)
+    integer(i_def), allocatable :: map_w2v(:)
     integer(i_def), allocatable :: map_w3(:)
     integer(i_def), allocatable :: map_c(:)
 
@@ -53,10 +53,10 @@ module tl_poly1d_vert_w3_reconstruction_kernel_mod_test
   integer(i_def), parameter :: nlayers = 5
   integer(i_def), parameter :: mol_order = 2
   integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
-  integer(i_def), parameter :: ndf_w2 = 6
+  integer(i_def), parameter :: ndf_w2v = 2
   integer(i_def), parameter :: ndf_w3 = 1
   integer(i_def), parameter :: ndf_c  = 1
-  integer(i_def), parameter :: undf_w2 = (nlayers+1)
+  integer(i_def), parameter :: undf_w2v = (nlayers+1)
   integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
   integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
 
@@ -72,20 +72,19 @@ contains
 
     integer(i_def) :: df, k, f
 
-    allocate(this%map_w2(ndf_w2))
+    allocate(this%map_w2v(ndf_w2v))
     allocate(this%map_w3(ndf_w3))
     allocate(this%map_c(ndf_c))
-    allocate(this%recon(undf_w2))
-    allocate(this%recon_answer(undf_w2))
+    allocate(this%recon(undf_w2v))
+    allocate(this%recon_answer(undf_w2v))
     allocate(this%density(undf_w3))
-    allocate(this%ls_wind(undf_w2))
+    allocate(this%ls_wind(undf_w2v))
     allocate(this%ls_density(undf_w3))
     allocate(this%coeff(undf_c))
 
     this%map_w3(1) = 1
     this%map_c(1) = 1
-    this%map_w2(1:4) = 0
-    this%map_w2(5:6) = (/1, 2/)
+    this%map_w2v(:) = (/ 1, 2 /)
 
     ! Quadratic fit for most of the domain
     do k = 1, nlayers-1
@@ -119,7 +118,7 @@ contains
 
     class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
 
-    deallocate(this%map_w2)
+    deallocate(this%map_w2v)
     deallocate(this%map_w3)
     deallocate(this%map_c)
     deallocate(this%recon)
@@ -165,9 +164,9 @@ contains
                                    ndata,                             &
                                    mol_order,                         &
                                    logspace,                          &
-                                   ndf_w2,                            &
-                                   undf_w2,                           &
-                                   this%map_w2,                       &
+                                   ndf_w2v,                           &
+                                   undf_w2v,                          &
+                                   this%map_w2v,                      &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
@@ -175,9 +174,9 @@ contains
                                    undf_c,                            &
                                    this%map_c)
     this%answer = 1.0_r_def
-    @assertEqual(this%answer, this%recon(this%map_w2(5)+1) , tol)
+    @assertEqual(this%answer, this%recon(this%map_w2v(1)+1) , tol)
     this%answer = 2.0_r_def
-    @assertEqual(this%answer, this%recon(this%map_w2(5)+2) , tol)
+    @assertEqual(this%answer, this%recon(this%map_w2v(1)+2) , tol)
 
   end subroutine test_standard
 
@@ -216,9 +215,9 @@ contains
                                    ndata,                             &
                                    mol_order,                         &
                                    logspace,                          &
-                                   ndf_w2,                            &
-                                   undf_w2,                           &
-                                   this%map_w2,                       &
+                                   ndf_w2v,                           &
+                                   undf_w2v,                          &
+                                   this%map_w2v,                      &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
@@ -227,14 +226,14 @@ contains
                                    this%map_c)
 
     this%answer = 1.0_r_def * exp(-1.0_r_def)
-    @assertEqual(this%answer, this%recon(this%map_w2(5)+1), tol)
+    @assertEqual(this%answer, this%recon(this%map_w2v(1)+1), tol)
     this%answer = 1.0_r_def * exp(-2.0_r_def)
     if ( r_def == real64 ) then
       this%use_tol = tol
-      @assertEqual(this%answer, this%recon(this%map_w2(5)+2), this%use_tol)
+      @assertEqual(this%answer, this%recon(this%map_w2v(1)+2), this%use_tol)
     else
-      this%use_tol = 10.0_r_def*spacing( this%recon(this%map_w2(5)+2) )
-      @assertEqual(this%answer, this%recon(this%map_w2(5)+2), this%use_tol)
+      this%use_tol = 10.0_r_def*spacing( this%recon(this%map_w2v(1)+2) )
+      @assertEqual(this%answer, this%recon(this%map_w2v(1)+2), this%use_tol)
     end if
 
   end subroutine test_logspace
@@ -275,9 +274,9 @@ contains
                                    ndata,                             &
                                    mol_order,                         &
                                    logspace,                          &
-                                   ndf_w2,                            &
-                                   undf_w2,                           &
-                                   this%map_w2,                       &
+                                   ndf_w2v,                           &
+                                   undf_w2v,                          &
+                                   this%map_w2v,                      &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
@@ -297,9 +296,9 @@ contains
                                    ndata,                             &
                                    mol_order,                         &
                                    logspace,                          &
-                                   ndf_w2,                            &
-                                   undf_w2,                           &
-                                   this%map_w2,                       &
+                                   ndf_w2v,                           &
+                                   undf_w2v,                          &
+                                   this%map_w2v,                      &
                                    ndf_w3,                            &
                                    undf_w3,                           &
                                    this%map_w3,                       &
@@ -310,7 +309,7 @@ contains
     if ( r_def == real64 ) then
       this%use_tol = tol
     else
-      this%use_tol = 10.0_r_def*spacing( this%recon_answer(this%map_w2(5)+2) )
+      this%use_tol = 10.0_r_def*spacing( this%recon_answer(this%map_w2v(1)+2) )
     end if
 
     @assertEqual(this%recon_answer, this%recon, this%use_tol)

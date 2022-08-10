@@ -26,12 +26,11 @@ contains
   !> @param[in]     ls_wind             PASSIVE Linearisation state advecting wind
   !> @param[in]     dt                  Advection time step
   !> @param[in]     direction           Direction to perform the advective update
-  !> @param[in]     reversible          Flag to use reversible scheme
-  !> @param[in]     logspace            Flag to use logspace for
-  !> @param[in]     monotonicity        Flag to apply monotonicity
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
   subroutine tl_advective_increment_alg(advective_increment, field, wind, &
                                         ls_field, ls_wind, dt, direction, &
-                                        reversible, logspace, monotonicity)
+                                        transport_metadata, final_rk_stage)
 
     use constants_mod,                   only: r_def, i_def, l_def
     use field_mod,                       only: field_type
@@ -40,21 +39,26 @@ contains
     use reconstruct_w3_field_alg_mod,    only: reconstruct_w3_field_alg
     use tl_reconstruct_w3_field_alg_mod, only: tl_reconstruct_w3_field_alg
     use w3_advective_update_kernel_mod,  only: w3_advective_update_kernel_type
+    use w3h_advective_update_kernel_mod, only: w3h_advective_update_kernel_type
+    use w3v_advective_update_kernel_mod, only: w3v_advective_update_kernel_type
     use tl_wt_advective_update_alg_mod,  only: tl_wt_advective_update_alg
     use fs_continuity_mod,               only: W3, Wtheta
     use operator_mod,                    only: operator_type
     use fem_constants_mod,               only: get_inverse_w3_mass_matrix
+    use transport_metadata_mod,          only: transport_metadata_type
+    use transport_enumerated_types_mod,  only: direction_3d, &
+                                               direction_h,  &
+                                               direction_v
 
     implicit none
 
-    type(field_type),    intent(inout) :: advective_increment
-    type(field_type),    intent(in)    :: field, wind
-    type(field_type),    intent(in)    :: ls_field, ls_wind
-    real(kind=r_def),    intent(in)    :: dt
-    integer(kind=i_def), intent(in)    :: direction
-    logical(kind=l_def), intent(in)    :: reversible
-    logical(kind=l_def), intent(in)    :: logspace
-    integer(kind=i_def), intent(in)    :: monotonicity
+    type(field_type),              intent(inout) :: advective_increment
+    type(field_type),              intent(in)    :: field, wind
+    type(field_type),              intent(in)    :: ls_field, ls_wind
+    real(kind=r_def),              intent(in)    :: dt
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
 
     type(field_type)             :: recon_ls_tracer, recon_tracer
     type(field_type)             :: adv_inc_ls_tracer, adv_inc_tracer
@@ -72,21 +76,49 @@ contains
         ! Calculate reconstructions
         ! ls wind is still used here to define upwind direction
         call reconstruct_w3_field_alg(recon_ls_tracer, ls_field, ls_wind, &
-                                      direction, reversible, logspace)
-        call tl_reconstruct_w3_field_alg(recon_tracer, field, ls_field,   &
-                                         ls_wind, direction, reversible, logspace)
+                                      direction, transport_metadata, final_rk_stage)
+        call tl_reconstruct_w3_field_alg(recon_tracer, field, ls_field,    &
+                                         ls_wind, direction,               &
+                                         transport_metadata, final_rk_stage)
 
-        ! Compute increments
-        call invoke( w3_advective_update_kernel_type(adv_inc_tracer,        &
-                                                     recon_tracer, ls_wind, &
-                                                     m3_inv),               &
-                     w3_advective_update_kernel_type(adv_inc_ls_tracer,     &
-                                                     recon_ls_tracer, wind, &
-                                                     m3_inv),               &
-        ! Obtain final increment by combining these two:
-        ! df' = ls_u.grad(f') + u'.grad(ls_f) )
-                     X_plus_Y(advective_increment,                          &
-                              adv_inc_tracer, adv_inc_ls_tracer) )
+        select case ( direction )
+        case ( direction_3d )
+          ! Compute increments
+          call invoke( w3_advective_update_kernel_type(adv_inc_tracer,         &
+                                                       recon_tracer, ls_wind,  &
+                                                       m3_inv),                &
+                       w3_advective_update_kernel_type(adv_inc_ls_tracer,      &
+                                                       recon_ls_tracer, wind,  &
+                                                       m3_inv),                &
+          ! Obtain final increment by combining these two:
+          ! df' = ls_u.grad(f') + u'.grad(ls_f) )
+                      X_plus_Y(advective_increment,                            &
+                                adv_inc_tracer, adv_inc_ls_tracer) )
+        case ( direction_h )
+          ! Compute increments
+          call invoke( w3h_advective_update_kernel_type(adv_inc_tracer,        &
+                                                        recon_tracer, ls_wind, &
+                                                        m3_inv),               &
+                       w3h_advective_update_kernel_type(adv_inc_ls_tracer,     &
+                                                        recon_ls_tracer, wind, &
+                                                        m3_inv),               &
+          ! Obtain final increment by combining these two:
+          ! df' = ls_u.grad(f') + u'.grad(ls_f) )
+                      X_plus_Y(advective_increment,                            &
+                                adv_inc_tracer, adv_inc_ls_tracer) )
+        case ( direction_v )
+          ! Compute increments
+          call invoke( w3v_advective_update_kernel_type(adv_inc_tracer,        &
+                                                        recon_tracer, ls_wind, &
+                                                        m3_inv),               &
+                       w3v_advective_update_kernel_type(adv_inc_ls_tracer,     &
+                                                        recon_ls_tracer, wind, &
+                                                        m3_inv),               &
+          ! Obtain final increment by combining these two:
+          ! df' = ls_u.grad(f') + u'.grad(ls_f) )
+                      X_plus_Y(advective_increment,                            &
+                                adv_inc_tracer, adv_inc_ls_tracer) )
+        end select
 
         nullify(m3_inv)
 
@@ -95,7 +127,7 @@ contains
         ! Everything is handled by T.L. version of Wtheta advective update alg
         call tl_wt_advective_update_alg(advective_increment, field, wind, &
                                         ls_field, ls_wind, dt, direction, &
-                                        reversible, logspace, monotonicity)
+                                        transport_metadata, final_rk_stage)
 
       case default
         call log_event( "Advective increment only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )

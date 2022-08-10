@@ -48,8 +48,6 @@ contains
     integer(i_def),                intent(in)    :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    logical(l_def)   :: logspace
-    integer(i_def)   :: monotonicity
     type(field_type) :: rhs, field_n
     integer(i_def)   :: mesh_id
 
@@ -66,7 +64,7 @@ contains
     real(r_def)    :: dt_substep
     logical(l_def) :: enforce_min_value
     real(r_def)    :: min_value
-    logical(l_def) :: use_reversible_scheme
+    logical(l_def) :: final_rk_stage
 
     if ( subroutine_timers ) call timer('mol_advective_alg')
 
@@ -79,10 +77,8 @@ contains
 
     number_substeps = transport_runtime%get_number_substeps(mesh_id,direction,transport_metadata%get_splitting())
     dt_substep      = transport_runtime%get_dt_substep(mesh_id,direction,transport_metadata%get_splitting())
-    advecting_wind  => transport_runtime%get_advecting_wind(mesh_id)
+    advecting_wind  => transport_runtime%get_directional_advecting_wind(mesh_id, direction)
 
-    logspace     = transport_metadata%get_log_space()
-    monotonicity = transport_metadata%get_monotone()
     enforce_min_value = transport_metadata%get_enforce_min_value()
 
     call rhs%initialise(field%get_function_space())
@@ -104,12 +100,11 @@ contains
       ! Reset field_n ready for the this substep
       call field_np1%copy_field(field_n)
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       stage_loop: do stage = 1, nstage
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-          use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
@@ -122,9 +117,8 @@ contains
         ! Compute update: rhs = u.grad(rhs_field)
         call advective_increment_alg(rhs, rhs_field,                   &
                                      advecting_wind, dt_substep,       &
-                                     direction, use_reversible_scheme, &
-                                     monotonicity=monotonicity,        &
-                                     logspace=logspace)
+                                     direction, transport_metadata,    &
+                                     final_rk_stage )
 
         ! Update field: f = f^n - dt_substep*rhs
         call invoke( X_minus_bY(field_np1, field_n, dt_substep, rhs) )

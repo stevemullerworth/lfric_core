@@ -45,31 +45,30 @@ contains
     integer(i_def), parameter :: nlayers = 5
     integer(i_def), parameter :: mol_order = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
-    integer(i_def), parameter :: ndf_w2 = 6
+    integer(i_def), parameter :: ndf_w2v = 2
     integer(i_def), parameter :: ndf_w3 = 1
     integer(i_def), parameter :: ndf_c  = 1
-    integer(i_def), parameter :: undf_w2 = (nlayers+1)
+    integer(i_def), parameter :: undf_w2v = nlayers+1
     integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
     integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
 
-    integer(i_def), dimension(ndf_w2) :: map_w2
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
     integer(i_def), dimension(ndf_w3) :: map_w3
     integer(i_def), dimension(ndf_c)  :: map_c
 
 
-    real(r_def), dimension(undf_w2) :: reconstruction
-    real(r_def), dimension(undf_w2) :: reconstruct_answer
-    real(r_def), dimension(undf_w2) :: wind
-    real(r_def), dimension(undf_w3) :: density
-    real(r_def), dimension(undf_c)  :: coeff
+    real(r_def), dimension(undf_w2v) :: reconstruction
+    real(r_def), dimension(undf_w2v) :: reconstruct_answer
+    real(r_def), dimension(undf_w2v) :: wind
+    real(r_def), dimension(undf_w3)  :: density
+    real(r_def), dimension(undf_c)   :: coeff
 
     integer(i_def) :: df, k, f
     logical(l_def) :: logspace
 
     map_w3(1) = 1
     map_c(1) = 1
-    map_w2(1:4) = 0
-    map_w2(5:6) = (/1, 2/)
+    map_w2v(:) = (/1, 2/)
 
     wind(:) = 1.0_r_def
 
@@ -109,9 +108,9 @@ contains
                                              ndata,                             &
                                              mol_order,                         &
                                              logspace,                          &
-                                             ndf_w2,                            &
-                                             undf_w2,                           &
-                                             map_w2,                            &
+                                             ndf_w2v,                           &
+                                             undf_w2v,                          &
+                                             map_w2v,                           &
                                              ndf_w3,                            &
                                              undf_w3,                           &
                                              map_w3,                            &
@@ -121,12 +120,12 @@ contains
     if ( r_def == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( reconstruction(map_w2(5)+1) )
+      use_tol = 10.0_r_def*spacing( reconstruction(map_w2v(1)+1) )
     endif
     answer = 1.0_r_def
-    @assertEqual(answer, reconstruction(map_w2(5)+1) , use_tol)
+    @assertEqual(answer, reconstruction(map_w2v(1)+1) , use_tol)
     answer = 2.0_r_def
-    @assertEqual(answer, reconstruction(map_w2(5)+2) , tol)
+    @assertEqual(answer, reconstruction(map_w2v(1)+2) , tol)
 
     ! Next test standard polynomial interpolation in log-space
 
@@ -142,9 +141,9 @@ contains
                                              ndata,                             &
                                              mol_order,                         &
                                              logspace,                          &
-                                             ndf_w2,                            &
-                                             undf_w2,                           &
-                                             map_w2,                            &
+                                             ndf_w2v,                           &
+                                             undf_w2v,                          &
+                                             map_w2v,                           &
                                              ndf_w3,                            &
                                              undf_w3,                           &
                                              map_w3,                            &
@@ -154,12 +153,12 @@ contains
     if ( r_def == real64 ) then
       use_tol = tol
     else
-      use_tol = 10.0_r_def*spacing( reconstruction(map_w2(5)+1) )
+      use_tol = 10.0_r_def*spacing( reconstruction(map_w2v(1)+1) )
     endif
     answer = exp(-1.0_r_def)
-    @assertEqual(answer, reconstruction(map_w2(5)+1), use_tol)
+    @assertEqual(answer, reconstruction(map_w2v(1)+1), use_tol)
     answer = exp(-2.0_r_def)
-    @assertEqual(answer, reconstruction(map_w2(5)+2), use_tol)
+    @assertEqual(answer, reconstruction(map_w2v(1)+2), use_tol)
 
     ! ------------------------------------------------------------------------ !
     ! Test that zero values don't cause blow up
@@ -176,9 +175,9 @@ contains
                                              ndata,                            &
                                              mol_order,                        &
                                              logspace,                         &
-                                             ndf_w2,                           &
-                                             undf_w2,                          &
-                                             map_w2,                           &
+                                             ndf_w2v,                          &
+                                             undf_w2v,                         &
+                                             map_w2v,                          &
                                              ndf_w3,                           &
                                              undf_w3,                          &
                                              map_w3,                           &
@@ -197,9 +196,9 @@ contains
                                              ndata,                            &
                                              mol_order,                        &
                                              logspace,                         &
-                                             ndf_w2,                           &
-                                             undf_w2,                          &
-                                             map_w2,                           &
+                                             ndf_w2v,                          &
+                                             undf_w2v,                         &
+                                             map_w2v,                          &
                                              ndf_w3,                           &
                                              undf_w3,                          &
                                              map_w3,                           &

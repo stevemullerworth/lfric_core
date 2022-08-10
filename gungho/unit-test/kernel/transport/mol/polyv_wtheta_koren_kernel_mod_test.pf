@@ -107,18 +107,15 @@ contains
     integer(i_def), parameter :: nfaces_h = 4
     integer(i_def), parameter :: mol_order = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
-    integer(i_def), parameter :: ndf_w2 = 6
     integer(i_def), parameter :: ndf_wt = 2
     integer(i_def), parameter :: ndf_c  = 2
-    integer(i_def), parameter :: undf_w2 = nlayers*nlayers + (nlayers+1)
     integer(i_def), parameter :: undf_wt = nlayers+1
     integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
 
-    integer(i_def), dimension(ndf_w2) :: map_w2
     integer(i_def), dimension(ndf_wt) :: map_wt
 
     real(r_def), dimension(undf_wt) :: adv_inc
-    real(r_def), dimension(undf_w2) :: wind
+    real(r_def), dimension(undf_wt) :: wind
     real(r_def), dimension(undf_wt) :: density
     real(r_def), dimension(undf_wt) :: adv_inc_answer1, adv_inc_answer2
 
@@ -128,11 +125,6 @@ contains
     real(r_def), dimension(3) :: kw=(/-1.0_r_def,5.0_r_def,2.0_r_def/)/6.0_r_def
 
     map_wt(:) = (/ 1, 2 /)
-    do df = 1,nfaces_h
-      map_w2(df) = 1 + (df-1)*nlayers
-    end do
-    map_w2(5) = 1 + nfaces_h*nlayers
-    map_w2(6) = map_w2(5) + 1
 
     wind(:) = 1.0_r_def
 
@@ -178,9 +170,9 @@ contains
                                   ndf_wt,               &
                                   undf_wt,              &
                                   map_wt,               &
-                                  ndf_w2,               &
-                                  undf_w2,              &
-                                  map_w2                )
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
 
     if ( r_def == real64 ) then
       use_tol = tol
@@ -206,9 +198,9 @@ contains
                                   ndf_wt,               &
                                   undf_wt,              &
                                   map_wt,               &
-                                  ndf_w2,               &
-                                  undf_w2,              &
-                                  map_w2                )
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
 
     if ( r_def == real64 ) then
       use_tol = tol
@@ -236,9 +228,9 @@ contains
                                   ndf_wt,               &
                                   undf_wt,              &
                                   map_wt,               &
-                                  ndf_w2,               &
-                                  undf_w2,              &
-                                  map_w2                )
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
 
     ! Now do reconstruction with tiny density as a control
     density(:) = EPS
@@ -253,9 +245,9 @@ contains
                                   ndf_wt,               &
                                   undf_wt,              &
                                   map_wt,               &
-                                  ndf_w2,               &
-                                  undf_w2,              &
-                                  map_w2                )
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
 
     @assertEqual(adv_inc_answer2, adv_inc, use_tol)
 

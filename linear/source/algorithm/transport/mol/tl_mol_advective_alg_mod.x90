@@ -49,8 +49,6 @@ contains
     integer(i_def),                intent(in)    :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    logical(l_def)   :: logspace
-    integer(i_def)   :: monotonicity
     type(field_type) :: rhs, field_n
 
     type(field_type), pointer     :: advecting_wind => null()
@@ -68,13 +66,13 @@ contains
     integer(i_def) :: number_substeps
     real(r_def)    :: dt_substep
     logical(l_def) :: enforce_min_value
-    logical(l_def) :: use_reversible_scheme
+    logical(l_def) :: final_rk_stage
 
     ! Get transport_runtime
     mesh => field%get_mesh()
     transport_runtime => get_transport_runtime( mesh )
-    advecting_wind    => tl_transport_runtime%get_advecting_wind( mesh%get_id() )
-    ls_advecting_wind => transport_runtime%get_advecting_wind( mesh%get_id() )
+    advecting_wind    => tl_transport_runtime%get_directional_advecting_wind( mesh%get_id(), direction )
+    ls_advecting_wind => transport_runtime%get_directional_advecting_wind( mesh%get_id(), direction )
 
     number_substeps = transport_runtime%get_number_substeps( mesh%get_id(), &
                                                              direction,     &
@@ -83,8 +81,6 @@ contains
     dt_substep      = transport_runtime%get_dt_substep( mesh%get_id(), &
                                                         direction,     &
                                                         transport_metadata%get_splitting() )
-    logspace     = transport_metadata%get_log_space()
-    monotonicity = transport_metadata%get_monotone()
     enforce_min_value = transport_metadata%get_enforce_min_value()
 
     call rhs%initialise(field%get_function_space())
@@ -118,15 +114,14 @@ contains
       ! Reset field_n ready for the this substep
       call ls_field_np1%copy_field(ls_field_n)
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       do stage = 1, nstage
         ! Store values for use in the perturbation code. This is done before
         ! advecting so as to pick up the correct linearisation state
         call invoke( setval_X(stored_ls_field(substep, stage), ls_field_np1) )
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-            use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
@@ -139,9 +134,8 @@ contains
         ! Compute update: rhs = u.grad(rhs_field)
         call advective_increment_alg(rhs, rhs_field,                   &
                                      ls_advecting_wind, dt_substep,       &
-                                     direction, use_reversible_scheme, &
-                                     logspace=logspace,                &
-                                     monotonicity=monotonicity )
+                                     direction, transport_metadata,       &
+                                     final_rk_stage )
 
         ! Update field: f = f^n - dt_substep*rhs
         call invoke( X_minus_bY(ls_field_np1, ls_field_n, dt_substep, rhs) )
@@ -169,12 +163,11 @@ contains
       ! Reset field_n ready for the this substep
       call field_np1%copy_field(field_n)
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       do stage = 1, nstage
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-          use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
@@ -188,9 +181,8 @@ contains
         call tl_advective_increment_alg(rhs, rhs_field, advecting_wind,   &
                                         stored_ls_field(substep, stage),  &
                                         ls_advecting_wind, dt_substep,    &
-                                        direction, use_reversible_scheme, &
-                                        logspace=logspace,                &
-                                        monotonicity=monotonicity )
+                                        direction, transport_metadata,    &
+                                        final_rk_stage )
 
         ! Update field: f = f^n - dt_substep*rhs
         call invoke( X_minus_bY(field_np1, field_n, dt_substep, rhs) )

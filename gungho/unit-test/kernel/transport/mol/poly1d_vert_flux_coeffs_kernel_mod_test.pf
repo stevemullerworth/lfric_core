@@ -174,12 +174,12 @@ contains
 
     integer(i_def) :: i, k, df
 
-    integer(i_def), parameter :: ndf_w2 = 6
-    integer(i_def), parameter :: undf_w2 = 4*nlayers + 2*(nlayers+1)
-    integer(i_def), dimension(ndf_w2)  :: map_w2
-    real(r_def),    dimension(undf_w2) :: reconstruction
-    real(r_def),    dimension(undf_w2) :: wind
-    real(r_def),    dimension(undf_w3) :: density
+    integer(i_def), parameter :: ndf_w2v = 2
+    integer(i_def), parameter :: undf_w2v = nlayers+1
+    integer(i_def), dimension(ndf_w2v)  :: map_w2v
+    real(r_def),    dimension(undf_w2v) :: reconstruction
+    real(r_def),    dimension(undf_w2v) :: wind
+    real(r_def),    dimension(undf_w3)  :: density
 
     real(r_def) :: z_w3
 
@@ -189,6 +189,7 @@ contains
     map_c(1) = 1
     map_wx(:) = (/1, 2/)
     map_w3(1) = 1
+    map_w2v = (/1, 2/)
 
     z(0) = 0.0_r_def
     do k = 0,nlayers-1
@@ -240,16 +241,11 @@ contains
                                       nqp_h, nqp_v, wqp_h, wqp_v )
 
     ! The best way to check the coefficients is to call the kernel
-    ! to reconstruc the field, this will compute reconstruction =
+    ! to reconstruct the field, this will compute reconstruction =
     ! reconstructed(density) and so we can then easily check
     ! the reconstructed field with the exact answer.
     ! this is done for both positive and negative winds
     ! to check the upwind reconstruction in both directions
-    do df = 1,4
-      map_w2(df) = 1 + (df-1)*nlayers
-    end do
-    map_w2(5) = 1 + 4*nlayers
-    map_w2(6) = map_w2(5) + 1
 
     do i = 0,1
       wind = (-1.0_r_def + 2.0_r_def*real(i,r_def))*dx*dy
@@ -263,9 +259,9 @@ contains
                                                ndata,                &
                                                mol_order,            &
                                                logspace,             &
-                                               ndf_w2,               &
-                                               undf_w2,              &
-                                               map_w2,               &
+                                               ndf_w2v,              &
+                                               undf_w2v,             &
+                                               map_w2v,              &
                                                ndf_w3,               &
                                                undf_w3,              &
                                                map_w3,               &
@@ -277,13 +273,13 @@ contains
       else
         mx = 0.0_r_def
         do k = 0, nlayers
-           mx = max( mx, reconstruction(map_w2(5)+k) )
+           mx = max( mx, reconstruction(map_w2v(1)+k) )
         end do
         use_tol = max(tol, 10.0_r_def*spacing( mx ))
       end if
       do k = 0,nlayers
         ans = this%test_function(z(map_wx(1)+k))
-        @assertEqual(ans, reconstruction(map_w2(5)+k), use_tol)
+        @assertEqual(ans, reconstruction(map_w2v(1)+k), use_tol)
       end do
     end do
 

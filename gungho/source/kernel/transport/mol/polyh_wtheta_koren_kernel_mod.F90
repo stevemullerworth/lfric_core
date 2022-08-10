@@ -23,8 +23,8 @@ use argument_mod,      only : arg_type, func_type,         &
                               STENCIL, CROSS, GH_BASIS,    &
                               CELL_COLUMN, GH_EVALUATOR,   &
                               outward_normals_to_horizontal_faces
-use constants_mod,     only : r_def, i_def, tiny_eps
-use fs_continuity_mod, only : W1, W2, Wtheta
+use constants_mod,     only : r_def, i_def, l_def, tiny_eps
+use fs_continuity_mod, only : W1, W2h, Wtheta
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -39,12 +39,12 @@ type, public, extends(kernel_type) :: polyh_wtheta_koren_kernel_type
   private
   type(arg_type) :: meta_args(4) = (/                                        &
        arg_type(GH_FIELD,  GH_REAL,    GH_INC,   W1),                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                       &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta, STENCIL(CROSS)),    &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                              &
        /)
   type(func_type) :: meta_funcs(1) = (/                                   &
-       func_type(W2, GH_BASIS)                                            &
+       func_type(W2h, GH_BASIS)                                           &
        /)
   type(reference_element_data_type) :: meta_reference_element(1) = (/     &
        reference_element_data_type( outward_normals_to_horizontal_faces ) &
@@ -74,10 +74,10 @@ contains
 !> @param[in]  undf_w1 Number of unique degrees of freedom for the
 !!                     reconstructed field
 !> @param[in]  map_w1 Dofmap for the cell at the base of the column
-!> @param[in]  ndf_w2 Number of degrees of freedom per cell
-!> @param[in]  undf_w2 Number of unique degrees of freedom for the wind field
-!> @param[in]  map_w2 Dofmap for the cell at the base of the column
-!> @param[in]  basis_w2 Basis function array evaluated at w1 nodes
+!> @param[in]  ndf_w2h Number of degrees of freedom per cell
+!> @param[in]  undf_w2h Number of unique degrees of freedom for the wind field
+!> @param[in]  map_w2h Dofmap for the cell at the base of the column
+!> @param[in]  basis_w2h Basis function array evaluated at w1 nodes
 !> @param[in]  ndf_wt Number of degrees of freedom per cell
 !> @param[in]  undf_wt Number of unique degrees of freedom for the tracer field
 !> @param[in]  map_wt Dofmap for the cell at the base of the column for the tracer field
@@ -95,10 +95,10 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
                                      ndf_w1,               &
                                      undf_w1,              &
                                      map_w1,               &
-                                     ndf_w2,               &
-                                     undf_w2,              &
-                                     map_w2,               &
-                                     basis_w2,             &
+                                     ndf_w2h,              &
+                                     undf_w2h,             &
+                                     map_w2h,              &
+                                     basis_w2h,            &
                                      ndf_wt,               &
                                      undf_wt,              &
                                      map_wt,               &
@@ -108,24 +108,24 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                    :: nlayers
-  integer(kind=i_def), intent(in)                    :: ndf_wt
-  integer(kind=i_def), intent(in)                    :: undf_wt
-  integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
-  integer(kind=i_def), intent(in)                    :: ndf_w1
-  integer(kind=i_def), intent(in)                    :: undf_w1
-  integer(kind=i_def), dimension(ndf_w1), intent(in) :: map_w1
-  integer(kind=i_def), intent(in)                    :: ndf_w2
-  integer(kind=i_def), intent(in)                    :: undf_w2
-  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-  integer(kind=i_def), intent(in)                    :: ndata
-  integer(kind=i_def), intent(in)                    :: stencil_size
-  integer(kind=i_def), intent(in)                    :: nfaces_re_h
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: ndf_wt
+  integer(kind=i_def), intent(in)                     :: undf_wt
+  integer(kind=i_def), dimension(ndf_wt),  intent(in) :: map_wt
+  integer(kind=i_def), intent(in)                     :: ndf_w1
+  integer(kind=i_def), intent(in)                     :: undf_w1
+  integer(kind=i_def), dimension(ndf_w1),  intent(in) :: map_w1
+  integer(kind=i_def), intent(in)                     :: ndf_w2h
+  integer(kind=i_def), intent(in)                     :: undf_w2h
+  integer(kind=i_def), dimension(ndf_w2h), intent(in) :: map_w2h
+  integer(kind=i_def), intent(in)                     :: ndata
+  integer(kind=i_def), intent(in)                     :: stencil_size
+  integer(kind=i_def), intent(in)                     :: nfaces_re_h
 
-  real(kind=r_def), dimension(undf_w1), intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wt), intent(in)    :: tracer
-  real(kind=r_def), dimension(3,ndf_w2,ndf_w1), intent(in) :: basis_w2
+  real(kind=r_def), dimension(undf_w1),  intent(inout) :: reconstruction
+  real(kind=r_def), dimension(undf_w2h), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wt),  intent(in)    :: tracer
+  real(kind=r_def), dimension(3,ndf_w2h,ndf_w1), intent(in) :: basis_w2h
   integer(kind=i_def), dimension(ndf_wt,stencil_size), intent(in) :: stencil_map
   real(kind=r_def), intent(in) :: outward_normals_to_horizontal_faces(:,:)
 
@@ -144,13 +144,13 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
 
 
   do df = 1,nfaces_re_h
-    v_dot_n(df) = dot_product(basis_w2(:,df,df),outward_normals_to_horizontal_faces(:,df))
+    v_dot_n(df) = dot_product(basis_w2h(:,df,df),outward_normals_to_horizontal_faces(:,df))
   end do
 
   do df = 1,nfaces_re_h
     do k = 1, nlayers - 1
       ! Check if this is the upwind cell
-      direction = (wind(map_w2(df) + k ) + wind(map_w2(df) + k-1 ))*v_dot_n(df)
+      direction = (wind(map_w2h(df) + k ) + wind(map_w2h(df) + k-1 ))*v_dot_n(df)
       if ( direction > 0.0_r_def ) then
         x = tracer(stencil_map(1,point(2,df))+k) - tracer(stencil_map(1,point(1,df))+k)
         y = tracer(stencil_map(1,point(3,df))+k) - tracer(stencil_map(1,point(2,df))+k)
@@ -165,7 +165,7 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
     ! Bottom surface
     k = 0
     ! Check if this is the upwind cell
-    direction = wind(map_w2(df) + k )*v_dot_n(df)
+    direction = wind(map_w2h(df) + k )*v_dot_n(df)
     if ( direction > 0.0_r_def ) then
       x = tracer(stencil_map(1,point(2,df))+k) - tracer(stencil_map(1,point(1,df))+k)
       y = tracer(stencil_map(1,point(3,df))+k) - tracer(stencil_map(1,point(2,df))+k)
@@ -179,7 +179,7 @@ subroutine polyh_wtheta_koren_code(  nlayers,              &
     ! Top surface
     k = nlayers - 1
     ! Check if this is the upwind cell
-    direction = wind(map_w2(df) + k )*v_dot_n(df)
+    direction = wind(map_w2h(df) + k )*v_dot_n(df)
     if ( direction > 0.0_r_def ) then
       x = tracer(stencil_map(2,point(2,df))+k) - tracer(stencil_map(2,point(1,df))+k)
       y = tracer(stencil_map(2,point(3,df))+k) - tracer(stencil_map(2,point(2,df))+k)

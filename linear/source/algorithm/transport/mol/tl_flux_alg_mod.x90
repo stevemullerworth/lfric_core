@@ -11,6 +11,7 @@ module tl_flux_alg_mod
   use field_mod,                       only: field_type
   use reconstruct_w3_field_alg_mod,    only: reconstruct_w3_field_alg
   use tl_reconstruct_w3_field_alg_mod, only: tl_reconstruct_w3_field_alg
+  use transport_metadata_mod,          only: transport_metadata_type
 
   implicit none
 
@@ -25,16 +26,17 @@ contains
   !> @details Compute the tangent linear change in mass flux,
   !>          F = rho*ls_u + ls_rho *u
   !>          using desired spatial reconstruction.
-  !> @param[in,out] mass_flux   ACTIVE Change in mass flux field
-  !> @param[in]     density     ACTIVE Change in field to advect
-  !> @param[in]     wind        ACTIVE Change in advecting wind field
-  !> @param[in]     ls_density  Linearisation state for the field to advect
-  !> @param[in]     ls_wind     Linearisation state for the advecting wind field
-  !> @param[in]     direction   Direction of the transport
-  !> @param[in]     reversible   Use the reversible reconstruction
-  !> @param[in]     logspace    Carry out interpolation in log space
-  subroutine tl_flux_alg(mass_flux, density, wind, &
-                         ls_density, ls_wind, direction, reversible, logspace)
+  !> @param[in,out] mass_flux           ACTIVE Change in mass flux field
+  !> @param[in]     density             ACTIVE Change in field to advect
+  !> @param[in]     wind                ACTIVE Change in advecting wind field
+  !> @param[in]     ls_density          Linearisation state for the field to advect
+  !> @param[in]     ls_wind             Linearisation state for the advecting wind field
+  !> @param[in]     direction           Direction of the transport
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine tl_flux_alg(mass_flux, density, wind,          &
+                         ls_density, ls_wind,  direction,   &
+                         transport_metadata, final_rk_stage)
 
     implicit none
 
@@ -43,9 +45,8 @@ contains
     type(field_type),              intent(in)    :: ls_density, ls_wind
     type(field_type),              intent(inout) :: mass_flux
     integer(kind=i_def),           intent(in)    :: direction
-    logical(kind=l_def),           intent(in)    :: reversible
-
-    logical(kind=l_def), optional, intent(in)    :: logspace
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
 
     ! Internal variables
     type(field_type) :: recon_density, recon_ls_density
@@ -60,10 +61,11 @@ contains
 
     ! Calculate computes to flux
     ! ls wind is still used here to define upwind direction
-    call reconstruct_w3_field_alg(recon_ls_density, ls_density, ls_wind,    &
-                                  direction, reversible, logspace)
-    call tl_reconstruct_w3_field_alg(recon_density, density, ls_density,    &
-                                     ls_wind, direction, reversible, logspace)
+    call reconstruct_w3_field_alg(recon_ls_density, ls_density, ls_wind,     &
+                                  direction, transport_metadata, final_rk_stage)
+    call tl_reconstruct_w3_field_alg(recon_density, density, ls_density,     &
+                                     ls_wind, direction, transport_metadata, &
+                                     final_rk_stage)
 
     ! F = rho*ls_wind + ls_rho*wind
     call invoke( inc_X_times_Y(recon_density, ls_wind), &

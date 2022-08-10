@@ -15,7 +15,7 @@ module tl_mol_conservative_alg_mod
   use io_config_mod,                  only: subroutine_timers
   use operator_mod,                   only: operator_type
   use timer_mod,                      only: timer
-  use fem_constants_mod,              only: get_im3_div
+  use fem_constants_mod,              only: get_directional_im3_div
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use transport_metadata_mod,         only: transport_metadata_type
   use flux_alg_mod,                   only: flux_alg
@@ -58,7 +58,6 @@ module tl_mol_conservative_alg_mod
     integer(i_def),   intent(in)                 :: direction
     type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    logical(l_def)                :: logspace
     integer(i_def)                :: mesh_id
     type(field_type),     pointer :: advecting_wind => null()
     type(field_type),     pointer :: ls_advecting_wind => null()
@@ -82,9 +81,8 @@ module tl_mol_conservative_alg_mod
     logical(l_def)                :: enforce_min_value
     type(mesh_type),      pointer :: mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
-    integer(i_def)                :: monotonicity
     type(field_type)              :: rhs_field
-    logical(l_def)                :: use_reversible_scheme
+    logical(l_def)                :: final_rk_stage
 
     if ( subroutine_timers ) call timer('tl_mol_conservative_alg')
 
@@ -96,12 +94,10 @@ module tl_mol_conservative_alg_mod
     mesh_id = field%get_mesh_id()
     number_substeps = transport_runtime%get_number_substeps(mesh_id,direction,transport_metadata%get_splitting())
     dt_substep = transport_runtime%get_dt_substep(mesh_id,direction,transport_metadata%get_splitting())
-    logspace = transport_metadata%get_log_space()
-    monotonicity = transport_metadata%get_monotone()
     enforce_min_value = transport_metadata%get_enforce_min_value()
     include_div_term_with_density = transport_metadata%get_divergence_factor()
-    advecting_wind => tl_transport_runtime%get_advecting_wind(mesh_id)
-    ls_advecting_wind => transport_runtime%get_advecting_wind(mesh_id)
+    advecting_wind => tl_transport_runtime%get_directional_advecting_wind(mesh_id,direction)
+    ls_advecting_wind => transport_runtime%get_directional_advecting_wind(mesh_id,direction)
     minus_dt = - dt_substep
 
     call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
@@ -127,7 +123,7 @@ module tl_mol_conservative_alg_mod
     call ls_field%copy_field(ls_field_np1)
 
     ! Perform the number of rk-stages and substeps required
-    div => get_im3_div(mesh_id)
+    div => get_directional_im3_div(mesh_id, direction)
 
     ! Get the div-term if required
     if ( include_div_term_with_density ) then
@@ -159,12 +155,11 @@ module tl_mol_conservative_alg_mod
         call invoke( inc_X_times_Y(ls_field_np1, ls_divergence_factor) )
       end if
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       do stage = 1, nstage
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-          use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Store values for use in the perturbation code. This is done before
         ! advecting so as to pick up the correct linearisation state
@@ -181,9 +176,8 @@ module tl_mol_conservative_alg_mod
 
         ! Compute the flux using desired spatial reconstruction
         call invoke( setval_c( flux_step, 0.0_r_def ) )
-        call flux_alg(flux_step, rhs_field, ls_advecting_wind,          &
-                      direction, use_reversible_scheme, monotonicity,   &
-                      logspace=logspace)
+        call flux_alg(flux_step, rhs_field, ls_advecting_wind, direction, &
+                      transport_metadata, final_rk_stage)
         ! Compute: rhs = div(F) and update field: f = f^n - dt_substep*rhs
         call invoke( dg_matrix_vector_kernel_type(rhs, flux_step, div), &
                      X_minus_bY(ls_field_np1, ls_field_n, dt_substep, rhs) )
@@ -222,12 +216,11 @@ module tl_mol_conservative_alg_mod
                        'yet implemented', LOG_LEVEL_ERROR)
       end if
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       do stage = 1, nstage
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-          use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
@@ -241,8 +234,7 @@ module tl_mol_conservative_alg_mod
         call invoke( setval_c( flux_step, 0.0_r_def ) )
         call tl_flux_alg(flux_step, rhs_field, advecting_wind,              &
                          stored_ls_field(substep,stage), ls_advecting_wind, &
-                         direction, use_reversible_scheme,                  &
-                         logspace=logspace)
+                         direction, transport_metadata, final_rk_stage)
         ! Compute: div(F) and update field: f = f^n - dt_substep*rhs
         call invoke( dg_matrix_vector_kernel_type(rhs, flux_step, div), &
                      X_minus_bY(field_np1, field_n, dt_substep, rhs) )

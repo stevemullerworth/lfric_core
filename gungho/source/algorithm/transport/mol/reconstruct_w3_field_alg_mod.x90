@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module reconstruct_w3_field_alg_mod
 
+  use combine_w2_field_kernel_mod,    only: combine_w2_field_kernel_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def
   use geometric_constants_mod,        only: get_coordinates,          &
                                             get_panel_id
@@ -27,7 +28,8 @@ module reconstruct_w3_field_alg_mod
   use finite_element_config_mod,      only: element_order,          &
                                             coord_system,           &
                                             coord_system_xyz
-  use fs_continuity_mod,              only: W2, W3, Wtheta
+  use fs_continuity_mod,              only: W2, W2h, W2v, W3, Wtheta
+  use function_space_collection_mod,  only: function_space_collection
   use function_space_mod,             only: function_space_type
   use poly1d_w3_reconstruction_kernel_mod, &
                                       only: poly1d_w3_reconstruction_kernel_type
@@ -48,6 +50,9 @@ module reconstruct_w3_field_alg_mod
                                             operators_fv,         &
                                             operators_fem,        &
                                             oned_reconstruction
+  use transport_runtime_alg_mod,      only: transport_runtime_type
+  use transport_runtime_collection_mod, &
+                                      only: get_transport_runtime
   use runtime_tools_mod,              only: find_mesh_index,   &
                                             check_initialised_field
   use log_mod,                        only: log_event,         &
@@ -58,7 +63,10 @@ module reconstruct_w3_field_alg_mod
   use extrusion_mod,                  only: TWOD
   use transport_enumerated_types_mod, only: direction_v,    &
                                             direction_h,    &
-                                            direction_3d
+                                            direction_3d,   &
+                                            monotone_koren, &
+                                            equation_consistent
+  use transport_metadata_mod,         only: transport_metadata_type
   use polyv_w3_koren_kernel_mod,      only: polyv_w3_koren_kernel_type
   use polyh_w3_koren_kernel_mod,      only: polyh_w3_koren_kernel_type
 
@@ -80,6 +88,8 @@ module reconstruct_w3_field_alg_mod
   public :: reconstruct_w3_field_alg_init
   public :: reconstruct_w3_field_alg_final
   public :: reconstruct_w3_field_alg
+  public :: hori_w3_reconstruct_alg
+  public :: vert_w3_reconstruct_alg
   public :: get_flux_stencil_extent
   public :: get_flux_2d_stencil_size
   public :: get_flux_ndata_h
@@ -87,7 +97,6 @@ module reconstruct_w3_field_alg_mod
   public :: get_reversible_flux_ndata_v
   public :: get_flux_coeffs
   public :: get_vert_flux_coeffs
-  public :: reconstruct_koren_w3_field_alg
   public :: get_reversible_vert_flux_coeffs
 
 contains
@@ -355,14 +364,15 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction.
   !!          Options for this are either FE or FV reconstructions.
-  !> @param[in,out] field_new  Reconstructed field at W2 points
-  !> @param[in]     field_old  Initial W3 field
-  !> @param[in]     wind       Advecting wind field to determine upwind direction
-  !> @param[in]     direction  Splitting direction (h, v, or 3d) to compute
-  !!                           reconstruction
-  !> @param[in]     reversible Use the reversible reconstruction
-  !> @param[in]     logspace   Carry out interpolation in log space
-  subroutine reconstruct_w3_field_alg(field_new, field_old, wind, direction, reversible, logspace)
+  !> @param[in,out] field_new           Reconstructed field at W2 points
+  !> @param[in]     field_old           Initial W3 field
+  !> @param[in]     wind                Advecting wind field to determine upwind direction
+  !> @param[in]     direction           Splitting direction (h, v, or 3d) to
+  !!                                    compute reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine reconstruct_w3_field_alg(field_new, field_old, wind, direction, &
+                                      transport_metadata, final_rk_stage)
 
     use sample_field_kernel_mod, only: sample_field_kernel_type
 
@@ -371,29 +381,18 @@ contains
     type(field_type),              intent(in)    :: field_old, wind
     type(field_type),              intent(inout) :: field_new
     integer(kind=i_def),           intent(in)    :: direction
-    logical(kind=l_def),           intent(in)    :: reversible
-    logical(kind=l_def), optional, intent(in)    :: logspace
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
 
-    type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) :: mesh_index
-    logical(kind=l_def) :: logspace_loc
-    integer(kind=i_def) :: stencil_extent
-
-    integer(kind=i_def), pointer :: flux_stencil_extent => null()
-    integer(kind=i_def), pointer :: flux_2d_stencil_size => null()
-    integer(kind=i_def), pointer :: ndata_h => null()
-    integer(kind=i_def), pointer :: ndata_v => null()
-    type(field_type),    pointer :: flux_coeffs => null()
-    type(field_type),    pointer :: vert_flux_coeffs => null()
-    type(field_type),    pointer :: w2_rmultiplicity => null()
-    integer(kind=i_def)          :: vertical_order
-
-    ! Psyclone doesn't support the passing of logicals to kernels
-    ! so we have to set up an integer instead
-    logspace_loc = .false.
-    if ( present(logspace) ) then
-      logspace_loc = logspace
-    end if
+    integer(kind=i_def)                   :: transport_step
+    type(mesh_type),              pointer :: mesh => null()
+    type(field_type),             pointer :: w2_rmultiplicity => null()
+    type(field_type),             pointer :: wind_v
+    type(field_type),             pointer :: wind_h
+    type(field_type)                      :: field_new_h, field_new_v
+    type(function_space_type),    pointer :: w2v_fs => null()
+    type(function_space_type),    pointer :: w2h_fs => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
 
     mesh => field_new%get_mesh()
 
@@ -403,57 +402,55 @@ contains
         call log_event( "Gungho: Unrecognized option for operator.", LOG_LEVEL_ERROR )
 
       case(operators_fv)
-        mesh_index = find_mesh_index(mesh%get_id())
 
         ! Set default value to be 0 and then update the mass flux
         ! in cases where the wind is nonzero using an upwind reconstruction
         call invoke( setval_c( field_new, 0.0_r_def) )
 
-        if ( direction==direction_h .or. direction==direction_3d ) then
-
-          ! Get extents and data sizes for this mesh
-          flux_stencil_extent => flux_stencil_extent_list(mesh_index)
-          flux_2d_stencil_size => flux_2d_stencil_size_list(mesh_index)
-          ndata_h => ndata_h_list(mesh_index)
-          flux_coeffs => flux_coeffs_list(mesh_index)
-
-          if ( oned_reconstruction ) then
-            ! Use 1d flux reconstruction
-            call invoke( name="W3_1dh_reconstruction", &
-                         poly1d_w3_reconstruction_kernel_type( field_new, wind, field_old, &
-                                                               flux_stencil_extent,        &
-                                                               flux_coeffs,                &
-                                                               fv_horizontal_order,        &
-                                                               ndata_h ) )
-         else
-           ! Use 2d flux reconstruction
-           stencil_extent = fv_horizontal_order / 2_i_def
-           call invoke( name="W3_2dh_reconstruction", &
-                        poly2d_w3_reconstruction_kernel_type( field_new, wind, field_old, &
-                                                              stencil_extent,             &
-                                                              flux_coeffs,                &
-                                                              ndata_h,                    &
-                                                              flux_2d_stencil_size) )
-         end if
-       end if
-       if ( direction==direction_v .or. direction==direction_3d ) then
-          ! Compute vertical components of mass flux
-          if ( reversible ) then
-            ndata_v => reversible_ndata_v_list(mesh_index)
-            vert_flux_coeffs => reversible_vert_flux_coeffs_list(mesh_index)
-            vertical_order = fv_vertical_order - 1_i_def
+        select case ( direction )
+        case ( direction_3d )
+          transport_runtime => get_transport_runtime(mesh)
+          if (transport_metadata%get_equation() == equation_consistent) then
+            transport_step = transport_runtime%get_tracer_step_ctr()
+            wind_h => transport_runtime%get_hori_dry_flux(mesh%get_id(),transport_step)
+            wind_v => transport_runtime%get_vert_dry_flux(mesh%get_id(),transport_step)
           else
-            ndata_v => ndata_v_list(mesh_index)
-            vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
-            vertical_order = fv_vertical_order
+            wind_h => transport_runtime%get_horizontal_advecting_wind(mesh%get_id())
+            wind_v => transport_runtime%get_vertical_advecting_wind(mesh%get_id())
           end if
-          call invoke(name="W3_1dv_reconstruction", &
-                        poly1d_vert_w3_reconstruction_kernel_type( field_new, wind, field_old, &
-                                                                   vert_flux_coeffs,           &
-                                                                   ndata_v,                    &
-                                                                   vertical_order,             &
-                                                                   logspace_loc) )
-        end if
+
+          w2h_fs => function_space_collection%get_fs( mesh, element_order, W2h )
+          w2v_fs => function_space_collection%get_fs( mesh, element_order, W2v )
+
+          call field_new_h%initialise( vector_space=w2h_fs )
+          call field_new_v%initialise( vector_space=w2v_fs )
+
+          ! Set default value to be 0 and then update the mass flux
+          ! in cases where the wind is nonzero using an upwind reconstruction
+          call invoke( setval_c(field_new_h, 0.0_r_def), &
+                       setval_c(field_new_v, 0.0_r_def) )
+
+          ! Reconstruct W3 field separately in horizontal and vertical W2
+          call hori_w3_reconstruct_alg(field_new_h, field_old, wind_h, &
+                                       transport_metadata)
+          call vert_w3_reconstruct_alg(field_new_v, field_old, wind_v, &
+                                       transport_metadata, final_rk_stage)
+
+          ! Combine horizontal and vertical components of W2 field
+          call invoke( combine_w2_field_kernel_type(field_new, field_new_h, field_new_v) )
+
+          nullify( w2h_fs, w2v_fs, wind_h, wind_v, transport_runtime )
+
+        case ( direction_h )
+          call hori_w3_reconstruct_alg(field_new, field_old, wind, &
+                                       transport_metadata)
+        case ( direction_v )
+          call vert_w3_reconstruct_alg(field_new, field_old, wind, &
+                                       transport_metadata, final_rk_stage)
+        case default
+          call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
+        end select
+
       case(operators_fem)
         ! Sample field_old at W2 points
         w2_rmultiplicity => get_rmultiplicity(W2, mesh%get_id())
@@ -462,108 +459,143 @@ contains
 
     end select
 
-    nullify( flux_stencil_extent,  &
-             flux_2d_stencil_size, &
-             ndata_h,              &
-             ndata_v,              &
-             flux_coeffs,          &
-             vert_flux_coeffs,     &
-             w2_rmultiplicity,     &
-             mesh )
+    nullify( w2_rmultiplicity, mesh )
 
   end subroutine reconstruct_w3_field_alg
 
-  !=============================================================================
-  !> @brief Reconstruct a W3 field at W2 points using the Koren scheme.
-  !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
-  !!          the Koren scheme.
-  !!          Options for this are either FE or FV reconstructions.
-  !> @param[in,out] field_new Reconstructed field at W2 points
-  !> @param[in]     field_old Initial W3 field
-  !> @param[in]     wind      Advecting wind field to determine upwind direction
-  !> @param[in]     direction Splitting direction (h, v, or 3d) to compute
-  !!                          reconstruction
-  !> @param[in]     reversible To use reversible scheme
-  !> @param[in]     logspace  Carry out interpolation in log space
-  subroutine reconstruct_koren_w3_field_alg(field_new, field_old, wind,  &
-                                            direction, reversible, logspace)
-
-    use sample_field_kernel_mod, only: sample_field_kernel_type
+  !> @brief Reconstructs a W3 field in the horizontal component of W2
+  !> @param[in,out] field_new           The resulting horizontal W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     wind                The horizontal wind field (in W2h)
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine hori_w3_reconstruct_alg(field_new, field_old, wind, &
+                                     transport_metadata)
 
     implicit none
 
-    type(field_type),              intent(in)    :: field_old, wind
     type(field_type),              intent(inout) :: field_new
-    integer(kind=i_def),           intent(in)    :: direction
-    logical(kind=l_def),           intent(in)    :: reversible
-    logical(kind=l_def), optional, intent(in)    :: logspace
+    type(field_type),              intent(in)    :: field_old
+    type(field_type),              intent(in)    :: wind
+    type(transport_metadata_type), intent(in)    :: transport_metadata
 
-    integer(kind=i_def) :: mesh_id
-    integer(kind=i_def) :: mesh_index
-    logical(kind=l_def) :: logspace_loc
+    type(mesh_type),     pointer :: mesh => null()
+    integer(kind=i_def)          :: mesh_index
+    integer(kind=i_def)          :: stencil_extent
 
     integer(kind=i_def), pointer :: flux_stencil_extent => null()
+    integer(kind=i_def), pointer :: flux_2d_stencil_size => null()
     integer(kind=i_def), pointer :: ndata_h => null()
-    integer(kind=i_def), pointer :: ndata_v => null()
-    type(field_type),    pointer :: w2_rmultiplicity => null()
+    type(field_type),    pointer :: flux_coeffs => null()
 
-    ! Psyclone doesn't support the passing of logicals to kernels
-    ! so we have to set up an integer instead
-    logspace_loc = .false.
-    if ( present(logspace) ) then
-      logspace_loc = logspace
+    mesh => field_new%get_mesh()
+    mesh_index = find_mesh_index(mesh%get_id())
+
+    ! Get extents and data sizes for this mesh
+    flux_stencil_extent => flux_stencil_extent_list(mesh_index)
+    flux_2d_stencil_size => flux_2d_stencil_size_list(mesh_index)
+    ndata_h => ndata_h_list(mesh_index)
+    flux_coeffs => flux_coeffs_list(mesh_index)
+
+    if ( transport_metadata%get_monotone() == monotone_koren ) then
+      ! Compute horizontal components of mass flux with the koren scheme
+      call invoke( name="W3_koren_hor_reconstruction",           &
+              polyh_w3_koren_kernel_type( field_new,             &
+                                          wind,                  &
+                                          field_old,             &
+                                          flux_stencil_extent,   &
+                                          ndata_h ) )
+
+    else if ( oned_reconstruction ) then
+      ! Use 1d flux reconstruction
+      call invoke( name="W3_1dh_reconstruction", &
+                  poly1d_w3_reconstruction_kernel_type( field_new, wind,       &
+                                                        field_old,             &
+                                                        flux_stencil_extent,   &
+                                                        flux_coeffs,           &
+                                                        fv_horizontal_order,   &
+                                                        ndata_h ) )
+    else
+      ! Use 2d flux reconstruction
+      stencil_extent = fv_horizontal_order / 2_i_def
+      call invoke( name="W3_2dh_reconstruction", &
+                  poly2d_w3_reconstruction_kernel_type( field_new, wind,       &
+                                                        field_old,             &
+                                                        stencil_extent,        &
+                                                        flux_coeffs,           &
+                                                        ndata_h,               &
+                                                        flux_2d_stencil_size) )
     end if
 
-    mesh_id = field_new%get_mesh_id()
+    nullify(mesh, flux_stencil_extent, flux_2d_stencil_size, ndata_h, flux_coeffs)
 
-    select case(operators)
+  end subroutine hori_w3_reconstruct_alg
 
-      case default
-        call log_event( "Gungho: Unrecognized option for operator.", LOG_LEVEL_ERROR )
+  !> @brief Reconstructs a W3 field in the vertical component of W2
+  !> @param[in,out] field_new           The resulting vertical W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     wind                The vertical wind field (in W2v)
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine vert_w3_reconstruct_alg(field_new, field_old, wind, &
+                                     transport_metadata, final_rk_stage)
 
-      case(operators_fv)
-        mesh_index = find_mesh_index(mesh_id)
+    implicit none
 
-        ! Get extents and data sizes for this mesh
-        flux_stencil_extent => flux_stencil_extent_list(mesh_index)
-        ndata_h => ndata_h_list(mesh_index)
-        ndata_v => ndata_v_list(mesh_index)
+    type(field_type),              intent(inout) :: field_new
+    type(field_type),              intent(in)    :: field_old
+    type(field_type),              intent(in)    :: wind
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
 
-        ! Set default value to be 0 and then update the mass flux
-        ! in cases where the wind is nonzero using an upwind reconstruction
-        call invoke( setval_c( field_new, 0.0_r_def) )
-        if ( direction==direction_h .or. direction==direction_3d ) then
-            call invoke( name="W3_koren_hor_reconstruction",                &
-                         polyh_w3_koren_kernel_type( field_new,             &
-                                                     wind,                  &
-                                                     field_old,             &
-                                                     flux_stencil_extent,   &
-                                                     ndata_h              ) )
-        end if
-        if ( direction==direction_v .or. direction==direction_3d ) then
-         ! Compute vertical components of mass flux with the koren scheme
-          call invoke(name="W3_vert_reconstruction_koren",                  &
-                      polyv_w3_koren_kernel_type( field_new,                &
-                                                  wind,                     &
-                                                  field_old,                &
-                                                  ndata_v,                  &
-                                                  reversible,               &
-                                                  logspace_loc) )
-       end if
-      case(operators_fem)
-        ! Sample field_old at W2 points
-        w2_rmultiplicity => get_rmultiplicity(W2, mesh_id)
-        call invoke( setval_c(field_new, 0.0_r_def), &
-                     sample_field_kernel_type(field_new, w2_rmultiplicity, field_old) )
+    type(mesh_type),     pointer :: mesh => null()
+    integer(kind=i_def)          :: mesh_index
+    integer(kind=i_def), pointer :: ndata_v => null()
+    type(field_type),    pointer :: vert_flux_coeffs => null()
+    integer(kind=i_def)          :: vertical_order
+    logical(kind=l_def)          :: logspace
+    logical(kind=l_def)          :: reversible
+    integer(kind=i_def)          :: monotonicity
 
-    end select
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_monotone()
 
-    nullify(flux_stencil_extent,      &
-            ndata_h,                  &
-            ndata_v,                  &
-            w2_rmultiplicity          )
+    mesh => field_new%get_mesh()
+    mesh_index = find_mesh_index(mesh%get_id())
 
-  end subroutine reconstruct_koren_w3_field_alg
+    ! Compute vertical components of mass flux
+    if ( reversible ) then
+      ndata_v => reversible_ndata_v_list(mesh_index)
+      vert_flux_coeffs => reversible_vert_flux_coeffs_list(mesh_index)
+      vertical_order = fv_vertical_order - 1_i_def
+    else
+      ndata_v => ndata_v_list(mesh_index)
+      vert_flux_coeffs => vert_flux_coeffs_list(mesh_index)
+      vertical_order = fv_vertical_order
+    end if
+
+    if ( monotonicity == monotone_koren ) then
+      call invoke(name="W3_vert_reconstruction_koren",                         &
+                  polyv_w3_koren_kernel_type( field_new,                       &
+                                              wind,                            &
+                                              field_old,                       &
+                                              ndata_v,                         &
+                                              reversible,                      &
+                                              logspace) )
+
+    else
+      call invoke(name="W3_1dv_reconstruction",                                &
+        poly1d_vert_w3_reconstruction_kernel_type( field_new, wind, field_old, &
+                                                   vert_flux_coeffs,           &
+                                                   ndata_v,                    &
+                                                   vertical_order,             &
+                                                   logspace) )
+    end if
+
+    nullify(mesh, ndata_v, vert_flux_coeffs)
+
+  end subroutine vert_w3_reconstruct_alg
+
 
   !> @brief Returns a pointer to the flux stencil extent
   !> @param[in] mesh_id the ID of the mesh to get the object for

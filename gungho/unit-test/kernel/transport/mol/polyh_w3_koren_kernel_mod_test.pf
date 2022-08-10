@@ -7,7 +7,7 @@
 !> Test the horizontal edge_values computed for a w3-field using the Koren scheme
 module polyh_w3_koren_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, l_def
   use pFUnit_Mod
 
   implicit none
@@ -40,31 +40,31 @@ contains
     real(r_def) :: answer, use_tol
 
     integer(i_def), parameter :: nlayers = 1
-    integer(i_def), parameter :: ndf_w2 = 4
+    integer(i_def), parameter :: ndf_w2h = 4
     integer(i_def), parameter :: ndf_w3 = 1
     integer(i_def), parameter :: ndf_c  = 1
     integer(i_def), parameter :: nfaces_h = 4
     integer(i_def), parameter :: stencil_size = 5
     integer(i_def), parameter :: mol_order = 2
     integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_h
-    integer(i_def), parameter :: undf_w2 = ndf_w2*nlayers
+    integer(i_def), parameter :: undf_w2h = ndf_w2h*nlayers
     integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers*stencil_size
     integer(i_def), parameter :: undf_c  = ndata*nlayers
 
-    integer(i_def), dimension(ndf_w2)              :: map_w2
+    integer(i_def), dimension(ndf_w2h)             :: map_w2h
     integer(i_def), dimension(ndf_w3)              :: map_w3
     integer(i_def), dimension(ndf_w3,stencil_size) :: smap
     integer(i_def), dimension(ndf_c)               :: map_c
 
-    real(r_def), dimension(3,ndf_w2,ndf_w2)  :: basis_w2
-    real(r_def), allocatable, dimension(:,:) :: outward_normals_to_horizontal_faces
+    real(r_def), dimension(3,ndf_w2h,ndf_w2h) :: basis_w2h
+    real(r_def), allocatable, dimension(:,:)  :: outward_normals_to_horizontal_faces
 
-    real(r_def), dimension(undf_w2) :: edge_values
-    real(r_def), dimension(undf_w2) :: wind
+    real(r_def), dimension(undf_w2h) :: edge_values
+    real(r_def), dimension(undf_w2h) :: wind
     real(r_def), dimension(undf_w3) :: density
 
     smap(1,:) = (/ 1, 2, 3, 4, 5 /)
-    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w2h(:) = (/ 1, 2, 3, 4 /)
     map_w3(1) = 1
     map_c(1)  = 1
 
@@ -73,11 +73,11 @@ contains
 
     wind(:) = 1.0_r_def
 
-    basis_w2 = 0.0_r_def
-    basis_w2(1,1,1) = 1.0_r_def
-    basis_w2(2,2,2) = -1.0_r_def
-    basis_w2(1,3,3) = 1.0_r_def
-    basis_w2(2,4,4) = -1.0_r_def
+    basis_w2h = 0.0_r_def
+    basis_w2h(1,1,1) = 1.0_r_def
+    basis_w2h(2,2,2) = -1.0_r_def
+    basis_w2h(1,3,3) = 1.0_r_def
+    basis_w2h(2,4,4) = -1.0_r_def
 
     density(:) = (/ 3.0_r_def, 1.0_r_def, 1.0_r_def, 5.0_r_def, 5.0_r_def /)
 
@@ -89,10 +89,10 @@ contains
                               stencil_size,         &
                               smap,                 &
                               ndata,                &
-                              ndf_w2,               &
-                              undf_w2,              &
-                              map_w2,               &
-                              basis_w2,             &
+                              ndf_w2h,              &
+                              undf_w2h,             &
+                              map_w2h,              &
+                              basis_w2h,            &
                               ndf_w3,               &
                               undf_w3,              &
                               map_w3,               &

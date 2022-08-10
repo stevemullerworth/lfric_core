@@ -101,6 +101,8 @@ module fem_constants_mod
   type(operator_type), allocatable, dimension(:), target :: div_h
   type(operator_type), allocatable, dimension(:), target :: broken_div
   type(operator_type), allocatable, dimension(:), target :: im3_div
+  type(operator_type), allocatable, dimension(:), target :: im3_div_h
+  type(operator_type), allocatable, dimension(:), target :: im3_div_v
 
   ! Diagonals of mass matrices
   type(field_type),    allocatable, dimension(:), target :: mm0_diag
@@ -154,6 +156,7 @@ module fem_constants_mod
   public :: get_div_h
   public :: get_div_v
   public :: get_im3_div
+  public :: get_directional_im3_div
   public :: get_normalisation
   public :: get_rmultiplicity
   public :: get_detj_at_w3
@@ -245,6 +248,8 @@ contains
              div_v(num_meshes),                   &
              div_h(num_meshes),                   &
              im3_div(num_meshes),                 &
+             im3_div_h(num_meshes),               &
+             im3_div_v(num_meshes),               &
              mm_dl(num_meshes),                   &
              mm_w2_si(num_meshes),                &
              mm0_diag(num_meshes),                &
@@ -317,7 +322,6 @@ contains
         call grad(i)%initialise( w1_fs, w0_fs )
         call curl(i)%initialise( w2_fs, w1_fs )
         call broken_div(i)%initialise( w3_fs, w2b_fs )
-        call im3_div(i)%initialise( w3_fs, w2_fs )
 
         call invoke( name = "create_de_rham_matrices",                           &
                      compute_derham_matrices_kernel_type(mm_w0(i), mm_w1(i),     &
@@ -334,7 +338,6 @@ contains
         call mm_wtheta(i)%initialise( wtheta_fs, wtheta_fs )
         call mm_w3(i)%initialise( w3_fs, w3_fs )
         call div(i)%initialise( w3_fs, w2_fs )
-        call im3_div(i)%initialise( w3_fs, w2_fs )
 
         call invoke( name = "create_mg_de_rham_matrices",             &
                      mg_derham_mat_kernel_type( mm_w2(i), mm_w3(i),   &
@@ -344,22 +347,13 @@ contains
 
       end if
 
-      !======================== Inverse W3 mass matrix ========================!
-
-      if ( label_list(i) /= twod_mesh_label ) then
-        call mm_w3_inv(i)%initialise( w3_fs, w3_fs )
-        call invoke( name = "create_W3_inv_mass_matrix", &
-                     invert_local_operator_kernel_type(mm_w3_inv(i), mm_w3(i)) )
-        call invoke( operator_x_times_y_kernel_type( im3_div(i), mm_w3_inv(i), div(i) ) )
-      end if
-
       !============ Compute vertical and horizontal only operators ============!
 
-      if ( label_list(i) == primary_mesh_label .or. &
-           label_list(i) == multigrid_mesh_label ) then
+      if ( label_list(i) /= twod_mesh_label ) then
         ! Construct vertical- and horizontal-only weak divergence operator
         call div_v(i)%initialise( w3_fs, w2v_fs )
         call div_h(i)%initialise( w3_fs, w2h_fs )
+
         call invoke( name = "compute_vert_divergence_operator",                 &
                      compute_div_operator_kernel_type( div_v(i), chi_list(:,i), &
                                                        panel_id_list(i), qr ) )
@@ -376,6 +370,19 @@ contains
         call invoke( name = "compute_W2_vert_mass_matrix",                         &
                      compute_mass_matrix_kernel_w2_type( mm_w2h(i), chi_list(:,i), &
                                                          panel_id_list(i), qr ) )
+
+      !======================== Inverse W3 mass matrix ========================!
+
+        call mm_w3_inv(i)%initialise( w3_fs, w3_fs )
+        call im3_div(i)%initialise( w3_fs, w2_fs )
+        call im3_div_h(i)%initialise( w3_fs, w2h_fs )
+        call im3_div_v(i)%initialise( w3_fs, w2v_fs )
+
+        call invoke( name = "create_W3_inv_mass_matrix", &
+                     invert_local_operator_kernel_type(mm_w3_inv(i), mm_w3(i)) )
+        call invoke( operator_x_times_y_kernel_type( im3_div(i), mm_w3_inv(i), div(i) ),     &
+                     operator_x_times_y_kernel_type( im3_div_h(i), mm_w3_inv(i), div_h(i) ), &
+                     operator_x_times_y_kernel_type( im3_div_v(i), mm_w3_inv(i), div_v(i) )  )
       end if
 
       !========================= Special mass matrices ========================!
@@ -947,6 +954,37 @@ contains
     call check_initialised_operator(div_op, op_name, mesh_id)
 
   end function get_im3_div
+
+  !> @brief Returns a pointer to the inv_m3 * div operator for a particular direction
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] mesh_id The enumerator for the direction
+  !> @return The inv_m3 * div operator
+  function get_directional_im3_div(mesh_id, direction) result(div_op)
+    use transport_enumerated_types_mod, only: direction_h, &
+                                              direction_v, &
+                                              direction_3d
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    integer(kind=i_def),   intent(in) :: direction
+    integer(kind=i_def)               :: mesh_index
+    type(operator_type),      pointer :: div_op
+    character(str_def)                :: op_name
+
+    mesh_index = find_mesh_index(mesh_id)
+    op_name = 'directional_im3_div'
+
+    select case (direction)
+    case (direction_3d)
+      div_op => im3_div(mesh_index)
+    case (direction_h)
+      div_op => im3_div_h(mesh_index)
+    case (direction_v)
+      div_op => im3_div_v(mesh_index)
+    end select
+
+    call check_initialised_operator(div_op, op_name, mesh_id)
+
+  end function get_directional_im3_div
 
   !> @brief Returns a pointer to the normalisation of prognostic fields
   !> @param[in] space   The space of the normalisation field

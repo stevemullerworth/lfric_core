@@ -12,11 +12,11 @@ module mol_consistent_alg_mod
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use extrusion_mod,                  only: SHIFTED
-  use fem_constants_mod,              only: get_im3_div
+  use fem_constants_mod,              only: get_directional_im3_div
   use flux_alg_mod,                   only: flux_alg
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order
-  use fs_continuity_mod,              only: W2, W3
+  use fs_continuity_mod,              only: W3
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
   use io_config_mod,                  only: subroutine_timers
@@ -69,16 +69,14 @@ module mol_consistent_alg_mod
     ! ------------------------------------------------------------------------ !
     ! Internal variables
     ! ------------------------------------------------------------------------ !
-    integer(kind=i_def)                :: primary_mesh_id
+    integer(kind=i_def)                :: prime_extrusion_mesh_id
     integer(kind=i_def)                :: shifted_mesh_id
     integer(kind=i_def)                :: stage, s
     integer(kind=i_def)                :: substeps, transport_step
     integer(kind=i_def)                :: nstage_this_substep
     integer(kind=i_def)                :: nstage, number_substeps
-    integer(kind=i_def)                :: monotonicity
-    logical(kind=l_def)                :: use_reversible_scheme
     logical(kind=l_def)                :: enforce_min_value
-    logical(kind=l_def)                :: logspace
+    logical(kind=l_def)                :: final_rk_stage
     logical(kind=l_def)                :: include_div_term_with_density
     real(kind=r_def)                   :: dt_substep
     real(kind=r_def)                   :: min_value
@@ -87,7 +85,7 @@ module mol_consistent_alg_mod
     type(function_space_type), pointer :: w2_sh_fs => null()
     type(function_space_type), pointer :: wt_fs => null()
     type(operator_type),       pointer :: div => null()
-    type(field_type),          pointer :: primary_advecting_wind => null()
+    type(field_type),          pointer :: prime_advecting_wind => null()
     type(field_type),          pointer :: dry_flux => null()
     type(field_type),          pointer :: rho_d_n => null()
     type(field_type),          pointer :: rho_d_np1 => null()
@@ -99,7 +97,7 @@ module mol_consistent_alg_mod
     type(field_type)                   :: rho_X_n, rho_X_np1
     type(field_type)                   :: rhs_adv, rhs_flux, rhs_field
     type(field_type),      allocatable :: rk_field(:)
-    type(mesh_type),           pointer :: primary_mesh => null()
+    type(mesh_type),           pointer :: prime_extrusion_mesh => null()
     type(mesh_type),           pointer :: shifted_mesh => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
@@ -109,21 +107,21 @@ module mol_consistent_alg_mod
     ! Get all the stuff needed by the transport algorithm
     ! ------------------------------------------------------------------------ !
 
-    primary_mesh => mr_wt_in%get_mesh()
-    shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
-    primary_mesh_id = primary_mesh%get_id()
+    prime_extrusion_mesh => mr_wt_in%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
+    prime_extrusion_mesh_id = prime_extrusion_mesh%get_id()
     shifted_mesh_id = shifted_mesh%get_id()
 
-    transport_runtime => get_transport_runtime(primary_mesh)
+    transport_runtime => get_transport_runtime(prime_extrusion_mesh)
     transport_step = transport_runtime%get_tracer_step_ctr()
-    primary_advecting_wind => transport_runtime%get_advecting_wind(primary_mesh_id)
+    prime_advecting_wind => transport_runtime%get_directional_advecting_wind(prime_extrusion_mesh_id, direction)
     wt_fs => mr_wt_in%get_function_space()
     w3_sh_fs => function_space_collection%get_fs(shifted_mesh, element_order, W3)
-    w2_sh_fs => function_space_collection%get_fs(shifted_mesh, element_order, W2)
     dry_flux => transport_runtime%get_dry_flux(shifted_mesh_id, transport_step)
+    w2_sh_fs => dry_flux%get_function_space()
     rho_d_n => transport_runtime%get_rho_d_n(shifted_mesh_id, transport_step)
     rho_d_np1 => transport_runtime%get_rho_d_np1(shifted_mesh_id, transport_step)
-    div => get_im3_div(shifted_mesh_id)
+    div => get_directional_im3_div(shifted_mesh_id, direction)
 
     call get_rk_transport_weights( nstage, rk_weights, runge_kutta_method )
     allocate( rk_field(nstage) )
@@ -150,10 +148,8 @@ module mol_consistent_alg_mod
     call mr_wt_in%copy_field(mr_wt_np1)
 
     ! Get transport runtime settings
-    number_substeps = transport_runtime%get_number_substeps(shifted_mesh_id,direction,transport_metadata%get_splitting())
-    dt_substep = transport_runtime%get_dt_substep(shifted_mesh_id,direction,transport_metadata%get_splitting())
-    logspace = transport_metadata%get_log_space()
-    monotonicity = transport_metadata%get_monotone()
+    number_substeps = transport_runtime%get_number_substeps(prime_extrusion_mesh_id,direction,transport_metadata%get_splitting())
+    dt_substep = transport_runtime%get_dt_substep(prime_extrusion_mesh_id,direction,transport_metadata%get_splitting())
     enforce_min_value = transport_metadata%get_enforce_min_value()
     include_div_term_with_density = transport_metadata%get_divergence_factor()
 
@@ -183,7 +179,7 @@ module mol_consistent_alg_mod
         nstage_this_substep = nstage
       end if
 
-      use_reversible_scheme = .false.
+      final_rk_stage = .false.
 
       ! Set initial value for mr used in flux calculation
       call mr_wt_np1%copy_field(mr_wt_n)
@@ -191,8 +187,7 @@ module mol_consistent_alg_mod
 
       stage_loop: do stage = 1, nstage_this_substep
 
-        if ( stage == nstage .and. transport_metadata%get_reversible() ) &
-            use_reversible_scheme= .true.
+        if ( stage == nstage ) final_rk_stage = .true.
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
@@ -204,10 +199,9 @@ module mol_consistent_alg_mod
 
         ! Compute update: rhs_adv = u.grad(rhs_field)
         call advective_increment_alg(rhs_adv, rhs_field,                 &
-                                     primary_advecting_wind, dt_substep, &
-                                     direction, use_reversible_scheme,   &
-                                     monotonicity=monotonicity,          &
-                                     logspace=logspace)
+                                     prime_advecting_wind, dt_substep,   &
+                                     direction, transport_metadata,      &
+                                     final_rk_stage)
 
         ! Update field: f = f^n - dt_substep*rhs
         call invoke( X_minus_bY(mr_wt_np1, mr_wt_n, dt_substep, rhs_adv) )
@@ -251,7 +245,7 @@ module mol_consistent_alg_mod
     ! Conservative form: in shifted W3
     ! ------------------------------------------------------------------------ !
 
-    if ( transport_metadata%get_reversible() ) use_reversible_scheme= .true.
+    final_rk_stage = .true.
 
     ! For final stage of RK scheme, we go to flux form. We use the
     ! mixing ratio in place of density, and dry flux for advecting wind
@@ -259,9 +253,7 @@ module mol_consistent_alg_mod
                                                 mr_wt_for_flux),   &
                  setval_c(flux_X, 0.0_r_def) )
     call flux_alg(flux_X, mr_sh_w3_for_flux, dry_flux, &
-                  direction, use_reversible_scheme,    &
-                  monotonicity=monotonicity,           &
-                  logspace=logspace)
+                  direction, transport_metadata, final_rk_stage)
 
     ! Enforce a minimum value by modifying the fluxes
     if ( enforce_min_value ) then
@@ -302,7 +294,7 @@ module mol_consistent_alg_mod
     if ( allocated( rk_weights ) ) deallocate( rk_weights )
 
     nullify( wt_fs, w3_sh_fs, w2_sh_fs, dry_flux, div, &
-             rho_d_n, rho_d_np1, primary_advecting_wind )
+             rho_d_n, rho_d_np1, prime_advecting_wind )
 
     if ( subroutine_timers ) call timer('mol_consistent_alg')
 

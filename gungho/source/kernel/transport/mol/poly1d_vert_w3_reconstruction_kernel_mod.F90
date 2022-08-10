@@ -10,7 +10,7 @@
 !!        upwind reconstruction.
 !> @details Computes the reconstruction for a tracer field using a high order
 !!          polynomial fit to the integrated tracer values.
-!!          The field is reconstructed at vertial W2 points.
+!!          The field is reconstructed at vertical W2 points.
 !!          If polynomial is even ordered the The stencil used
 !!          is centred on the upwind cell, otherwise it is centred
 !!          on the reconstruction point.
@@ -24,11 +24,11 @@ use argument_mod,      only : arg_type,                    &
                               GH_FIELD, GH_SCALAR,         &
                               GH_REAL, GH_INTEGER,         &
                               GH_LOGICAL,                  &
-                              GH_INC, GH_READ,             &
+                              GH_WRITE, GH_READ,           &
                               CELL_COLUMN,                 &
                               ANY_DISCONTINUOUS_SPACE_1
 use constants_mod,     only : r_def, i_def, l_def, EPS
-use fs_continuity_mod, only : W2, W3
+use fs_continuity_mod, only : W2v, W3
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -42,8 +42,8 @@ private
 type, public, extends(kernel_type) :: poly1d_vert_w3_reconstruction_kernel_type
   private
   type(arg_type) :: meta_args(7) = (/                                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_INC,   W2),                        &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                        &
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2v),                       &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2v),                       &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3),                        &
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &
@@ -74,10 +74,10 @@ contains
 !> @param[in]     logspace       If true, then perform interpolation in log space
 !!                               TODO #3010: the use of logical types is now supported
 !!                               so this ticket should remove these integers
-!> @param[in]     ndf_w2         Number of degrees of freedom per cell
-!> @param[in]     undf_w2        Number of unique degrees of freedom for the reconstruction &
+!> @param[in]     ndf_w2v        Number of degrees of freedom per cell
+!> @param[in]     undf_w2v       Number of unique degrees of freedom for the reconstruction &
 !!                               wind fields
-!> @param[in]     map_w2         Dofmap for the cell at the base of the column
+!> @param[in]     map_w2v        Dofmap for the cell at the base of the column
 !> @param[in]     ndf_w3         Number of degrees of freedom per cell
 !> @param[in]     undf_w3        Number of unique degrees of freedom for the tracer field
 !> @param[in]     map_w3         Cell dofmaps for the tracer space
@@ -92,9 +92,9 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
                                                ndata,                             &
                                                global_order,                      &
                                                logspace,                          &
-                                               ndf_w2,                            &
-                                               undf_w2,                           &
-                                               map_w2,                            &
+                                               ndf_w2v,                           &
+                                               undf_w2v,                          &
+                                               map_w2v,                           &
                                                ndf_w3,                            &
                                                undf_w3,                           &
                                                map_w3,                            &
@@ -105,23 +105,23 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in)                    :: nlayers
-  integer(kind=i_def), intent(in)                    :: ndata
-  integer(kind=i_def), intent(in)                    :: ndf_w3
-  integer(kind=i_def), intent(in)                    :: undf_w3
-  integer(kind=i_def), intent(in)                    :: ndf_w2
-  integer(kind=i_def), intent(in)                    :: undf_w2
-  integer(kind=i_def), intent(in)                    :: ndf_c
-  integer(kind=i_def), intent(in)                    :: undf_c
-  integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
-  integer(kind=i_def), dimension(ndf_c),  intent(in) :: map_c
-  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
-  integer(kind=i_def), intent(in)                    :: global_order
+  integer(kind=i_def), intent(in)                     :: nlayers
+  integer(kind=i_def), intent(in)                     :: ndata
+  integer(kind=i_def), intent(in)                     :: ndf_w3
+  integer(kind=i_def), intent(in)                     :: undf_w3
+  integer(kind=i_def), intent(in)                     :: ndf_w2v
+  integer(kind=i_def), intent(in)                     :: undf_w2v
+  integer(kind=i_def), intent(in)                     :: ndf_c
+  integer(kind=i_def), intent(in)                     :: undf_c
+  integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
+  integer(kind=i_def), dimension(ndf_c),   intent(in) :: map_c
+  integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
+  integer(kind=i_def), intent(in)                     :: global_order
 
-  real(kind=r_def), dimension(undf_w2), intent(inout) :: reconstruction
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: wind
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: tracer
-  real(kind=r_def), dimension(undf_c),  intent(in)    :: coeff
+  real(kind=r_def), dimension(undf_w2v), intent(inout) :: reconstruction
+  real(kind=r_def), dimension(undf_w2v), intent(in)    :: wind
+  real(kind=r_def), dimension(undf_w3),  intent(in)    :: tracer
+  real(kind=r_def), dimension(undf_c),   intent(in)    :: coeff
 
   logical(kind=l_def), intent(in) :: logspace
 
@@ -155,7 +155,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
     ! reconstructions only.
     ! if wind > 0 -> upwind_offset = 1
     ! if wind < 0 -> upwind_offset = 0
-    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,wind(map_w2(5)+k))),i_def)
+    upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,wind(map_w2v(1)+k))),i_def)
     upwind_offset = use_upwind*upwind
 
     ! Adjust the stencil in the upwind direction unless at the top boundary
@@ -167,7 +167,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
     kmax = maxval(stencil(1:vertical_order+1)) - (nlayers-1)
     if ( kmax > 0 ) stencil = stencil - kmax
 
-    ! Compute the tracer reconstructed at W2 points
+    ! Compute the tracer reconstructed at W2v points
     if ( logspace ) then
       new_tracer = 1.0_r_def
       ! Interpolate log(tracer)
@@ -190,7 +190,7 @@ subroutine poly1d_vert_w3_reconstruction_code( nlayers,                         
       end do
     end if
 
-    reconstruction(map_w2(5)+k) = new_tracer
+    reconstruction(map_w2v(1)+k) = new_tracer
 
   end do
 
