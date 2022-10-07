@@ -89,18 +89,23 @@ subroutine lw_rad_tile_code(nlayers,                                &
   integer(i_def) :: df_rtile
 
   do i_band = 1, n_band
+
     ! Land tile albedos
     df_rtile = n_surf_tile*(i_band-1)
-    do i_tile = 1, n_land_tile
+    do i_tile = 1, npft
       df_rtile = df_rtile + 1
       if (tile_fraction(map_tile(1)+i_tile-1) > 0.0_r_def) then
-        if (i_tile <= npft) then
-          tile_lw_albedo(map_lw_tile(1)+df_rtile-1) &
+        tile_lw_albedo(map_lw_tile(1)+df_rtile-1) &
             = 1.0_r_def - real(emis_pft(i_tile), r_def)
-        else
-          tile_lw_albedo(map_lw_tile(1)+df_rtile-1) &
+      else
+        tile_lw_albedo(map_lw_tile(1)+df_rtile-1) = 0.0_r_def
+      end if
+    end do
+    do i_tile = npft+1, n_land_tile
+      df_rtile = df_rtile + 1
+      if (tile_fraction(map_tile(1)+i_tile-1) > 0.0_r_def) then
+        tile_lw_albedo(map_lw_tile(1)+df_rtile-1) &
             = 1.0_r_def - real(emis_nvg(i_tile-npft), r_def)
-        end if
       else
         tile_lw_albedo(map_lw_tile(1)+df_rtile-1) = 0.0_r_def
       end if
@@ -129,7 +134,7 @@ subroutine lw_rad_tile_code(nlayers,                                &
         tile_lw_albedo(map_lw_tile(1)+df_rtile-1) = 0.0_r_def
       end if
     end do
-  end do
+  end do ! i-band
 
 end subroutine lw_rad_tile_code
 

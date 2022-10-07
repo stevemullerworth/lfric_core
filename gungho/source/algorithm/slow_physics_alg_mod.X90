@@ -408,12 +408,19 @@ contains
       call illuminate_alg( radiation_fields, clock%get_step(), &
                            clock%get_seconds_per_step() )
 
+      ! Switch UM to running i-first on whole domain
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
+
       call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                         tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
                         tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
                         radiation_fields, orography_fields,                  &
                         surface_fields, soil_fields, snow_fields,            &
                         twod_mesh, clock%get_step())
+
+      ! Switch UM back to columns
+      call um_sizes_init(1_i_def)
 
       call radiation_fields%get_field('dtheta_rad', dtheta_rad)
       call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
