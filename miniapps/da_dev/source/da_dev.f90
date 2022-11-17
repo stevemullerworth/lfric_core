@@ -6,7 +6,7 @@
 
 !> @page Miniapp da_dev program
 
-!> @brief Main program used to illustrate how to write LFRic miniapps.
+!> @brief Main program for running da_dev independently.
 
 !> @details Calls init, run and finalise routines from a driver module
 

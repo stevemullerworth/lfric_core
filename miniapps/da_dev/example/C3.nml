@@ -25,14 +25,14 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_filename   = 'mesh_C24.nc'
-  geometry        = 'spherical'
-  topology        = 'periodic'
-  n_meshes        = 1
-  mesh_names      = 'C24'
-  partition_mesh  = .false.
-  coord_sys       = 'll'
-  rotate_mesh     = .false.
+  mesh_filename  = 'mesh_C3.nc'
+  geometry       = 'spherical'
+  topology       = 'periodic'
+  n_meshes       = 1
+  mesh_names     = 'C3'
+  n_partitions   = 0
+  coord_sys      = 'll'
+  rotate_mesh    = .false.
 /
 
 !==================================================================
@@ -47,7 +47,7 @@
 ! intergrid mesh maps) is advised to be left as 0 for general use.
 
 &cubedsphere_mesh
-  edge_cells     = 24
+  edge_cells     = 3
   smooth_passes  = 0
   stretch_factor = 1.0
 /

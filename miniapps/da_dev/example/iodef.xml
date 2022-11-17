@@ -3,54 +3,62 @@
 
   <context id = "da_dev">
 
-   <axis_definition>
-    <axis id="vert_axis_half_levels" name="half_levels"/>
-    <axis id="vert_axis_full_levels" name="full_levels"/>
-    <axis id="radiation_levels" name="radiation_levels"/>
-   </axis_definition>
+    <axis_definition>
+      <axis id="vert_axis_half_levels" name="half_levels"/>
+      <axis id="vert_axis_full_levels" name="full_levels"/>
+      <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
+      <axis id="radiation_levels" name="radiation_levels"/>
+    </axis_definition>
 
+    <grid_definition>
+      <grid id="node_grid">
+        <domain domain_ref="node"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="full_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_edge_grid">
+        <domain domain_ref="edge"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="monthly_half_level_face_grid">
+       <domain domain_ref="face"/>
+       <axis axis_ref="vert_axis_half_levels"/>
+       <axis axis_ref="monthly_axis"/>
+     </grid>
+    </grid_definition>
 
+    <field_definition prec="8" >
 
-   <grid_definition>
-    <grid id="node_grid">
-      <domain domain_ref="node"/>
-      <axis axis_ref="vert_axis_full_levels"/>
-    </grid>
-    <grid id="half_level_face_grid">
-      <domain domain_ref="face"/>
-      <axis axis_ref="vert_axis_half_levels"/>
-    </grid>
-    <grid id="full_level_face_grid">
-      <domain domain_ref="face"/>
-      <axis axis_ref="vert_axis_full_levels"/>
-    </grid>
-        <grid id="half_level_edge_grid">
-      <domain domain_ref="edge"/>
-      <axis axis_ref="vert_axis_half_levels"/>
-    </grid>
-   </grid_definition>
+      <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts">
+        <field id="read_theta" name="theta" unit="1" grid_ref="full_level_face_grid" />
+        <field id="read_exner" name="exner" unit="1" grid_ref="half_level_face_grid" />
+        <field id="read_rho" name="rho" unit="1" grid_ref="half_level_face_grid" />
+      </field_group>
 
-   <field_definition prec="8" >
+      <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="0ts">
+        <field id="write_theta" name="theta" unit="1" grid_ref="full_level_face_grid" />
+        <field id="write_exner" name="exner" unit="1" grid_ref="half_level_face_grid" />
+        <field id="write_rho" name="rho" unit="1" grid_ref="half_level_face_grid" />
+      </field_group>
 
-     <!-- Main diagnostic group -->
-     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
-       <field id="da_dev_field" name="da_dev_field" long_name="da_dev_field" unit="1" grid_ref="half_level_face_grid" />
-     </field_group>
-     <!-- Initial conditions group -->
-     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
-       <field id="init_da_dev_field" name="da_dev_field" long_name="da_dev_field" unit="1" grid_ref="half_level_face_grid" />
-     </field_group>
+    </field_definition>
 
-   </field_definition>
+    <file_definition type="one_file" par_access="collective" time_counter="none">
 
-   <file_definition
-      type="one_file"
-      par_access="collective"
-      time_counter="none">
+      <file id="read_da_dev" name="read_da_dev" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
+        <field_group id="read_fields"/>
+      </file>
 
-     <file id="lfric_diag" name="da_dev_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-       <field field_ref="da_dev_field"/>
-     </file>
+      <file id="write_da_dev" name="write_da_dev" output_freq="1ts" convention="UGRID" enabled=".FALSE." timeseries="both">
+        <field_group id="write_fields"/>
+      </file>
 
     </file_definition>
 

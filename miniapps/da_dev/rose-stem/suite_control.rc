@@ -68,7 +68,7 @@
 {#========================================================================#}
 
 
-{%- set application_configurations = { 'da_dev' : ['default'] } %}
+{%- set application_configurations = { 'da_dev' : ['default', 'pseudomodel', 'model'] } %}
 
 {%- set canned_configurations = ['da_dev'] %}
 
@@ -78,9 +78,11 @@
     'check_config_dump_graph()',
     'check_style_graph()',
     'api_documentation_graph(publish=True)',
-    'run_application("da_dev", "default", resolutions=[("C24",)])',
-    'check_compilers("da_dev", "default", "fast-debug", resolution=("C24",))',
-    'check_compilers("da_dev", "default", "full-debug", resolution=("C24",))',
+    'run_application("da_dev", "default", resolutions=[("C3",)])',
+    'run_application("da_dev", "model", resolutions=[("C3",)])',
+    'run_application("da_dev", "pseudomodel", resolutions=[("C3",)])',
+    'check_compilers("da_dev", "default", "fast-debug", resolution=("C3",))',
+    'check_compilers("da_dev", "default", "full-debug", resolution=("C3",))',
     'canned_test("da_dev")' ],
 'nightly': [
     'null_task_graph()' ]

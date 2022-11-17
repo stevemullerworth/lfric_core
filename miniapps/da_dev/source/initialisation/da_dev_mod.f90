@@ -24,8 +24,10 @@ module da_dev_mod
 
   contains
 
-  !> Loads run-time configuration and ensures everything is ship-shape.
+  !> @brief Loads run-time configuration and ensures everything is ship-shape.
   !>
+  !> @param[in] filename    Name of config file
+  !> @param[in] model_name  Name of model for logging
   subroutine load_configuration( filename, model_name )
 
     use configuration_mod, only : read_configuration, &

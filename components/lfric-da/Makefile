@@ -37,6 +37,8 @@ export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf yaxt yaxt_c
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export ROOT_DIR    ?= ../..
 
+export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure
+
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
 
@@ -49,6 +51,8 @@ documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
 include $(ROOT_DIR)/infrastructure/build/lfric.mk
+include $(PROJECT_DIR)/build/import.mk
+include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
 ##############################################################################
 # Documentation
