@@ -2,8 +2,8 @@
   Geometry:            spherical
   Topology:            periodic
   Co-ordinate system:  ll
-  Periodic X:          F
-  Periodic Y:          F
+  Periodic X:          T
+  Periodic Y:          T
   Constructor inputs:  edge_cells=3;smooth_passes=0
   Nodes:               56
   Edges:               108

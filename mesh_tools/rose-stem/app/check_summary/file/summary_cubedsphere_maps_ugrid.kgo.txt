@@ -2,8 +2,8 @@
   Geometry:            spherical
   Topology:            periodic
   Co-ordinate system:  ll
-  Periodic X:          F
-  Periodic Y:          F
+  Periodic X:          T
+  Periodic Y:          T
   Constructor inputs:  edge_cells=4;smooth_passes=0;target_mesh_names=['physics','other'];target_edge_cells=[8,24]
   Nodes:               98
   Edges:               192
@@ -19,8 +19,8 @@
   Geometry:            spherical
   Topology:            periodic
   Co-ordinate system:  ll
-  Periodic X:          F
-  Periodic Y:          F
+  Periodic X:          T
+  Periodic Y:          T
   Constructor inputs:  edge_cells=8;smooth_passes=0;target_mesh_names=['dynamics'];target_edge_cells=[4]
   Nodes:               386
   Edges:               768
@@ -36,8 +36,8 @@
   Geometry:            spherical
   Topology:            periodic
   Co-ordinate system:  ll
-  Periodic X:          F
-  Periodic Y:          F
+  Periodic X:          T
+  Periodic Y:          T
   Constructor inputs:  edge_cells=24;smooth_passes=0;target_mesh_names=['dynamics'];target_edge_cells=[4]
   Nodes:               3458
   Edges:               6912

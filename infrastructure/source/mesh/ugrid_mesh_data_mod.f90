@@ -21,10 +21,17 @@ module ugrid_mesh_data_mod
 
   private
 
+  integer(i_def), parameter :: LOCAL_MESH_FLAG  = 100
+  integer(i_def), parameter :: GLOBAL_MESH_FLAG = 101
+
   type, public :: ugrid_mesh_data_type
     !> Name of ugrid mesh topology.
     character(str_def) :: global_mesh_name
-    !> Geometry of mesh.
+
+    integer(i_def)     :: mesh_extents
+    logical(l_def)     :: is_local_mesh
+
+    !> Domain geometry of global mesh.
     character(str_def) :: geometry
     !> Topology of mesh.
     character(str_def) :: topology
@@ -46,11 +53,9 @@ module ugrid_mesh_data_mod
     integer(i_def) :: num_edges_per_face
     !> Maximum number of cells around a node (vertex).
     integer(i_def) :: max_num_faces_per_node
-    !> Periodic in E-W direction.
-    logical(l_def) :: periodic_x
-    !> Periodic in N-S direction.
-    logical(l_def) :: periodic_y
-    !> Number of other "target" global meshes that this mesh is mapped to.
+    !> Periodic in x/y-axes
+    logical(l_def) :: periodic_xy(2)
+    !> Number of other "target" global meshes that this mesh is mapped to
     integer(i_def) :: ntarget_meshes
     !> Names of other "target" global meshes that this mesh is mapped to.
     character(str_def),  allocatable :: target_global_mesh_names(:)
@@ -86,10 +91,63 @@ module ugrid_mesh_data_mod
     !> ID value to mark null cell-cell connectivity,
     integer(i_def) :: void_cell
 
+    !> Depth (in cells) of partition inner region.
+    integer(i_def) :: inner_depth
+
+    !> Depth (in cells) of partition halo region.
+    integer(i_def) :: halo_depth
+
+    !> Number of cells in partition edge-layer.
+    integer(i_def) :: num_edge
+
+    !> Local ID of last in partition edge-layer.
+    integer(i_def) :: last_edge_cell
+
+    !> Number of cells in partition ghost-layer.
+    integer(i_def) :: num_ghost
+
+    !> Local ID of last in partition ghost-layer.
+    integer(i_def) :: last_ghost_cell
+
+    !> Number of faces (only if a global mesh).
+    integer(i_def) :: num_faces_global
+
+    !> Local cell ID which owns a given node(LID).
+    integer(i_def), allocatable :: node_cell_owner(:)
+
+    !> Local cell ID which owns a given edge(LID).
+    integer(i_def), allocatable :: edge_cell_owner(:)
+
+    !> Number of cells in each layer of the partition inner region.
+    integer(i_def), allocatable :: num_inner(:)
+
+    !> Number of cells in each layer of the partition halo region.
+    integer(i_def), allocatable :: num_halo(:)
+
+    !> Local ID of last cell in each layer of the
+    !> partition inner region.
+    integer(i_def), allocatable :: last_inner_cell(:)
+
+    !> Local ID of last cell in each layer of the
+    !> partition halo region.
+    integer(i_def), allocatable :: last_halo_cell(:)
+
+    !> Corresponding Global IDs of LIDS cells on local mesh.
+    integer(i_def), allocatable :: cell_gid(:)
+
+    !> Cell(LID)-Node(GIDs) connectivity of local mesh.
+    integer(i_def), allocatable :: node_on_cell_gid(:,:)
+
+    !> Cell(LID)-Edge(GIDs) connectivity of local mesh.
+    integer(i_def), allocatable :: edge_on_cell_gid(:,:)
+
   contains
     procedure, public :: read_from_file
     procedure, public :: set_by_ugrid_2d
     procedure, public :: get_data
+    procedure, public :: get_partition_data
+    procedure, public :: is_local
+
     procedure, public :: clear
     final :: ugrid_mesh_data_destructor
 
@@ -122,10 +180,19 @@ contains
 
     class(ugrid_file_type), allocatable :: file_handler
 
+    call self%clear()
+
     allocate( ncdf_quad_type :: file_handler )
     call ugrid_2d%set_file_handler( file_handler )
     call ugrid_2d%set_from_file_read( trim(global_mesh_name), trim(filename) )
-    call set_by_ugrid_2d( self, ugrid_2d )
+    call self%clear()
+    call self%set_by_ugrid_2d( ugrid_2d )
+
+    if (ugrid_2d%is_local()) then
+      self%mesh_extents = LOCAL_MESH_FLAG
+    else
+      self%mesh_extents = GLOBAL_MESH_FLAG
+    end if
 
     if (allocated(file_handler)) deallocate( file_handler )
 
@@ -148,8 +215,7 @@ contains
   !> @param[out] nnodes_per_edge     Number of nodes on each edge.
   !> @param[out] nedges_per_face     Number of edges on each cell.
   !> @param[out] max_faces_per_node  Maximum number of faces around a node.
-  !> @param[out] periodic_x          Periodic in E-W direction.
-  !> @param[out] periodic_y          Periodic in N-S direction.
+  !> @param[out] periodic_xy         Domain periodicity in x/y-axes.
   !> @param[out] ntarget_meshes      Number of target global mesh name.
   !> @param[out] target_global_mesh_names   Target of global mesh name.
   !> @param[out] node_coords      Horizontal coords of vertices in full domain.
@@ -180,8 +246,7 @@ contains
                        nnodes_per_edge, &
                        nedges_per_face, &
                        max_faces_per_node, &
-                       periodic_x, &
-                       periodic_y, &
+                       periodic_xy, &
                        ntarget_meshes, &
                        target_global_mesh_names, &
                        node_coords, &
@@ -214,8 +279,7 @@ contains
     integer(i_def), intent(out) :: nedges_per_face
     integer(i_def), intent(out) :: max_faces_per_node
 
-    logical(l_def), intent(out) :: periodic_x
-    logical(l_def), intent(out) :: periodic_y
+    logical(l_def), intent(out) :: periodic_xy(2)
     integer(i_def), intent(out) :: ntarget_meshes
 
     character(str_def), intent(out),  allocatable :: target_global_mesh_names(:)
@@ -256,8 +320,7 @@ contains
     max_faces_per_node = self%max_num_faces_per_node
 
 
-    periodic_x = self%periodic_x
-    periodic_y = self%periodic_y
+    periodic_xy(:) = self%periodic_xy(:)
     ntarget_meshes = self%ntarget_meshes
 
     if ( ntarget_meshes > 0 ) then
@@ -271,6 +334,18 @@ contains
     face_next_2d = self%face_next_2d
     node_on_face_2d = self%node_on_face_2d
     edge_on_face_2d = self%edge_on_face_2d
+
+    if ( allocated(node_coords)  ) deallocate(node_coords)
+    if ( allocated(face_coords)  ) deallocate(face_coords)
+    if ( allocated(face_next_2d) ) deallocate(face_next_2d)
+    if ( allocated(node_on_face_2d) ) deallocate(node_on_face_2d)
+    if ( allocated(edge_on_face_2d) ) deallocate(edge_on_face_2d)
+
+    allocate( node_coords,     source=self%node_coords  )
+    allocate( face_coords,     source=self%face_coords  )
+    allocate( face_next_2d,    source=self%face_next_2d )
+    allocate( node_on_face_2d, source=self%node_on_face_2d )
+    allocate( edge_on_face_2d, source=self%edge_on_face_2d )
 
     if (present(max_stencil_depth)) then
       max_stencil_depth = self%max_stencil_depth
@@ -290,6 +365,142 @@ contains
     end if
 
   end subroutine get_data
+
+
+  !-------------------------------------------------------------------------------
+  !> @brief   Gets information related to local partitions.
+  !> @details Local meshes (on a paritition) require additional information
+  !>          regarding the partition and the larger global mesh.
+  !>
+  !> param[out] max_stencil_depth  Maximum stencil depth supported.
+  !> param[out] inner_depth        Number of inner layers.
+  !> param[out] halo_depth         Number of halo layers.
+  !> param[out] num_inner          Number cells in each inner layer.
+  !> param[out] num_edge           Number cells in edge layer.
+  !> param[out] num_halo           Number cells in each halo layer.
+  !> param[out] num_ghost          Number cells in ghost layer.
+  !> param[out] last_inner_cell    Local index of last cell in each inner layer.
+  !> param[out] last_edge_cell     Local index of last cell in edge layer.
+  !> param[out] last_halo_cell     Local index of last cell in each halo layer.
+  !> param[out] last_ghost_cell    Local index of last cell in ghost layer.
+  !> param[out] node_cell_owner    Cell ID that owns a given node.
+  !> param[out] edge_cell_owner    Cell ID that owns a given edge.
+  !> param[out] num_faces_global   Number of faces in the global mesh.
+  !> param[out] cell_gid           Global index of cells in this local mesh object.
+  !> param[out] node_on_cell_gid   Node on cell connectivity in Global IDs.
+  !> param[out] edge_on_cell_gid   Edge on cell connectivity in Global IDs.
+  !-------------------------------------------------------------------------------
+  subroutine get_partition_data( self,              &
+                                 max_stencil_depth, &
+                                 inner_depth,       &
+                                 halo_depth,        &
+                                 num_inner,         &
+                                 num_edge,          &
+                                 num_halo,          &
+                                 num_ghost,         &
+                                 last_inner_cell,   &
+                                 last_edge_cell,    &
+                                 last_halo_cell ,   &
+                                 last_ghost_cell,   &
+                                 node_cell_owner,   &
+                                 edge_cell_owner,   &
+                                 num_faces_global,  &
+                                 cell_gid,          &
+                                 node_on_cell_gid,  &
+                                 edge_on_cell_gid )
+
+
+    implicit none
+
+    class (ugrid_mesh_data_type), intent(in) :: self
+
+    integer(i_def), intent(out) :: max_stencil_depth
+    integer(i_def), intent(out) :: inner_depth
+    integer(i_def), intent(out) :: halo_depth
+    integer(i_def), intent(out) :: num_edge
+    integer(i_def), intent(out) :: num_ghost
+    integer(i_def), intent(out) :: last_edge_cell
+    integer(i_def), intent(out) :: last_ghost_cell
+    integer(i_def), intent(out), allocatable :: node_cell_owner(:)
+    integer(i_def), intent(out), allocatable :: edge_cell_owner(:)
+    integer(i_def), intent(out), allocatable :: num_inner(:)
+    integer(i_def), intent(out), allocatable :: num_halo(:)
+    integer(i_def), intent(out), allocatable :: last_inner_cell(:)
+    integer(i_def), intent(out), allocatable :: last_halo_cell(:)
+
+    integer(i_def), intent(out) :: num_faces_global
+    integer(i_def), intent(out), allocatable :: cell_gid(:)
+    integer(i_def), intent(out), allocatable :: node_on_cell_gid(:,:)
+    integer(i_def), intent(out), allocatable :: edge_on_cell_gid(:,:)
+
+
+    if (.not. self%is_local()) then
+      write(log_scratch_space,'(A)') &
+        'Mesh '//trim(self%global_mesh_name)//' is a global mesh '//&
+        'and does not contain partition data.'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    max_stencil_depth = self%max_stencil_depth
+    inner_depth       = self%inner_depth
+    halo_depth        = self%halo_depth
+    num_edge          = self%num_edge
+    num_ghost         = self%num_ghost
+    last_edge_cell    = self%last_edge_cell
+    last_ghost_cell   = self%last_ghost_cell
+    last_ghost_cell   = self%last_ghost_cell
+    num_faces_global  = self%num_faces_global
+
+    if ( allocated( node_cell_owner ) )  deallocate( node_cell_owner )
+    if ( allocated( edge_cell_owner ) )  deallocate( edge_cell_owner )
+    if ( allocated( num_inner ) )        deallocate( num_inner )
+    if ( allocated( num_halo ) )         deallocate( num_halo )
+    if ( allocated( last_inner_cell ) )  deallocate( last_inner_cell )
+    if ( allocated( last_halo_cell ) )   deallocate( last_halo_cell )
+    if ( allocated( cell_gid ) )         deallocate( cell_gid )
+    if ( allocated( node_on_cell_gid ) ) deallocate( node_on_cell_gid )
+    if ( allocated( edge_on_cell_gid ) ) deallocate( edge_on_cell_gid )
+
+    if (self%inner_depth > 0) then
+      allocate( num_inner,       source=self%num_inner )
+      allocate( last_inner_cell, source=self%last_inner_cell )
+    end if
+
+    if (self%halo_depth > 0) then
+      allocate( num_halo,       source=self%num_halo )
+      allocate( last_halo_cell, source=self%last_halo_cell )
+    end if
+
+    allocate( node_cell_owner,   source=self%node_cell_owner )
+    allocate( edge_cell_owner,   source=self%edge_cell_owner )
+    allocate( cell_gid,          source=self%cell_gid )
+    allocate( node_on_cell_gid,  source=self%node_on_cell_gid )
+    allocate( edge_on_cell_gid,  source=self%edge_on_cell_gid )
+
+  end subroutine get_partition_data
+
+
+  !-------------------------------------------------------------------------------
+  !> @brief   Returns logical to determine it current contents represents a global
+  !>          or local mesh object.
+  !> @return  Logical  .True. if contents represent a logcal mesh.
+  !-------------------------------------------------------------------------------
+  function is_local(self) result(answer)
+
+    implicit none
+
+    class (ugrid_mesh_data_type), intent(in) :: self
+    logical(l_def) :: answer
+
+    select case (self%mesh_extents)
+    case( LOCAL_MESH_FLAG )
+      answer = .true.
+    case( GLOBAL_MESH_FLAG )
+      answer = .false.
+    end select
+
+  end function is_local
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Destroys a ugrid_mesh_data object when it is finished with.
@@ -354,8 +565,7 @@ contains
               geometry           = self%geometry,           &
               topology           = self%topology,           &
               coord_sys          = self%coord_sys,          &
-              periodic_x         = self%periodic_x,         &
-              periodic_y         = self%periodic_y,         &
+              periodic_xy        = self%periodic_xy,        &
               max_stencil_depth  = self%max_stencil_depth,  &
               constructor_inputs = self%constructor_inputs, &
               north_pole         = self%north_pole,         &
@@ -379,6 +589,32 @@ contains
     self%node_on_edge_2d = ugrid_2d%get_edge_node_connectivity()
 
     call ugrid_2d%get_coord_units( self%coord_units_xy )
+
+    if (ugrid_2d%is_local()) then
+
+      self%mesh_extents = LOCAL_MESH_FLAG
+      call ugrid_2d%get_partition_data(            &
+                        self%max_stencil_depth,    &
+                        self%inner_depth,          &
+                        self%halo_depth,           &
+                        self%num_inner,            &
+                        self%num_edge,             &
+                        self%num_halo,             &
+                        self%num_ghost,            &
+                        self%last_inner_cell,      &
+                        self%last_edge_cell,       &
+                        self%last_halo_cell,       &
+                        self%last_ghost_cell,      &
+                        self%node_cell_owner,      &
+                        self%edge_cell_owner,      &
+                        self%num_faces_global,     &
+                        self%cell_gid,             &
+                        self%node_on_cell_gid,     &
+                        self%edge_on_cell_gid )
+
+    else
+      self%mesh_extents = GLOBAL_MESH_FLAG
+    end if
 
     return
   end subroutine set_by_ugrid_2d

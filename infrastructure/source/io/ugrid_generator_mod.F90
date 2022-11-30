@@ -95,22 +95,20 @@ abstract interface
   !-----------------------------------------------------------------------------
   !> @brief Interface: Returns mesh metadata information.
   !>
-  !> @param[out]  mesh_name           Optional: Name of mesh instance to generate
-  !> @param[out]  geometry            Optional: Domain geometry enumeration key
-  !> @param[out]  topology            Optional: Domain topology enumeration key
-  !> @param[out]  coord_sys           Optional: Co-ordinate sys enumeration key
-  !> @param[out]  periodic_x          Optional: Periodic in E-W direction.
-  !> @param[out]  periodic_y          Optional: Periodic in N-S direction.
+  !> @param[out]  mesh_name           Optional: Name of mesh instance to generate.
+  !> @param[out]  geometry            Optional: Domain geometry enumeration key.
+  !> @param[out]  topology            Optional: Domain topology enumeration key.
+  !> @param[out]  coord_sys           Optional: Co-ordinate sys enumeration key.
+  !> @param[out]  periodic_xy         Optional: Periodic in x/y axes.
   !> @param[out]  edge_cells_x        Optional: Number of panel edge cells (x-axis).
   !> @param[out]  edge_cells_y        Optional: Number of panel edge cells (y-axis).
   !> @param[out]  constructor_inputs  Optional: Inputs used to create this mesh from
-  !>                                            the this ugrid_generator_type
+  !>                                            the this ugrid_generator_type.
   !> @param[out]  nmaps               Optional: Number of maps to create with this mesh
-  !>                                            as source mesh
+  !>                                            as source mesh.
   !> @param[out]  rim_depth           Optional: Rim depth of LBC mesh (LAMs).
   !> @param[out]  domain_size         Optional: Size of global model domain.
-  !> @param[out]  void_cell           Optional: Value used to indicate cell id is external
-  !>                                            to the mesh domain.
+  !> @param[out]  void_cell           Optional: Cell ID to mark null cell connectivity.
   !> @param[out]  target_mesh_names   Optional: Mesh names of the target meshes that
   !>                                            this mesh has maps for.
   !> @param[out]  maps_edge_cells_x   Optional: Number of panel edge cells (x-axis) of
@@ -118,13 +116,13 @@ abstract interface
   !> @param[out]  maps_edge_cells_y   Optional: Number of panel edge cells (y-axis) of
   !>                                            target mesh(es) to create map(s) for.
   !> @param[out]  north_pole          Optional: [Longitude, Latitude] of north pole
-  !>                                            used in for domain orientation (degrees)
+  !>                                            used in for domain orientation (degrees).
   !> @param[out]  null_island         Optional: [Longitude, Latitude] of null
-  !>                                            island used for domain orientation (degrees)
+  !>                                            island used for domain orientation (degrees).
   !-----------------------------------------------------------------------------
   subroutine get_metadata_interface ( self, mesh_name,                       &
                                       geometry, topology, coord_sys,         &
-                                      periodic_x, periodic_y,                &
+                                      periodic_xy,                           &
                                       edge_cells_x, edge_cells_y,            &
                                       constructor_inputs, nmaps, rim_depth,  &
                                       domain_size, void_cell,                &
@@ -142,8 +140,7 @@ abstract interface
     character(str_def), optional, intent(out) :: geometry
     character(str_def), optional, intent(out) :: topology
     character(str_def), optional, intent(out) :: coord_sys
-    logical(l_def),     optional, intent(out) :: periodic_x
-    logical(l_def),     optional, intent(out) :: periodic_y
+    logical(l_def),     optional, intent(out) :: periodic_xy(2)
 
     character(str_longlong), optional, intent(out) :: constructor_inputs
 
@@ -158,9 +155,9 @@ abstract interface
     integer(i_def), optional, intent(out) :: rim_depth
     integer(i_def), optional, intent(out) :: edge_cells_x
     integer(i_def), optional, intent(out) :: edge_cells_y
-    integer(i_def), optional, intent(out) :: void_cell
 
     real(r_def),    optional, intent(out) :: domain_size(2)
+    integer(i_def), optional, intent(out) :: void_cell
     real(r_def),    optional, intent(out) :: north_pole(2)
     real(r_def),    optional, intent(out) :: null_island(2)
 

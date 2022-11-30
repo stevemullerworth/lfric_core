@@ -91,8 +91,7 @@ contains
     integer(i_def) :: ncells
     integer(i_def) :: max_cells_on_vert
     integer(i_def) :: global_mesh_id1
-    logical(l_def) :: periodic_x
-    logical(l_def) :: periodic_y
+    logical(l_def) :: periodic_xy(2)
 
     integer(i_def), allocatable :: edge_on_cells(:,:)
     integer(i_def), allocatable :: vert_on_cells(:,:)
@@ -116,9 +115,9 @@ contains
     @assertTrue(global_mesh_id1 > 0)
 
     ! Check periodic flags are read in correctly
-    call global_mesh%get_mesh_periodicity(periodic_x, periodic_y)
-    @assertTrue(periodic_x)
-    @assertTrue(periodic_y)
+    periodic_xy = global_mesh%get_mesh_periodicity()
+    @assertTrue(periodic_xy(1))
+    @assertTrue(periodic_xy(2))
 
     ! Generate the global_mesh
     cell_id = global_mesh%get_cell_id( 1, 0, 0 )

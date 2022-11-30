@@ -172,9 +172,11 @@ module local_mesh_mod
   contains
     procedure, public  :: initialise_full
     procedure, public  :: initialise_lbc
+    procedure, public  :: initialise_from_ugrid_data
     procedure, public  :: initialise_unit_test
-    generic            :: initialise => initialise_full, &
-                                        initialise_lbc,  &
+    generic            :: initialise => initialise_full,            &
+                                        initialise_lbc,             &
+                                        initialise_from_ugrid_data, &
                                         initialise_unit_test
     procedure, public  :: init_cell_owner
     procedure, public  :: clear
@@ -211,8 +213,10 @@ module local_mesh_mod
     procedure, public  :: get_lid_from_gid
     procedure, public  :: add_local_mesh_map
     procedure, public  :: get_local_mesh_map
+    procedure, public  :: get_target_mesh_names
     procedure, public  :: get_mesh_maps
     procedure, public  :: get_all_gid
+    procedure, public  :: as_ugrid_2d
     procedure, public  :: get_void_cell
 
     procedure, public :: is_geometry_spherical
@@ -222,8 +226,6 @@ module local_mesh_mod
     procedure, public :: is_topology_periodic
     procedure, public :: is_coord_sys_xyz
     procedure, public :: is_coord_sys_ll
-
-    procedure, public :: as_ugrid_2d
 
     final :: local_mesh_destructor
   end type local_mesh_type
@@ -467,18 +469,30 @@ contains
     ! Set cell ownership for each vertex.
     allocate( self%vert_cell_owner(self%n_unique_vertices) )
     do vertex=1,self%n_unique_vertices
+
       self%vert_cell_owner(vertex) = &
-          self%get_lid_from_gid( &
+          self%get_lid_from_gid(     &
             global_mesh%get_vert_cell_owner(vert_lid_gid_map(vertex)) )
+
+      if ( self%vert_cell_owner(vertex) == -1 ) then
+        self%vert_cell_owner(vertex) = self%void_cell
+      end if
+
     end do
 
     ! Set cell ownership for each edge.
     allocate( self%edge_cell_owner(self%n_unique_edges) )
     do edge=1,self%n_unique_edges
+
       self%edge_cell_owner(edge) = &
           self%get_lid_from_gid( &
             global_mesh%get_edge_cell_owner(edge_lid_gid_map(edge)) )
+      if ( self%edge_cell_owner(edge) == -1 ) then
+        self%edge_cell_owner(edge) = self%void_cell
+      end if
+
     end do
+
 
     ! Get coords of vertices.
     allocate( self%vert_coords(3,self%n_unique_vertices) )
@@ -611,23 +625,23 @@ contains
 
   integer(i_def) :: i, vert, edge, vert_count, edge_count
 
-  integer(i_def) :: LAM_NO_CELL_NEXT ! = 0_i_def
+  integer(i_def) :: lam_no_cell_next
 
   ! NO_CELL_NEXT parameter will indicate there is no
   ! cell at the given location. It also implies that
   ! the looping cell is on adjacent to the inner domain
   ! as a 0 (from the LAM cell next) will indicate the looping
   ! cell is on the outer edge of domain.
-  integer(i_def) :: NO_CELL_NEXT     ! = -10_i_def
+  integer(i_def) :: no_cell_next
 
   !     0000000000000000000000
   !     0+------------------+0
   !     0|  LBC Rim Cells   |0
   !     0| +--------------+ |0
-  !     0| | NO_CELL_NEXT | |0
+  !     0| | no_cell_next | |0
 
-  LAM_NO_CELL_NEXT = global_lam_mesh%get_void_cell()
-  NO_CELL_NEXT     = global_lbc_mesh%get_void_cell()
+  lam_no_cell_next = global_lam_mesh%get_void_cell()
+  no_cell_next     = global_lbc_mesh%get_void_cell()
 
   ! All local meshes to have a unique id, note:
   ! This id is only valid for the program duration.
@@ -804,17 +818,14 @@ contains
   allocate( self%cell_next(self%nedges_per_cell, self%last_edge_cell) )
   self%num_edge = 0_i_def
 
-! self%tmp_cell_next(:,:) = 0_i_def
-
   do local_lbc_id=1, self%last_edge_cell
 
     local_lam_id = cell_lbc_lam_map(local_lbc_id)
     call local_lam_mesh%get_cell_next( local_lam_id, tmp_cell_next )
 
     do i=1, self%nedges_per_cell
-!print*, tmp_cell_next(i), LAM_NO_CELL_NEXT, NO_CELL_NEXT
-      if (tmp_cell_next(i) == LAM_NO_CELL_NEXT) then
-        tmp_cell_next(i) = NO_CELL_NEXT
+      if (tmp_cell_next(i) == lam_no_cell_next) then
+        tmp_cell_next(i) = no_cell_next
       else
         tmp_cell_next(i) = cell_lam_lbc_map( tmp_cell_next(i) )
       end if
@@ -826,7 +837,7 @@ contains
     !------------------------------------------------------
     ! If any cell has a NO_CELL_NEXT it is then an
     ! edge cell as the LBC local has no halos.
-    if ( any(self%cell_next(:,local_lbc_id) == NO_CELL_NEXT) ) then
+    if ( any(self%cell_next(:,local_lbc_id) == no_cell_next) ) then
       self%num_edge = self%num_edge + 1
     end if
 
@@ -976,9 +987,14 @@ contains
   !======================================================================================
   allocate( self%vert_cell_owner(self%n_unique_vertices) )
   do vert=1, self%n_unique_vertices
-    self%vert_cell_owner( vert ) = &
-        self%get_lid_from_gid(     &
-            global_lbc_mesh%get_vert_cell_owner( vert_lbc_lid_gid_map( vert ) ) )
+
+    self%vert_cell_owner(vert) = &
+        self%get_lid_from_gid(   &
+            global_lbc_mesh%get_vert_cell_owner( vert_lbc_lid_gid_map(vert) ) )
+
+    if ( self%vert_cell_owner(vert) == -1 ) then
+      self%vert_cell_owner(vert) = self%void_cell
+    end if
   end do
 
   allocate( self%edge_cell_owner(self%n_unique_edges) )
@@ -986,6 +1002,10 @@ contains
     self%edge_cell_owner(edge) = &
         self%get_lid_from_gid(   &
             global_lbc_mesh%get_edge_cell_owner( edge_lbc_lid_gid_map(edge) ) )
+
+    if ( self%edge_cell_owner(edge) == -1 ) then
+      self%edge_cell_owner(edge) = self%void_cell
+    end if
   end do
 
 
@@ -1043,6 +1063,145 @@ contains
   end if
 
   end subroutine initialise_lbc
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief  Initialises a local mesh object directly from data contained in a
+  !>         <ugrid_mesh_data_type> object.
+  !>
+  !> @details Direct initialisation from a <ugrid_mesh_data_type> allows a local
+  !>          mesh object to be populated directly from file read.
+  !>
+  !> @param [in] ugrid_mesh_data  <ugrid_mesh_data_type> which was populated
+  !>                              directly from file read
+  !>
+  subroutine initialise_from_ugrid_data(self, ugrid_mesh_data)
+
+    use ugrid_mesh_data_mod, only: ugrid_mesh_data_type
+
+    implicit none
+
+    class(local_mesh_type) :: self
+
+    type(ugrid_mesh_data_type), intent(in) :: ugrid_mesh_data
+
+    integer(i_def) :: nfaces            ! number of faces in this local mesh.
+                                        ! should be same as last ghost cell
+    integer(i_def) :: max_face_per_node ! Only needed for global meshes that
+                                        ! are to be partitioned.
+
+    logical(i_def) :: periodic_xy(2) = .false.
+
+    real(r_def), allocatable :: face_coords(:,:)
+    character(str_def)       :: geometry_str
+    character(str_def)       :: topology_str
+    character(str_def)       :: coord_sys_str
+
+
+    if (.not. ugrid_mesh_data%is_local()) then
+      call log_event( 'Insufficient data to initialise local mesh', &
+                      LOG_LEVEL_ERROR )
+    end if
+
+    local_mesh_id_counter = local_mesh_id_counter + 1
+    call self%set_id( local_mesh_id_counter )
+
+    ! Get ugrid data which describes the mesh.
+    call ugrid_mesh_data%get_data(    &
+             self%mesh_name,          &
+             geometry_str,            &
+             topology_str,            &
+             coord_sys_str,           &
+             self%npanels,            &
+             self%n_unique_vertices,  &
+             self%n_unique_edges,     &
+             nfaces,                  &
+             self%nverts_per_cell,    &
+             self%nverts_per_edge,    &
+             self%nedges_per_cell,    &
+             max_face_per_node,       &
+             periodic_xy,             &
+             self%ntarget_meshes,     &
+             self%target_mesh_names,  &
+             self%vert_coords,        &
+             face_coords,             &
+             self%coord_units_xy,     &
+             self%north_pole,         &
+             self%null_island,        &
+             self%constructor_inputs, &
+             self%rim_depth,          &
+             self%domain_size,        &
+             self%void_cell,          &
+             self%cell_next,          &
+             self%vert_on_cell,       &
+             self%edge_on_cell )
+
+
+    select case (trim(geometry_str))
+    case ('spherical')
+      self%geometry = spherical_domain
+    case ('planar')
+      self%geometry = planar_domain
+    end select
+
+    select case (trim(coord_sys_str))
+    case ('ll')
+      self%coord_sys=lon_lat_coords
+
+      ! Ensure units are in radians
+      if ( (trim(self%coord_units_xy(1)) == 'degrees_east') .and. &
+           (trim(self%coord_units_xy(2)) == 'degrees_north') ) then
+
+        self%vert_coords    = degrees_to_radians * self%vert_coords
+        self%domain_size(:) = degrees_to_radians * self%domain_size(:)
+        self%north_pole(:)  = degrees_to_radians * self%north_pole(:)
+        self%null_island(:) = degrees_to_radians * self%null_island(:)
+
+        self%coord_units_xy = 'radians'
+      end if
+
+    case ('xyz')
+      self%coord_sys = xyz_coords
+    end select
+
+    select case (trim(topology_str))
+    case ('channel')
+      self%topology = channel_domain
+    case ('non_periodic')
+      self%topology = non_periodic_domain
+    case ('periodic')
+      self%topology = periodic_domain
+    end select
+
+
+    call ugrid_mesh_data%get_partition_data( &
+             self%max_stencil_depth,         &
+             self%inner_depth,               &
+             self%halo_depth,                &
+             self%num_inner,                 &
+             self%num_edge,                  &
+             self%num_halo,                  &
+             self%num_ghost,                 &
+             self%last_inner_cell,           &
+             self%last_edge_cell,            &
+             self%last_halo_cell,            &
+             self%last_ghost_cell,           &
+             self%vert_cell_owner,           &
+             self%edge_cell_owner,           &
+             self%ncells_global_mesh,        &
+             self%global_cell_id,            &
+             self%vert_on_cell_gid,          &
+             self%edge_on_cell_gid )
+
+  self%num_cells_in_layer = size(self%global_cell_id) - self%num_ghost
+
+  if (.not. allocated(self%local_mesh_maps) ) then
+    allocate ( self%local_mesh_maps, source=local_mesh_map_collection_type() )
+  end if
+
+  end subroutine initialise_from_ugrid_data
+
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Initialises a local mesh object for use in unit testing.
@@ -1871,7 +2030,7 @@ contains
     integer(i_def), intent(in) :: depth
     integer(i_def)             :: last_halo_cell
 
-    if( depth > self%halo_depth .or. depth < 0 )then
+    if ( depth > self%halo_depth .or. depth < 0 ) then
       last_halo_cell = 0
     else if (depth == 0) then
       ! The zeroth depth halo has no size, so its last cell is in the
@@ -2052,8 +2211,9 @@ contains
 
     ! Set the default return code
     lid = -1
+
     ! If the supplied gid is not valid just return
-    if(gid < 1) return
+    if (gid < 1) return
 
     num_searched = 0
     ! Search though the inner halo cells - looking for the gid
@@ -2063,7 +2223,7 @@ contains
       end_search = start_search + self%num_inner(depth) - 1
 
       lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
-      if(lid /= -1)then
+      if (lid /= -1) then
         lid = lid + num_searched
         return
       end if
@@ -2075,7 +2235,7 @@ contains
     end_search = start_search + self%num_edge - 1
 
     lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
-    if(lid /= -1)then
+    if (lid /= -1) then
       lid = lid + num_searched
       return
     end if
@@ -2084,18 +2244,18 @@ contains
     ! Search though halo cells - looking for the gid.
     do depth = 1,self%halo_depth + 1
       start_search = end_search + 1
-      if(depth <= self%halo_depth) then
+      if (depth <= self%halo_depth) then
         end_search = start_search + self%num_halo(depth) - 1
       else
         end_search = start_search + self%num_ghost - 1
       end if
 
       lid = binary_search( self%global_cell_id( start_search:end_search ), gid )
-      if(lid /= -1)then
+      if (lid /= -1) then
         lid = lid + num_searched
         return
       end if
-      if(depth <= self%halo_depth) then
+      if (depth <= self%halo_depth) then
         num_searched = num_searched + self%num_halo(depth)
       end if
     end do
@@ -2191,7 +2351,16 @@ contains
 
 
   !==============================================================================
-  !> @brief
+  !> @brief   Populates a <ugrid_2d_type> object with this local mesh object's
+  !>          information.
+  !> @details An <ugrid_2d_type> is passed in and populated using the
+  !>          <ugrid_2d_type> `set_` methods.
+  !> @param[in out] ugrid_2d  The <ugrid_2d_type> object to populate as a
+  !>                          local mesh.
+  !>
+  !> @todo    This method is not preferred, though is used to break a circular
+  !>          dependency which would result otherwise. This method could be
+  !>          removed if the circular dependency can be resolved.
   !>
   !==============================================================================
   subroutine as_ugrid_2d( self, ugrid_2d )
@@ -2285,6 +2454,32 @@ contains
   end subroutine as_ugrid_2d
 
 
+  !-------------------------------------------------------------------------------
+  !> @brief  Queries the mesh names that this local mesh has inter-grid maps to.
+  !> @return target_mesh_names  Names of target meshes that this mesh (source)
+  !>                            has maps to.
+  !>
+  subroutine get_target_mesh_names(self, target_mesh_names)
+
+    implicit none
+
+    class(local_mesh_type), intent(in) :: self
+
+    character(str_def), intent(out), allocatable :: target_mesh_names(:)
+
+    if (allocated(self%target_mesh_names)) then
+      if (allocated( target_mesh_names )) deallocate(target_mesh_names)
+      allocate( target_mesh_names, source=self%target_mesh_names)
+    end if
+
+  end subroutine get_target_mesh_names
+
+
+  !-------------------------------------------------------------------------------
+  !> @brief  Queries the ID value used for void cells. These are invalid cells
+  !>         in the cell-<element> connectivity.
+  !> @return cell_id  The ID value used for null cell-connectivity.
+  !>
   function get_void_cell (self) result(void_cell)
     implicit none
 
@@ -2295,6 +2490,7 @@ contains
     void_cell = self%void_cell
 
   end function get_void_cell
+
 
   !-------------------------------------------------------------------------------
   ! Performs a binary search through the given integer array. PRIVATE function.

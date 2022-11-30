@@ -46,8 +46,7 @@ class ncdf_quad_mod::ncdf_quad_type {
   -global_var:  string
   -rim_depth:   integer
   -domain_size: real[2]
-  -periodic_x:  logical
-  -periodic_y:  logical
+  -periodic_xy: logical[2]
   -topology:    string
 
   -cell_gid:         integer[:]  <<allocatable>>

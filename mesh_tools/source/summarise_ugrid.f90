@@ -42,8 +42,7 @@ program summarise_ugrid
   character(str_def) :: coord_sys
   character(str_def) :: topology
 
-  logical(l_def)     :: periodic_x
-  logical(l_def)     :: periodic_y
+  logical(l_def)     :: periodic_xy(2)
 
   character(str_longlong) :: constructor_inputs
   character(str_long)     :: target_mesh_names_str
@@ -98,7 +97,7 @@ program summarise_ugrid
 
     if (allocated(target_mesh_names)) deallocate(target_mesh_names)
 
-    if (n_meshes > 1) then
+
       ! Extract data on the current mesh in the ugrid file object
       call infile%get_metadata(                                &
                       mesh_name          = mesh_name,          &
@@ -108,22 +107,16 @@ program summarise_ugrid
                       constructor_inputs = constructor_inputs, &
                       nmaps              = nmaps,              &
                       target_mesh_names  = target_mesh_names,  &
-                      periodic_x         = periodic_x,         &
-                      periodic_y         = periodic_y,         &
+                      periodic_xy        = periodic_xy,        &
                       north_pole         = north_pole,         &
                       null_island        = null_island )
-    else
+
+    if (n_meshes > 1) then
       call infile%get_metadata(                                &
-                      mesh_name          = mesh_name,          &
-                      geometry           = geometry,           &
-                      topology           = topology,           &
-                      coord_sys          = coord_sys,          &
-                      constructor_inputs = constructor_inputs, &
-                      periodic_x         = periodic_x,         &
-                      periodic_y         = periodic_y,         &
-                      north_pole         = north_pole,         &
-                      null_island        = null_island )
+                      nmaps              = nmaps,              &
+                      target_mesh_names  = target_mesh_names )
     end if
+
 
     call infile%get_dimensions( nodes, edges, faces,            &
                                 nodes_per_face, edges_per_face, &
@@ -149,11 +142,11 @@ program summarise_ugrid
 
     fmt_str='(A,T24,L1)'
     write ( log_scratch_space, fmt_str ) &
-        '  Periodic X: ', periodic_x
+        '  Periodic X: ', periodic_xy(1)
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
     write ( log_scratch_space, fmt_str ) &
-        '  Periodic Y: ', periodic_y
+        '  Periodic Y: ', periodic_xy(2)
     call log_event( trim(log_scratch_space), LOG_LEVEL_INFO )
 
     fmt_str='(A,T24,A)'

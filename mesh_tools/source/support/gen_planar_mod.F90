@@ -92,8 +92,7 @@ module gen_planar_mod
     character(str_longlong) :: constructor_inputs
 
     real(r_def)    :: dx, dy
-    logical(l_def) :: periodic_x
-    logical(l_def) :: periodic_y
+    logical(l_def) :: periodic_xy(2)
     real(r_def)    :: first_node(2) = rmdi
     logical(l_def) :: rotate_mesh   = .false.
 
@@ -300,10 +299,10 @@ function gen_planar_constructor( reference_element,          &
   self%edge_cells_x = edge_cells_x
   self%edge_cells_y = edge_cells_y
 
-  self%nmaps        = 0_i_def
-  self%periodic_x   = periodic_x
-  self%periodic_y   = periodic_y
-  self%coord_sys    = coord_sys
+  self%nmaps          = 0_i_def
+  self%periodic_xy(1) = periodic_x
+  self%periodic_xy(2) = periodic_y
+  self%coord_sys      = coord_sys
 
   if (domain_x <= 0.0_r_def)                                       &
       call log_event( PREFIX//" x-domain argument must be > 0.0",  &
@@ -438,12 +437,12 @@ function gen_planar_constructor( reference_element,          &
   n_edges = 2 * self%edge_cells_x * self%edge_cells_y
 
   ! Modify properties based on any non-periodic axes.
-  if (.not. self%periodic_x) then
+  if (.not. self%periodic_xy(1)) then
     nodes_x = nodes_x + 1
     n_edges = n_edges + self%edge_cells_y
   end if
 
-  if (.not. self%periodic_y) then
+  if (.not. self%periodic_xy(2)) then
     nodes_y = nodes_y + 1
     n_edges = n_edges + self%edge_cells_x
   end if
@@ -605,7 +604,7 @@ subroutine calc_adjacency(self)
                     LOG_LEVEL_ERROR )
   end if
 
-  if (self%periodic_x) then
+  if (self%periodic_xy(1)) then
     border_types(W) = periodic
     border_types(E) = periodic
   else
@@ -613,7 +612,7 @@ subroutine calc_adjacency(self)
     border_types(E) = closed
   end if
 
-  if (self%periodic_y) then
+  if (self%periodic_xy(2)) then
     border_types(S) = periodic
     border_types(N) = periodic
   else
@@ -820,7 +819,7 @@ subroutine calc_face_to_vert(self)
   !-------------------------
   if (edge_cells_x > 1) then
     cell = edge_cells_x
-    if (self%periodic_x) then
+    if (self%periodic_xy(1)) then
       ! Copy node id from left edge of domain.
       verts_on_cell(SE, cell) = verts_on_cell(SW, cell-edge_cells_x+1)
       verts_on_cell(NE, cell) = verts_on_cell(NW, cell-edge_cells_x+1)
@@ -882,7 +881,7 @@ subroutine calc_face_to_vert(self)
       !-------------------
       if (edge_cells_x > 1) then
         cell = (y+1)*edge_cells_x
-        if (self%periodic_x) then
+        if (self%periodic_xy(1)) then
           verts_on_cell(SE, cell) = verts_on_cell(SW, self%cell_next(E, cell))
         else
           verts_on_cell(SE, cell) = node_id
@@ -900,7 +899,7 @@ subroutine calc_face_to_vert(self)
   !========================
   ! BOTTOM EDGE of Panel.
   !========================
-  if (self%periodic_y) then
+  if (self%periodic_xy(2)) then
 
     ! Copy from top edge row.
     do cell = ncells-edge_cells_x+1, ncells
@@ -931,7 +930,7 @@ subroutine calc_face_to_vert(self)
       cell = ncells
       if (edge_cells_x > 1) then
         verts_on_cell(SW, cell) = verts_on_cell(SE, self%cell_next(W, cell))
-        if (self%periodic_x) then
+        if (self%periodic_xy(1)) then
           verts_on_cell(SE, cell) = verts_on_cell(SW, self%cell_next(E, cell))
           node_id = node_id - 1
         else
@@ -939,7 +938,7 @@ subroutine calc_face_to_vert(self)
         end if
       end if
     end if
-  end if ! self%periodic_y
+  end if ! self%periodic_xy(2)
 
   call move_alloc(verts_on_cell, self%verts_on_cell)
 
@@ -1060,7 +1059,7 @@ subroutine calc_edges(self)
         ! another cell where it has already been assigned an id.
 
         ! Cell eastern edge.
-        if (self%periodic_x) then
+        if (self%periodic_xy(1)) then
           self%edges_on_cell(E, cell) = self%edges_on_cell(W, self%cell_next(E,cell))
 
         else
@@ -1143,7 +1142,7 @@ subroutine calc_edges(self)
         edge_id = edge_id+1
 
         ! Cell eastern edge.
-        if (self%periodic_x) then
+        if (self%periodic_xy(1)) then
           self%edges_on_cell(E, cell) = self%edges_on_cell(W, self%cell_next(E, cell))
         else
 
@@ -1199,7 +1198,7 @@ subroutine calc_edges(self)
         edge_id = edge_id+1
 
         ! Cell southern edge.
-        if (self%periodic_y) then
+        if (self%periodic_xy(2)) then
           ! For a planar panel, if the cell is on the bottom edge
           ! of the panel then the cell's southern neighbour is actually
           ! the on the top-edge of the panel (because of the periodicity).
@@ -1236,7 +1235,7 @@ subroutine calc_edges(self)
         end if
 
         ! Cell southern edge.
-        if (self%periodic_y) then
+        if (self%periodic_xy(2)) then
           ! For a planar panel, if the cell is on the bottom edge
           ! of the panel then the cell's southern neighbour is actually
           ! the on the top-edge of the panel (because of the periodicity).
@@ -1254,7 +1253,7 @@ subroutine calc_edges(self)
         end if
 
         ! Cell eastern edge.
-        if (self%periodic_x) then
+        if (self%periodic_xy(1)) then
           ! For a planar panel, if the cell is on the right-hand edge
           ! of the panel then the cell's eastern neighbour is actually
           ! the left-most cell on this row (because of the periodicity).
@@ -1279,7 +1278,7 @@ subroutine calc_edges(self)
         self%edges_on_cell(W, cell) = self%edges_on_cell(E, self%cell_next(W,cell))
 
         ! Cell southern edge.
-        if (self%periodic_y) then
+        if (self%periodic_xy(2)) then
           ! For a planar panel, if the cell is on the bottom edge
           ! of the panel then the cell's southern neighbour is actually
           ! the on the top-edge of the panel (because of the periodicity).
@@ -1395,7 +1394,7 @@ subroutine calc_coords(self)
     end do
   end do
 
-  if (.not. self%periodic_x) then
+  if (.not. self%periodic_xy(1)) then
     ! Vertices on east edge of panel.
     x_coord = edge_cells_x*self%dx
     y_coord = 0.0_r_def
@@ -1406,7 +1405,7 @@ subroutine calc_coords(self)
   end if
 
   ! Vertices on south edge of panel.
-  if (.not. self%periodic_y) then
+  if (.not. self%periodic_xy(2)) then
     x_coord = 0.0_r_def
     y_coord = -1.0_r_def*edge_cells_y*self%dy
 
@@ -1417,7 +1416,7 @@ subroutine calc_coords(self)
   end if
 
   ! Coords of SE panel vertex.
-  if (.not. self%periodic_x .and. .not. self%periodic_y) then
+  if (.not. self%periodic_xy(1) .and. .not. self%periodic_xy(2)) then
     cell=ncells
     vert_coords(1, self%verts_on_cell(SE, cell)) = self%dx * self%edge_cells_x
     vert_coords(2, self%verts_on_cell(SE, cell)) = self%dy * self%edge_cells_y * (-1.0_r_def)
@@ -1824,8 +1823,7 @@ subroutine get_metadata( self,               &
                          geometry,           &
                          topology,           &
                          coord_sys,          &
-                         periodic_x,         &
-                         periodic_y,         &
+                         periodic_xy,        &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -1845,8 +1843,7 @@ subroutine get_metadata( self,               &
   character(str_def),  optional, intent(out) :: geometry
   character(str_def),  optional, intent(out) :: topology
   character(str_def),  optional, intent(out) :: coord_sys
-  logical(l_def),      optional, intent(out) :: periodic_x
-  logical(l_def),      optional, intent(out) :: periodic_y
+  logical(l_def),      optional, intent(out) :: periodic_xy(2)
 
   integer(i_def),      optional, intent(out) :: edge_cells_x
   integer(i_def),      optional, intent(out) :: edge_cells_y
@@ -1866,16 +1863,15 @@ subroutine get_metadata( self,               &
 
   real(r_def) :: factor
 
-  if (present(mesh_name))    mesh_name    = self%mesh_name
-  if (present(geometry))     geometry     = key_from_geometry(self%geometry)
-  if (present(topology))     topology     = key_from_topology(self%topology)
-  if (present(coord_sys))    coord_sys    = key_from_coord_sys(self%coord_sys)
-  if (present(periodic_x))   periodic_x   = self%periodic_x
-  if (present(periodic_y))   periodic_y   = self%periodic_y
-  if (present(edge_cells_x)) edge_cells_x = self%edge_cells_x
-  if (present(edge_cells_y)) edge_cells_y = self%edge_cells_y
-  if (present(nmaps))        nmaps        = self%nmaps
-  if (present(rim_depth))    rim_depth    = imdi
+  if (present(mesh_name))    mesh_name      = self%mesh_name
+  if (present(geometry))     geometry       = key_from_geometry(self%geometry)
+  if (present(topology))     topology       = key_from_topology(self%topology)
+  if (present(coord_sys))    coord_sys      = key_from_coord_sys(self%coord_sys)
+  if (present(periodic_xy))  periodic_xy(:) = self%periodic_xy(:)
+  if (present(edge_cells_x)) edge_cells_x   = self%edge_cells_x
+  if (present(edge_cells_y)) edge_cells_y   = self%edge_cells_y
+  if (present(nmaps))        nmaps          = self%nmaps
+  if (present(rim_depth))    rim_depth      = imdi
   if (present(void_cell))    void_cell    = VOID_ID
 
   if (present(constructor_inputs)) constructor_inputs = trim(self%constructor_inputs)
@@ -2000,8 +1996,8 @@ subroutine write_mesh(self)
   write(stdout,'(A)')    "Mesh name: "// trim(self%mesh_name)
   write(stdout,'(A)')    "Geometry:  "// trim(key_from_geometry(self%geometry))
   write(stdout,'(A)')    "Topology:  "// trim(key_from_topology(self%topology))
-  write(stdout,'(A,L1)') "Periodic in x-axis: ", self%periodic_x
-  write(stdout,'(A,L1)') "Periodic in y-axis: ", self%periodic_y
+  write(stdout,'(A,L1)') "Periodic in x-axis: ", self%periodic_xy(1)
+  write(stdout,'(A,L1)') "Periodic in y-axis: ", self%periodic_xy(2)
   write(stdout,'(A,I0)') "Panels:    ", NPANELS
   write(stdout,'(A,I0)') "Panel edge cells (x): ", self%edge_cells_x
   write(stdout,'(A,I0)') "Panel edge cells (y): ", self%edge_cells_y

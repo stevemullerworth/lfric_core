@@ -8,8 +8,9 @@
 !>
 module local_mesh_mod_test
 
-  use constants_mod,              only: i_def, i_native, r_def, l_def, &
-                                        str_max_filename, str_def
+  use constants_mod,              only: i_def, i_native, r_def, l_def,  &
+                                        str_max_filename, str_longlong, &
+                                        str_def, radians_to_degrees
   use global_mesh_collection_mod, only: global_mesh_collection_type, &
                                         global_mesh_collection
   use global_mesh_mod,            only: global_mesh_type
@@ -19,8 +20,9 @@ module local_mesh_mod_test
   use local_mesh_mod,             only: local_mesh_type
   use mpi_mod,                    only: store_comm, clear_comm, &
                                         get_comm_size, get_comm_rank
-  use partition_mod,              only: partition_type, &
-                                        partitioner_planar, &
+  use ncdf_quad_mod,              only: ncdf_quad_type
+  use partition_mod,              only: partition_type,                 &
+                                        partitioner_planar,             &
                                         partitioner_cubedsphere_serial, &
                                         partitioner_interface
   use pFUnit_Mod
@@ -29,11 +31,11 @@ module local_mesh_mod_test
   implicit none
 
   private
-  public :: setUp,           &
-            tearDown,        &
-            test_local_mesh, &
-            test_local_mesh_maps
-
+  public :: setUp,                &
+            tearDown,             &
+            test_local_mesh,      &
+            test_local_mesh_maps, &
+            test_set_from_ugrid_data
   @testCase
   type, public, extends( MPITestCase ) :: local_mesh_test_type
     private
@@ -44,6 +46,7 @@ module local_mesh_mod_test
     procedure :: tearDown
     procedure :: test_local_mesh
     procedure :: test_local_mesh_maps
+    procedure :: test_set_from_ugrid_data
   end type local_mesh_test_type
 
 contains
@@ -417,8 +420,6 @@ contains
   @Test(npes=[1] )
   subroutine test_local_mesh_maps( this )
 
-    use ncdf_quad_mod,     only: ncdf_quad_type
-
     implicit none
 
     class(local_mesh_test_type), intent( inout ) :: this
@@ -474,5 +475,365 @@ contains
     @assertEqual( local_mesh(2)%get_id(), local_mesh_map%get_target_id() )
 
   end subroutine test_local_mesh_maps
+
+
+  !> Test direct load of local mesh object from file
+  !>
+  @Test(npes=[1] )
+  subroutine test_set_from_ugrid_data( this )
+
+    implicit none
+
+    class(local_mesh_test_type), intent( inout ) :: this
+
+    character(str_max_filename), parameter :: filename = 'data/dev_LAM_locals_20-24.nc'
+    character(str_def),          parameter :: mesh_names(2) = [ 'SQ20    ', &
+                                                                'SQ10    ' ]
+
+    type(local_mesh_type), target :: local_meshes(2)
+
+    type(local_mesh_type), pointer :: source_mesh => null()
+    type(local_mesh_type), pointer :: target_mesh => null()
+
+    type(ugrid_mesh_data_type) :: ugrid_mesh_data
+
+    type(ncdf_quad_type) :: file_handler
+
+    character(str_def) :: source_mesh_name
+    character(str_def) :: target_mesh_name
+
+    character(str_def), allocatable :: target_names(:)
+
+    integer(i_def), allocatable :: cell_map(:,:,:)
+
+    integer(i_def) :: face_on_face(4)
+    real(r_def)    :: vert_coords(2)
+
+    type(local_mesh_type),     pointer :: SQ20     => null()
+    type(local_mesh_type),     pointer :: SQ10     => null()
+    type(local_mesh_map_type), pointer :: mesh_map => null()
+
+    ! Counters
+    integer(i_native) :: i, j, k
+
+    !-------------------------------------------------------------
+    ! Expected load data
+    !-------------------------------------------------------------
+    ! Partition #20 of SQ20 with InterGrid map to SQ10
+    ! Mesh topology includes connectivity for all cells
+    ! i.e. partitions cells + halo cells + ghost cells
+
+    integer(i_def), parameter :: kgo_n_nodes = 64
+    integer(i_def), parameter :: kgo_n_edges = 112
+    integer(i_def), parameter :: kgo_n_faces = 49
+    integer(i_def), parameter :: kgo_n_ghosts = 13
+    integer(i_def), parameter :: kgo_n_cells_in_layer = kgo_n_faces - kgo_n_ghosts
+    real(r_def),    parameter :: kgo_north_pole(2)  = [0.0, 90.0]
+    real(r_def),    parameter :: kgo_null_island(2) = [0.0,  0.0]
+
+    character(str_def), parameter :: kgo_target_names(1)   = ['SQ10']
+    character(str_def), parameter :: kgo_coord_units_xy(2) = ['degrees_east ',&
+                                                              'degrees_north']
+
+    integer(i_def), parameter :: void   = -9999
+    !===========================================================================
+    ! Expected load data
+    character(str_longlong), parameter :: kgo_constructor_inputs =         &
+            "geometry=spherical;topology=non_periodic;coord_sys=ll;"     //&
+            "edge_cells_x=20;edge_cells_y=20;periodic_x=F;periodic_y=F;" //&
+            "domain_x=20.00;domain_y=20.00;rotate_mesh=F;"               //&
+            "target_mesh_names=['SQ10'];target_edge_cells_x=[10];"       //&
+            "target_edge_cells_y=[10]"
+
+    real(r_def) :: tol
+
+    real(r_def), parameter :: kgo_node_coords(2, kgo_n_nodes) = reshape( &
+      [ -3.0,14.0,   -2.0,14.0,   -2.0,15.0,   -3.0,15.0,   -1.0,14.0,   &
+        -1.0,15.0,   -3.0,13.0,   -2.0,13.0,   -1.0,13.0,   -4.0,15.0,   &
+        -3.0,16.0,   -4.0,16.0,   -2.0,16.0,   -1.0,16.0,    0.0,15.0,   &
+         0.0,16.0,   -4.0,14.0,    0.0,14.0,   -4.0,13.0,    0.0,13.0,   &
+        -4.0,12.0,   -3.0,12.0,   -2.0,12.0,   -1.0,12.0,    0.0,12.0,   &
+         1.0,15.0,    1.0,16.0,    1.0,14.0,    1.0,13.0,    1.0,12.0,   &
+        -4.0,11.0,   -3.0,11.0,   -2.0,11.0,   -1.0,11.0,    0.0,11.0,   &
+         1.0,11.0,    2.0,15.0,    2.0,16.0,    2.0,14.0,    2.0,13.0,   &
+         2.0,12.0,    2.0,11.0,   -4.0,10.0,   -3.0,10.0,   -2.0,10.0,   &
+        -1.0,10.0,    0.0,10.0,    1.0,10.0,    2.0,10.0,    3.0,15.0,   &
+         3.0,16.0,    3.0,14.0,    3.0,13.0,    3.0,12.0,    3.0,11.0,   &
+         3.0,10.0,   -4.0, 9.0,   -3.0, 9.0,   -2.0, 9.0,   -1.0, 9.0,   &
+         0.0, 9.0,    1.0, 9.0,    2.0, 9.0,    3.0, 9.0 ], (/2, kgo_n_nodes/) )
+
+    integer(i_def), parameter :: kgo_face_on_face(4, kgo_n_faces) = reshape(  &
+      [   9,   3,   2,   6,        1,   4,  10,   7,       11,  14,   4,   1, &
+          3,  15,  12,   2,     void,   9,   6,void,        5,   1,   7,void, &
+          6,   2,   8,void,        7,  10,  17,void,     void,  11,   1,   5, &
+          2,  12,  18,   8,     void,  13,   3,   9,        4,  16,  19,  10, &
+       void,  21,  14,  11,       13,  22,  15,   3,       14,  23,  16,   4, &
+         15,  24,  20,  12,        8,  18,  26,void,       10,  19,  27,  17, &
+         12,  20,  28,  18,       16,  25,  29,  19,     void,  31,  22,  13, &
+         21,  32,  23,  14,       22,  33,  24,  15,       23,  34,  25,  16, &
+         24,  35,  30,  20,       17,  27,  37,void,       18,  28,  38,  26, &
+         19,  29,  39,  27,       20,  30,  40,  28,       25,  36,  41,  29, &
+       void,  43,  32,  21,       31,  44,  33,  22,       32,  45,  34,  23, &
+         33,  46,  35,  24,       34,  47,  36,  25,       35,  48,  42,  30, &
+         26,  38,void,void,       27,  39,void,  37,       28,  40,void,  38, &
+         29,  41,void,  39,       30,  42,void,  40,       36,  49,void,  41, &
+       void,void,  44,  31,       43,void,  45,  32,       44,void,  46,  33, &
+         45,void,  47,  34,       46,void,  48,  35,       47,void,  49,  36, &
+         48,void,void,  42 ], (/4, kgo_n_faces/) )
+
+    integer(i_def), parameter :: kgo_node_on_face(4, kgo_n_faces) = reshape( &
+      [   1,  2,  3,  4,      2,  5,  6,  3,      7,  8,  2,  1,  &
+          8,  9,  5,  2,     10,  4, 11, 12,      4,  3, 13, 11,  &
+          3,  6, 14, 13,      6, 15, 16, 14,     17,  1,  4, 10,  &
+          5, 18, 15,  6,     19,  7,  1, 17,      9, 20, 18,  5,  &
+         21, 22,  7, 19,     22, 23,  8,  7,     23, 24,  9,  8,  &
+         24, 25, 20,  9,     15, 26, 27, 16,     18, 28, 26, 15,  &
+         20, 29, 28, 18,     25, 30, 29, 20,     31, 32, 22, 21,  &
+         32, 33, 23, 22,     33, 34, 24, 23,     34, 35, 25, 24,  &
+         35, 36, 30, 25,     26, 37, 38, 27,     28, 39, 37, 26,  &
+         29, 40, 39, 28,     30, 41, 40, 29,     36, 42, 41, 30,  &
+         43, 44, 32, 31,     44, 45, 33, 32,     45, 46, 34, 33,  &
+         46, 47, 35, 34,     47, 48, 36, 35,     48, 49, 42, 36,  &
+         37, 50, 51, 38,     39, 52, 50, 37,     40, 53, 52, 39,  &
+         41, 54, 53, 40,     42, 55, 54, 41,     49, 56, 55, 42,  &
+         57, 58, 44, 43,     58, 59, 45, 44,     59, 60, 46, 45,  &
+         60, 61, 47, 46,     61, 62, 48, 47,     62, 63, 49, 48,  &
+         63, 64, 56, 49 ], (/4, kgo_n_faces/) )
+
+    integer(i_def), parameter :: kgo_edge_on_face(4, kgo_n_faces) = reshape( &
+      [   1,  2,  3,  4,      3,  5,  6,  7,      8,  9, 10,  2, &
+         10, 11, 12,  5,     13, 14, 15, 16,     15,  4, 17, 18, &
+         17,  7, 19, 20,     19, 21, 22, 23,     24, 25,  1, 14, &
+          6, 26, 27, 21,     28, 29,  8, 25,     12, 30, 31, 26, &
+         32, 33, 34, 29,     34, 35, 36,  9,     36, 37, 38, 11, &
+         38, 39, 40, 30,     22, 41, 42, 43,     27, 44, 45, 41, &
+         31, 46, 47, 44,     40, 48, 49, 46,     50, 51, 52, 33, &
+         52, 53, 54, 35,     54, 55, 56, 37,     56, 57, 58, 39, &
+         58, 59, 60, 48,     42, 61, 62, 63,     45, 64, 65, 61, &
+         47, 66, 67, 64,     49, 68, 69, 66,     60, 70, 71, 68, &
+         72, 73, 74, 51,     74, 75, 76, 53,     76, 77, 78, 55, &
+         78, 79, 80, 57,     80, 81, 82, 59,     82, 83, 84, 70, &
+         62, 85, 86, 87,     65, 88, 89, 85,     67, 90, 91, 88, &
+         69, 92, 93, 90,     71, 94, 95, 92,     84, 96, 97, 94, &
+         98, 99,100, 73,    100,101,102, 75,    102,103,104, 77, &
+        104,105,106, 79,    106,107,108, 81,    108,109,110, 83, &
+        110,111,112, 96 ], (/4, kgo_n_faces/) )
+
+    integer(i_def), parameter :: kgo_node_owner(kgo_n_nodes) =                   &
+      [   3,    4,    2,    1,   12,   10, 14, 15, 16,  9,    6,  5,  7,  8, 18, &
+         17,   11,   19,   13,   20,   21, 22, 23, 24, 25,   27, 26, 28, 29, 30, &
+         31,   32,   33,   34,   35,   36, 38, 37, 39, 40,   41, 42, 43, 44, 45, &
+         46,   47,   48,   49,                                                   &
+       void, void, void, void, void,                                             &
+       void, void, void, void, void,                                             &
+       void, void, void, void, void ]
+
+    integer(i_def), parameter :: kgo_edge_owner(kgo_n_edges) =     &
+      [   1,    3,    2,    1,    4,   10,    2,    3,   14,    4, &
+         15,   12,    5,    9,    6,    5,    7,    6,    8,    7, &
+         10,   17,    8,    9,   11,   12,   18,   11,   13,   16, &
+         19,   13,   21,   14,   22,   15,   23,   16,   24,   20, &
+         18,   26,   17,   19,   27,   20,   28,   25,   29,   21, &
+         31,   22,   32,   23,   33,   24,   34,   25,   35,   30, &
+         27,   37,   26,   28,   38,   29,   39,   30,   40,   36, &
+         41,   31,   43,   32,   44,   33,   45,   34,   46,   35, &
+         47,   36,   48,   42,   38,                               &
+       void,   37,   39, void,   40,                               &
+       void,   41, void,   42, void,                               &
+         49, void,   43, void,   44,                               &
+       void,   45, void,   46, void,                               &
+         47, void,   48, void,   49,                               &
+       void, void ]
+
+    integer(i_def), parameter :: kgo_cell_gid(kgo_n_faces) = &
+      [ 22,  23,  42,  43,   1,   2,   3,   4,  21, 24,      &
+        41,  44,  61,  62,  63,  64,   5,  25,  45, 65,      &
+        81,  82,  83,  84,  85,   6,  26,  46,  66, 86,      &
+       101, 102, 103, 104, 105, 106,   7,  27,  47, 67,      &
+        87, 107, 121, 122, 123, 124, 125, 126, 127 ]
+
+    integer(i_def), parameter :: kgo_node_on_cell_gid(4, kgo_n_faces) = reshape(      &
+      [ 44, 45,  5,  2,      45, 46,  7,  5,      65, 66, 45, 44,     66, 67, 46, 45, &
+         1,  2,  3,  4,       2,  5,  6,  3,       5,  7,  8,  6,      7,  9, 10,  8, &
+        43, 44,  2,  1,      46, 47,  9,  7,      64, 65, 44, 43,     67, 68, 47, 46, &
+        85, 86, 65, 64,      86, 87, 66, 65,      87, 88, 67, 66,     88, 89, 68, 67, &
+         9, 11, 12, 10,      47, 48, 11,  9,      68, 69, 48, 47,     89, 90, 69, 68, &
+       106,107, 86, 85,     107,108, 87, 86,     108,109, 88, 87,    109,110, 89, 88, &
+       110,111, 90, 89,      11, 13, 14, 12,      48, 49, 13, 11,     69, 70, 49, 48, &
+        90, 91, 70, 69,     111,112, 91 ,90,     127,128,107,106,    128,129,108,107, &
+       129,130,109,108,     130,131,110,109,     131,132,111,110,    132,133,112,111, &
+        13, 15, 16, 14,      49, 50, 15, 13,      70, 71, 50, 49,     91, 92, 71, 70, &
+       112,113, 92, 91,     133,134,113,112,     148,149,128,127,    149,150,129,128, &
+       150,151,130,129,     151,152,131,130,     152,153,132,131,    153,154,133,132, &
+       154,155,134,133  ], (/4, kgo_n_faces/) )
+
+    integer(i_def), parameter :: kgo_edge_on_cell_gid(4, kgo_n_faces) = reshape(      &
+      [ 64, 65, 66,  5,      66, 67, 68,  8,     105,106,107, 65,    107,108,109, 67, &
+         1,  2,  3,  4,       3,  5,  6,  7,       6,  8,  9, 10,      9, 11, 12, 13, &
+        62, 63, 64,  2,      68, 69, 70, 11,     103,104,105, 63,    109,110,111, 69, &
+       144,145,146,104,     146,147,148,106,     148,149,150,108,    150,151,152,110, &
+        12, 14, 15, 16,      70, 71, 72, 14,     111,112,113, 71,    152,153,154,112, &
+       185,186,187,145,     187,188,189,147,     189,190,191,149,    191,192,193,151, &
+       193,194,195,153,      15, 17, 18, 19,      72, 73, 74, 17,    113,114,115, 73, &
+       154,155,156,114,     195,196,197,155,     226,227,228,186,    228,229,230,188, &
+       230,231,232,190,     232,233,234,192,     234,235,236,194,    236,237,238,196, &
+        18, 20, 21, 22,      74, 75, 76, 20,     115,116,117, 75,    156,157,158,116, &
+       197,198,199,157,     238,239,240,198,     267,268,269,227,    269,270,271,229, &
+       271,272,273,231,     273,274,275,233,     275,276,277,235,    277,278,279,237, &
+       279,280,281,239 ], (/4, kgo_n_faces/) )
+
+    integer(i_def), parameter :: kgo_SQ20_SQ10_map(1,1,36) = &
+      reshape([ 1, 2, 3, 4, 1, 1, 2, 2, 1, 2, &
+                3, 4, 3, 3, 4, 4, 5, 5, 6, 6, &
+                7, 7, 8, 8, 9, 5, 5, 6, 6, 9, &
+                7, 7, 8, 8, 9, 9 ], (/1, 1, 36/) )
+
+    integer(i_def), parameter :: kgo_SQ10_SQ20_map(2,2,16) =   &
+      reshape([ 5, 6, 9, 1,       7, 8, 2,10,      11,3,13,14, &
+                4,12,15,16,      17,26,18,27,     19,28,20,29, &
+               21,22,31,32,      23,24,33,34,     25,30,35,36, &
+               37,void,38,void,  39,void,40,void,              &
+               41,void,42,void,  43,44,void,void,              &
+               45,46,void,void,  47,48,void,void,              &
+               49,void,void,void ], (/ 2, 2, 16/) )
+
+    !===========================================================================
+    ! Setup
+    !===========================================================================
+    ! 1.0 Read in local meshes
+    do i=1, size(mesh_names)
+      call ugrid_mesh_data%read_from_file( filename, mesh_names(i) )
+      call local_meshes(i)%initialise( ugrid_mesh_data )
+      call ugrid_mesh_data%clear()
+    end do
+
+    ! 2.0 Read in local mesh_maps
+    call file_handler%file_open(filename)
+    do i=1, size(mesh_names)
+
+      call local_meshes(i)%get_target_mesh_names(target_names)
+
+      if ( allocated(target_names) .and. size(target_names) >= 1 ) then
+
+        ! Set source and target local meshes
+        source_mesh => local_meshes(i)
+        source_mesh_name = source_mesh%get_mesh_name()
+
+        do j=1, size(target_names)
+          do k=1, size(mesh_names)
+            if ( trim(local_meshes(k)%get_mesh_name()) == trim(target_names(j)) ) then
+
+              target_mesh => local_meshes(k)
+              target_mesh_name = target_mesh%get_mesh_name()
+              call file_handler%read_map( source_mesh_name, &
+                                          target_mesh_name, &
+                                          cell_map )
+              call source_mesh%add_local_mesh_map( target_mesh%get_id(), &
+                                                   cell_map )
+              exit
+
+            end if !
+          end do   ! Identifying the correct target local mesh
+        end do     !
+
+      end if ! Check if there are any maps
+
+    end do ! i loop over each mesh
+    call file_handler%file_close()
+
+
+    !===========================================================================
+    ! Performs checks against kgo data on contents of local mesh object SQ20
+    !===========================================================================
+    SQ20 => local_meshes(1)
+    SQ10 => local_meshes(2)
+
+    @assertEqual( 'SQ20', trim(SQ20%get_mesh_name()) )
+    @assertEqual( kgo_n_nodes, SQ20%get_n_unique_vertices() )
+    @assertEqual( kgo_n_edges, SQ20%get_n_unique_edges()    )
+    @assertEqual( 4_i_def,     SQ20%get_nverts_per_cell() )
+    @assertEqual( 2_i_def,     SQ20%get_nverts_per_edge() )
+    @assertEqual( 4_i_def,     SQ20%get_nedges_per_cell() )
+    @assertEqual( kgo_n_cells_in_layer, SQ20%get_num_cells_in_layer() )
+
+    @assertEqual(  0_i_def, SQ20%get_last_inner_cell(2) )
+    @assertEqual(  4_i_def, SQ20%get_last_inner_cell(1) )
+    @assertEqual( 16_i_def, SQ20%get_last_edge_cell()   )
+    @assertEqual( 25_i_def, SQ20%get_last_halo_cell(1)  )
+    @assertEqual( 36_i_def, SQ20%get_last_halo_cell(2)  )
+
+    @assertEqual(  0_i_def, SQ20%get_num_cells_inner(2) )
+    @assertEqual(  4_i_def, SQ20%get_num_cells_inner(1) )
+    @assertEqual( 12_i_def, SQ20%get_num_cells_edge()   )
+    @assertEqual(  9_i_def, SQ20%get_num_cells_halo(1)  )
+    @assertEqual( 11_i_def, SQ20%get_num_cells_halo(2)  )
+    @assertEqual( 13_i_def, SQ20%get_num_cells_ghost()  )
+    @assertEqual(  1_i_def, SQ20%get_max_stencil_depth()  )
+    @assertEqual(400_i_def, SQ20%get_ncells_global_mesh() )
+    @assertEqual(  1_i_def, SQ20%get_num_panels_global_mesh() )
+
+
+    tol=1.0e-14
+    do i=1, SQ20%get_n_unique_vertices()
+      call SQ20%get_vert_coords( i, vert_coords )
+      @assertEqual( kgo_node_coords(:,i), vert_coords*radians_to_degrees, tol )
+      @assertEqual( kgo_node_owner(i), SQ20%get_vert_cell_owner(i) )
+    end do
+
+    do i=1, SQ20%get_n_unique_edges()
+      @assertEqual( kgo_edge_owner(i), SQ20%get_edge_cell_owner(i) )
+    end do
+
+    do j=1, SQ20%get_num_cells_in_layer()
+      do i=1, SQ20%get_nverts_per_cell()
+
+        call SQ20%get_cell_next(j,face_on_face)
+        @assertEqual( kgo_face_on_face(:,j), face_on_face )
+
+        @assertEqual( kgo_node_on_face(i,j),     SQ20%get_vert_on_cell(i,j) )
+        @assertEqual( kgo_edge_on_face(i,j),     SQ20%get_edge_on_cell(i,j) )
+        @assertEqual( kgo_node_on_cell_gid(i,j), SQ20%get_vert_gid_on_cell(i,j) )
+        @assertEqual( kgo_edge_on_cell_gid(i,j), SQ20%get_edge_gid_on_cell(i,j) )
+
+      end do
+    end do
+
+    ! Check SQ20 Intergrid maps
+    !---------------------------
+    call SQ20%get_target_mesh_names(target_names)
+    @assertEqual( 'SQ10', trim(target_names(1)) )
+
+    mesh_map => SQ20%get_local_mesh_map( SQ10%get_id() )
+
+    if ( allocated(cell_map) ) deallocate (cell_map)
+    allocate( cell_map(1,1,36) )
+    call mesh_map%get_cell_map( cell_map )
+    @assertEqual( kgo_SQ20_SQ10_map, cell_map )
+
+    ! Check SQ10 Intergrid maps
+    !---------------------------
+    call SQ10%get_target_mesh_names(target_names)
+    @assertEqual( 'SQ20', trim(target_names(1)) )
+
+    mesh_map => SQ10%get_local_mesh_map( SQ20%get_id() )
+
+    if ( allocated(cell_map) ) deallocate (cell_map)
+    allocate( cell_map(2,2,16) )
+    call mesh_map%get_cell_map( cell_map )
+    @assertEqual( kgo_SQ10_SQ20_map, cell_map )
+
+
+    if ( allocated(cell_map)     ) deallocate(cell_map)
+    if ( allocated(target_names) ) deallocate(target_names)
+    nullify( source_mesh )
+    nullify( target_mesh )
+    nullify( SQ20 )
+    nullify( SQ10 )
+    nullify( mesh_map )
+    call ugrid_mesh_data%clear()
+    call local_meshes(1)%clear()
+    call local_meshes(2)%clear()
+
+  end subroutine test_set_from_ugrid_data
 
 end module local_mesh_mod_test

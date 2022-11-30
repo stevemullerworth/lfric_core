@@ -776,8 +776,7 @@ subroutine get_metadata( self,               &
                          geometry,           &
                          topology,           &
                          coord_sys,          &
-                         periodic_x,         &
-                         periodic_y,         &
+                         periodic_xy,        &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -799,36 +798,34 @@ subroutine get_metadata( self,               &
   character(str_def), optional, intent(out) :: topology
   character(str_def), optional, intent(out) :: coord_sys
 
-  logical(l_def), optional, intent(out) :: periodic_x
-  logical(l_def), optional, intent(out) :: periodic_y
-  integer(i_def), optional, intent(out) :: edge_cells_x
-  integer(i_def), optional, intent(out) :: edge_cells_y
-  integer(i_def), optional, intent(out) :: nmaps
+  logical(l_def),     optional, intent(out) :: periodic_xy(2)
+  integer(i_def),     optional, intent(out) :: edge_cells_x
+  integer(i_def),     optional, intent(out) :: edge_cells_y
+  integer(i_def),     optional, intent(out) :: nmaps
+
   integer(i_def), optional, intent(out) :: rim_depth
   integer(i_def), optional, intent(out) :: void_cell
   real(r_def),    optional, intent(out) :: domain_size(2)
 
   character(str_longlong), optional, intent(out) :: constructor_inputs
 
-  character(str_def), optional, allocatable, intent(out) :: target_mesh_names(:)
-  integer(i_def),     optional, allocatable, intent(out) :: maps_edge_cells_x(:)
-  integer(i_def),     optional, allocatable, intent(out) :: maps_edge_cells_y(:)
+  character(str_def), optional, intent(out), allocatable :: target_mesh_names(:)
+  integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_x(:)
+  integer(i_def),     optional, intent(out), allocatable :: maps_edge_cells_y(:)
 
-  real(r_def), optional, intent(out) :: north_pole(2)
-  real(r_def), optional, intent(out) :: null_island(2)
+  real(r_def),        optional, intent(out) :: north_pole(2)
+  real(r_def),        optional, intent(out) :: null_island(2)
 
-
-  if (present(mesh_name))    mesh_name    = self%mesh_name
-  if (present(geometry))     geometry     = key_from_geometry(self%geometry)
-  if (present(topology))     topology     = key_from_topology(self%topology)
-  if (present(coord_sys))    coord_sys    = key_from_coord_sys(self%coord_sys)
-  if (present(periodic_x))   periodic_x   = .false.
-  if (present(periodic_y))   periodic_y   = .false.
-  if (present(edge_cells_x)) edge_cells_x = self%outer_cells_x
-  if (present(edge_cells_y)) edge_cells_y = self%outer_cells_y
-  if (present(nmaps))        nmaps        = self%nmaps
-  if (present(rim_depth))    rim_depth    = self%rim_depth
-  if (present(void_cell))    void_cell    = VOID_ID
+  if (present(mesh_name))    mesh_name      = self%mesh_name
+  if (present(geometry))     geometry       = key_from_geometry(self%geometry)
+  if (present(topology))     topology       = key_from_topology(self%topology)
+  if (present(coord_sys))    coord_sys      = key_from_coord_sys(self%coord_sys)
+  if (present(periodic_xy))  periodic_xy(:) = .false.
+  if (present(edge_cells_x)) edge_cells_x   = self%outer_cells_x
+  if (present(edge_cells_y)) edge_cells_y   = self%outer_cells_y
+  if (present(nmaps))        nmaps          = self%nmaps
+  if (present(rim_depth))    rim_depth      = self%rim_depth
+  if (present(void_cell))    void_cell      = VOID_ID
 
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
 

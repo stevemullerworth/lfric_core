@@ -423,7 +423,7 @@ contains
       call local_mesh%get_cell_next(i,cell_next_2d(:,i))
     end do
 
-    ! Mesh colouring is written such that it is expecting 0.i_def for connectivity
+    ! Mesh colouring is written such that it is expecting 0_i_def for connectivity
     ! outside the local parition. So need to replace cell_next_2d void values with 0_i_def
     where ( cell_next_2d == local_mesh%get_void_cell() ) cell_next_2d = 0_i_def
 

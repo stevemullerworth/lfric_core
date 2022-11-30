@@ -308,8 +308,7 @@ contains
                                     geometry=test_str(2),     &
                                     topology=test_str(3),     &
                                     coord_sys=test_str(4),    &
-                                    periodic_x=test_log(1),   &
-                                    periodic_y=test_log(2),   &
+                                    periodic_xy=test_log(1:2),&
                                     nmaps=test_int(1),        &
                                     edge_cells_x=test_int(2), &
                                     edge_cells_y=test_int(3), &

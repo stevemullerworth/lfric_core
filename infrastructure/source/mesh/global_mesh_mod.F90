@@ -81,11 +81,8 @@ module global_mesh_mod
   ! only valid for spherical geometry on lon-lat cordinate-system.
     real(r_def) :: null_island(2) = rmdi
 
-  ! Periodic in E-W direction
-    logical(l_def) :: periodic_x = .false.
-
-  ! Periodic in N-S direction
-    logical(l_def) :: periodic_y = .false.
+  ! Periodic in x/y-axes
+    logical(l_def) :: periodic_xy(2) = [.false.,.false.]
 
   ! Rim depth is only relevant for LBC meshes which will have a LAM
   ! mesh as the parent.
@@ -286,8 +283,7 @@ contains
                                    self%nverts_per_edge, &
                                    self%nedges_per_cell, &
                                    self%max_cells_per_vertex, &
-                                   self%periodic_x, &
-                                   self%periodic_y, &
+                                   self%periodic_xy, &
                                    self%ntarget_meshes, &
                                    self%target_global_mesh_names, &
                                    self%vert_coords, &
@@ -904,30 +900,28 @@ contains
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> @brief  Returns values for the X and Y periodicity.
+  !> @brief   Returns values for the X and Y periodicity.
   !>
-  !> @details periodic_x and periodic_y as read from the mesh file are
-  !>          returned. This subroutine is currently only used during the
+  !> @details periodic_xy as read from the mesh file are returned.
+  !>          This functions is currently only used during the
   !>          partitioning of planar meshes for determining mesh extents.
   !>          The values are obtained from the header of the mesh files
-  !>          and are set to "false" for cubedsphere meshes (due to mesh
+  !>          and are set to "true" for cubedsphere meshes (due to mesh
   !>          IO function requirements) and to a user defined value for
   !>          planar meshes.
   !>
-  !> @param[out] periodic_x Mesh periodicity in E-W direction.
-  !> @param[out] periodic_y Mesh periodicity in N-S direction.
+  !> @return periodic_xy  Mesh domain periodicity in x/y-axes.
   !>
-  subroutine get_mesh_periodicity( self, periodic_x, periodic_y )
+  function get_mesh_periodicity( self ) result ( periodic_xy )
     implicit none
 
     class(global_mesh_type), intent(in) :: self
-    logical(l_def), intent(out) :: periodic_x
-    logical(l_def), intent(out) :: periodic_y
+    logical(l_def) :: periodic_xy(2)
 
-    periodic_x = self%periodic_x
-    periodic_y = self%periodic_y
 
-  end subroutine get_mesh_periodicity
+    periodic_xy = self%periodic_xy
+
+  end function get_mesh_periodicity
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

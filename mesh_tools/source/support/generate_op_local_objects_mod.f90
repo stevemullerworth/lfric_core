@@ -276,6 +276,9 @@ subroutine generate_op_local_objects( local_mesh_bank,               &
               do q=1, map_ycells
                 local_map_lid(p,q,local_cell) = &
                     target_local_mesh_ptr%get_lid_from_gid( local_map_gid(p,q,local_cell) )
+                if (local_map_lid(p,q,local_cell) == -1) then
+                  local_map_lid(p,q,local_cell) = source_local_mesh_ptr%get_void_cell()
+                end if
               end do
             end do
           end do

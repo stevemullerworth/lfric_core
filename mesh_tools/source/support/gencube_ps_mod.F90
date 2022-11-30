@@ -1808,8 +1808,7 @@ subroutine get_metadata( self,               &
                          geometry,           &
                          topology,           &
                          coord_sys,          &
-                         periodic_x,         &
-                         periodic_y,         &
+                         periodic_xy,        &
                          edge_cells_x,       &
                          edge_cells_y,       &
                          constructor_inputs, &
@@ -1831,8 +1830,7 @@ subroutine get_metadata( self,               &
   character(str_def), optional, intent(out) :: geometry
   character(str_def), optional, intent(out) :: topology
   character(str_def), optional, intent(out) :: coord_sys
-  logical(l_def),     optional, intent(out) :: periodic_x
-  logical(l_def),     optional, intent(out) :: periodic_y
+  logical(l_def),     optional, intent(out) :: periodic_xy(2)
   integer(i_def),     optional, intent(out) :: edge_cells_x
   integer(i_def),     optional, intent(out) :: edge_cells_y
   integer(i_def),     optional, intent(out) :: nmaps
@@ -1853,8 +1851,7 @@ subroutine get_metadata( self,               &
   if (present(geometry))     geometry       = key_from_geometry(self%geometry)
   if (present(topology))     topology       = key_from_topology(self%topology)
   if (present(coord_sys))    coord_sys      = key_from_coord_sys(self%coord_sys)
-  if (present(periodic_x))   periodic_x     = .false.
-  if (present(periodic_y))   periodic_y     = .false.
+  if (present(periodic_xy))  periodic_xy    = .true.
   if (present(edge_cells_x)) edge_cells_x   = self%edge_cells
   if (present(edge_cells_y)) edge_cells_y   = self%edge_cells
   if (present(nmaps))        nmaps          = self%nmaps

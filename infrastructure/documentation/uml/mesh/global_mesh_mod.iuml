@@ -13,8 +13,7 @@ class global_mesh_mod::global_mesh_type {
   -domain_size: real[2]
   -north_pole: real[2]
   -null_island: real[2]
-  -periodic_x: logical
-  -periodic_y: logical
+  -periodic_xy: logical[2]
   -rim_depth: integer
   -vert_coords: real[::] <<allocatable>>
   -cell_next_2d: integer[::] <<allocatable>>
@@ -45,7 +44,7 @@ class global_mesh_mod::global_mesh_type {
 
   +get_mesh_name(): string
   +get_npanels(): integer
-  +get_mesh_periodicity( <<out>>periodic_x: logical, <<out>>periodic_y: logical )
+  +get_mesh_periodicity: logical[2]
   +get_cell_id(<<in>>cell_number: integer,<<in>>x_cells: integer,<<in>>y_cells: integer ): integer
   +get_cell_on_vert( <<in>>vertex_number: integer, <<out>>cells: integer[] )
   +get_cell_on_edge( <<in>>edge_number: integer, <<out>>cells: integer[] )

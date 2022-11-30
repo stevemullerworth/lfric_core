@@ -65,35 +65,39 @@ type, public :: ugrid_2d_type
   integer(i_def) :: max_num_faces_per_node   !< Maximum number of faces surrounding each node.
 
   ! Variables for LBC mesh only.
-  integer(i_def) :: rim_depth = imdi
+  integer(i_def) :: rim_depth = imdi         !< Depth (in cells) of rim in LBC meshes
 
   ! Variables for Regional mesh only.
   ! Domain size along x/y-axes.
-  real(r_def)    :: domain_size(2) = rmdi
+  real(r_def)    :: domain_size(2) = rmdi    !< Regional model domain size in x/y-axes
 
   ! Variables for Local meshes only.
-  character(str_def) :: partition_of = cmdi
+  character(str_def) :: partition_of = cmdi  !< For local meshes, this is the name of
+                                             !< the global mesh the local mesh is a
+                                             !< partition of.
 
-  integer(i_def) :: inner_depth      = imdi
-  integer(i_def) :: halo_depth       = imdi
-  integer(i_def) :: num_edge         = imdi
-  integer(i_def) :: last_edge_cell   = imdi
-  integer(i_def) :: num_ghost        = imdi
-  integer(i_def) :: last_ghost_cell  = imdi
-  integer(i_def) :: num_global_cells = imdi
-  integer(i_def) :: num_faces_global = imdi
+  integer(i_def) :: inner_depth      = imdi  !< Depth (in cells) of partition inner region.
+  integer(i_def) :: halo_depth       = imdi  !< Depth (in cells) of halo region.
+  integer(i_def) :: num_edge         = imdi  !< Number of cells in partition edge layer.
+  integer(i_def) :: last_edge_cell   = imdi  !< Local ID of last cell in edge layer.
+  integer(i_def) :: num_ghost        = imdi  !< Number of cells in partition ghost layer.
+  integer(i_def) :: last_ghost_cell  = imdi  !< Local ID of last cell in ghost layer.
+  integer(i_def) :: num_faces_global = imdi  !< Number of faces on the global mesh.
 
-  integer(i_def), allocatable :: node_cell_owner(:)
-  integer(i_def), allocatable :: edge_cell_owner(:)
+  integer(i_def), allocatable :: node_cell_owner(:) !< Local ID of cell that "owns" a given node.
+  integer(i_def), allocatable :: edge_cell_owner(:) !< Local ID of cell that "owns" a given edge.
 
-  integer(i_def), allocatable :: num_inner(:)
-  integer(i_def), allocatable :: num_halo(:)
-  integer(i_def), allocatable :: last_inner_cell(:)
-  integer(i_def), allocatable :: last_halo_cell(:)
+  integer(i_def), allocatable :: num_inner(:)       !< Number of cells on each layer of partition inner region.
+  integer(i_def), allocatable :: num_halo(:)        !< Number of cells on each layer of partition halo region.
+  integer(i_def), allocatable :: last_inner_cell(:) !< Local ID of last cell of each layer of partition inner region.
+  integer(i_def), allocatable :: last_halo_cell(:)  !< Local ID of last cell of each layer of partition halo region.
 
-  integer(i_def), allocatable :: cell_gid(:)
-  integer(i_def), allocatable :: node_on_cell_gid(:,:)
-  integer(i_def), allocatable :: edge_on_cell_gid(:,:)
+  integer(i_def) :: num_global_cells = imdi    !< Number of global cell IDs referenced by
+                                               !< local mesh. Should be ncells + nghost cells.
+
+  integer(i_def), allocatable :: cell_gid(:)            !< LID to GID map.
+  integer(i_def), allocatable :: node_on_cell_gid(:,:)  !< Node(GID)-on-cell(LID) connectivity.
+  integer(i_def), allocatable :: edge_on_cell_gid(:,:)  !< Ndge(GID)-on-cell(LID) connectivity.
 
   ! Coordinates
   real(r_def), allocatable :: node_coordinates(:,:) !< Coordinates of nodes
@@ -153,6 +157,8 @@ contains
   procedure :: get_global_mesh_maps
   generic   :: get_mesh_maps => get_global_mesh_maps
 
+  procedure :: get_partition_data
+
   !> @todo The following routines allow variables to bet set in
   !> ugrid_2d objects. This is pragmatic in order to
   !> avoid circular dependencies. Restructuring work should
@@ -162,6 +168,8 @@ contains
   procedure :: set_connectivity
   procedure :: set_partition_data
   procedure :: set_metadata
+
+  procedure :: is_local
 
   !> Routine to destroy object
   procedure :: clear
@@ -393,8 +401,7 @@ subroutine set_by_generator(self, generator_strategy)
         geometry           = self%geometry,           &
         topology           = self%topology,           &
         coord_sys          = self%coord_sys,          &
-        periodic_x         = self%periodic_xy(1),     &
-        periodic_y         = self%periodic_xy(2),     &
+        periodic_xy        = self%periodic_xy,        &
         edge_cells_x       = self%edge_cells_xy(1),   &
         edge_cells_y       = self%edge_cells_xy(2),   &
         constructor_inputs = self%constructor_inputs, &
@@ -480,41 +487,42 @@ subroutine set_from_file_read(self, mesh_name, filename)
 
   call self%file_handler%file_open(trim(filename))
 
-  call self%file_handler%get_dimensions(                    &
-         mesh_name              = self%mesh_name,           &
-         num_nodes              = self%num_nodes,           &
-         num_edges              = self%num_edges,           &
-         num_faces              = self%num_faces,           &
-         num_nodes_per_face     = self%num_nodes_per_face,  &
-         num_edges_per_face     = self%num_edges_per_face,  &
-         num_nodes_per_edge     = self%num_nodes_per_edge,  &
-         max_num_faces_per_node = self%max_num_faces_per_node )
+  call self%file_handler%get_dimensions(                  &
+       mesh_name              = self%mesh_name,           &
+       num_nodes              = self%num_nodes,           &
+       num_edges              = self%num_edges,           &
+       num_faces              = self%num_faces,           &
+       num_nodes_per_face     = self%num_nodes_per_face,  &
+       num_edges_per_face     = self%num_edges_per_face,  &
+       num_nodes_per_edge     = self%num_nodes_per_edge,  &
+       max_num_faces_per_node = self%max_num_faces_per_node )
 
   call allocate_arrays_for_file(self)
 
-  call self%file_handler%read_mesh(                         &
-      mesh_name              = self%mesh_name,              &
-      geometry               = self%geometry,               &
-      topology               = self%topology,               &
-      coord_sys              = self%coord_sys,              &
-      periodic_x             = self%periodic_xy(1),         &
-      periodic_y             = self%periodic_xy(2),         &
-      npanels                = self%npanels,                &
-      max_stencil_depth      = self%max_stencil_depth,      &
-      constructor_inputs     = self%constructor_inputs,     &
-      node_coordinates       = self%node_coordinates,       &
-      face_coordinates       = self%face_coordinates,       &
-      coord_units_x          = self%coord_units_xy(1),      &
-      coord_units_y          = self%coord_units_xy(2),      &
-      void_cell              = self%void_cell,              &
-      face_node_connectivity = self%face_node_connectivity, &
-      edge_node_connectivity = self%edge_node_connectivity, &
-      face_edge_connectivity = self%face_edge_connectivity, &
-      face_face_connectivity = self%face_face_connectivity, &
-      num_targets            = self%nmaps,                  &
-      target_mesh_names      = self%target_mesh_names,      &
-      north_pole             = self%north_pole,             &
-      null_island            = self%null_island )
+  call self%file_handler%read_mesh(                              &
+       self%mesh_name, self%geometry, self%coord_sys,            &
+       self%north_pole, self%null_island,                        &
+       self%node_coordinates, self%face_coordinates,             &
+       self%coord_units_xy(1), self%coord_units_xy(2),           &
+       self%void_cell,                                           &
+       self%face_node_connectivity, self%face_edge_connectivity, &
+       self%face_face_connectivity, self%edge_node_connectivity, &
+
+       self%topology, self%periodic_xy, self%domain_size,        &
+       self%npanels, self%rim_depth, self%constructor_inputs,    &
+
+       self%partition_of, self%num_faces_global,                 &
+       self%max_stencil_depth,                                   &
+       self%inner_depth, self%num_inner, self%last_inner_cell,   &
+       self%halo_depth,  self%num_halo,  self%last_halo_cell,    &
+       self%num_edge,  self%last_edge_cell,                      &
+       self%num_ghost, self%last_ghost_cell,                     &
+       self%node_cell_owner, self%edge_cell_owner,               &
+       self%cell_gid, self%node_on_cell_gid,                     &
+       self%edge_on_cell_gid,                                    &
+
+       self%nmaps, self%target_mesh_names )
+
 
   call self%file_handler%file_close()
 
@@ -565,8 +573,7 @@ subroutine write_to_file(self, filename)
 
        ! Global mesh variables.
        topology           = self%topology,           &
-       periodic_x         = self%periodic_xy(1),     &
-       periodic_y         = self%periodic_xy(2),     &
+       periodic_xy        = self%periodic_xy,        &
        domain_size        = self%domain_size,        &
        npanels            = self%npanels,            &
        rim_depth          = self%rim_depth,          &
@@ -626,7 +633,7 @@ subroutine append_to_file(self, filename)
 
   call self%file_handler%append_mesh(                        &
 
-       ! Common mesh type variables
+       ! Common mesh type variables.
        mesh_name              = self%mesh_name,              &
        geometry               = self%geometry,               &
        coord_sys              = self%coord_sys,              &
@@ -647,14 +654,13 @@ subroutine append_to_file(self, filename)
 
        ! Global mesh variables.
        topology           = self%topology,           &
-       periodic_x         = self%periodic_xy(1),     &
-       periodic_y         = self%periodic_xy(2),     &
+       periodic_xy        = self%periodic_xy,        &
        domain_size        = self%domain_size,        &
        npanels            = self%npanels,            &
        rim_depth          = self%rim_depth,          &
        constructor_inputs = self%constructor_inputs, &
 
-      ! Partition variables
+       ! Partition variables.
        partition_of       = self%partition_of,       &
        num_faces_global   = self%num_faces_global,   &
        max_stencil_depth  = self%max_stencil_depth,  &
@@ -698,8 +704,7 @@ end subroutine append_to_file
 !> @param[out] topology           Domain topology enumeration key.
 !> @param[out] coord_sys          Co-ordinate sys enumeration key.
 !> @param[out] npanels            Number of panels used in mesh topology.
-!> @param[out] periodic_x         Periodic in E-W direction.
-!> @param[out] periodic_y         Periodic in N-S direction.
+!> @param[out] periodic_xy        Periodic in x/y-axes.
 !> @param[out] max_stencil_depth  Maximum stencil depth supported (Local meshes).
 !> @param[out] void_cell          Values to mark a cell as external
 !>                                to domain.
@@ -724,19 +729,18 @@ end subroutine append_to_file
 !> @param[out] null_island        Optional, [Longitude, Latitude] of null
 !>                                island used for domain orientation (degrees).
 !-------------------------------------------------------------------------------
-subroutine get_metadata( self, mesh_name,                 &
-                         geometry, topology, coord_sys,   &
-                         npanels, periodic_x, periodic_y, &
-                         max_stencil_depth,               &
-                         void_cell,                       &
-                         edge_cells_x, edge_cells_y,      &
-                         ncells_global, domain_size,      &
-                         rim_depth, inner_depth,          &
-                         halo_depth, partition_of,        &
-                         num_edge, last_edge_cell,        &
-                         num_ghost, last_ghost_cell,      &
-                         constructor_inputs, nmaps,       &
-                         target_mesh_names,               &
+subroutine get_metadata( self, mesh_name,               &
+                         geometry, topology, coord_sys, &
+                         npanels, periodic_xy,          &
+                         max_stencil_depth, void_cell,  &
+                         edge_cells_x, edge_cells_y,    &
+                         ncells_global, domain_size,    &
+                         rim_depth, inner_depth,        &
+                         halo_depth, partition_of,      &
+                         num_edge, last_edge_cell,      &
+                         num_ghost, last_ghost_cell,    &
+                         constructor_inputs, nmaps,     &
+                         target_mesh_names,             &
                          north_pole, null_island )
 
   implicit none
@@ -747,8 +751,7 @@ subroutine get_metadata( self, mesh_name,                 &
   character(str_def),   optional, intent(out) :: topology
   character(str_def),   optional, intent(out) :: coord_sys
   integer(i_def),       optional, intent(out) :: npanels
-  logical(l_def),       optional, intent(out) :: periodic_x
-  logical(l_def),       optional, intent(out) :: periodic_y
+  logical(l_def),       optional, intent(out) :: periodic_xy(2)
 
   integer(i_def),       optional, intent(out) :: max_stencil_depth
   integer(i_def),       optional, intent(out) :: void_cell
@@ -794,8 +797,7 @@ subroutine get_metadata( self, mesh_name,                 &
   if (present(topology))           topology           = self%topology
   if (present(coord_sys))          coord_sys          = self%coord_sys
   if (present(npanels ))           npanels            = self%npanels
-  if (present(periodic_x))         periodic_x         = self%periodic_xy(1)
-  if (present(periodic_y))         periodic_y         = self%periodic_xy(2)
+  if (present(periodic_xy))        periodic_xy        = self%periodic_xy
   if (present(max_stencil_depth))  max_stencil_depth  = self%max_stencil_depth
   if (present(void_cell))          void_cell          = self%void_cell
   if (present(constructor_inputs)) constructor_inputs = self%constructor_inputs
@@ -969,8 +971,113 @@ end function get_edge_node_connectivity
 
 
 !-------------------------------------------------------------------------------
-!> @brief     Assigns a global_mesh_map_collection to the ugrid_2d object.
-!> @param[in] global_maps  Global mesh map collection.
+!> @brief   Gets information related to local partition.
+!> @details Local meshes (on a paritition) require additional information
+!>          regarding the partition and the larger global mesh.
+!>
+!> param[out] max_stencil_depth  Maximum stencil depth supported.
+!> param[out] inner_depth        Number of inner layers.
+!> param[out] halo_depth         Number of halo layers.
+!> param[out] num_inner          Number cells in each inner layer.
+!> param[out] num_edge           Number cells in edge layer.
+!> param[out] num_halo           Number cells in each halo layer.
+!> param[out] num_ghost          Number cells in ghost layer.
+!> param[out] last_inner_cell    Local index of last cell in each inner layer.
+!> param[out] last_edge_cell     Local index of last cell in edge layer.
+!> param[out] last_halo_cell     Local index of last cell in each halo layer.
+!> param[out] last_ghost_cell    Local index of last cell in ghost layer.
+!> param[out] node_cell_owner    Cell ID that owns a given node.
+!> param[out] edge_cell_owner    Cell ID that owns a given edge.
+!> param[out] num_faces_global   Number of faces in the global mesh.
+!> param[out] cell_gid           Global index of cells in this local mesh object.
+!> param[out] node_on_cell_gid   Node on cell connectivity in Global IDs.
+!> param[out] edge_on_cell_gid   Edge on cell connectivity in Global IDs.
+!-------------------------------------------------------------------------------
+subroutine get_partition_data( self,              &
+                               max_stencil_depth, &
+                               inner_depth,       &
+                               halo_depth,        &
+                               num_inner,         &
+                               num_edge,          &
+                               num_halo,          &
+                               num_ghost,         &
+                               last_inner_cell,   &
+                               last_edge_cell,    &
+                               last_halo_cell ,   &
+                               last_ghost_cell,   &
+                               node_cell_owner,   &
+                               edge_cell_owner,   &
+                               num_faces_global,  &
+                               cell_gid,          &
+                               node_on_cell_gid,  &
+                               edge_on_cell_gid )
+
+  implicit none
+
+  class (ugrid_2d_type), intent(in) :: self
+
+  integer(i_def), intent(out) :: max_stencil_depth
+  integer(i_def), intent(out) :: inner_depth
+  integer(i_def), intent(out) :: halo_depth
+  integer(i_def), intent(out) :: num_edge
+  integer(i_def), intent(out) :: last_edge_cell
+  integer(i_def), intent(out) :: num_ghost
+  integer(i_def), intent(out) :: last_ghost_cell
+  integer(i_def), intent(out) :: num_faces_global
+
+  integer(i_def), intent(out), allocatable :: node_cell_owner(:)
+  integer(i_def), intent(out), allocatable :: edge_cell_owner(:)
+  integer(i_def), intent(out), allocatable :: num_inner(:)
+  integer(i_def), intent(out), allocatable :: num_halo(:)
+  integer(i_def), intent(out), allocatable :: last_inner_cell(:)
+  integer(i_def), intent(out), allocatable :: last_halo_cell(:)
+
+  integer(i_def), intent(out), allocatable :: cell_gid(:)
+  integer(i_def), intent(out), allocatable :: node_on_cell_gid(:,:)
+  integer(i_def), intent(out), allocatable :: edge_on_cell_gid(:,:)
+
+
+  max_stencil_depth = self%max_stencil_depth
+  inner_depth       = self%inner_depth
+  halo_depth        = self%halo_depth
+  num_edge          = self%num_edge
+  last_edge_cell    = self%last_edge_cell
+  num_ghost         = self%num_ghost
+  last_ghost_cell   = self%last_ghost_cell
+  num_faces_global  = self%num_faces_global
+
+  if (allocated( node_cell_owner )) deallocate( node_cell_owner )
+  if (allocated( edge_cell_owner )) deallocate( edge_cell_owner )
+  if (allocated( num_inner ))       deallocate( num_inner )
+  if (allocated( num_halo ))        deallocate( num_halo )
+  if (allocated( last_inner_cell )) deallocate( last_inner_cell )
+  if (allocated( last_halo_cell ))  deallocate( last_halo_cell )
+
+  if (allocated( cell_gid ))         deallocate( cell_gid )
+  if (allocated( edge_on_cell_gid )) deallocate( edge_on_cell_gid )
+  if (allocated( node_on_cell_gid )) deallocate( node_on_cell_gid )
+
+  if (self%inner_depth > 0) then
+    allocate( num_inner,       source=self%num_inner )
+    allocate( last_inner_cell, source=self%last_inner_cell )
+  end if
+
+  if (self%halo_depth > 0) then
+    allocate( num_halo,       source=self%num_halo )
+    allocate( last_halo_cell, source=self%last_halo_cell )
+  end if
+
+  allocate( node_cell_owner, source=self%node_cell_owner )
+  allocate( edge_cell_owner, source=self%edge_cell_owner )
+  allocate( cell_gid,         source=self%cell_gid         )
+  allocate( node_on_cell_gid, source=self%node_on_cell_gid )
+  allocate( edge_on_cell_gid, source=self%edge_on_cell_gid )
+
+end subroutine get_partition_data
+
+!-------------------------------------------------------------------------------
+!> @brief     Assigns a global_mesh_map_collection to the ugrid_2d object
+!> @param[in] global_maps  Global mesh map collection
 !-------------------------------------------------------------------------------
 subroutine set_global_mesh_maps( self, global_maps  )
 
@@ -1304,8 +1411,7 @@ end subroutine set_partition_data
 !> @param[in]   max_stencil_depth  Optional: Maximum stencil depth supported (Local meshes).
 !> @param[in]   domain_size        Optional: Domain size ix x/y-axes.
 !> @param[in]   rim_depth          Optional: Rim depth (in cells) for LBC meshes.
-!> @param[in]   periodic_x         Optional: Model domain periodicity (x-axes).
-!> @param[in]   periodic_y         Optional: Model domain periodicity (y-axes).
+!> @param[in]   periodic_xy        Optional: Model domain periodicity in x/y-axes.
 !> @param[in]   edge_cells_x       Optional: Number of cells on panel edge (x-axis).
 !> @param[in]   edge_cells_y       Optional: Number of cells on panel edge (y-axis).
 !> @param[in]   constructor_inputs Optional: Input arguments use to create this mesh.
@@ -1329,8 +1435,7 @@ subroutine set_metadata ( self,                &
                           max_stencil_depth,   &
                           domain_size,         &
                           rim_depth,           &
-                          periodic_x,          &
-                          periodic_y,          &
+                          periodic_xy,         &
                           edge_cells_x,        &
                           edge_cells_y,        &
                           constructor_inputs,  &
@@ -1361,9 +1466,7 @@ subroutine set_metadata ( self,                &
   integer(i_def), optional, intent(in) :: edge_cells_y
 
   real(r_def),    optional, intent(in) :: domain_size(2)
-
-  logical(l_def), optional, intent(in) :: periodic_x
-  logical(l_def), optional, intent(in) :: periodic_y
+  logical(l_def), optional, intent(in) :: periodic_xy(2)
 
   integer(i_def),     optional, intent(in) :: nmaps
   character(str_def), optional, intent(in) :: target_mesh_names(:)
@@ -1383,8 +1486,7 @@ subroutine set_metadata ( self,                &
   if (present(last_ghost_cell)) self%last_ghost_cell = last_ghost_cell
   if (present(nmaps))           self%nmaps           = nmaps
 
-  if (present(periodic_x))   self%periodic_xy(1)   = periodic_x
-  if (present(periodic_y))   self%periodic_xy(2)   = periodic_y
+  if (present(periodic_xy))  self%periodic_xy      = periodic_xy
   if (present(edge_cells_x)) self%edge_cells_xy(1) = edge_cells_x
   if (present(edge_cells_y)) self%edge_cells_xy(2) = edge_cells_y
 
@@ -1494,6 +1596,33 @@ subroutine clear(self)
   self%target_global_mesh_maps => null()
 
 end subroutine clear
+
+!-------------------------------------------------------------------------------
+!> @brief   Returns logical to determine it current contents represents a global
+!>          or local mesh object.
+!> @return  Logical  .True. if contents represent a logcal mesh.
+!-------------------------------------------------------------------------------
+function is_local(self) result(answer)
+
+ implicit none
+
+ class (ugrid_2d_type), intent(in) :: self
+
+  logical(l_def) :: answer
+
+  ! This simply tests on the whether of not this object is a
+  ! "partition_of" another mesh. If the variable <partition_of>
+  ! has not been set by 'set_metadata' it will be taken as a global
+  ! mesh. The variable <partition_of> is reset every time the object
+  ! is destroyed/cleared.
+  if (self%partition_of == cmdi) then
+    answer = .false.
+  else
+    answer = .true.
+  end if
+
+end function is_local
+
 
 !-------------------------------------------------------------------------------
 !> @brief Finalizer routine which should automatically call clear

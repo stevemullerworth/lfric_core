@@ -159,52 +159,86 @@ abstract interface
   !> @brief  Interface: Populates arguments with data from the mesh given
   !>         by `mesh_name` in the file to be read.
   !>
-  !> @param[in,out] self                   The ugrid file strategy object.
-  !> @param[in]     mesh_name              Name of mesh to read
-  !> @param[out]    geometry               Domain geometry enumeration key
-  !> @param[out]    topology               Domain topology enumeration key
-  !> @param[out]    coord_sys              Co-ordinate sys enumeration key
-  !> @param[out]    periodic_x             Periodic in E-W direction.
-  !> @param[out]    periodic_y             Periodic in N-S direction.
-  !> @param[out]    npanels                Number of panels in this mesh
-  !> @param[out]    north_pole             [Longitude, Latitude] of north pole
-  !>                                       used for domain orientation (degrees)
-  !> @param[out]    null_island            [Longitude, Latitude] of null
-  !>                                       island used for domain orientation (degrees)
-  !> @param[out]    max_stencil_depth      The max stencil depth that this
-  !>                                       mesh supports.
-  !> @param[out]    constructor_inputs     Inputs to the ugrid_generator used to
-  !>                                       create the mesh
-  !> @param[out]    node_coordinates       Node coordinates
-  !> @param[out]    face_coordinates       Face coordinates
-  !> @param[out]    coord_units_x          Units for x-coord
-  !> @param[out]    coord_units_y          Units for y-coord
-  !> @param[out]    void_cell              Values to mark a cell as external
-  !>                                       to domain.
-  !> @param[out]    face_node_connectivity Nodes around each face
-  !> @param[out]    edge_node_connectivity Nodes defining each edge
-  !> @param[out]    face_edge_connectivity Edges bounding each face
-  !> @param[out]    face_face_connectivity Faces adjacent to each face.
-  !> @param[out]    num_targets            Number of mesh maps from mesh
-  !> @param[out]    target_mesh_names      Mesh(es) that this mesh has maps for
+  !> @param[in]   mesh_name              Name of mesh to read.
+  !> @param[out]  geometry               Domain geometry enumeration key.
+  !> @param[out]  coord_sys              Co-ordinate sys enumeration key.
+  !> @param[out]  north_pole             [Longitude, Latitude] of north pole
+  !>                                     for domain orientation (degrees).
+  !> @param[out]  null_island            [Longitude, Latitude] of null
+  !>                                     island for domain orientation (degrees).
+  !> @param[out]  node_coordinates       Node coordinates.
+  !> @param[out]  face_coordinates       Face coordinates.
+  !> @param[out]  coord_units_x          Units of x coordinates.
+  !> @param[out]  coord_units_y          Units of y coordinates.
+  !> @param[out]  void_cell              Values to mark a cell as external
+  !>                                     to domain.
+  !> @param[out]  face_node_connectivity Nodes around each face.
+  !> @param[out]  edge_node_connectivity Nodes defining each edge.
+  !> @param[out]  face_edge_connectivity Edges bounding each face.
+  !> @param[out]  face_face_connectivity Faces adjacent to each face.
+  !> @param[out]  topology            Domain topology enumeration key.
+  !> @param[out]  periodic_xy         Periodicity in x/y axes.
+  !> @param[out]  domain_size         Size of global mesh domain in x/y-axes.
+  !> @param[out]  npanels             Number of panels in this mesh.
+  !> @param[out]  rim_depth           Depth in cells of global mesh rim
+  !>                                  (LBC meshes).
+  !> @param[out]  constructor_inputs  Inputs to the ugrid_generator used to
+  !>                                  create the mesh.
+  !> @param[out]  partition_of        Name of mesh that (local mesh) is a
+  !>                                  partition of.
+  !> @param[out]  num_faces_global    Number of cells in the global mesh
+  !>                                  given by `partition_of`.
+  !> @param[out]  max_stencil_depth   The max stencil depth that this
+  !>                                  mesh supports.
+  !> @param[out]  inner_depth         Depth (in cells) of inner halos inward
+  !>                                  from edge cell layer.
+  !> @param[out]  num_inner           Number of cells at each inner halo depth.
+  !> @param[out]  last_inner_cell     Local ID of the last cell at each inner
+  !>                                  halo depth.
+  !> @param[out]  halo_depth          Depth (in cells) of halos outward from
+  !>                                  edge cell layer.
+  !> @param[out]  num_halo            Number of cells at each halo depth.
+  !> @param[out]  last_halo_cell      Local ID of the last cell at each halo depth.
+  !> @param[out]  num_edge            Number of cells in the edge cell layer.
+  !> @param[out]  last_edge_cell      Local ID of the last cell in edge cell layer.
+  !> @param[out]  num_ghost           Number of cells in ghost cell layer.
+  !> @param[out]  last_ghost_cell     Local ID of the last cell in ghost cell layer.
+  !> @param[out]  node_cell_owner     Cell that "owns" a given node.
+  !> @param[out]  edge_cell_owner     Cell that "owns" a given edge.
+  !> @param[out]  cell_gid            Global IDs of local mesh cells.
+  !>                                  (partition, halos and ghost cells).
+  !> @param[out]  node_on_cell_gid    Local node on cell connectivities listed with
+  !>                                  the node global IDs.
+  !> @param[out]  edge_on_cell_gid    Local edge on cell connectivities listed with
+  !>                                  the edge global IDs.
+  !> @param[out]  num_targets         Number of mesh maps from mesh.
+  !> @param[out]  target_mesh_names   Mesh(es) that this mesh has maps for.
   !-----------------------------------------------------------------------------
+  subroutine read_mesh_interface( self,                                   &
+                       ! Common mesh related variables
+                       mesh_name, geometry, coord_sys,                    &
+                       north_pole, null_island,                           &
+                       node_coordinates, face_coordinates,                &
+                       coord_units_x, coord_units_y,                      &
+                       void_cell,                                         &
+                       face_node_connectivity, face_edge_connectivity,    &
+                       face_face_connectivity, edge_node_connectivity,    &
 
-  subroutine read_mesh_interface( self, mesh_name,                  &
-                                  geometry, topology, coord_sys,    &
-                                  periodic_x, periodic_y, npanels,  &
-                                  north_pole, null_island,          &
-                                  max_stencil_depth,                &
-                                  constructor_inputs,               &
-                                  node_coordinates,                 &
-                                  face_coordinates,                 &
-                                  coord_units_x, coord_units_y,     &
-                                  void_cell,                        &
-                                  face_node_connectivity,           &
-                                  edge_node_connectivity,           &
-                                  face_edge_connectivity,           &
-                                  face_face_connectivity,           &
-                                  num_targets, target_mesh_names )
+                       ! Variables referring to global mesh types
+                       topology, periodic_xy, domain_size,                &
+                       npanels, rim_depth, constructor_inputs,            &
 
+                       ! Partition variables
+                       partition_of, num_faces_global, max_stencil_depth, &
+                       inner_depth, num_inner, last_inner_cell,           &
+                       halo_depth,  num_halo,  last_halo_cell,            &
+                       num_edge,  last_edge_cell,                         &
+                       num_ghost, last_ghost_cell,                        &
+                       node_cell_owner, edge_cell_owner,                  &
+                       cell_gid, node_on_cell_gid, edge_on_cell_gid,      &
+
+                       ! Intergrid maps
+                       num_targets, target_mesh_names )
 
     import :: ugrid_file_type, i_def, r_def, str_def, str_longlong, &
               l_def
@@ -214,31 +248,56 @@ abstract interface
     ! Arguments
     class(ugrid_file_type), intent(inout) :: self
 
+    ! Common mesh related variables
     character(str_def), intent(in)  :: mesh_name
-
     character(str_def), intent(out) :: geometry
-    character(str_def), intent(out) :: topology
     character(str_def), intent(out) :: coord_sys
-    logical(l_def),     intent(out) :: periodic_x
-    logical(l_def),     intent(out) :: periodic_y
-    integer(i_def),     intent(out) :: npanels
-    integer(i_def),     intent(out) :: max_stencil_depth
-
-    character(str_longlong), intent(out) :: constructor_inputs
-
+    real(r_def),        intent(out) :: north_pole(2)
+    real(r_def),        intent(out) :: null_island(2)
     real(r_def),        intent(out) :: node_coordinates(:,:)
     real(r_def),        intent(out) :: face_coordinates(:,:)
     character(str_def), intent(out) :: coord_units_x
     character(str_def), intent(out) :: coord_units_y
     integer(i_def),     intent(out) :: void_cell
     integer(i_def),     intent(out) :: face_node_connectivity(:,:)
-    integer(i_def),     intent(out) :: edge_node_connectivity(:,:)
     integer(i_def),     intent(out) :: face_edge_connectivity(:,:)
     integer(i_def),     intent(out) :: face_face_connectivity(:,:)
-    integer(i_def),     intent(out) :: num_targets
+    integer(i_def),     intent(out) :: edge_node_connectivity(:,:)
+
+    ! Variables referring to global mesh types
+    character(str_def), intent(out) :: topology
+    logical(l_def),     intent(out) :: periodic_xy(2)
+    real(r_def),        intent(out) :: domain_size(2)
+    integer(i_def),     intent(out) :: npanels
+    integer(i_def),     intent(out) :: rim_depth
+
+    character(str_longlong), intent(out) :: constructor_inputs
+
+    ! Partition variables
+    character(str_def), intent(out) :: partition_of
+    integer(i_def),     intent(out) :: num_faces_global
+    integer(i_def),     intent(out) :: max_stencil_depth
+
+    integer(i_def), intent(out) :: inner_depth
+    integer(i_def), intent(out), allocatable :: num_inner(:)
+    integer(i_def), intent(out), allocatable :: last_inner_cell(:)
+
+    integer(i_def), intent(out) :: halo_depth
+    integer(i_def), intent(out), allocatable :: num_halo(:)
+    integer(i_def), intent(out), allocatable :: last_halo_cell(:)
+
+    integer(i_def), intent(out) :: num_edge,  last_edge_cell
+    integer(i_def), intent(out) :: num_ghost, last_ghost_cell
+
+    integer(i_def), intent(out), allocatable :: node_cell_owner(:)
+    integer(i_def), intent(out), allocatable :: edge_cell_owner(:)
+    integer(i_def), intent(out), allocatable :: cell_gid(:)
+    integer(i_def), intent(out), allocatable :: node_on_cell_gid(:,:)
+    integer(i_def), intent(out), allocatable :: edge_on_cell_gid(:,:)
+
+    integer(i_def), intent(out) :: num_targets
+
     character(str_def), intent(out), allocatable :: target_mesh_names(:)
-    real(r_def),        intent(out) :: north_pole(2)
-    real(r_def),        intent(out) :: null_island(2)
 
   end subroutine read_mesh_interface
 
@@ -271,9 +330,8 @@ abstract interface
   !> @param[in]  face_edge_connectivity   Edges bounding each face
   !> @param[in]  face_face_connectivity   Faces adjacent to each face.
   !> @param[in]  edge_node_connectivity   Nodes defining each edge.
-  !> @param[in]  topology                 Domain topology enumeration key
-  !> @param[in]  periodic_x               Domain periodicity in E-W direction.
-  !> @param[in]  periodic_y               Domain periodicity in N-S direction.
+  !> @param[in]  topology                 Domain topology enumeration key.
+  !> @param[in]  periodic_xy              Domain periodicity in x/y-axes.
   !> @param[in]  domain_size              Size of global mesh domain in x/y-axes.
   !> @param[in]  npanels                  Number of panels in global mesh.
   !> @param[in]  rim_depth                Depth in cells of global mesh rim (LBC meshes).
@@ -318,7 +376,7 @@ abstract interface
                        face_face_connectivity, edge_node_connectivity,    &
 
                        ! Global mesh variables.
-                       topology, periodic_x, periodic_y, domain_size,     &
+                       topology, periodic_xy, domain_size,                &
                        npanels, rim_depth, constructor_inputs,            &
 
                        ! Partition variables.
@@ -364,8 +422,7 @@ abstract interface
 
     ! Global mesh only variables
     character(str_def), intent(in) :: topology
-    logical(l_def),     intent(in) :: periodic_x
-    logical(l_def),     intent(in) :: periodic_y
+    logical(l_def),     intent(in) :: periodic_xy(2)
     real(r_def),        intent(in) :: domain_size(2)
     integer(i_def),     intent(in) :: npanels
     integer(i_def),     intent(in) :: rim_depth

@@ -660,8 +660,6 @@ contains
     type(linked_list_item_type), pointer :: insert_point=>null() ! where to insert in a list
     type(linked_list_item_type), pointer :: loop => null() ! temp ptr to loop through list
 
-
-
     integer :: i, j         ! loop counters
     integer :: cells(4)     ! The cells around the vertex being queried
     integer :: oth1, oth2   ! When querying a cell around a vertex, these are
@@ -678,12 +676,10 @@ contains
     integer :: depth        ! counter over the halo depths
     integer :: orig_num_in_list ! number of cells in list before halos are added
     integer(i_def) :: num_apply
-    logical(l_def) :: periodic_x = .false. ! Periodic in the E-W direction
-    logical(l_def) :: periodic_y = .false. ! Periodic in the N-S direction
+    logical(l_def) :: periodic_xy(2) ! Periodic in the x/y-axes
 
-
-    call global_mesh%get_mesh_periodicity(periodic_x, periodic_y)
-    void_cell = global_mesh%get_void_cell()
+    periodic_xy = global_mesh%get_mesh_periodicity()
+    void_cell   = global_mesh%get_void_cell()
 
     if (num_panels==1) then
       ! A single panelled mesh might be rectangluar - so find the dimensions
@@ -691,7 +687,7 @@ contains
       ! biperiodic, cell ID 1 can be used as mesh conectivity loops round
       cell = 1
       call global_mesh%get_cell_next(cell,cell_next)
-      if (.not. periodic_x) then
+      if ( .not. periodic_xy(1) ) then
         ! If not periodic in E-W direction then walk West until you reach mesh
         ! edge defined by the void cell.
         do while (cell_next(W) /= void_cell)
@@ -700,7 +696,7 @@ contains
         end do
       end if
 
-      if (.not. periodic_y) then
+      if ( .not. periodic_xy(2) ) then
         ! If not periodic in N-S direction then walk South until you reach mesh
         ! edge defined by the void cell.
         do while (cell_next(S) /= void_cell)
