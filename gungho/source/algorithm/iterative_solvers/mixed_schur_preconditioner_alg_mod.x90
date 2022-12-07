@@ -599,12 +599,12 @@ contains
       end if
       state_t => state%get_field_from_position(isol_t)
       state_d => state%get_field_from_position(isol_d)
-      call invoke( inc_X_plus_Y(state_t, theta_inc), &
-                   inc_X_plus_Y(state_d, rho_inc) )
+      call invoke( setval_X(state_t, theta_inc), &
+                   setval_X(state_d, rho_inc) )
     end if
 
     state_p => state%get_field_from_position(isol_p)
-    call invoke( inc_X_plus_Y(state_p, exner_inc) )
+    call invoke( setval_X(state_p, exner_inc) )
 
     if ( split_w )then
       state_uv => state%get_field_from_position( isol_uv )
