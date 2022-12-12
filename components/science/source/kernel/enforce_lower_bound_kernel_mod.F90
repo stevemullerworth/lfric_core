@@ -9,10 +9,11 @@
 !>        any desired minimum value.
 module enforce_lower_bound_kernel_mod
 
-  use argument_mod,  only : arg_type,            &
-                            GH_FIELD, GH_SCALAR, &
-                            GH_REAL, GH_READ,    &
-                            GH_INC, ANY_SPACE_1, &
+  use argument_mod,  only : arg_type,                  &
+                            GH_FIELD, GH_SCALAR,       &
+                            GH_REAL, GH_READ,          &
+                            GH_READWRITE,              &
+                            ANY_DISCONTINUOUS_SPACE_1, &
                             CELL_COLUMN
   use constants_mod, only : i_def, r_def
   use kernel_mod,    only : kernel_type
@@ -29,9 +30,9 @@ module enforce_lower_bound_kernel_mod
   !
   type, public, extends(kernel_type) :: enforce_lower_bound_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                     &
-         arg_type(GH_FIELD,  GH_REAL, GH_INC, ANY_SPACE_1), &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ )             &
+    type(arg_type) :: meta_args(2) = (/                                        &
+         arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ )                                &
          /)
     integer :: operates_on = CELL_COLUMN
   contains

@@ -7,7 +7,7 @@
 
 '''PSyclone transformation script for the Dynamo0p3 API to apply
 colouring, OpenMP and redundant computation to the level1 halo for
-setval_* generically.
+setval_c generically.
 
 '''
 from psyclone.transformations import Dynamo0p3ColourTrans, \
@@ -36,7 +36,7 @@ def trans(psy):
         print("Transforming invoke '{0}' ...".format(invoke.name))
         schedule = invoke.schedule
 
-        # Make setval_* compute redundantly to the level 1 halo if it
+        # Make setval_c compute redundantly to the level 1 halo if it
         # is in its own loop.
         for loop in schedule.loops():
             if loop.iteration_space == "dof":
@@ -44,7 +44,7 @@ def trans(psy):
                     raise Exception(
                         "Expecting loop to contain 1 call but found '{0}'".
                         format(len(loop.kernels())))
-                if loop.kernels()[0].name in ["setval_c", "setval_x"]:
+                if loop.kernels()[0].name in ["setval_c"]:
                     setval_count += 1
                     rtrans.apply(loop, options={"depth": 1})
 
