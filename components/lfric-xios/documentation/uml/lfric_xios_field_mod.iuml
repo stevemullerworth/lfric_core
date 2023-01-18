@@ -1,0 +1,19 @@
+' (c) Crown copyright 2022 Met Office. All rights reserved.
+' The file LICENCE, distributed with this code, contains details of the terms
+' under which the code may be used.
+
+package lfric_xios_field_mod {
+  class lfric_xios_field_type {
+    -handle: xios_field
+    -xios_id: String
+    -fieldgroup_id: String
+    -model_field: field_parent_type <<pointer>>
+
+    +<<create>>lfric_xios_field_constructor()
+    +register()
+    +send()
+    +recv()
+    +<<final>>lfric_xios_field_final()
+  }
+  lfric_xios_field_type -> field_parent_mod::field_parent_type
+}

@@ -11,7 +11,8 @@ USE file_mod,                      ONLY: FILE_MODE_READ,                       &
                                          FILE_MODE_WRITE
 USE log_mod,                       ONLY: log_event, log_scratch_space,         &
                                          LOG_LEVEL_INFO, LOG_LEVEL_ERROR
-USE lfric_xios_file_mod,           ONLY: lfric_xios_file_type
+USE lfric_xios_file_mod,           ONLY: lfric_xios_file_type,                 &
+                                         OPERATION_TIMESERIES
 USE linked_list_mod,               ONLY: linked_list_type
 USE time_config_mod,               ONLY: timestep_end
 IMPLICIT NONE
@@ -98,6 +99,8 @@ IF (checkpoint_write) THEN
                                               TRIM(checkpoint_write_file),      &
                                               xios_id="lfric_checkpoint_write", &
                                               io_mode=FILE_MODE_WRITE,          &
+                         ! For some reason LI outputs checkpoints as a timeseries
+                                              operation=OPERATION_TIMESERIES,   &
                                               freq=checkpoint_frequency ) )
 END IF
 

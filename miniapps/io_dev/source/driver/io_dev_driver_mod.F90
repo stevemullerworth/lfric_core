@@ -51,10 +51,8 @@ module io_dev_driver_mod
                                         output_model_data,         &
                                         finalise_model_data
 
-  ! Usage of these modules will be removed by #3500
   use io_context_mod, only: io_context_type
-  use lfric_xios_context_mod, only: lfric_xios_context_type
-  use lfric_xios_clock_mod, only: lfric_xios_clock_type
+  use lfric_xios_context_mod, only: lfric_xios_context_type, advance
 
   implicit none
 
@@ -91,6 +89,8 @@ module io_dev_driver_mod
     type(field_type), pointer :: alt_io_coords(:,:) => null()
     type(field_type), pointer :: alt_io_panel_ids(:) => null()
     type(mesh_type),  pointer :: alt_mesh => null()
+
+    class(io_context_type), pointer :: io_context
 
     procedure(filelist_populator), pointer :: files_init_ptr => null()
 
@@ -142,10 +142,8 @@ module io_dev_driver_mod
       alt_io_coords => multires_coords
       alt_io_panel_ids => multires_panel_ids
       alt_mesh => mesh_collection%get_mesh(multires_mesh_ids(1))
-      call create_model_data( model_data, &
-                              mesh,       &
-                              twod_mesh,  &
-                              alt_mesh )
+      call create_model_data( model_data, chi, panel_id, &
+                              mesh, twod_mesh, alt_mesh )
       call init_io( program_name, communicator, chi, panel_id, &
                     model_clock, get_calendar(),               &
                     populate_filelist = files_init_ptr,        &
@@ -154,9 +152,8 @@ module io_dev_driver_mod
                     alt_panel_ids = alt_io_panel_ids )
 
     else
-      call create_model_data( model_data, &
-                              mesh,       &
-                              twod_mesh )
+      call create_model_data( model_data, chi, panel_id, &
+                              mesh, twod_mesh )
       call init_io( program_name, communicator, chi, panel_id, &
                     model_clock, get_calendar(),               &
                     populate_filelist = files_init_ptr,        &
@@ -166,10 +163,14 @@ module io_dev_driver_mod
     ! Initialise the fields stored in the model_data
     call initialise_model_data( model_data, model_clock, chi, panel_id )
 
-    ! Now we gut some of the time infrastructure to allow IO_Dev to run
-    ! without an XIOS clock
-    deallocate(model_clock)
-    call init_time( model_clock )
+    ! Write initial output
+    io_context => get_io_context()
+    if (model_clock%is_initialisation()) then
+      select type (io_context)
+      type is (lfric_xios_context_type)
+          call advance(io_context, model_clock)
+      end select
+    end if
 
   end subroutine initialise
 
@@ -179,31 +180,11 @@ module io_dev_driver_mod
 
     implicit none
 
-    class(io_context_type), pointer :: io_context => null()
-
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-    ! Write initial output
-    io_context => get_io_context()
-    if (model_clock%is_initialisation()) then
-      select type (io_context)
-      type is (lfric_xios_context_type)
-          call io_context%advance(model_clock)
-      end select
-    end if
-
     ! Model step
     do while( model_clock%tick() )
-
-      ! The advancing of the I/O context will be attached to the model clock
-      ! in a future ticket
-      if (.not. model_clock%is_initialisation()) then
-        select type (io_context)
-        type is (lfric_xios_context_type)
-            call io_context%advance(model_clock)
-        end select
-      end if
 
       ! Update fields
       call update_model_data( model_data, model_clock )

@@ -1,0 +1,98 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+module model_clock_mod_event_test
+
+  use clock_mod,       only : clock_type
+  use constants_mod,   only : i_native, i_timestep, r_second
+  use event_mod,       only : event_type, event_actor_type, event_action
+  use model_clock_mod, only : model_clock_type
+  use pFUnit_mod,      only : anyExceptions,  &
+                              assertEqual,    &
+                              assertTrue,     &
+                              SourceLocation, &
+                              TestCase
+
+  implicit none
+
+  private
+  public test_clock_event
+
+  @TestCase
+  type, public, extends(TestCase) :: clock_event_test_type
+    private
+  contains
+    procedure test_clock_event
+  end type clock_event_test_type
+
+  type, extends(event_actor_type) :: dummy_actor_type
+    integer(i_native), public :: indicator = 0
+    integer(i_native), public :: event_step = 0
+  contains
+  end type dummy_actor_type
+
+contains
+
+  subroutine dummy_action(dummy_actor, clock)
+
+    implicit none
+
+    class(event_actor_type), intent(inout) :: dummy_actor
+    class(clock_type),      intent(in)     :: clock
+
+    select type(dummy_actor)
+      type is (dummy_actor_type)
+      dummy_actor%indicator = dummy_actor%indicator + 1
+      dummy_actor%event_step = clock%get_step()
+    end select
+
+  end subroutine dummy_action
+
+  @test
+  subroutine test_clock_event( this )
+
+    implicit none
+
+    class(clock_event_test_type), intent(inout) :: this
+
+    type(model_clock_type)           :: test_unit
+    type(dummy_actor_type)           :: actor_1, actor_2
+    procedure(event_action), pointer :: action => null()
+    logical                          :: running
+
+    test_unit= model_clock_type( 1_i_native, 10_i_native, &
+                                 1.0_r_second, 0.0_r_second )
+
+    actor_1 = dummy_actor_type()
+    action => dummy_action
+    ! Set up event to go until end of clock
+    call test_unit%add_event(action, actor_1)
+
+    do while (test_unit%tick())
+
+      ! Nothing happens on step 1 for now to allow initial I/O - this is
+      ! temporary behaviour until #3321
+      if (test_unit%get_step() > 1) then
+        @assertEqual(actor_1%indicator, test_unit%get_step() - 1)
+        @assertEqual(actor_1%event_step, test_unit%get_step())
+      end if
+
+      ! Set up event to start half way and run until the end
+      if (test_unit%get_step() == 5) then
+        actor_2 = dummy_actor_type()
+        call test_unit%add_event(action, actor_2)
+      end if
+
+      if (test_unit%get_step() > 5) then
+        @assertEqual(actor_2%indicator, test_unit%get_step() - 5)
+        @assertEqual(actor_2%event_step, test_unit%get_step())
+      end if
+
+    end do
+
+  end subroutine test_clock_event
+
+
+end module model_clock_mod_event_test

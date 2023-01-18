@@ -2,6 +2,11 @@
 ' The file LICENCE, distributed with this code, contains details of the terms
 ' under which the code may be used.
 @startuml
+
+!include look.iuml
 !include utilities/clock_mod.iuml
 !include utilities/model_clock_mod.iuml
+!include utilities/event_mod.iuml
+
+model_clock_type -> event_mod::event_type
 @enduml

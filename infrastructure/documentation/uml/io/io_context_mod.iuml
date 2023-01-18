@@ -2,6 +2,7 @@
 ' The file LICENCE, distributed with this code, contains details of the terms
 ' under which the code may be used.
 
-interface io_context_type {
-  +get_clock() : clock_type
+interface io_context_mod::io_context_type {
+  +get_filelist() : linked_list_type
+  +set_current()
 }

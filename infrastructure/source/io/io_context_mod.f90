@@ -9,6 +9,7 @@ module io_context_mod
 
   use clock_mod,       only : clock_type
   use constants_mod,   only : i_native, r_second
+  use event_mod,       only : event_actor_type
   use field_mod,       only : field_type
   use linked_list_mod, only : linked_list_type
 
@@ -18,11 +19,12 @@ module io_context_mod
 
   !> @brief All context classes inherit this interface.
   !>
-  type, public, abstract :: io_context_type
+  type, public, abstract, extends(event_actor_type) :: io_context_type
     private
   contains
     private
     procedure(get_filelist_if),    public, deferred :: get_filelist
+    procedure(set_current_if) , public, deferred :: set_current
   end type io_context_type
 
   abstract interface
@@ -36,6 +38,16 @@ module io_context_mod
       class(io_context_type), intent(in), target :: this
       type(linked_list_type), pointer :: filelist
     end function get_filelist_if
+  end interface
+
+  abstract interface
+    !> Sets the context as current
+    !>
+    subroutine set_current_if( this )
+      import io_context_type
+      implicit none
+      class(io_context_type), intent(inout) :: this
+    end subroutine set_current_if
   end interface
 
 contains

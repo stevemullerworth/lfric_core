@@ -5,22 +5,19 @@
 !-----------------------------------------------------------------------------
 !> @brief Performs the intial conditions output for Gungho
 !>
-!>
 module initial_output_mod
 
   use clock_mod,                  only : clock_type
   use constants_mod,              only : i_def, l_def
-  use io_config_mod,              only : write_diag
+  use io_config_mod,              only : write_diag, use_xios_io
   use io_context_mod,             only : io_context_type
   use gungho_model_data_mod,      only : model_data_type
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
-  use lfric_xios_clock_mod,       only : lfric_xios_clock_type
   use log_mod,                    only : log_event, log_level_error
   use mesh_mod,                   only : mesh_type
   use model_clock_mod,            only : model_clock_type
   use io_context_mod,             only : io_context_type
-  use lfric_xios_clock_mod,       only : lfric_xios_clock_type
   use limited_area_constants_mod, only : write_masks
   use boundaries_config_mod,      only : limited_area, lbc_method, &
                                          lbc_method_onion_layer
@@ -42,27 +39,26 @@ contains
                                    io_context, nodal_output_on_w3 )
 
 #ifdef USE_XIOS
-    use lfric_xios_context_mod, only : lfric_xios_context_type
+    !>@todo This will be removed by #3321
+    use lfric_xios_context_mod, only : lfric_xios_context_type, advance
 #endif
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(mesh_type), pointer, intent(in) :: twod_mesh
-    type(model_data_type),    intent(in) :: model_data
-    class(model_clock_type),  intent(in) :: model_clock
-    class(io_context_type),   intent(in) :: io_context
-    logical(l_def),           intent(in) :: nodal_output_on_w3
+    type(mesh_type), pointer, intent(in)    :: mesh
+    type(mesh_type), pointer, intent(in)    :: twod_mesh
+    type(model_data_type),    intent(in)    :: model_data
+    class(model_clock_type),  intent(in)    :: model_clock
+    class(io_context_type),   intent(inout) :: io_context
+    logical(l_def),           intent(in)    :: nodal_output_on_w3
 
 #ifdef USE_XIOS
-    type(lfric_xios_clock_type), pointer :: io_clock => null()
 
     ! Call clock initial step before initial conditions output
-    if (model_clock%is_initialisation()) then
+    if (model_clock%is_initialisation() .and. use_xios_io) then
       select type (io_context)
-      class is (lfric_xios_context_type)
-        io_clock => io_context%get_clock()
-        call io_clock%initial_step()
+      type is (lfric_xios_context_type)
+        call advance(io_context, model_clock)
       end select
     end if
 #endif

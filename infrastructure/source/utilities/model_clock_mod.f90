@@ -9,7 +9,8 @@ module model_clock_mod
 
   use calendar_mod,  only : calendar_type
   use clock_mod,     only : clock_type
-  use constants_mod, only : i_timestep, r_def, r_second, l_def
+  use constants_mod, only : i_timestep, i_native, r_def, r_second, l_def
+  use event_mod,     only : event_type, event_actor_type, event_action
   use log_mod,       only : log_event, log_level_error, log_scratch_space, &
                             log_set_timestep, log_forget_timestep
 
@@ -36,8 +37,7 @@ module model_clock_mod
     real(r_def)         :: spinup_fraction
     logical             :: initialisation_phase
     logical             :: starting
-    class(clock_type), &
-                pointer :: shadow_clock => null()
+    type(event_type)    :: ts_events(2)
   contains
     private
     procedure, public :: tick
@@ -50,7 +50,7 @@ module model_clock_mod
     procedure, public :: is_initialisation
     procedure, public :: is_running
     procedure, public :: is_spinning_up
-    procedure, public :: add_clock
+    procedure, public :: add_event
     procedure :: calculate_spinup_fraction
   end type model_clock_type
 
@@ -110,24 +110,31 @@ contains
 
   end function model_clock_constructor
 
-
-  !> Add a clock which is ticked in sync with this one.
+  !> Link a timestep event to the clock tick
   !>
-  subroutine add_clock( this, clock )
+  subroutine add_event( this, new_action, new_actor )
 
     implicit none
 
-    class(model_clock_type), intent(inout)      :: this
-    class(clock_type),       intent(in), target :: clock
+    class(model_clock_type),          intent(inout) :: this
+    procedure(event_action), pointer, intent(in)    :: new_action
+    class(event_actor_type), target,  intent(in)    :: new_actor
 
-    if (associated(this%shadow_clock)) then
-      call log_event( "Attempt to add a second shadow clock", log_level_error )
-    end if
+    integer(i_native) :: i
 
-    this%shadow_clock => clock
+    ! Loop through events array to find a free slot
+    do i = 1, size(this%ts_events)
+      if (.not. this%ts_events(i)%is_active()) then
+        this%ts_events(i) = event_type(new_action, new_actor)
+        return
+      end if
+    end do
 
-  end subroutine add_clock
+    ! If we are still running, call error
+    call log_event( "Not enough space to register new event with model clock", &
+                    log_level_error)
 
+  end subroutine add_event
 
   !> Gets the first step in the current run.
   !>
@@ -311,14 +318,26 @@ contains
     implicit none
 
     class(model_clock_type), intent(inout) :: this
-    logical :: tick
-    logical :: dummy
+    integer(i_native) :: i
+    logical           :: tick, init_flag
+
+    init_flag = .false.
 
     if (this%starting) then
+      init_flag = this%initialisation_phase
       this%starting = .false.
       this%initialisation_phase = .false.
     else
       this%current_step = this%current_step + 1
+    end if
+
+    ! Run timestep events only after initialisation - will be changed in #3321
+    if (.not. init_flag) then
+      do i = 1, size(this%ts_events)
+        if (this%ts_events(i)%is_active()) then
+          call this%ts_events(i)%happens(this)
+        end if
+      end do
     end if
 
     if (this%is_running()) then
@@ -327,10 +346,6 @@ contains
       call log_forget_timestep()
     end if
     this%spinup_fraction = this%calculate_spinup_fraction()
-
-    if (associated(this%shadow_clock)) then
-      dummy = this%shadow_clock%tick()
-    end if
 
     tick = this%is_running()
 
@@ -357,5 +372,6 @@ contains
     end if
 
   end function calculate_spinup_fraction
+
 
 end module model_clock_mod

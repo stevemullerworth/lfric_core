@@ -81,17 +81,21 @@ contains
 
   !> @brief Create the fields contained in model_data
   !> @param[in,out] model_data   The working data set for a model run
+  !> @param[in]     chi          A size 3 array of fields holding the mesh
+  !>                             coordinates
+  !> @param[in]     panel_id     A field with the IDs of mesh panels
   !> @param[in]     mesh         The current 3d mesh
   !> @param[in]     twod_mesh    The current 2d mesh
+  !> @param[in]     alt_mesh     An alternative I/O mesh
   !>
-  subroutine create_model_data( model_data, &
-                                mesh,       &
-                                twod_mesh,  &
-                                alt_mesh )
+  subroutine create_model_data( model_data, chi, panel_id, &
+                                mesh, twod_mesh, alt_mesh )
 
     implicit none
 
     type( io_dev_data_type ),             intent(inout) :: model_data
+    type( field_type ),                   intent(in)    :: chi(3)
+    type( field_type ),                   intent(in)    :: panel_id
     type( mesh_type ), pointer,           intent(in)    :: mesh
     type( mesh_type ), pointer,           intent(in)    :: twod_mesh
     type( mesh_type ), pointer, optional, intent(in)    :: alt_mesh
@@ -104,6 +108,9 @@ contains
                               model_data%alg_fields,          &
                               model_data%variable_field_times,&
                               alt_mesh )
+
+    ! Initialise data before I/O is called
+    call io_dev_init_fields_alg( model_data%core_fields, chi, panel_id )
 
   end subroutine create_model_data
 
@@ -122,9 +129,6 @@ contains
     class(model_clock_type),  intent(in)    :: model_clock
     type( field_type ),       intent(in)    :: chi(3)
     type( field_type ),       intent(in)    :: panel_id
-
-    ! Initialise all the model fields here analytically
-    call io_dev_init_fields_alg( model_data%core_fields, chi, panel_id )
 
     ! Time varying init
     if (time_variation == time_variation_ancil) then
@@ -191,17 +195,16 @@ contains
           call write_state( model_data%alg_fields, prefix='initial_' )
         end if
       if ( subroutine_timers ) call timer('write_state: initial')
-    else
-
-      !=================== Write fields to diagnostic files ====================!
-      if ( write_diag ) then
-        if ( subroutine_timers ) call timer('write_state: diagnostic')
-        call write_state( model_data%core_fields )
-        if ( subroutine_timers ) call timer('write_state: diagnostic')
-      end if
     end if
 
-    end subroutine output_model_data
+    !=================== Write fields to diagnostic files ====================!
+    if ( write_diag ) then
+      if ( subroutine_timers ) call timer('write_state: diagnostic')
+      call write_state( model_data%core_fields )
+      if ( subroutine_timers ) call timer('write_state: diagnostic')
+    end if
+
+  end subroutine output_model_data
 
   !> @brief Routine to destroy all the field collections in the working data set
   !> @param[in,out] model_data The working data set for a model run

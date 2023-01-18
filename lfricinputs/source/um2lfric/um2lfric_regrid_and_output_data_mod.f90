@@ -9,7 +9,7 @@ MODULE um2lfric_regrid_and_output_data_mod
 USE, INTRINSIC :: iso_fortran_env, ONLY: real64, int64
 
 ! lfricinputs modules
-USE lfricinp_lfric_driver_mod,               ONLY: io_context, lfric_fields
+USE lfricinp_lfric_driver_mod,               ONLY: model_clock, lfric_fields
 USE lfricinp_datetime_mod,                   ONLY: datetime_type
 
 ! um2lfric modules
@@ -19,7 +19,6 @@ USE um2lfric_regrid_fields_mod,    ONLY: um2lfric_regrid_fields
 USE log_mod,                       ONLY: log_event, log_scratch_space,         &
                                          LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 USE lfric_xios_write_mod,          ONLY: write_state
-USE clock_mod,                     ONLY: clock_type
 
 ! External libraries
 USE xios,                          ONLY: xios_date_convert_to_string,          &
@@ -43,9 +42,8 @@ SUBROUTINE um2lfric_regrid_and_output_data(datetime)
 ! time axis values if needed.
 !
 
-TYPE(datetime_type), INTENT(IN) :: datetime
+TYPE(datetime_type),    INTENT(IN)    :: datetime
 
-CLASS(clock_type), POINTER   :: clock
 TYPE(xios_date)              :: xios_current_date
 CHARACTER(LEN=32)            :: xios_current_date_str
 REAL(KIND=real64)            :: fctime
@@ -56,10 +54,9 @@ LOGICAL                      :: l_advance
 ! the actual forecast time. This will be corrected in a post-processing step.
 ! This is a current work around the fact that XIOS does not appear allow fields
 ! to be written before time step 1.
-clock => io_context % get_clock()
 DO time_step = datetime % first_step, datetime % last_step
 
-  l_advance = clock % tick()
+  l_advance = model_clock % tick()
   IF (.NOT. l_advance) THEN
     WRITE(log_scratch_space,'(A,I0)') 'Failed to advance clock on time step ', &
                                       time_step
@@ -79,9 +76,6 @@ DO time_step = datetime % first_step, datetime % last_step
   CALL write_state(lfric_fields)
 
 END DO
-
-! Nullify clock pointer
-NULLIFY(clock)
 
 ! Finalizes XIOS file context thus forcing data out of IO buffers
 CALL xios_context_finalize()

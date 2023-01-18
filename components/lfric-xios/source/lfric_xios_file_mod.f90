@@ -246,8 +246,12 @@ subroutine register_with_context(self)
   case (FILE_MODE_WRITE)
     call xios_set_attr( self%handle, mode="write" )
     ! Create CF-compliant time description
-    call xios_set_attr( self%handle, time_counter="exclusive", &
-                                     time_counter_name="time" )
+    if (self%operation == OPERATION_TIMESERIES) then
+      call xios_set_attr( self%handle, time_counter="exclusive", &
+                                       time_counter_name="time" )
+    else
+      call xios_set_attr( self%handle, time_counter="none")
+    end if
   end select
 
   ! Set XIOS duration object second value equal to file output frequency
@@ -257,8 +261,14 @@ subroutine register_with_context(self)
     call xios_set_attr( self%handle, output_freq=self%frequency )
   end if
 
+  ! Set the date of the first operation
   call xios_get_start_date(start_date)
-  self%next_operation = start_date + self%frequency
+  select case(self%io_mode)
+  case (FILE_MODE_READ)
+    self%next_operation = start_date
+  case (FILE_MODE_WRITE)
+    self%next_operation = start_date + self%frequency
+  end select
 
   ! Set up fields in file
   if (allocated(self%fields)) then
@@ -268,9 +278,6 @@ subroutine register_with_context(self)
     select case(self%operation)
     case(OPERATION_ONCE)
       call xios_set_attr(file_fields, operation="once")
-      if (self%io_mode == FILE_MODE_READ) then
-        call xios_set_attr(file_fields, freq_offset=timestep_duration)
-      end if
     case(OPERATION_TIMESERIES)
       call xios_set_attr(file_fields, operation="instant")
     end select

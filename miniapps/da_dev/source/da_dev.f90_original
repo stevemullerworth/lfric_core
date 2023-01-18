@@ -25,7 +25,7 @@ program da_dev
 
   call initialise_lfric(model_communicator)
 
-  call initialise_model(model_data)
+  call initialise_model(model_communicator, model_data)
 
   call run(model_data)
 

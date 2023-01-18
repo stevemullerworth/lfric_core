@@ -11,6 +11,7 @@ class model_clock_type {
   -starting: Boolean
   -last_spinup_step: Integer
   -spinup_fraction: Float
+  -ts_events: event_type[]
 
   +initialise(first: String, last: String, seconds_per_step: Float, spinup_period: Float)
   +tick(): Boolean
@@ -23,6 +24,7 @@ class model_clock_type {
   +is_running(): Boolean
   +get_spinup_fraction(): Float
   +is_spinning_up(): Boolean
+  +add_event(input_event: event_type)
   -calculate_spinup_fraction(): Float
 }
 clock_type ^- model_clock_type

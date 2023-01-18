@@ -8,9 +8,10 @@
 !>
 module lfric_xios_setup_mod
 
+  use calendar_mod,                  only: calendar_type
   use clock_mod,                     only: clock_type
-  use constants_mod,                 only: i_def, i_halo_index, i_native, &
-                                           r_def, l_def, str_def,         &
+  use constants_mod,                 only: i_def, i_halo_index, i_native,     &
+                                           i_timestep, r_def, l_def, str_def, &
                                            radians_to_degrees
   use lfric_xios_constants_mod,      only: dp_xios
   use coord_transform_mod,           only: xyz2llr
@@ -27,17 +28,17 @@ module lfric_xios_setup_mod
   use io_config_mod,                 only: file_convention,       &
                                            file_convention_ugrid, &
                                            file_convention_cf
-  use lfric_xios_clock_mod,          only: lfric_xios_clock_type
   use lfric_xios_file_mod,           only: lfric_xios_file_type
   use lfric_xios_process_output_mod, only: set_xios_geometry_planar, &
                                            xyz_scaling_factor
-  use lfric_xios_utils_mod,          only: set_prime_io_mesh
+  use lfric_xios_utils_mod,          only: set_prime_io_mesh, parse_date_as_xios
   use linked_list_mod,               only: linked_list_type, linked_list_item_type
   use log_mod,                       only: log_event, log_level_error
   use mesh_mod,                      only: mesh_type
   use mesh_collection_mod,           only: mesh_collection
   use mesh_constructor_helper_functions_mod, &
                                      only: domain_size_type
+  use model_clock_mod,               only: model_clock_type
   use mpi_mod,                       only: get_comm_size, &
                                            get_comm_rank, &
                                            all_gather
@@ -45,7 +46,12 @@ module lfric_xios_setup_mod
                                      only: nodal_xyz_coordinates_kernel_type
   use nodal_coordinates_kernel_mod,  only: nodal_coordinates_kernel_type
   use psykal_builtin_light_mod,      only: invoke_pointwise_convert_xyz2llr
-  use xios,                          only: xios_duration,        &
+  use step_calendar_mod,             only: step_calendar_type
+  use xios,                          only: xios_date,            &
+                                           xios_duration,        &
+                                           xios_define_calendar, &
+                                           xios_set_timestep,    &
+                                           xios_set_start_date,  &
                                            xios_get_attr,        &
                                            xios_get_handle,      &
                                            xios_set_attr,        &
@@ -65,14 +71,67 @@ module lfric_xios_setup_mod
                                            xios_filegroup,       &
                                            xios_is_valid_file,   &
                                            xios_field,           &
-                                           xios_fieldgroup
+                                           xios_fieldgroup,      &
+                                           operator(+)
+
+  !>@todo This information should be obtained from the calendar in the future
+  use time_config_mod, only: type_of_calendar => calendar_type, &
+                             key_from_calendar_type
 
   implicit none
 
   private
-  public :: init_xios_dimensions, setup_xios_files
+  public :: init_xios_calendar, init_xios_dimensions, setup_xios_files
 
 contains
+
+  !> @brief Sets up the XIOS calendar
+  !>
+  !> @param [in] model_clock  The model clock
+  !> @param [in] calendar     The model calendar
+  subroutine init_xios_calendar( model_clock, calendar )
+
+    implicit none
+
+    type(model_clock_type), intent(in) :: model_clock
+    class(calendar_type),   intent(in) :: calendar
+
+    type(xios_duration) :: xios_since_timestep_zero, &
+                           timestep_length_for_xios
+    type(xios_date)     :: xios_start_date, xios_origin_date
+    integer(i_timestep) :: step_offset
+
+    ! Set the XIOS time-step from the model clock
+    timestep_length_for_xios%second = model_clock%get_seconds_per_step()
+    call xios_set_timestep(timestep_length_for_xios)
+
+    ! Calendar start is adjusted when clock is initialised
+    xios_origin_date = parse_date_as_xios(trim(adjustl(calendar%get_origin())))
+
+    ! Set up initial calendar with no progress
+    call xios_define_calendar( type=key_from_calendar_type(type_of_calendar), &
+                               time_origin=xios_origin_date,                  &
+                               start_date=xios_origin_date )
+
+    ! Use model calendar to initialise XIOS calendar
+    select type (calendar)
+    type is (step_calendar_type)
+      ! Set the start date by adding the number of steps since timestep 0 (the
+      ! time origin for a step calendar) to the time origin
+      step_offset = model_clock%get_step() - 1
+      xios_since_timestep_zero%second &
+          = model_clock%get_seconds_per_step() * step_offset
+      xios_start_date = xios_origin_date + xios_since_timestep_zero
+
+    class default
+      call log_event("Unsupported model calendar type", log_level_error)
+
+    end select
+
+    ! Set new context start date
+    call xios_set_start_date( xios_start_date )
+
+  end subroutine init_xios_calendar
 
   !> @brief    Performs XIOS domain and axis initialisation.
   !> @details  Calculates the coordinates and bounds for the different kinds
@@ -987,6 +1046,9 @@ contains
     real(dp_xios), allocatable         :: dp_levels(:)
     integer(kind=i_def)                :: n_levels
 
+    type(xios_axisgroup) :: axis_definition
+    type(xios_axis)      :: new_axis
+
     domain_fs => function_space_collection%get_fs( mesh,          &
                                                    element_order, &
                                                    fs_id )
@@ -994,6 +1056,9 @@ contains
     ! Get the function space levels information
     dp_levels = real( domain_fs%get_levels(), kind=dp_xios )
     n_levels = size(dp_levels)
+
+    call xios_get_handle("axis_definition", axis_definition)
+    call xios_add_child(axis_definition, new_axis, trim(axis_id))
 
     call xios_set_axis_attr( trim(axis_id),  &
                              n_glo=n_levels, &

@@ -23,6 +23,7 @@ module da_dev_driver_mod
   use driver_fem_mod,           only: init_fem, final_fem
   use driver_io_mod,            only: init_io, final_io, filelist_populator, &
                                       get_io_context
+  use io_config_mod,            only: use_xios_io
   use io_context_mod,           only: io_context_type
   use field_mod,                only: field_type
   use da_dev_model_init_mod,    only: create_da_model_data, initialise_da_model_data
@@ -38,9 +39,10 @@ module da_dev_driver_mod
   use da_dev_increment_alg_mod, only: da_dev_increment_alg
   use da_dev_init_files_mod,    only: init_da_dev_files
   use da_dev_config_mod,        only: write_data, test_field
+  use lfric_da_driver_mod,      only: init_da, final_da
   use lfric_xios_read_mod,      only: read_state
   use lfric_xios_write_mod,     only: write_state
-  use lfric_xios_context_mod,   only: lfric_xios_context_type
+  use lfric_xios_context_mod,   only: lfric_xios_context_type, advance
 
   implicit none
 
@@ -93,12 +95,12 @@ contains
 
     implicit none
 
-    integer(i_native), intent(in)          :: model_communicator
-    character(len=*), optional, intent(in) :: filename
+    integer(i_native),          intent(in)    :: model_communicator
+    character(len=*), optional, intent(in)    :: filename
 
     character(:), allocatable              :: filename_local
     procedure(filelist_populator), pointer :: fl_populator => null()
-    logical :: dummy
+    class(io_context_type),        pointer :: model_io_context => null()
 
     if (present(filename)) then
       call load_configuration( filename, program_name )
@@ -134,23 +136,31 @@ contains
     call init_io( program_name, model_communicator, chi, panel_id, &
                   model_clock, get_calendar(), populate_filelist=fl_populator )
 
-    ! There is a need to do an initial tick of the clock
-    ! so the data from the first time-step can read
-    dummy = model_clock%tick()
+    ! Do initial step
+    model_io_context => get_io_context()
+    if (model_clock%is_initialisation()) then
+      select type (model_io_context)
+      type is (lfric_xios_context_type)
+          call advance(model_io_context, model_clock)
+      end select
+    end if
 
   end subroutine initialise_lfric
-
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> initialise the model data (create and read/initialise).
   !>
-  subroutine initialise_model( model_data )
+  subroutine initialise_model( model_communicator, model_data )
 
     implicit none
 
+    integer(i_native),     intent(in)    :: model_communicator
     type(model_data_type), intent(inout) :: model_data
 
     ! Create prognostic fields in model_data
     call create_da_model_data( mesh, model_data )
+
+    ! Initialise DA interface
+    call init_da( model_communicator, chi, panel_id, model_clock, get_calendar() )
 
     ! Initialise prognostic fields in model_data
     call initialise_da_model_data( model_data )
@@ -180,11 +190,18 @@ contains
   !> Performs a single time step.
   !>
   subroutine step_lfric( model_data  )
+
     implicit none
     type(model_data_type), intent(inout) :: model_data
-    type(field_type), pointer  :: working_field => null()
+
+    type(field_type),       pointer :: working_field    => null()
+    class(io_context_type), pointer :: model_io_context => null()
 
     call model_data%depository%get_field( test_field, working_field )
+
+    ! Switch to the main model I/O context
+    model_io_context => get_io_context()
+    call model_io_context%set_current()
 
     call da_dev_increment_alg( working_field )
 
@@ -227,7 +244,8 @@ contains
     ! Driver layer finalise
     !-------------------------------------------------------------------------
 
-    ! Finalise IO
+    call final_da()
+
     call final_io()
 
     call final_fem()

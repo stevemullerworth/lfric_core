@@ -1,0 +1,15 @@
+' (c) Crown copyright 2023 Met Office. All rights reserved.
+' The file LICENCE, distributed with this code, contains details of the terms
+' under which the code may be used.
+
+class event_mod::event_type {
+  -actor: event_actor_type
+  -action: procedure(event_action) <<pointer>>
+  -active : Logical
+
+  +event_constructor(<<in>> procedure <<pointer>> : input_action, <<in>> input_actor : event_actor_type ) : event_type
+  +is_active(): Boolean
+  +happens(clock : model_clock_type)
+}
+
+class event_mod::event_actor_type

@@ -21,7 +21,7 @@ USE field_mod,                  ONLY: field_type
 USE gungho_extrusion_mod,       ONLY: create_extrusion
 USE halo_comms_mod,             ONLY: initialise_halo_comms
 USE model_clock_mod,            ONLY: model_clock_type
-USE lfric_xios_context_mod,     ONLY: lfric_xios_context_type
+USE lfric_xios_context_mod,     ONLY: lfric_xios_context_type, advance
 USE lfric_xios_driver_mod,      ONLY: lfric_xios_initialise, &
                                       lfric_xios_finalise
 USE lfricinp_setup_io_mod,      ONLY: init_lfricinp_files
@@ -65,7 +65,8 @@ TYPE(mesh_type), PUBLIC, pointer :: twod_mesh => null()
 ! Container for all input fields
 TYPE(field_collection_type) :: lfric_fields
 
-type(lfric_xios_context_type), allocatable :: io_context
+TYPE(model_clock_type), PUBLIC, ALLOCATABLE :: model_clock
+type(lfric_xios_context_type),  ALLOCATABLE :: io_context
 
 CONTAINS
 
@@ -81,19 +82,18 @@ SUBROUTINE lfricinp_initialise_lfric(program_name_arg,                         &
 
 IMPLICIT NONE
 
-CHARACTER(LEN=*),    INTENT(IN) :: program_name_arg
-CHARACTER(LEN=*),    INTENT(IN) :: lfric_nl_fname
-CHARACTER(LEN=*),    INTENT(IN) :: required_lfric_namelists(:)
-CHARACTER(LEN=*),    INTENT(IN) :: calendar, start_date, time_origin
-INTEGER(KIND=i_def), INTENT(IN) :: first_step, last_step
-REAL(r_second),      INTENT(IN) :: spinup_period
-REAL(r_second),      INTENT(IN) :: seconds_per_step
+CHARACTER(LEN=*),                    INTENT(IN)  :: program_name_arg
+CHARACTER(LEN=*),                    INTENT(IN)  :: lfric_nl_fname
+CHARACTER(LEN=*),                    INTENT(IN)  :: required_lfric_namelists(:)
+CHARACTER(LEN=*),                    INTENT(IN)  :: calendar, start_date, time_origin
+INTEGER(KIND=i_def),                 INTENT(IN)  :: first_step, last_step
+REAL(r_second),                      INTENT(IN)  :: spinup_period
+REAL(r_second),                      INTENT(IN)  :: seconds_per_step
 
 CHARACTER(LEN=10) :: char_first_step, char_last_step
 
 CLASS(extrusion_type),    ALLOCATABLE :: extrusion
 TYPE(step_calendar_type), ALLOCATABLE :: model_calendar
-TYPE(model_clock_type),   ALLOCATABLE :: model_clock
 TYPE(linked_list_type),   POINTER     :: file_list => null()
 
 ! Set module variables
@@ -150,6 +150,7 @@ file_list => io_context%get_filelist()
 CALL init_lfricinp_files(file_list)
 CALL io_context%initialise( xios_ctx, comm, chi, panel_id, model_clock, &
                             model_calendar )
+call advance(io_context, model_clock)
 
 ! Initialise runtime constants
 CALL log_event('Initialising runtime constants', LOG_LEVEL_INFO)

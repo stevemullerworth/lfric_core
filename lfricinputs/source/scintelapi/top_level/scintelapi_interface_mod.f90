@@ -34,14 +34,12 @@ SUBROUTINE scintelapi_initialise()
 USE field_list_mod,            ONLY: init_field_list
 USE generator_library_mod,     ONLY: init_generator_lib
 USE dependency_graph_list_mod, ONLY: init_dependency_graph_list
-USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, io_context
-USE clock_mod,                 ONLY: clock_type
+USE lfricinp_lfric_driver_mod, ONLY: lfricinp_initialise_lfric, model_clock
 
 IMPLICIT NONE
 
-CLASS(clock_type), POINTER :: clock
-TYPE(datetime_type)        :: datetime
-LOGICAL                    :: l_advance
+TYPE(datetime_type)                 :: datetime
+LOGICAL                             :: l_advance
 
 ! Read namelist file names from command line
 CALL scintelapi_namelist_from_cl()
@@ -65,8 +63,7 @@ CALL lfricinp_initialise_lfric(program_name_arg="scintelapi",                  &
      seconds_per_step = datetime % seconds_per_step)
 
 ! Advance clock to first time step, so output can be written to file
-clock => io_context % get_clock()
-l_advance = clock % tick()
+l_advance = model_clock % tick()
 IF (.NOT. l_advance) THEN
   CALL log_event('Failed to advance clock on initialisation', LOG_LEVEL_ERROR)
 END IF

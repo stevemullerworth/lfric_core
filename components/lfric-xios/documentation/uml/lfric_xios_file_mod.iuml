@@ -1,0 +1,33 @@
+' (c) Crown copyright 2022 Met Office. All rights reserved.
+' The file LICENCE, distributed with this code, contains details of the terms
+' under which the code may be used.
+
+package lfric_xios_file_mod {
+  class lfric_xios_file_type {
+    -xios_id: String
+    -path: String
+    -io_mode: Integer
+    -operaion: Integer
+    -freq_ts: Integer
+    -field_group: String
+    -field_group_id: String
+    -handle: xios_file
+    -frequency: xios_duration
+    -next_operation: xios_date
+    -fields: lfric_xios_field_type
+    -time_axis: time_axis_type
+
+    +<<create>>lfric_xios_file_constructor()
+    +file_new()
+    +file_open()
+    +file_close()
+    +register_with_context()
+    +mode_is_read() : Logical
+    +mode_is_write() : Logical
+    +recv_fields() : Logical
+    +send_fields() : Logical
+    +<<final>>lfric_xios_file_final()
+  }
+
+  linked_list_data_mod::linked_list_data_type ^-- lfric_xios_file_type
+}

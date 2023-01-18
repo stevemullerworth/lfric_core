@@ -4,8 +4,10 @@
 
 @startuml
 
-!include utilities/clock_mod.iuml
+!include look.iuml
+!include utilities/event_mod.iuml
 !include io/io_context_mod.iuml
-!include io/simple_io_context_mod.iuml
+
+io_context_mod::io_context_type ^- event_mod::event_actor_type
 
 @enduml

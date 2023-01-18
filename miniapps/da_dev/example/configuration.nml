@@ -46,6 +46,7 @@ coord_system='alphabetaz'
   counter_output_suffix     = 'counter.txt'
   checkpoint_read           = .false.
   checkpoint_write          = .false.
+  file_convention           = "UGRID"
 /
 
 &logging

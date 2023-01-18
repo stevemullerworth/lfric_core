@@ -5,8 +5,12 @@
 @startuml
 
 !include look.iuml
-!include clock_mod.iuml
-!include context_mod.iuml
-!include time_axis_mod.iuml
+!include lfric_xios_context_mod.iuml
+!include lfric_xios_file_mod.iuml
+!include lfric_xios_field_mod.iuml
+!include lfric_xios_time_axis_mod.iuml
 
+lfric_xios_context_type -> lfric_xios_file_type
+lfric_xios_file_type -> lfric_xios_field_type
+lfric_xios_file_type -> lfric_xios_time_axis_mod::time_axis_type
 @enduml
