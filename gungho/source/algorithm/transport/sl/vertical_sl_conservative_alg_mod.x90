@@ -36,7 +36,7 @@ module vertical_sl_conservative_alg_mod
   use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
   use fem_constants_mod,                  only: get_mass_matrix_r_tran, &
                                                 get_inverse_w3_mass_matrix_r_tran
-  use fs_continuity_mod,                  only: W2, W3, Wtheta
+  use fs_continuity_mod,                  only: W2v, W3, Wtheta
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
   use transport_enumerated_types_mod,     only: vertical_monotone_none,           &
@@ -84,7 +84,7 @@ contains
     type(r_tran_field_type),    pointer :: field_start => null()
     type(r_tran_field_type),    pointer :: old_flux_inc => null()
     type(mesh_type),            pointer :: mesh => null()
-    type(function_space_type),    pointer :: w2_fs => null()
+    type(function_space_type),    pointer :: w2v_fs => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
     integer(kind=i_def)  :: monotone, monotone_order
     logical(l_def)       :: enforce_min_value
@@ -118,8 +118,8 @@ contains
       call log_event( "vertical_sl_conservative: Invalid monotone_order", LOG_LEVEL_ERROR )
     end if
 
-    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
-    call flux%initialise( w2_fs )
+    w2v_fs => function_space_collection%get_fs( mesh, element_order, W2v )
+    call flux%initialise( w2v_fs )
 
     ! Get departure points from transport_runtime
     dep_pts_z_get  => transport_runtime%get_departure_points_z_w2( field_n%get_mesh_id() )
@@ -141,9 +141,9 @@ contains
 
     call invoke_dg_matrix_vector_rtran(mass, field_np1, mm_w3)
     call invoke( name="vertical remap",  &
-       vertical_mass_remapping_kernel_type(dep_pts_z, mass, slice_order,   &
-                                                      monotone, monotone_order,      &
-                                                      enforce_min_value, min_value) )
+       vertical_mass_remapping_kernel_type(dep_pts_z, mass, flux, slice_order, &
+                                           monotone, monotone_order,           &
+                                           enforce_min_value, min_value) )
     call invoke_dg_matrix_vector_rtran(field_np1, mass, mm_w3_inv )
 
     if (advective_then_flux) then
@@ -176,18 +176,12 @@ contains
     ! Store field in transport_runtime for conservative transport
     ! if this is the underlying dry field
     if (trim(transport_metadata%get_name()) == trim(dry_field_name)) then
-      ! TODO: #2997 compute flux and set dry fields in transport runtime
-      ! Initialise flux -- following #2997 this should be done earlier
-      ! in this algorithm
-      w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
-      call flux%initialise( w2_fs )
       call transport_runtime%set_dry_fields(field_n, field_np1, flux)
-      nullify(w2_fs)
     end if
 
     call transport_runtime%inc_tracer_step_ctr()
 
-    nullify( mm_w3, mm_w3_inv, dep_pts_z_get, mesh, transport_runtime, height_rdef )
+    nullify( mm_w3, mm_w3_inv, dep_pts_z_get, mesh, transport_runtime, height_rdef, w2v_fs )
 
     if ( subroutine_timers ) call timer( 'vertical_sl_conservative_alg' )
 

@@ -15,8 +15,8 @@ use argument_mod,         only : arg_type,              &
                                  GH_FIELD, GH_SCALAR,   &
                                  GH_REAL, GH_INTEGER,   &
                                  GH_READWRITE, GH_READ, &
-                                 CELL_COLUMN, GH_LOGICAL
-use fs_continuity_mod,    only : W2, W3
+                                 GH_WRITE, CELL_COLUMN, GH_LOGICAL
+use fs_continuity_mod,    only : W2, W3, W2v
 use constants_mod,        only : r_tran, i_def, EPS_R_TRAN, l_def
 use kernel_mod,           only : kernel_type
 ! TODO #3011: these config options should be passed through as arguments
@@ -40,14 +40,15 @@ private
 !>                                      by the PSy layer.
 type, public, extends(kernel_type) :: vertical_mass_remapping_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                     &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2), & ! departure points
-       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3), & ! mass
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! order of construction
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! monotone scheme
-       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),          & ! monotone order
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),          & ! enforce min-val
-       arg_type(GH_SCALAR, GH_REAL,    GH_READ)           & ! min-val to be enforced
+  type(arg_type) :: meta_args(8) = (/                      &
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),  & ! departure points
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),  & ! mass
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     W2v), & ! mass flux
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! order of construction
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! monotone scheme
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           & ! monotone order
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),           & ! enforce min-val
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ)            & ! min-val to be enforced
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -74,6 +75,7 @@ contains
   !> @param[in]     nlayers      The number of layers
   !> @param[in]     dep_pts_z    The vertical departure distance used for SL advection
   !> @param[in,out] mass         The mass field that needs to be remapped
+  !> @param[in,out] flux         The mass flux corresponding to the transport
   !> @param[in]     order        Order of the reconstruction of underlying function
   !> @param[in] vertical_monotone        The monotone scheme to be used
   !> @param[in] vertical_monotone_order  The order of monotone reconstruction option
@@ -91,18 +93,25 @@ contains
   !!                             on w3 space
   !> @param[in]     map_w3       The dofmap for the cell at the base of the column
   !!                             on w3 space
+  !> @param[in]     ndf_w2v      The number of degrees of freedom per cell
+  !!                             on W2v space
+  !> @param[in]     undf_w2v     The number of unique degrees of freedom
+  !!                             on W2v space for this partition
+  !> @param[in]     map_w2v      The dofmap for the cell at the base of the column
   !-------------------------------------------------------------------------------
 
   subroutine vertical_mass_remapping_code( nlayers,                     &
                                            dep_pts_z,                   &
                                            mass,                        &
+                                           flux,                        &
                                            order,                       &
                                            vertical_monotone,           &
                                            vertical_monotone_order,     &
                                            enforce_min_value,           &
                                            min_value,                   &
                                            ndf_w2, undf_w2, map_w2,     &
-                                           ndf_w3, undf_w3, map_w3      )
+                                           ndf_w3, undf_w3, map_w3,     &
+                                           ndf_w2v, undf_w2v, map_w2v   )
 
   implicit none
 
@@ -114,15 +123,19 @@ contains
   integer(kind=i_def), intent(in)                         :: ndf_w3
   integer(kind=i_def), intent(in)                         :: undf_w3
   integer(kind=i_def), dimension(ndf_w3), intent(in)      :: map_w3
+  integer(kind=i_def), intent(in)                         :: ndf_w2v
+  integer(kind=i_def), intent(in)                         :: undf_w2v
+  integer(kind=i_def), dimension(ndf_w2v), intent(in)     :: map_w2v
 
-  real(kind=r_tran), dimension(undf_w2), intent(in)       :: dep_pts_z
-  real(kind=r_tran), dimension(undf_w3), intent(inout)    :: mass
+  real(kind=r_tran), dimension(undf_w2),  intent(in)      :: dep_pts_z
+  real(kind=r_tran), dimension(undf_w3),  intent(inout)   :: mass
+  real(kind=r_tran), dimension(undf_w2v), intent(inout)   :: flux
   integer(kind=i_def), intent(in)                         :: order
   logical(kind=l_def), intent(in)  :: enforce_min_value
   integer(kind=i_def), intent(in)  :: vertical_monotone,       &
                                       vertical_monotone_order
   real(kind=r_tran),  intent(in)    :: min_value
-  ! locals
+  ! Local variables
   integer(kind=i_def)                     :: k, nz, nzl
   real(kind=r_tran), dimension(nlayers+1) :: dist, zl, zd, m_flux
   real(kind=r_tran), dimension(nlayers)   :: dz, m0, mn
@@ -159,7 +172,10 @@ contains
 
   do k=0,nlayers - 1
     mass(map_w3(1)+k) = mn(k+1)
+    flux(map_w2v(1)+k) = m_flux(k+1)
   end do
+
+  flux(map_w2v(1)+nlayers) = m_flux(nlayers+1)
 
   end subroutine vertical_mass_remapping_code
 
@@ -277,8 +293,8 @@ contains
         rho_left_cv(j) = rho_left_cv_all(j)
         rho_right_cv(j)= rho_left_cv_all(j+1)
         !
-        !If rho_bar is outside [rho_left_cv,rho_right_cv] use constant
-        !   In this case a constant is the only valid representation
+        ! If rho_bar is outside [rho_left_cv,rho_right_cv] use constant
+        ! In this case a constant is the only valid representation
         !
         m1 = (rho_bar(j)-rho_left_cv(j))*(rho_right_cv(j)-rho_bar(j))
         if (m1 < 0.0_r_tran) then
@@ -291,8 +307,8 @@ contains
       select case( order )
       case ( slice_order_linear )
          !
-         !For linear we satisfy the mass/integral and one value left or right
-         !depending on whether the mass is close to the left or right values
+         ! For linear we satisfy the mass/integral and one value left or right
+         ! depending on whether the mass is close to the left or right values
          !
          do j = ns, nf
            if ( abs(rho_bar(j)-rho_left_cv(j)) < abs(rho_right_cv(j)-rho_bar(j)) ) then
@@ -355,7 +371,7 @@ contains
   !> @param[in] a3   The fourth coefficent of the cell reconstruction.
   !> @param[in] ns   Index of the starting cell
   !> @param[in] nf   Index of the end cell
-  !> @param[out] mass_d     The updated mass / or mass of the Lagragian cell
+  !> @param[out] mass_d     The updated mass / or mass of the Lagrangian cell
   !> @param[out] mass_flux  The mass flux (or mass swept from xld(i) to xl(i))
   !-------------------------------------------------------------------------------
   subroutine remapp_mass( xld, xl, dx, mass, a0, a1, a2, a3, ns, nf, mass_d, mass_flux )
@@ -580,7 +596,7 @@ contains
      b = 2.0_r_tran*a2(i)
      c = a1(i)
      d = b**2 - 4.0_r_tran*a*c
-     if ( d > 0.0_r_tran ) then  !possible turning points within the cell
+     if ( d > 0.0_r_tran ) then  ! possible turning points within the cell
         x1 = (-b+sqrt(d))/(2.0_r_tran*a + EPS_R_TRAN)
         x2 = (-b-sqrt(d))/(2.0_r_tran*a + EPS_R_TRAN)
         v1 = a0(i) + a1(i)*x1 + a2(i)*(x1**2) + a3(i)*(x1**3)
@@ -670,7 +686,7 @@ contains
   logical(kind=l_def), intent(in) :: enforce_min_value
   real(kind=r_tran),   dimension(ns:nf+1), intent(inout) :: fl
   real(kind=r_tran),   dimension(ns:nf), intent(in)      :: fb, dx
-  !locals
+  ! Local variables
   integer(kind=i_def) :: i, im1, im2, ip1
   real(kind=r_tran)   :: a, b, minv, maxv, test1, test2, test3
   real(kind=r_tran), dimension(ns:nf)     :: df
@@ -722,8 +738,8 @@ contains
 
   end select
   !
-  !Enforce min-value if required
-  !Here we are enforcing min_value= zero+epsilon (a relative zero)
+  ! Enforce min-value if required
+  ! Here we are enforcing min_value= zero+epsilon (a relative zero)
   !
   if ( enforce_min_value )  then
        relative_min_value = maxval(abs(fl(:)))
