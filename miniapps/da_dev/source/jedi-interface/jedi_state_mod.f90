@@ -38,8 +38,6 @@ type, public :: jedi_state_type
   type (dummy_field_type), allocatable  :: fields(:)
   !> the name of the variables
   character( len=str_def ), allocatable :: variables(:)
-  !> function space the field is on
-  integer( kind=i_def ), allocatable    :: fspace(:)
   !> number of variables
   integer                               :: n_variables
   !> external_fields that provides ability to copy data to and from LFRic
@@ -125,7 +123,7 @@ subroutine state_initialiser( self, geometry, config )
 
   use da_dev_model_init_mod, only : create_da_model_data
   use da_dev_io_init_mod,    only : create_io_da_model_data
-  use da_dev_driver_mod,     only : mesh
+  use da_dev_driver_mod,     only : mesh, twod_mesh
 
   implicit none
 
@@ -148,13 +146,11 @@ subroutine state_initialiser( self, geometry, config )
   self%use_full_model = config%use_full_model
   allocate(self % fields(self % n_variables))
   allocate(self % variables(self % n_variables))
-  allocate(self % fspace(self % n_variables))
 
   n_horizontal=geometry%get_n_horizontal()
   n_vertical=geometry%get_n_vertical()
   do ivar=1,self % n_variables
     self % variables(ivar) = config%state_variables(ivar)
-    self % fspace(ivar) = config%variable_function_space(ivar)
     call self % fields(ivar) % initialise(n_vertical,  &
                                           n_horizontal, &
                                           config%variable_function_space(ivar),  &
@@ -164,9 +160,11 @@ subroutine state_initialiser( self, geometry, config )
 
   ! create model data - either full model state or io fields to read into.
   if (self%use_full_model) then
-    call create_da_model_data(mesh, self%model_data)
+    call create_da_model_data(mesh, twod_mesh, self%model_data)
   else
-    call create_io_da_model_data(mesh, self%variables, self%fspace, self%model_data)
+    call create_io_da_model_data(mesh, twod_mesh, self%variables, &
+                                 config%variable_function_space, config%variable_is_2d, &
+                                 self%model_data)
   endif
 
 end subroutine state_initialiser

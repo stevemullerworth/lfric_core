@@ -38,16 +38,14 @@
 
       <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts">
         <field id="read_theta" name="theta" unit="1" grid_ref="full_level_face_grid" />
-        <field id="read_exner" name="exner" unit="1" grid_ref="half_level_face_grid" />
         <field id="read_rho" name="rho" unit="1" grid_ref="half_level_face_grid" />
-        <field id="read_u" name="u" unit="1" grid_ref="half_level_edge_grid" />
+        <field id="read_u10m" name="u10m" unit="1" domain_ref="face" />
       </field_group>
 
-      <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" >
+      <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="0ts">
         <field id="write_theta" name="theta" unit="1" grid_ref="full_level_face_grid" />
-        <field id="write_exner" name="exner" unit="1" grid_ref="half_level_face_grid" />
         <field id="write_rho" name="rho" unit="1" grid_ref="half_level_face_grid" />
-        <field id="write_u" name="u" unit="1" grid_ref="half_level_edge_grid" />
+        <field id="write_u10m" name="u10m" unit="1" domain_ref="face" />
       </field_group>
 
     </field_definition>

@@ -176,7 +176,7 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
     case ( W3 )
       n_vertical_lfric = field_proxy%vspace%get_nlayers()
     case default
-      write(log_scratch_space, '(4A)') "The ", &
+      write(log_scratch_space, '(3A)') "The ", &
         trim(name_from_functionspace(fs_enumerator)) , &
         " function space is not supported by the atlas_field_interface class."
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )

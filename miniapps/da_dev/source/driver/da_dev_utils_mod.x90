@@ -18,15 +18,19 @@ module da_dev_utils_mod
                                              read_interface
   use finite_element_config_mod,      only : element_order
   use function_space_collection_mod,  only : function_space_collection
-  use fs_continuity_mod,              only : W2, W3, Wtheta
+  use fs_continuity_mod,              only : W3, Wtheta, name_from_functionspace
   use log_mod,                        only : log_event,       &
                                              LOG_LEVEL_ERROR, &
                                              LOG_LEVEL_TRACE
   use mesh_mod,                       only : mesh_type
   use lfric_xios_read_mod,            only : read_field_face, &
-                                             read_field_edge
+                                             read_field_single_face
   use lfric_xios_write_mod,           only : write_field_face, &
-                                             write_field_edge
+                                             write_field_single_face
+
+  use log_mod,                        only : log_event,          &
+                                             log_scratch_space,  &
+                                             LOG_LEVEL_ERROR
 
   implicit none
 
@@ -63,38 +67,45 @@ module da_dev_utils_mod
 
   !> @brief  Create and add a real-valued field to the model_data
   !>
-  !> @param[in] model_data  The model data object to add a field to
-  !> @param[in] mesh        The mesh to build the field on
-  !> @param[in] fs          The function space to build the field on
-  !> @param[in] field_name  The name of the new field
-  subroutine add_real_field(model_data, mesh, fs, field_name)
+  !> @param[in] model_data    The model data object to add a field to
+  !> @param[in] mesh          The mesh to build the field on
+  !> @param[in] fs_enumerator The function space to build the field on
+  !> @param[in] field_name    The name of the new field
+  subroutine add_real_field(model_data, mesh, fs_enumerator, field_name)
     implicit none
 
     type(model_data_type), intent(inout)  :: model_data
     type(mesh_type), intent(in), pointer  :: mesh
-    integer(i_native), intent(in)         :: fs
+    integer(i_native), intent(in)         :: fs_enumerator
     character(*), intent(in)              :: field_name
 
-    type(field_type), allocatable :: field
+    type(field_type), allocatable         :: field
+
     procedure(read_interface), pointer    :: tmp_read_ptr
     procedure(write_interface), pointer   :: tmp_write_ptr
 
     allocate(field)
 
     call field%initialise( &
-      vector_space = function_space_collection%get_fs(mesh, element_order, fs), &
+      vector_space = function_space_collection%get_fs(mesh, element_order, fs_enumerator), &
       name = field_name )
 
-    if (fs == W2) then
-      tmp_read_ptr => read_field_edge
-      tmp_write_ptr => write_field_edge
+    if (fs_enumerator == W3 .or. fs_enumerator == Wtheta) then
+      if (mesh%get_nlayers()==1) then
+        tmp_read_ptr => read_field_single_face
+        tmp_write_ptr => write_field_single_face
+      else
+        tmp_read_ptr => read_field_face
+        tmp_write_ptr => write_field_face
+      endif
     else
-      tmp_read_ptr => read_field_face
-      tmp_write_ptr => write_field_face
+      write(log_scratch_space, '(3A)') "The ", &
+        trim(name_from_functionspace(fs_enumerator)) , &
+        " function space is not supported."
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
 
     call field%set_read_behaviour(tmp_read_ptr)
-
     call field%set_write_behaviour(tmp_write_ptr)
 
     call invoke(setval_c(field, 0.0_r_def))

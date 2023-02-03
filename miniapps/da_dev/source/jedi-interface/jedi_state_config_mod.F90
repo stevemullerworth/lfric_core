@@ -27,7 +27,7 @@ type, public :: jedi_state_config_type
   character( len=str_def ), allocatable :: state_variables(:)
   !> function space for the variables
   integer( kind=i_def ), allocatable :: variable_function_space(:)
-   !> logical that defines if the field is 2D
+  !> logical that defines if the field is 2D
   logical( kind=l_def ), allocatable :: variable_is_2d(:)
 
   ! here we have date_time as an integer. It will actually be an object or string that stores time
@@ -70,20 +70,20 @@ subroutine initialise( self, use_full_model )
 
   ! configuration inputs
   self%read_file_prefix="read_"
-  nvars=2
+  nvars=3
   allocate(self%state_variables(nvars), self%variable_function_space(nvars), self%variable_is_2d(nvars))
   !
   self%state_variables(1) = "theta"
   self%state_variables(2) = "rho"
-  !self%state_variables(3) = "u"
+  self%state_variables(3) = "u10m"
   !
   self%variable_function_space(1) = Wtheta
   self%variable_function_space(2) = W3
-  !self%variable_function_space(3) = W2
+  self%variable_function_space(3) = W3
   !
   self%variable_is_2d(1) = .false.
   self%variable_is_2d(2) = .false.
-  !self%variable_is_2d(3) = .false.
+  self%variable_is_2d(3) = .true.
   self%date_time = 0
 
   self%use_full_model = use_full_model

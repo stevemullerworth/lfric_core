@@ -28,11 +28,12 @@ module da_dev_model_init_mod
   !>
   !> @param[in] mesh           Mesh to use for field initialisation
   !> @param[inout] model_data  model_data to store miniapp fields in
-  subroutine create_da_model_data( mesh, model_data)
+  subroutine create_da_model_data( mesh, mesh2d, model_data)
 
     implicit none
 
     type(mesh_type), intent(in), pointer        :: mesh
+    type(mesh_type), intent(in), pointer        :: mesh2d
     type( model_data_type ), intent(inout)      :: model_data
 
     call log_event( 'da_dev: Initialising miniapp ...', LOG_LEVEL_INFO )
@@ -42,7 +43,7 @@ module da_dev_model_init_mod
     ! Create fields and add them to model_data
     call add_real_field( model_data, mesh, Wtheta, "theta" )
     call add_real_field( model_data, mesh, W3,     "rho"   )
-    call add_real_field( model_data, mesh, W3,     "exner" )
+    call add_real_field( model_data, mesh2d, W3,   "u10m"  )
 
     call log_event( 'da_dev: Miniapp initialised', LOG_LEVEL_INFO )
 
@@ -62,7 +63,7 @@ module da_dev_model_init_mod
     ! Initialise fields in model_data
     call initialise_real_field( model_data, "theta" )
     call initialise_real_field( model_data, "rho"   )
-    call initialise_real_field( model_data, "exner" )
+    call initialise_real_field( model_data, "u10m"  )
 
     call log_event( 'da_dev: initialise_da_model_data - end', LOG_LEVEL_INFO )
 

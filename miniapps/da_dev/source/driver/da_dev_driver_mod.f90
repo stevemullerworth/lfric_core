@@ -157,7 +157,7 @@ contains
     type(model_data_type), intent(inout) :: model_data
 
     ! Create prognostic fields in model_data
-    call create_da_model_data( mesh, model_data )
+    call create_da_model_data( mesh, twod_mesh, model_data )
 
     ! Initialise DA interface
     call init_da( model_communicator, chi, panel_id, model_clock, get_calendar() )
