@@ -16,6 +16,7 @@
 # terminal.
 #
 OPERATE_ON ?= lfric_atm                                  \
+              miniapps/lfric_coupled                     \
               gungho                                     \
               infrastructure                             \
               components/science                         \
@@ -34,7 +35,6 @@ OPERATE_ON ?= lfric_atm                                  \
               miniapps/solver_miniapp                    \
               miniapps/shallow_water                     \
               miniapps/io_dev                            \
-              miniapps/lfric_coupled                     \
               miniapps/transport                         \
               miniapps/multires_coupling                 \
               um_physics                                 \
