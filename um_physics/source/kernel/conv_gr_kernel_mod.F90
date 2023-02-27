@@ -744,7 +744,7 @@ contains
 
     ! Variables for retrieving tracer names for a UKCA configuration
     integer :: ukca_errcode
-    character(len=ukca_maxlen_fieldname), save, pointer :: ukca_tracer_names(:)
+    character(len=ukca_maxlen_fieldname), pointer :: ukca_tracer_names(:)
 
     ! Fields which are not used and only required for subroutine argument list,
     ! hence are unset in the kernel
