@@ -187,9 +187,6 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
     use planet_constants_mod,       only: p_zero, kappa, lcrcp, planet_radius
     use gen_phys_inputs_mod,        only: l_mr_physics
 
-    ! Spatially varying field used from module
-    use level_heights_mod,     only: r_theta_levels
-
     ! Redirect routine names to avoid clash with existing qsat routines
     use qsat_mod, only: qsat_wat_mix
 
@@ -268,6 +265,8 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
          p_star, zlcl_mix
 
     real(r_um), dimension(seg_len,1,nlayers+1) :: p_rho_levels
+
+    real(r_um), dimension(seg_len,1,0:nlayers) :: r_theta_levels
 
     real(r_um) :: t_n
 
@@ -381,6 +380,7 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
                             1,                             &
                             ! Pass in zlcl_mix
                             zlcl_mix,                      &
+                            r_theta_levels,                &
                             ! Model switches
                             l_mr_physics,                  &
                             ! SCM diagnostics switches

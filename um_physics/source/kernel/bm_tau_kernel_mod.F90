@@ -101,7 +101,6 @@ contains
     use nlsizes_namelist_mod, only: bl_levels
     use planet_constants_mod, only: p_zero, kappa
     use bm_calc_tau_mod,      only: bm_calc_tau
-    use casim_prognostics,    only: snownumber, icenumber
     use variable_precision,   only: wp
 
     implicit none
@@ -141,15 +140,13 @@ contains
     real(r_um), dimension(seg_len,1,bl_levels) :: elm_in
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(seg_len,1,0:nlayers) :: p_theta_levels
-
-    real(wp), dimension(seg_len,1,nlayers), target ::             &
-         ns_casim, ni_casim
+    real(r_um), dimension(seg_len,1,0:nlayers) :: p_theta_levels, icenumber, &
+         snownumber
 
    do i = 1, seg_len
       do k = 1, nlayers
-          ns_casim(i,1,k) = ns_mphys(map_wth(1,i) + k)
-          ni_casim(i,1,k) = ni_mphys(map_wth(1,i) + k)
+          snownumber(i,1,k) = ns_mphys(map_wth(1,i) + k)
+          icenumber(i,1,k) = ni_mphys(map_wth(1,i) + k)
       end do
     end do
 
@@ -182,14 +179,10 @@ contains
       end do
     end do
 
-    snownumber =>                          &
-          ns_casim(1:seg_len,1:1,1:nlayers)
-    icenumber  =>                          &
-          ni_casim(1:seg_len,1:1,1:nlayers)
-
     call bm_calc_tau(q, theta, exner_theta_levels, qcf, bl_levels, cff, &
                     p_theta_levels, wvar_in, elm_in, rho_dry_theta,     &
-                    rho_wet_tq, tau_dec_out, tau_hom_out, tau_mph_out, qcf2)
+                    rho_wet_tq, icenumber, snownumber, tau_dec_out,     &
+                    tau_hom_out, tau_mph_out, qcf2)
 
     ! update output fields
     !-----------------------------------------------------------------------

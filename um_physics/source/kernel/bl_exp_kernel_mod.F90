@@ -360,16 +360,13 @@ contains
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
+    use atm_fields_bounds_mod, only: pdims
     use bl_option_mod, only: alpha_cd, l_noice_in_turb, l_use_surf_in_ri
     use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,               &
                           cldbase_opt_dp, cldbase_opt_md
     use nlsizes_namelist_mod, only: land_field, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, lcrcp, lsrcp
     use timestep_mod, only: timestep
-
-    ! spatially varying fields used from modules
-    use level_heights_mod, only: r_theta_levels, r_rho_levels
-    use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag
 
     ! subroutines used
     use atmos_physics2_save_restore_mod, only: ap2_init_conv_diag
@@ -496,7 +493,7 @@ contains
     real(r_um), dimension(seg_len,1,nlayers) :: rho_dry, z_rho, z_theta,     &
          bulk_cloud_fraction, rho_wet_tq, u_p, v_p, rhcpt, theta,            &
          p_rho_levels, exner_rho_levels, tgrad_bm, exner_theta_levels,       &
-         bulk_cf_conv, qcf_conv
+         bulk_cf_conv, qcf_conv, r_rho_levels, visc_h, visc_m, rneutml_sq
 
     ! profile field on boundary layer levels
     real(r_um), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh, bq_gb,    &
@@ -511,7 +508,7 @@ contains
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(seg_len,1,0:nlayers) :: p_theta_levels, etadot, w, &
-         q, qcl, qcf
+         q, qcl, qcf, r_theta_levels
 
     ! profile fields with a hard-wired 2
     real(r_um), dimension(seg_len,1,2,bl_levels) :: rad_hr, micro_tends
@@ -522,7 +519,8 @@ contains
          bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
          bl_type_7, uw0, vw0, zhnl, zeroes, surf_dep_flux, rhostar,          &
          h_blend_orog, recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,    &
-         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm
+         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm, cos_theta_latitude,    &
+         max_diff, delta_smag
 
     real(r_um), dimension(seg_len,1,3) :: t_frac, t_frac_dsc, we_lim, &
          we_lim_dsc, zrzi, zrzi_dsc
@@ -691,6 +689,9 @@ contains
       end do
     end if
 
+    ! Set this to 1 to account for quasi-uniform grid
+    cos_theta_latitude = 1.0_r_um
+
     do i = 1, seg_len
       ! surface pressure
       p_star(i,1) = p_theta_levels(i,1,0)
@@ -795,6 +796,7 @@ contains
     !     IN model dimensions.
           , bl_levels, p_rho_levels, p_theta_levels(1,1,1)              &
           , exner_rho_levels, rho_wet, rho_wet_tq, z_theta, z_rho       &
+          , r_theta_levels, r_rho_levels                                &
     !     IN Model switches
           , l_extra_call, no_cumulus                                    &
     !     IN cloud data
@@ -818,6 +820,7 @@ contains
     call bdy_expl2 (                                                           &
     ! IN values defining vertical grid of model atmosphere :
       bl_levels,p_theta_levels,land_field,land_index,                          &
+      r_theta_levels, r_rho_levels, cos_theta_latitude,                        &
     ! IN U, V and W momentum fields.
       u_p,v_p, u_0_p, v_0_p,                                                   &
     ! IN from other part of explicit boundary layer code
@@ -829,6 +832,8 @@ contains
     ! IN everything not covered so far :
       rad_hr,micro_tends,fb_surf,ustargbm,p_star,tstar,h_blend_orog,           &
       zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,                               &
+    ! 2 IN 3 INOUT for Smagorinsky
+      delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                        &
     ! SCM Diagnostics (dummy values in full UM) & stash diag
       nSCMDpkgs,L_SCMDiags,BL_diag,                                            &
     ! INOUT variables
@@ -892,6 +897,7 @@ contains
 
       call  tr_mix (                                                 &
            ! IN fields
+           r_theta_levels, r_rho_levels, pdims,                      &
            bl_levels, alpha_cd, rhokm_mix(:,:,2:), rhokm_mix(:,:,1), &
            dtrdz_charney_grid, zeroes, zeroes, kent, we_lim,         &
            t_frac, zrzi, kent_dsc, we_lim_dsc, t_frac_dsc,           &

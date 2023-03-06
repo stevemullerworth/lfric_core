@@ -161,7 +161,6 @@ subroutine casim_code( nlayers,                     &
 
     use atm_fields_bounds_mod,      only: pdims
 
-    use level_heights_mod,          only: r_rho_levels, r_theta_levels
     use planet_constants_mod,       only: p_zero, kappa, planet_radius
 
     use micro_main,                 only: shipway_microphysics
@@ -254,7 +253,8 @@ subroutine casim_code( nlayers,                     &
 
     real(r_um), dimension(row_length,rows,model_levels) ::                     &
          q_work, qcl_work, qcf_work, deltaz,                                   &
-         rhodz_dry, rhodz_moist, rho_r2, dry_rho
+         rhodz_dry, rhodz_moist, rho_r2, dry_rho, r_rho_levels
+    real(r_um), dimension(row_length,rows,0:model_levels) :: r_theta_levels
 
     real(r_um), dimension(:,:,:), allocatable :: qrain_work, qcf2_work,        &
                                                  qgraup_work
@@ -318,7 +318,8 @@ subroutine casim_code( nlayers,                     &
     end do     ! k
 
     ! calculate air density rhodz
-    call mphys_air_density( dry_rho, rho_r2, pdims,                            &
+    call mphys_air_density( r_theta_levels, r_rho_levels,                      &
+                            dry_rho, rho_r2, pdims,                            &
                         q_work, qcl_work, qcf_work, qcf2_work,                 &
                         qrain_work, qgraup_work,                               &
                         rhodz_dry, rhodz_moist, deltaz )

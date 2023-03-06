@@ -16,15 +16,15 @@
 # changes were committed to the project's trunk
 export casim_rev=10024
 export casim_sources=
-export jules_rev=25084
+export jules_rev=25146
 export jules_sources=
 export shumlib_rev=um13.1
 export shumlib_sources=
 export socrates_rev=1277
 export socrates_sources=
-export ukca_rev=um13.1
+export ukca_rev=1135
 export ukca_sources=
-export um_rev=116114
+export um_rev=116298
 export um_sources=
 
 
@@ -40,6 +40,7 @@ export config_type=atmos
 # disabling the build of the atmos/recon executables)
 export extract=extract
 export compile_recon=preprocess-recon
+
 export compile_atmos=preprocess-atmos
 
 # Define any preprocessor macros that are required

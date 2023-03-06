@@ -158,7 +158,6 @@ contains
     use vis_precip_mod,       only : vis_precip
     use visbty_constants_mod, only : n_vis_thresh, vis_thresh
     use visbty_mod,           only : visbty
-    use casim_prognostics,    only : snownumber, rainnumber
     use variable_precision,   only : wp
 
     implicit none
@@ -230,6 +229,8 @@ contains
          beta_ls_rain, beta_ls_snow, beta_c_rain, beta_c_snow,               &
          vis, vis_ls_precip, vis_c_precip, vis_no_precip, dew_pnt
 
+    real(r_um), dimension(row_length,rows,0:1) :: snownumber, rainnumber
+
     ! fog_fr works for n levels, we want 1
     real(r_um), dimension(row_length,rows,1,n_vis_thresh) :: vis_threshold
     real(r_um), dimension(row_length,rows,n_vis_thresh)   :: pvis
@@ -237,9 +238,6 @@ contains
     ! Local scalars
     real(kind=r_def) :: ftl_surf, fqw_surf, taux_surf, tauy_surf,            &
                         wstar3_imp, std_dev, gust_contribution
-
-    real(wp), dimension(row_length,rows,nlayers), target ::                  &
-         nr_casim, ns_casim
 
     integer(kind=i_def) :: k, icode, i,j
 
@@ -316,7 +314,7 @@ contains
       if ( .not. associated(visibility_with_precip, empty_real_data) ) then
         ! map additional input fields
         ! level 1 rho
-        rho1(1,1)      = wetrho_in_w3(map_w3(1) + 1)
+        rho1(1,1)      = wetrho_in_w3(map_w3(1))
         ! level 1 cloud ice mixing ratio
         qcf1(1,1)      = mci(map_wth(1) + 1)
         ! level 1 rain mixing ratio
@@ -333,23 +331,12 @@ contains
         plsp(1,1)      = lsca_2d(map_2d(1))
 
         !number prognostics used in the visibility calculation
-        do k = 1, nlayers
-          do j = 1, rows
-            do i = 1, row_length
-              nr_casim(i,j,k) = nr_mphys(map_wth(1) + k)
-              ns_casim(i,j,k) = ns_mphys(map_wth(1) + k)
-            end do
-          end do
-        end do
-
-        rainnumber =>                          &
-               nr_casim(1:row_length,1:rows,1:nlayers)
-        snownumber =>                          &
-               ns_casim(1:row_length,1:rows,1:nlayers)
+        rainnumber(1,1,1) = nr_mphys(map_wth(1) + 1)
+        snownumber(1,1,1) = ns_mphys(map_wth(1) + 1)
 
         call beta_precip( ls_rain, ls_snow,                                    &
                           conv_rain, conv_snow, qcf1, qrain1,                  &
-                          rho1, t1p5m_loc, p_star,                             &
+                          rho1, t1p5m_loc, p_star, snownumber, rainnumber,     &
                           plsp,cca_2d,pct,avg,                                 &
                           1, 1, 1,                                             &
                           beta_ls_rain, beta_ls_snow,                          &

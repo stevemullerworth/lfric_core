@@ -470,9 +470,6 @@ contains
     use sparm_mod, only: sparm
     use tilepts_mod, only: tilepts
 
-    ! Spatially varying field used from module
-    use solinc_data, only: sky
-
     !---------------------------------------
     ! JULES modules
     !---------------------------------------
@@ -697,7 +694,7 @@ contains
          rib_gb, vshr, ustargbm, photosynth_act_rad, tstar_land, dtstar_sea, &
          tstar_sice, alpha1_sea, ashtf_prime_sea, chr1p5m_sice, rhokh_sea,   &
          z0hssi, z0mssi, bt_blend, bq_blend, z1_uv_top, z1_tq_top, rhostar,  &
-         recip_l_mo_sea
+         recip_l_mo_sea, sky
 
     real(r_um), dimension(seg_len_halo,1) ::  flandg,               &
          flandfac, fseafac, cdr10m, rhokm_land, rhokm_ssi, rhokm
@@ -1400,7 +1397,7 @@ contains
       l_spec_z0,                                                               &
       !Not in a JULES module
       !IN
-      1, 1, z1_uv_top, z1_tq_top, ddmfx,                                       &
+      1, 1, z1_uv_top, z1_tq_top, sky, ddmfx,                                  &
       !3 IN, 1 OUT requiring STASH flag
       l_aero_classic, z0m_specified, z0h_specified,                            &
       !OUT not requiring STASH flag

@@ -329,9 +329,6 @@ contains
                                  v_i_length,v_j_length
     use veg3_parm_mod, only: l_veg3
 
-    ! spatially varying fields used from modules
-    use solinc_data, only: sky
-
     ! subroutines used
     use sf_diags_mod, only: dealloc_sf_imp, alloc_sf_imp, strnewsfdiag
     use surf_couple_implicit_mod, only: surf_couple_implicit
@@ -499,7 +496,7 @@ contains
          rhokh_sea, u_s, z0hssi, z0mssi, work_2d_1, work_2d_2, work_2d_3,    &
          qcl1p5m_loc, gamma1, gamma2, ctctq1_1, dqw1_1, dtl1_1, cq_cm_u_1,   &
          du_1, cq_cm_v_1, dv_1, tscrndcl_ssi, tstbtrans, f3_at_p, rho1,      &
-         ti_sice, olr
+         ti_sice, olr, sky
 
     ! single level real fields on u/v points
     real(r_um), dimension(seg_len,1) :: flandg_u, flandg_v, cdr10m_u, cdr10m_v
@@ -1089,7 +1086,7 @@ contains
          !3 IN, 3 INOUT
          rho1, f3_at_p, u_s,TScrnDcl_SSI,TScrnDcl_SURFT,tStbTrans,           &
          !OUT
-         rhokh_mix, ti_sice,                                                 &
+         rhokh_mix, ti_sice, sky,                                            &
          !TYPES containing field data (IN OUT)
          crop_vars,ainfo, aerotype, progs, coast, jules_vars,                &
          fluxes, lake_vars, forcing, progs_cbl_vars, work_cbl                &

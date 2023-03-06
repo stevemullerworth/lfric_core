@@ -348,7 +348,7 @@ contains
                           dv_conv,                           &
                           conv_prog_precip,                  &
                           conv_prog_dtheta,                  &
-                          conv_prog_dmv,                      &
+                          conv_prog_dmv,                     &
                           m_v,                               &
                           m_cl,                              &
                           m_ci,                              &
@@ -523,16 +523,12 @@ contains
     use cv_param_mod, only: max_mf_fall, dthetadt_conv_active_threshold, &
                             conv_prog_precip_min_threshold
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
-    use mphys_inputs_mod, only: l_mcr_qcf2, l_mcr_qgraup, l_mcr_qrain
+    use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels, n_cca_lev
     use pc2_constants_mod, only: i_cld_pc2
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use scm_convss_dg_mod, only: scm_convss_dg_type
     use timestep_mod, only: timestep
-
-    ! spatially varying fields used from modules
-    use level_heights_mod, only: r_theta_levels, r_rho_levels
-    use turb_diff_ctl_mod, only: delta_smag
 
     ! subroutines used
     use glue_conv_6a_mod, only: glue_conv_6a
@@ -698,7 +694,7 @@ contains
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::                        &
          p_rho_levels, rho_wet, rho_dry, z_rho, z_theta, cca_3d, rho_wet_tq, &
-         rho_dry_theta, exner_rho_levels,                                    &
+         rho_dry_theta, exner_rho_levels, r_rho_levels,                      &
          theta_conv, q_conv, qcl_conv, qcf_conv,                             &
          dtheta_conv,                                                        &
          qrain_conv, qcf2_conv, qgraup_conv, cf_liquid_conv, cf_frozen_conv, &
@@ -717,7 +713,7 @@ contains
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
-         p_theta_levels, p_rho_minus_one, w,                                 &
+         p_theta_levels, p_rho_minus_one, w, r_theta_levels,                 &
          exner_rho_minus_one, exner_theta_levels
 
     ! single level real fields
@@ -727,7 +723,8 @@ contains
          it_cclwp0, it_conv_rain, it_conv_snow, it_precip_dp, it_precip_sh,  &
          it_precip_md, it_cape_diluted, it_dp_cfl_limited,                   &
          it_md_cfl_limited, cape_ts_used, it_ind_deep, it_ind_shall,         &
-         it_precip_cg, it_wstar_up, it_mb1, it_mb2, tot_conv_precip_2d
+         it_precip_cg, it_wstar_up, it_mb1, it_mb2, tot_conv_precip_2d,      &
+         delta_smag
 
     ! single level integer fields
     integer(i_um), dimension(row_length,rows) :: ntml, ntpar, lcbase,        &
@@ -1175,9 +1172,9 @@ contains
         , it_mb1, it_mb2, it_cg_term                                        &
         , uw0, vw0, w_max                                                   &
         , zlcl, zlcl_uv, tnuc_new, tnuc_nlcl, zhpar, entrain_coef           &
-        , conv_prog_precip_conv, conv_prog_flx, deep_flag                 &
+        , conv_prog_precip_conv, conv_prog_flx, deep_flag                   &
         , past_conv_ht, it_cape_diluted, n_deep, n_congestus, n_shallow     &
-        , n_mid, r_rho_levels(1,1,1), r_theta_levels(1,1,0)                 &
+        , n_mid, r_rho_levels, r_theta_levels                               &
         , rho_wet, rho_wet_tq, rho_dry, rho_dry_theta, delta_smag           &
         , exner_rho_levels, exner_rho_minus_one, exner_theta_levels         &
         , p_rho_minus_one, p_theta_levels                                   &

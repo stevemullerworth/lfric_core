@@ -161,9 +161,6 @@ contains
     use nlsizes_namelist_mod, only: bl_levels
     use planet_constants_mod, only: planet_radius
 
-    ! spatially varying fields used from modules
-    use level_heights_mod, only: r_theta_levels, r_rho_levels
-
     ! subroutines used
     use bdy_impl3_mod, only: bdy_impl3
 
@@ -218,7 +215,7 @@ contains
 
     ! profile fields from level 1 upwards
     real(r_um), dimension(seg_len,1,nlayers) ::  t_latest, q_latest, &
-         qcl_latest, qcf_latest, t
+         qcl_latest, qcf_latest, t, r_rho_levels
 
     ! profile field on boundary layer levels
     real(r_um), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh,       &
@@ -236,7 +233,7 @@ contains
     real(r_um), dimension(seg_len,1,2:bl_levels) :: rdz_u, rdz_v
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(seg_len,1,0:nlayers) :: q, qcl, qcf
+    real(r_um), dimension(seg_len,1,0:nlayers) :: q, qcl, qcf, r_theta_levels
 
     ! single level real fields
     real(r_um), dimension(seg_len,1) :: gamma1, gamma2, ctctq1_1, &
@@ -362,7 +359,7 @@ contains
          q, qcl, qcf, q_latest, qcl_latest, qcf_latest, t, t_latest,         &
          dtrdz_charney_grid, dtrdz_u, dtrdz_v, rhokh, rhokm_u, rhokm_v,      &
          rdz_charney_grid, rdz_u, rdz_v, gamma1, gamma2, alpha_cd,           &
-         r_u, r_v, k_blend_tq, k_blend_uv,                                   &
+         r_u, r_v, r_theta_levels, r_rho_levels, k_blend_tq, k_blend_uv,     &
          ! INOUT fields
          fqw, ftl, taux, tauy, r_u, r_v, dqw, dtl,                           &
          ! OUT fields

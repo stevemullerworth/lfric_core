@@ -184,14 +184,13 @@ subroutine mphys_code( nlayers, seg_len,            &
     ! UM modules
     !---------------------------------------
 
-    use mphys_inputs_mod,           only: l_mcr_qcf2, l_mcr_qrain,             &
+    use mphys_inputs_mod,           only: l_mcr_qrain,                         &
                                           l_mcr_qgraup, l_mcr_precfrac,        &
                                           l_subgrid_graupel_frac
     use mphys_constants_mod,        only: mprog_min
 
     use cloud_inputs_mod,           only: i_cld_vn, rhcrit
     use pc2_constants_mod,          only: i_cld_off, i_cld_pc2
-    use fsd_parameters_mod,         only: f_arr
     use electric_inputs_mod,        only: electric_method, em_gwp, em_mccaul
     use electric_main_mod,          only: electric_main
 
@@ -199,7 +198,6 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     use ls_ppn_mod,                 only: ls_ppn
 
-    use level_heights_mod,          only: r_rho_levels, r_theta_levels
     use planet_constants_mod,       only: p_zero, kappa, planet_radius
     use water_constants_mod,        only: tm
     use arcl_mod,                   only: npd_arcl_compnts
@@ -287,19 +285,22 @@ subroutine mphys_code( nlayers, seg_len,            &
          n_drop_pot, n_drop_3d, so4_accu_work, so4_diss_work,                  &
          aged_bmass_work, cloud_bmass_work, aged_ocff_work, cloud_ocff_work,   &
          nitr_acc_work, nitr_diss_work, aerosol_work, biogenic, rho_r2,        &
-         dry_rho, ukca_cdnc_array, tnuc_new, theta, z_rho, z_theta
+         dry_rho, ukca_cdnc_array, tnuc_new, theta, z_rho, z_theta,            &
+         r_rho_levels
 
     real(r_um), dimension(seg_len, 1, nlayers, 1) :: arcl
 
-    real(r_um), dimension(seg_len, 1, 0:nlayers) :: flash_pot
+    real(r_um), dimension(seg_len, 1, 0:nlayers) :: flash_pot, r_theta_levels
 
-    real(r_um), dimension(seg_len, 1) :: ls_rain, ls_snow, ls_graup,      &
-                                         snow_depth, land_frac, hmteff, zb
+    real(r_um), dimension(seg_len, 1) :: ls_rain, ls_snow, ls_graup,           &
+                                         snow_depth, land_frac, hmteff, zb,    &
+                                         cos_theta_latitude
 
     real(r_um), dimension(:,:,:), allocatable :: qrain_work, qcf2_work,        &
                                                  qgraup_work, precfrac_work
 
     real(r_um), dimension(nlayers) :: rhcpt
+    real(r_um), dimension(3, seg_len, 1, nlayers) :: f_arr
 
     real(r_um), dimension(1,1,1) :: sea_salt_film, sea_salt_jet
 
@@ -533,6 +534,9 @@ subroutine mphys_code( nlayers, seg_len,            &
       end do
     end if
 
+    ! Set this to 1 to account for quasi-uniform grid
+    cos_theta_latitude = 1.0_r_um
+
     ! Note: need other options once Smith scheme is in use.
     if ( i_cld_vn == i_cld_off ) then
       j = 1
@@ -639,9 +643,9 @@ subroutine mphys_code( nlayers, seg_len,            &
     ! CALL to ls_ppn
     call ls_ppn(                                                               &
                 p_theta_levels,                                                &
-                land_sea_mask, deltaz,                                         &
+                land_sea_mask, deltaz, r_theta_levels, r_rho_levels,           &
                 cf_work, cfl_work, cff_work, precfrac_work,                    &
-                rhcpt,                                                         &
+                rhcpt, f_arr, cos_theta_latitude,                              &
                 lspice_dim1,lspice_dim2,lspice_dim3,                           &
                 rho_r2, dry_rho, q_work, qcf_work, qcl_work, t_work,           &
                 qcf2_work, qrain_work, qgraup_work,                            &

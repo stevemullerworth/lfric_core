@@ -686,7 +686,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! UM modules
   use nlsizes_namelist_mod, only: land_field, bl_levels
   use planet_constants_mod,  only: p_zero, kappa, planet_radius
-  use level_heights_mod, only: r_theta_levels, r_rho_levels
   use timestep_mod, only: timestep
 
   ! JULES modules
@@ -908,6 +907,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_um), allocatable :: ntp(:,:)    ! NTP fields
                                          ! (for microphysics & RADAER)
 
+  real(r_um) :: r_theta_levels(1,1,0:nlayers)
+  real(r_um) :: r_rho_levels(1,1,nlayers)
   ! Environmental driver fields (including emissions)
 
   integer(i_um), allocatable :: environ_flat_integer(:)
@@ -1935,8 +1936,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   previous_time(7) = int( previous_time_daynum, i_um )
 
   call ukca_step_control( int( timestep_number, i_um ), current_time,          &
-                          tracer, ntp, error_code,                             &
-                          previous_time=previous_time,                         &
+                          tracer, ntp, r_theta_levels, r_rho_levels,           &
+                          error_code, previous_time=previous_time,             &
                           envgroup_scalar_real=environ_scalar_real,            &
                           envgroup_flat_integer=environ_flat_integer,          &
                           envgroup_flat_real=environ_flat_real,                &

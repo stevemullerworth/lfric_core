@@ -55,14 +55,6 @@ contains
     use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
          ussp_seg_size, gw_seg_size
 
-    ! Fields stored in modules
-    use level_heights_mod, only: r_theta_levels, r_rho_levels
-    use trignometric_mod, only: cos_theta_latitude
-    use fsd_parameters_mod, only: f_arr
-    use turb_diff_ctl_mod, only: visc_m, visc_h, max_diff, delta_smag,   &
-         rneutml_sq
-    use solinc_data, only: sky
-
     implicit none
 
     integer(i_def),   intent(in)          :: ncells
@@ -111,72 +103,6 @@ contains
     ! but may change if we ever do.
     call atm_fields_bounds_init( 0_i_um, 0_i_um, 0_i_um, &
                                  0_i_um, row_length, rows, rows)
-
-    ! The following 3D arrays are used direct from level_heights_mod
-    ! throughout the UM code.
-    ! We must initialise them here so that they are always available.
-    ! But they must be set to appropriate values for the current column
-    ! in any kernel whose external code uses the variables.
-    ! Ideally the UM code will be changed so that they are passed in
-    ! through the argument list.
-    if(allocated(r_theta_levels))deallocate(r_theta_levels)
-    allocate(r_theta_levels(row_length,rows,0:number_of_layers), source=rmdi)
-    if(allocated(r_rho_levels))deallocate(r_rho_levels)
-    allocate(r_rho_levels(row_length,rows,number_of_layers), source=rmdi)
-
-    ! The following are used in the calculation of grid-box size in
-    ! UM parametrizations.
-    ! As the grid here should be quasi-uniform, we'll assume that the
-    ! average value is representative of all grid-points
-    if(allocated(cos_theta_latitude))deallocate(cos_theta_latitude)
-    allocate(cos_theta_latitude(row_length,rows), source=1.0_r_um)
-
-    if (cld_fsd_hill) then
-      if(allocated(f_arr))deallocate(f_arr)
-      allocate(f_arr(3, row_length, rows, number_of_layers))
-    end if
-
-    if (topography == topography_horizon) then
-      ! Allocate space for the skyview factor used by JULES
-      if(allocated(sky))deallocate(sky)
-      allocate(sky(row_length, rows), source=rmdi)
-    end if
-
-    if ( smagorinsky ) then
-
-      ! The following 3D arrays are used direct from turb_diff_ctl_mod
-      ! in the UM code.
-      ! We must initialise them here so that they are available.
-      ! But they must be set to appropriate values for the current column
-      ! in any kernel whose external code uses the variables.
-      ! Ideally the UM code will be changed so that they are passed in
-      ! through the argument list.
-      if(allocated(visc_h))deallocate(visc_h)
-      allocate ( visc_h(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(visc_m))deallocate(visc_m)
-      allocate ( visc_m(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(rneutml_sq))deallocate(rneutml_sq)
-      allocate ( rneutml_sq(row_length, rows, number_of_layers), source=rmdi )
-      if(allocated(max_diff))deallocate(max_diff)
-      allocate ( max_diff  (row_length, rows), source=rmdi )
-      if(allocated(delta_smag))deallocate(delta_smag)
-      allocate ( delta_smag(row_length, rows), source=rmdi )
-
-    else ! not Smagorinsky
-
-      ! Allocate these to small size to avoid compiler issues
-      if(allocated(visc_h))deallocate(visc_h)
-      allocate ( visc_h(1,1,1), source=rmdi  )
-      if(allocated(visc_m))deallocate(visc_m)
-      allocate ( visc_m(1,1,1), source=rmdi  )
-      if(allocated(rneutml_sq))deallocate(rneutml_sq)
-      allocate ( rneutml_sq(1,1,1), source=rmdi  )
-      if(allocated(max_diff))deallocate(max_diff)
-      allocate ( max_diff(1,1), source=rmdi  )
-      if(allocated(delta_smag))deallocate(delta_smag)
-      allocate ( delta_smag(1,1), source=rmdi  )
-
-    end if
 
     if (microphysics_casim) then
         !---------------------------------------------------------------------

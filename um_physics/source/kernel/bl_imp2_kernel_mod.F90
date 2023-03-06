@@ -265,9 +265,6 @@ contains
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g, cp, lcrcp
     use timestep_mod, only: timestep
 
-    ! spatially varying fields used from modules
-    use level_heights_mod, only: r_rho_levels
-
     ! subroutines used
     use bl_lsp_mod, only: bl_lsp
     use bl_diags_mod, only: strnewbldiag
@@ -360,7 +357,8 @@ contains
          qcl_earliest, qcf_earliest, cf_earliest, cfl_earliest,              &
          cff_earliest, qt_force, tl_force, t_inc_pc2, q_inc_pc2, qcl_inc_pc2,&
          bcf_inc_pc2, cfl_inc_pc2, sskew, svar_turb, svar_bm, qcf_total,     &
-         ri_bm, tgrad_in, tau_dec_in, tau_hom_in, tau_mph_in, wvar_in
+         ri_bm, tgrad_in, tau_dec_in, tau_hom_in, tau_mph_in, wvar_in,       &
+         r_rho_levels
 
     ! profile field on boundary layer levels
     real(r_um), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh,           &
@@ -423,12 +421,14 @@ contains
     ! Assuming map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
     !-----------------------------------------------------------------------
+    do i = 1, seg_len
+      do k = 1, nlayers
+        ! height of rho levels from centre of planet
+        r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
+      end do
+    end do
     if (loop == 1) then
       do i = 1, seg_len
-        do k = 1, nlayers
-          ! height of rho levels from centre of planet
-          r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
-        end do
         do k = 1, bl_levels
           dqw_nt(i,1,k) = dqw_nt_wth(map_wth(1,i) + k)
           dtl_nt(i,1,k) = dtl_nt_wth(map_wth(1,i) + k)
@@ -509,7 +509,7 @@ contains
          bl_levels,  l_correct,                                              &
          ! IN data :
          gamma1, gamma2, rhokm_u, rhokm_v,                                   &
-         rdz_charney_grid,dtrdz_charney_grid,rdz_u,rdz_v,                    &
+         rdz_charney_grid, r_rho_levels, dtrdz_charney_grid,rdz_u,rdz_v,     &
          ct_ctq,cq_cm_u,cq_cm_v,dqw_nt,dtl_nt,                               &
          ! INOUT data :
          qw,tl,fqw,ftl,taux,tauy,fqw_star,ftl_star,taux_star,tauy_star,      &
