@@ -59,7 +59,7 @@ module io_dev_init_mod
   !> @param[out] core_fields             The core field collection
   !> @param[out] dump_fields             Collection of fields to be written-to/read-from
   !>                                     dump files
-  !> @param[out] dump_fields             Collection of fields to be passed to PSyCloned
+  !> @param[out] alg_fields              Collection of fields to be passed to PSyCloned
   !>                                     kernels
   !> @param[in,out] variable_times_list  List of time_axis objects in model data
   !> @param[in]  alt_mesh                Alternative 3D mesh
