@@ -346,7 +346,11 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
         !        on each quadrature point
         ! Loop over monomials
         do m = 1, nmonomial
-          fn = xx**(m-1)
+          if (m == 1) then
+            fn = 1.0_r_def
+          else
+            fn = xx**(m-1)
+          end if
           int_monomial(stencil,m) = int_monomial(stencil,m) &
                                   + wqp_h(qp)*fn*area(stencil)
         end do
@@ -377,7 +381,11 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
       ! Evaluate polynomial fit
       ! Loop over monomials
       do stencil = 1, order+1
-        monomial(stencil) = xx**(stencil-1)
+        if (stencil == 1) then
+          monomial(stencil) = 1.0_r_def
+        else
+          monomial(stencil) = xx**(stencil-1)
+        end if
       end do
       do stencil = 1, order+1
         delta(:) = 0.0_r_def

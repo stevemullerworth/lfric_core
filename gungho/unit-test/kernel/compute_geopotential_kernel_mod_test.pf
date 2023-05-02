@@ -31,7 +31,7 @@ module compute_geopotential_kernel_mod_test
                                undf    = 1
 
   real(r_def), parameter :: gravity  = 10.0_r_def
-  real(r_def), parameter :: radius   = 6000000_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
   real(r_def), parameter :: omega    = 8.0E-5_r_def
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def

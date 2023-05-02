@@ -101,7 +101,7 @@ contains
     integer(kind=i_def),                            intent(in)    :: undf_pid
     integer(kind=i_def), dimension(ndf_trc),        intent(in)    :: map_trc
     integer(kind=i_def), dimension(ndf_chi),        intent(in)    :: map_chi
-    integer(kind=i_def), dimension(ndf_chi),        intent(in)    :: map_pid
+    integer(kind=i_def), dimension(ndf_pid),        intent(in)    :: map_pid
     real(kind=r_def), dimension(undf_trc),          intent(inout) :: tracer
     real(kind=r_def), dimension(undf_chi),          intent(in)    :: chi_1
     real(kind=r_def), dimension(undf_chi),          intent(in)    :: chi_2

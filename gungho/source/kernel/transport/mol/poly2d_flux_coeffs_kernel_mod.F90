@@ -313,7 +313,15 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
       px = 0
       py = 0
       do m = 1, nmonomial
-        fn = (xx(1)**px)*(xx(2)**py)
+        if (px == 0 .and. py == 0) then
+          fn = 1.0_r_def
+        else if (px == 0) then
+          fn = xx(2)**py
+          else if (py == 0) then
+          fn = xx(1)**px
+        else
+          fn = (xx(1)**px)*(xx(2)**py)
+        end if
         int_monomial(stencil,m) = int_monomial(stencil,m) &
                                 + wqp_h(qp)*fn*area(stencil)
         px = px - 1
@@ -356,7 +364,15 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
         px = 0
         py = 0
         do m = 1, nmonomial
-          fn = (xx(1)**px)*(xx(2)**py)
+          if (px == 0 .and. py == 0) then
+            fn = 1.0_r_def
+          else if (px == 0) then
+            fn = xx(2)**py
+          else if (py == 0) then
+            fn = xx(1)**px
+          else
+            fn = (xx(1)**px)*(xx(2)**py)
+          end if
           poly = poly + int_monomial(stencil,m)*fn
           px = px - 1
           py = py + 1

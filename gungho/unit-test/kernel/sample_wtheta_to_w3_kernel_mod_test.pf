@@ -75,7 +75,7 @@ contains
     real(kind=r_def),      parameter :: dy = 3.0_r_def
     real(kind=r_def),      parameter :: dz = 7.0_r_def
     real(kind=r_def),      parameter :: dV = dx * dy * dz
-    real(kind=r_def),      parameter :: theta0 = 300_r_def
+    real(kind=r_def),      parameter :: theta0 = 300.0_r_def
     real(kind=r_def),      parameter :: dtheta_dz = - 0.5_r_def
 
     ! Fields

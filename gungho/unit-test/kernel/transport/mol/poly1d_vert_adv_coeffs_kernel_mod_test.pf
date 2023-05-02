@@ -221,7 +221,8 @@ contains
       mdwt(map_wt(1)+k) = mdwt(map_wt(1)+k) + 0.5_r_def*dx*dy*dz
       mdwt(map_wt(2)+k) = mdwt(map_wt(2)+k) + 0.5_r_def*dx*dy*dz
       density(1+k)    = z(map_wx(1)+k)**power
-      ddensitydz(1+k) = real(power,r_def)*z(map_wx(1)+k)**(power-1)
+      ! power is always 1 so this is a constant
+      ddensitydz(1+k) = 1.0_r_def
     end do
 
     density(nlayers+1)    = z(map_wx(2)+nlayers-1)**power

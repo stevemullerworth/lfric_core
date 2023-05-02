@@ -162,9 +162,14 @@ subroutine poly1d_vert_adv_coeffs_code( nlayers, &
       ! Where monomial matrix is M_ij = z(i)^(j-1)
       ! and d is a delta function such that d_i = 1 in cell i and
       ! solve system for all possible i's
+
       do i = 1, np
         do j = 1, np
-          monomial(i,j) = z(i)**(j-1)
+          if (j == 1) then
+            monomial(i,j) = 1.0_r_def
+          else
+            monomial(i,j) = z(i)**(j-1)
+          end if
         end do
       end do
       call matrix_invert(monomial, inv_monomial, np)

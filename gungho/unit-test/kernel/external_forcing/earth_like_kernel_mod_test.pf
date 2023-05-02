@@ -147,7 +147,7 @@ contains
     real(kind=r_def), allocatable :: panel_id(:)
     real(kind=r_def), allocatable :: u_data(:)
     real(kind=r_def), allocatable :: theta_data(:)
-    real(kind=r_def), allocatable :: exner_data(:)
+    real(kind=r_def), allocatable :: exner_wth_data(:)
     real(kind=r_def), allocatable :: height_wth_data(:)
     real(kind=r_def), allocatable :: du_data(:)
     real(kind=r_def), allocatable :: dtheta_data(:)
@@ -183,7 +183,7 @@ contains
     allocate(panel_id(undf_w3))
     allocate(u_data(undf_w2))
     allocate(theta_data(undf_wth))
-    allocate(exner_data(undf_w3))
+    allocate(exner_wth_data(undf_wth))
     allocate(height_wth_data(undf_wth))
     allocate(du_data(undf_w2))
     allocate(dtheta_data(undf_wth))
@@ -217,7 +217,7 @@ contains
     theta_data(:)            = 200.0_r_def
     height_wth_data(:)       = 2.0_r_def*Z_STRAT
     u_data(:)                = 10.0_r_def
-    exner_data(:)            = 1.0_r_def
+    exner_wth_data(:)        = 1.0_r_def
     w2_rmultiplicity_data(:) = 1.0_r_def
 
     ! Only test interior cell 5
@@ -227,7 +227,7 @@ contains
     call earth_like_code( nlayers,                            &
                           dtheta_data,                        &
                           theta_data,                         &
-                          exner_data,                         &
+                          exner_wth_data,                     &
                           height_wth_data,                    &
                           chi_data(:,1),                      &
                           chi_data(:,2),                      &
@@ -249,15 +249,15 @@ contains
     height_wth_data(2) = 0.3_r_def*Z_STRAT
     height_wth_data(3) = 0.95_r_def*Z_STRAT
 
-    exner_data(:) = 1.0_r_def
-    exner_data(1) = 2.0_r_def
-    exner_data(2) = 1.5_r_def
+    exner_wth_data(:) = 1.0_r_def
+    exner_wth_data(1) = 2.0_r_def
+    exner_wth_data(2) = 1.5_r_def
 
     cell = 1
     call earth_like_code( nlayers,                            &
                           dtheta_data,                        &
                           theta_data,                         &
-                          exner_data,                         &
+                          exner_wth_data,                     &
                           height_wth_data,                    &
                           chi_data(:,1),                      &
                           chi_data(:,2),                      &
@@ -290,7 +290,7 @@ contains
     deallocate(u_data)
     deallocate(theta_data)
     deallocate(height_wth_data)
-    deallocate(exner_data)
+    deallocate(exner_wth_data)
     deallocate(du_data)
     deallocate(dtheta_data)
     deallocate(w2_rmultiplicity_data)

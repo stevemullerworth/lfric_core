@@ -42,7 +42,7 @@ module rhs_sample_eos_kernel_mod_test
                                                     40.0e3_r_def /)
 
   real(r_def), parameter :: gravity  = 10.0_r_def
-  real(r_def), parameter :: radius   = 6000000_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
   real(r_def), parameter :: omega    = 8.0E-5_r_def
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def
@@ -203,7 +203,7 @@ contains
                               )
 
     k = 1
-    answer = - (1.0_r_def - (p_zero/(rd*300_r_def)))
+    answer = - (1.0_r_def - (p_zero/(rd*300.0_r_def)))
     @assertEqual(answer, rhs_eos_data(map_w3(1,cell)+k), tol)
 
     deallocate(rhs_eos_data)

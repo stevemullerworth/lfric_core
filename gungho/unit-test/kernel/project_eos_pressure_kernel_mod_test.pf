@@ -41,7 +41,7 @@ module project_eos_pressure_kernel_mod_test
                                                     40.0e3_r_def /)
 
   real(r_def), parameter :: gravity  = 10.0_r_def
-  real(r_def), parameter :: radius   = 6000000_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
   real(r_def), parameter :: omega    = 8.0E-5_r_def
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def
@@ -227,10 +227,10 @@ contains
     allocate(moist_dyn_gas_data(undf_wtheta))
     allocate(rho_data(undf_w3))
 
-    allocate(m3_inv(ndf_w3, ndf_w3, ncells))
-
     cell = 1_i_def
     ncell_3d = ncells*nlayers
+
+    allocate(m3_inv(ndf_w3, ndf_w3, ncell_3d))
 
     ! Initialise the data
     exner_data(:) = 0.0_r_def

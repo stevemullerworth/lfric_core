@@ -42,7 +42,7 @@ module sample_eos_operators_kernel_mod_test
                                                     40.0e3_r_def /)
 
   real(r_def), parameter :: gravity  = 10.0_r_def
-  real(r_def), parameter :: radius   = 6000000_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
   real(r_def), parameter :: omega    = 8.0E-5_r_def
   real(r_def), parameter :: p_zero   = 100000.0_r_def
   real(r_def), parameter :: rd       = 300.0_r_def
@@ -218,9 +218,9 @@ contains
                                     map_wtheta(:,cell), &
                                     basis_wtheta        &
                                     )
-    answer_exner = real((1.0_r_def-kappa)/kappa*(p_zero/(rd*300_r_def)),r_solver)
+    answer_exner = real((1.0_r_def-kappa)/kappa*(p_zero/(rd*300.0_r_def)),r_solver)
     answer_rho = 1.0_r_solver
-    answer_theta = 0.5_r_solver * 1.0_r_solver/300_r_solver
+    answer_theta = 0.5_r_solver * 1.0_r_solver/300.0_r_solver
     k = 0
     if ( r_solver == real64 ) then
       use_tol = tol

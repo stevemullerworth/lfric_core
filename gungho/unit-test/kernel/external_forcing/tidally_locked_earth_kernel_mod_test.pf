@@ -138,7 +138,7 @@ contains
     real(kind=r_def), allocatable :: chi_data(:,:)
     real(kind=r_def), allocatable :: panel_id(:)
     real(kind=r_def), allocatable :: theta_data(:)
-    real(kind=r_def), allocatable :: exner_data(:)
+    real(kind=r_def), allocatable :: exner_wth_data(:)
     real(kind=r_def), allocatable :: dtheta_data(:)
 
     real(kind=r_def) :: answer_dtheta
@@ -164,7 +164,7 @@ contains
     allocate(chi_data(undf_w3,3))
     allocate(panel_id(undf_w3))
     allocate(theta_data(undf_wth))
-    allocate(exner_data(undf_w3))
+    allocate(exner_wth_data(undf_wth))
     allocate(dtheta_data(undf_wth))
 
     ! Make a 3x3x3 chi field on w3
@@ -193,7 +193,7 @@ contains
 
     ! Create the data
     theta_data(:)            = 300.0_r_def
-    exner_data(:)            = 1.0_r_def
+    exner_wth_data(:)        = 1.0_r_def
 
     ! Only test interior cell 5
     cell = 5
@@ -201,7 +201,7 @@ contains
     call tidally_locked_earth_code( nlayers,                            &
                                     dtheta_data,                        &
                                     theta_data,                         &
-                                    exner_data,                         &
+                                    exner_wth_data,                     &
                                     chi_data(:,1),                      &
                                     chi_data(:,2),                      &
                                     chi_data(:,3),                      &
@@ -223,7 +223,7 @@ contains
     deallocate(chi_data)
     deallocate(panel_id)
     deallocate(theta_data)
-    deallocate(exner_data)
+    deallocate(exner_wth_data)
     deallocate(dtheta_data)
 
   end subroutine test_all

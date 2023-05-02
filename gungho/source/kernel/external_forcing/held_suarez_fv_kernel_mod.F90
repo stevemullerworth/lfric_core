@@ -68,7 +68,7 @@ contains
 !! @param[in] nlayers Integer the number of layers
 !! @param[in,out] dtheta Real array, theta increment data
 !! @param[in] theta Real array, theta data
-!! @param[in] exner_in_wth_in_wth Real array. The exner pressure in wth
+!! @param[in] exner_in_wth Real array, the exner pressure in wth
 !! @param[in] chi_1 First component of the chi coordinate field
 !! @param[in] chi_2 Second component of the chi coordinate field
 !! @param[in] chi_3 Third component of the chi coordinate field

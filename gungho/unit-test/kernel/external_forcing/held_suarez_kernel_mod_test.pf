@@ -224,7 +224,7 @@ contains
     call held_suarez_fv_code( nlayers,                              &
                               dtheta_data,                          &
                               theta_data,                           &
-                              exner_data,                           &
+                              exner_wth_data,                       &
                               chi_data(:,1),                        &
                               chi_data(:,2),                        &
                               chi_data(:,3),                        &

@@ -157,7 +157,7 @@ contains
     call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
                             map_w0, nlayers)
 
-    panel_id(:) = (/ 1_r_def /)
+    panel_id(:) = 1_r_def
 
     ! Create the data
     cell = 5

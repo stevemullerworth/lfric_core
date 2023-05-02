@@ -71,7 +71,7 @@ contains
     class(sample_w3_to_wtheta_test_type), intent(inout) :: this
 
     real(kind=r_def),      parameter :: tol = 1.0e-12_r_def
-    real(kind=r_def),      parameter :: theta0 = 300_r_def
+    real(kind=r_def),      parameter :: theta0 = 300.0_r_def
     real(kind=r_def),      parameter :: dtheta_dz = - 0.5_r_def
 
     ! Fields

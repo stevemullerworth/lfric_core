@@ -97,7 +97,7 @@ subroutine scale_by_detj_code(nlayers,                    &
   integer(kind=i_def), dimension(ndf_wx),  intent(in) :: map_wx
   integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
 
-  real(kind=r_def), dimension(3,ndf_wx,ndf_ws), intent(in)    :: basis_wx
+  real(kind=r_def), dimension(1,ndf_wx,ndf_ws), intent(in)    :: basis_wx
   real(kind=r_def), dimension(3,ndf_wx,ndf_ws), intent(in)    :: diff_basis_wx
   real(kind=r_def), dimension(undf_ws),         intent(inout) :: field
   real(kind=r_def), dimension(undf_wx),         intent(in)    :: chi1, chi2, chi3

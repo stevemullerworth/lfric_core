@@ -133,7 +133,7 @@ contains
     allocate(chi1(undf_w0))
     allocate(chi2(undf_w0))
     allocate(chi3(undf_w0))
-    allocate(panel_id(ncells))
+    allocate(panel_id(undf_pid))
 
     panel_id(:) = 1_r_def
 

@@ -82,7 +82,7 @@ contains
     integer(i_def), parameter :: nqp = 3
     integer(i_def), parameter :: nqp_h = nqp**2
     integer(i_def), parameter :: nqp_v = 1
-    integer(i_def), parameter :: nqp_e = 1
+    integer(i_def), parameter :: nqp_f = 1
     integer(i_def), parameter :: undf_w3 = nlayers*stencil_size
     integer(i_def), parameter :: undf_wx = ndf_wx*nlayers*stencil_size
     integer(i_def), parameter :: undf_pid = stencil_size
@@ -92,10 +92,10 @@ contains
     integer(i_def), dimension(ndf_pid,stencil_size) :: smap_pid
     integer(i_def), dimension(ndf_c)                :: map_c
     real(r_def), dimension(ndf_wx,nqp_h,nqp_v) :: basis_wx
-    real(r_def), dimension(ndf_wx,nqp_e,4) :: face_basis_wx
+    real(r_def), dimension(ndf_wx,nqp_f,4) :: face_basis_wx
     real(r_def), dimension(nqp_h)            :: wqp_h
     real(r_def), dimension(nqp_v), parameter :: wqp_v = (/ 1.0_r_def /)
-    real(r_def), dimension(nqp_e), parameter :: wqp_e = (/ 1.0_r_def /)
+    real(r_def), dimension(nqp_f,nfaces), parameter :: wqp_f = 1.0_r_def
 
     real(r_tran), dimension(undf_c)   :: coeff
     real(r_def), dimension(undf_w3)  :: mdw3
@@ -222,13 +222,13 @@ contains
                                  smap_w3(:,1),              &
                                  ndf_wx,                    &
                                  undf_wx,                   &
-                                 smap_w3(:,1),              &
+                                 smap_wx(:,1),              &
                                  basis_wx,                  &
                                  face_basis_wx,             &
                                  ndf_pid, undf_pid,         &
                                  smap_pid(:,1),             &
                                  nqp_h, nqp_v, wqp_h, wqp_v,&
-                                 nfaces, nqp_e, wqp_e )
+                                 nfaces, nqp_f, wqp_f )
 
     answer = (/  5.0_r_tran/6.0_r_tran, 2.0_r_tran/6.0_r_tran, -1.0_r_tran/6.0_r_tran /)
     use_tol = tol

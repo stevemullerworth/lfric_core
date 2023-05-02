@@ -91,6 +91,9 @@ function vortex_field(lat,long,radius,time) result(density)
   real(kind=r_def) :: r0, v0, V
   real(kind=r_def) :: gamma_value, radial_distance, omega
 
+  ! Small number to test against to avoid undefined calculations
+  real(kind=r_def), parameter :: eps = epsilon(1.0_r_def)
+
   ! Equations below have been taken from Nair and Jablonowski, "Moving vortices
   ! on the sphere: A test case for horizontal advection problems", AMS 2008,
   ! equations (18)-(22)
@@ -106,9 +109,15 @@ function vortex_field(lat,long,radius,time) result(density)
 
   lat_dash = asin(sin(lat)*sin(lat_pole) &
                 + cos(lat)*cos(lat_pole)*cos(long-lon_pole))
-  lon_dash = atan2(cos(lat)*sin(long-lon_pole),              &
-                   cos(lat)*sin(lat_pole)*cos(long-lon_pole) &
-                 - cos(lat_pole)*sin(lat) )
+
+  ! check whether we are about to try and calculate atan2(0,0)
+  if (abs(lat) < eps .and. abs(long) < eps) then
+    lon_dash = 0.0
+  else
+    lon_dash = atan2(cos(lat)*sin(long-lon_pole),              &
+                     cos(lat)*sin(lat_pole)*cos(long-lon_pole) &
+                     - cos(lat_pole)*sin(lat) )
+  end if
 
   radial_distance = r0*cos(lat_dash)
   V = v0*3.0_r_def*(sqrt(3.0_r_def)/2.0_r_def)*  &
