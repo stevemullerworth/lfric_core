@@ -53,8 +53,6 @@ module linear_driver_mod
   private
   public initialise, run, finalise
 
-  ! Model run working data set
-  type (model_data_type) :: model_data
   type(model_clock_type), allocatable :: model_clock
 
   type( mesh_type ), pointer :: mesh                 => null()
@@ -67,13 +65,17 @@ module linear_driver_mod
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Sets up required state in preparation for run.
-  subroutine initialise( program_name, mpi )
+  !> @brief Sets up required state in preparation for run.
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] model_data   The structure that holds model state
+  !> @param [in,out] mpi          The structure that holds comms details
+  subroutine initialise( program_name, model_data, mpi )
 
     implicit none
 
-    character(*),    intent(in) :: program_name
-    class(mpi_type), intent(inout) :: mpi
+    character(*),          intent(in)    :: program_name
+    type(model_data_type), intent(inout) :: model_data
+    class(mpi_type),       intent(inout) :: mpi
 
     class(io_context_type), pointer :: io_context => null()
 
@@ -144,13 +146,16 @@ contains
   end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Timesteps the model, calling the desired timestepping algorithm based
-  !upon the configuration
-  subroutine run( program_name )
+  !> @brief Timesteps the model, calling the desired timestepping algorithm
+  !         based upon the configuration
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] model_data   The structure that holds model state
+  subroutine run( program_name, model_data )
 
     implicit none
 
-    character(*), intent(in) :: program_name
+    character(*), intent(in)             :: program_name
+    type(model_data_type), intent(inout) :: model_data
 
     write( log_scratch_space,'(A)' ) 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
@@ -191,12 +196,15 @@ contains
   end subroutine run
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Tidies up after a run.
-  subroutine finalise( program_name )
+  !> @brief Tidies up after a run.
+  !> @param [in]     program_name An identifier given to the model being run
+  !> @param [in,out] model_data   The structure that holds model state
+  subroutine finalise( program_name, model_data )
 
     implicit none
 
-    character(*), intent(in) :: program_name
+    character(*), intent(in)             :: program_name
+    type(model_data_type), intent(inout) :: model_data
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 

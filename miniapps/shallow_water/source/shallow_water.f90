@@ -14,17 +14,21 @@
 
 program shallow_water
 
-  use cli_mod,                  only: get_initial_filename
-  use driver_comm_mod,          only: init_comm, final_comm
-  use driver_config_mod,        only: init_config, final_config
-  use mpi_mod,                  only: global_mpi
-  use shallow_water_mod,        only: program_name, &
-                                      shallow_water_required_namelists
-  use shallow_water_driver_mod, only: initialise, &
-                                      run,        &
-                                      finalise
+  use cli_mod,                      only: get_initial_filename
+  use driver_comm_mod,              only: init_comm, final_comm
+  use driver_config_mod,            only: init_config, final_config
+  use mpi_mod,                      only: global_mpi
+  use shallow_water_mod,            only: program_name, &
+                                          shallow_water_required_namelists
+  use shallow_water_model_data_mod, only: model_data_type
+  use shallow_water_driver_mod,     only: initialise, &
+                                          run,        &
+                                          finalise
 
   implicit none
+
+  ! Model run working data set
+  type(model_data_type)     :: model_data
 
   character(:), allocatable :: filename
 
@@ -33,11 +37,11 @@ program shallow_water
   call init_config( filename, shallow_water_required_namelists )
   deallocate( filename )
 
-  call initialise( global_mpi )
+  call initialise( model_data, global_mpi )
 
-  call run()
+  call run( model_data )
 
-  call finalise()
+  call finalise( model_data )
   call final_config()
   call final_comm()
 

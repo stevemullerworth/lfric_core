@@ -16,9 +16,12 @@ program io_dev
   use driver_config_mod, only: init_config, final_config
   use io_dev_mod,        only: io_dev_required_namelists
   use io_dev_driver_mod, only: initialise, run, finalise
+  use io_dev_data_mod,   only: io_dev_data_type
   use mpi_mod,           only: global_mpi
 
   implicit none
+
+  type (io_dev_data_type)   :: model_data
 
   character(:), allocatable :: filename
 
@@ -26,11 +29,12 @@ program io_dev
   call get_initial_filename( filename )
   call init_config( filename, io_dev_required_namelists )
   deallocate( filename )
-  call initialise( global_mpi )
 
-  call run()
+  call initialise( model_data, global_mpi )
 
-  call finalise()
+  call run( model_data )
+
+  call finalise( model_data )
   call final_config()
   call final_comm()
 

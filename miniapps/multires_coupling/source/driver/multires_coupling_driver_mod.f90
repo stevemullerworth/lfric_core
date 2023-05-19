@@ -55,10 +55,6 @@ module multires_coupling_driver_mod
 
   type(model_clock_type), allocatable :: model_clock
 
-  ! Model run working data set
-  type (model_data_type) :: dynamics_mesh_model_data
-  type (model_data_type) :: physics_mesh_model_data
-
   ! Primary mesh ids
   type(mesh_type), pointer :: prime_mesh    => null()
   type(mesh_type), pointer :: prime_2D_mesh => null()
@@ -83,13 +79,22 @@ module multires_coupling_driver_mod
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Sets up required state in preparation for run.
+  !> @brief Sets up required state in preparation for run.
   !>
-  subroutine initialise( mpi )
+  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
+  !>                                          state for the dynamics mesh
+  !> @param [in,out] physics_mesh_model_data  The structure that holds model
+  !>                                          state for the physics mesh
+  !> @param [in,out] mpi        The structure that holds comms details
+  subroutine initialise( dynamics_mesh_model_data, &
+                         physics_mesh_model_data,  &
+                         mpi )
 
     implicit none
 
-    class(mpi_type), intent(inout) :: mpi
+    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
+    type(model_data_type), intent(inout) :: physics_mesh_model_data
+    class(mpi_type),       intent(inout) :: mpi
 
     !-------------------------------------------------------------------------
     ! Model init
@@ -172,9 +177,17 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>
-  subroutine run()
+  !> @brief Timesteps the model, calling the desired timestepping algorithm
+  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
+  !>                                          state for the dynamics mesh
+  !> @param [in,out] physics_mesh_model_data  The structure that holds model
+  !>                                          state for the physics mesh
+  subroutine run( dynamics_mesh_model_data, physics_mesh_model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
+    type(model_data_type), intent(inout) :: physics_mesh_model_data
 
     if ( multires_coupling_mode == multires_coupling_mode_test ) then
       ! Call coupling test algorithm
@@ -211,10 +224,17 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Finalise after run
+  !> @param [in,out] dynamics_mesh_model_data The structure that holds model
+  !>                                          state for the dynamics mesh
+  !> @param [in,out] physics_mesh_model_data  The structure that holds model
+  !>                                          state for the physics mesh
   !>
-  subroutine finalise()
+  subroutine finalise( dynamics_mesh_model_data, physics_mesh_model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: dynamics_mesh_model_data
+    type(model_data_type), intent(inout) :: physics_mesh_model_data
 
     !--------------------------------------------------------------------------
     ! Model finalise

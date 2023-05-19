@@ -56,7 +56,6 @@ module io_dev_driver_mod
   public initialise, run, finalise
 
   character(*), parameter             :: program_name = "io_dev"
-  type (io_dev_data_type)             :: model_data
   type(model_clock_type), allocatable :: model_clock
 
   type(field_type), target, dimension(3) :: chi
@@ -67,11 +66,14 @@ module io_dev_driver_mod
   contains
 
   !> @brief Sets up required state in preparation for run.
-  subroutine initialise( mpi )
+  !> @param [in,out] model_data The structure that holds model state
+  !> @param [in,out] mpi        The structure that holds comms details
+  subroutine initialise( model_data, mpi )
 
     implicit none
 
-    class(mpi_type), intent(inout) :: mpi
+    type(io_dev_data_type), intent(inout) :: model_data
+    class(mpi_type),        intent(inout) :: mpi
 
     character(str_def), allocatable :: multires_mesh_tags(:)
     integer(i_def),     allocatable :: multires_mesh_ids(:), multires_twod_mesh_ids(:)
@@ -164,11 +166,14 @@ module io_dev_driver_mod
 
   end subroutine initialise
 
-  !>@brief Timesteps the model, calling the desired timestepping algorithm based
-  !>upon the configuration
-  subroutine run()
+  !> @brief Timesteps the model, calling the desired timestepping algorithm
+  !>        based upon the configuration
+  !> @param [in,out] model_data The structure that holds model state
+  subroutine run( model_data )
 
     implicit none
+
+    type(io_dev_data_type), intent(inout) :: model_data
 
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
@@ -192,9 +197,12 @@ module io_dev_driver_mod
   end subroutine run
 
   !> @brief Tidies up after a model run.
-  subroutine finalise()
+  !> @param [in,out] model_data The structure that holds model state
+  subroutine finalise( model_data )
 
     implicit none
+
+    type(io_dev_data_type), intent(inout) :: model_data
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 

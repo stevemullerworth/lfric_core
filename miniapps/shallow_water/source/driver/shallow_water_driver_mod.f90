@@ -46,8 +46,6 @@ module shallow_water_driver_mod
             run,        &
             finalise
 
-  ! Model run working data set
-  type(model_data_type)               :: model_data
   type(model_clock_type), allocatable :: model_clock
 
   ! Coordinate field
@@ -62,12 +60,14 @@ contains
   !> @brief   Sets up required state in preparation for run.
   !> @details Initialises the infrastructure and the fields stored in
   !!          model_data, then sets the initial conditions for the run.
-  !!
-  subroutine initialise( mpi )
+  !> @param [in,out] model_data The structure that holds model state
+  !> @param [in,out] mpi        The structure that holds comms details
+  subroutine initialise(  model_data, mpi )
 
     implicit none
 
-    class(mpi_type), intent(inout) :: mpi
+    type(model_data_type), intent(inout) :: model_data
+    class(mpi_type),       intent(inout) :: mpi
 
     type(mesh_type),   pointer :: twod_mesh => null()
     type(field_type)           :: panel_id
@@ -119,10 +119,13 @@ contains
 
   !=============================================================================
   !> @brief Performs time stepping for the shallow water miniapp.
+  !> @param [in,out] model_data The structure that holds model state
   !!
-  subroutine run()
+  subroutine run( model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     write(log_scratch_space,'(A)') 'Running '//program_name//' ...'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -156,10 +159,13 @@ contains
 
   !=============================================================================
   !> @brief Tidies up after a run.
+  !> @param [in,out] model_data The structure that holds model state
   !!
-  subroutine finalise()
+  subroutine finalise( model_data )
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_INFO )
 

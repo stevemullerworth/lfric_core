@@ -38,8 +38,6 @@ module diagnostics_driver_mod
   private
   public initialise, run, finalise
 
-  ! Model run working data set
-  type(model_data_type), target       :: model_data
   type(model_clock_type), allocatable :: model_clock
 
   ! Coordinate field
@@ -59,8 +57,10 @@ contains
   !>
   !> mostly boiler plate - note the init and seeding of the fields at the end
   !> of the function.
+  !> @param [in,out] model_data The structure that holds model state
+  !> @param [in,out] mpi        The structure that holds comms details
   !>
-  subroutine initialise( mpi )
+  subroutine initialise( model_data, mpi )
 
     use convert_to_upper_mod,       only : convert_to_upper
     use driver_fem_mod,             only : init_fem
@@ -74,7 +74,8 @@ contains
 
     implicit none
 
-    class(mpi_type), intent(inout) :: mpi
+    type(model_data_type), intent(inout) :: model_data
+    class(mpi_type),       intent(inout) :: mpi
 
     call init_logger( mpi%get_comm(), program_name )
 
@@ -124,12 +125,15 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Performs time steps.
+  !> @param [in,out] model_data The structure that holds model state
   !>
-  subroutine run()
+  subroutine run( model_data )
 
     use diagnostics_step_mod,       only : diagnostics_step
 
     implicit none
+
+    type(model_data_type), intent(inout) :: model_data
 
     ! standard timestepping from gungho
     do while (model_clock%tick())
@@ -152,8 +156,9 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Tidies up after a run.
+  !> @param [in,out] model_data The structure that holds model state
   !>
-  subroutine finalise()
+  subroutine finalise( model_data )
 
     use checksum_alg_mod,  only : checksum_alg
     use configuration_mod, only : final_configuration
@@ -161,6 +166,8 @@ contains
     use driver_log_mod,    only : final_logger
 
     implicit none
+
+    type(model_data_type), intent(inout), target :: model_data
 
     type(field_collection_type), pointer :: depository
     type(field_type), pointer :: hex

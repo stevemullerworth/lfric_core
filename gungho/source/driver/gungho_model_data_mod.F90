@@ -431,6 +431,9 @@ subroutine create_model_data( model_data,         &
 
     end if
 
+    ! Set a default value for temperature_correction_rate for all runs
+    model_data%temperature_correction_rate = 0.0_r_def
+
     ! Assuming this is only relevant for physics runs at the moment
     if (use_physics) then
 
@@ -513,8 +516,6 @@ subroutine create_model_data( model_data,         &
           call scalar_to_field_alg(0.0_r_def, temp_correction_field)
         end if
 
-      else
-        model_data%temperature_correction_rate = 0.0_r_def
       end if
 
     end if

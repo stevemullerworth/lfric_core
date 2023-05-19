@@ -15,14 +15,18 @@
 
 program gungho_model
 
-  use cli_mod,           only : get_initial_filename
-  use driver_comm_mod,   only : init_comm, final_comm
-  use driver_config_mod, only : init_config, final_config
-  use gungho_mod,        only : gungho_required_namelists
-  use gungho_driver_mod, only : initialise, run, finalise
-  use mpi_mod,           only : global_mpi
+  use cli_mod,               only: get_initial_filename
+  use driver_comm_mod,       only: init_comm, final_comm
+  use driver_config_mod,     only: init_config, final_config
+  use gungho_driver_mod,     only: initialise, run, finalise
+  use gungho_mod,            only: gungho_required_namelists
+  use gungho_model_data_mod, only: model_data_type
+  use mpi_mod,               only: global_mpi
 
   implicit none
+
+  ! Model run working data set
+  type(model_data_type) :: model_data
 
   character(*), parameter :: application_name = "gungho_model"
 
@@ -32,11 +36,11 @@ program gungho_model
   call get_initial_filename( filename )
   call init_config( filename, gungho_required_namelists )
 
-  call initialise( application_name, global_mpi )
+  call initialise( application_name, model_data, global_mpi )
 
-  call run( application_name )
+  call run( application_name, model_data )
 
-  call finalise( application_name )
+  call finalise( application_name, model_data )
   call final_config()
   call final_comm()
 
