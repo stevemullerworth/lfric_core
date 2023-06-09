@@ -802,13 +802,15 @@ contains
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      loop0_stop = rsolver_field_proxy%vspace%get_last_dof_halo(1)
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        ! only copy the owned dofs
+        loop0_stop = rsolver_field_proxy%vspace%get_last_dof_annexed()
+      ELSE
+        ! copy the 1st halo row as well
+        loop0_stop = rsolver_field_proxy%vspace%get_last_dof_halo(1)
+      END IF
       !
       ! Call kernels and communication routines
-      !
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        CALL field_proxy%halo_exchange(depth=1)
-      END IF
       !
       !$omp parallel default(shared), private(df)
       !$omp do schedule(static)
@@ -821,7 +823,9 @@ contains
       ! Set halos dirty/clean for fields modified in the above loop
       !
       CALL rsolver_field_proxy%set_dirty()
-      CALL rsolver_field_proxy%set_clean(1)
+      IF (.not. field_proxy%is_dirty(depth=1)) THEN
+        CALL rsolver_field_proxy%set_clean(1)
+      END IF
       !
     end subroutine invoke_copy_to_rsolver
 
@@ -861,13 +865,15 @@ contains
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        ! only copy the owned dofs
+        loop0_stop = rdef_field_proxy%vspace%get_last_dof_annexed()
+      ELSE
+        ! copy the 1st halo row as well
+        loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
+      END IF
       !
       ! Call kernels and communication routines
-      !
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        CALL field_proxy%halo_exchange(depth=1)
-      END IF
       !
       !$omp parallel default(shared), private(df)
       !$omp do schedule(static)
@@ -880,7 +886,9 @@ contains
       ! Set halos dirty/clean for fields modified in the above loop
       !
       CALL rdef_field_proxy%set_dirty()
-      CALL rdef_field_proxy%set_clean(1)
+      IF (.not. field_proxy%is_dirty(depth=1)) THEN
+        CALL rdef_field_proxy%set_clean(1)
+      END IF
       !
     end subroutine invoke_copy_to_rdef
 
@@ -1078,13 +1086,15 @@ contains
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        ! only copy the owned dofs
+        loop0_stop = rdef_field_proxy%vspace%get_last_dof_annexed()
+      ELSE
+        ! copy the 1st halo row as well
+        loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
+      END IF
       !
       ! Call kernels and communication routines
-      !
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        CALL field_proxy%halo_exchange(depth=1)
-      END IF
       !
       !$omp parallel default(shared), private(df)
       !$omp do schedule(static)
@@ -1097,7 +1107,9 @@ contains
       ! Set halos dirty/clean for fields modified in the above loop
       !
       CALL rdef_field_proxy%set_dirty()
-      CALL rdef_field_proxy%set_clean(1)
+      IF (.not. field_proxy%is_dirty(depth=1)) THEN
+        CALL rdef_field_proxy%set_clean(1)
+      END IF
       !
     end subroutine invoke_copy_rtran_to_rdef
 
@@ -1138,13 +1150,15 @@ contains
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      loop0_stop = r_tran_field_proxy%vspace%get_last_dof_halo(1)
+      IF (field_proxy%is_dirty(depth=1)) THEN
+        ! only copy the owned dofs
+        loop0_stop = r_tran_field_proxy%vspace%get_last_dof_annexed()
+      ELSE
+        ! copy the 1st halo row as well
+        loop0_stop = r_tran_field_proxy%vspace%get_last_dof_halo(1)
+      END IF
       !
       ! Call kernels and communication routines
-      !
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        CALL field_proxy%halo_exchange(depth=1)
-      END IF
       !
       !$omp parallel default(shared), private(df)
       !$omp do schedule(static)
@@ -1157,7 +1171,9 @@ contains
       ! Set halos dirty/clean for fields modified in the above loop
       !
       CALL r_tran_field_proxy%set_dirty()
-      CALL r_tran_field_proxy%set_clean(1)
+      IF (.not. field_proxy%is_dirty(depth=1)) THEN
+        CALL r_tran_field_proxy%set_clean(1)
+      END IF
       !
     end subroutine invoke_copy_to_rtran
 
