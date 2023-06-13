@@ -56,3 +56,8 @@ ifeq ($(shell test "$(IFORT_VERSION)" -ge 0190100; echo $$?), 0)
 else
   export FFLAGS_INTEL_EXTERNALS =
 endif
+
+ifeq ($(shell test "$(IFORT_VERSION)" -ge 0190103; echo $$?), 0)
+  $(info ** Disabling OpenMP due to a compiler bug for intel-compiler newer than 2020.3.304 - see Ticket 3853)
+  %ls_ppnc.o %ls_ppnc.mod: FFLAGS:=${FFLAGS} -qno-openmp
+endif
