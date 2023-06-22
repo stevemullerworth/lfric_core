@@ -50,4 +50,4 @@ export compile_atmos=preprocess-atmos
 
 # Define any preprocessor macros that are required
 # (in addition to the ones normally used by the UM)
-export keys_atmos_extra=LFRIC=lfric
+export keys_atmos_extra='LFRIC=lfric USSPPREC_32B=true LSPREC_32B=true'

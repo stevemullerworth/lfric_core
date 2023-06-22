@@ -622,6 +622,10 @@ subroutine mphys_code( nlayers, seg_len,            &
 
       endif
 
+    else
+      ! Needed so conversion to single precision works
+      zb = 0.0_r_um
+      hmteff = 0.0_r_um
     endif
 
     ! Allocate arrays for diagnostics
