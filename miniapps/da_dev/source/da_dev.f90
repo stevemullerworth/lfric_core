@@ -6,27 +6,34 @@
 
 !> @page Miniapp da_dev program
 
-!> @brief Main program for running da_dev independently.
+!> @brief Tests running the linear model in the miniapp
 
-!> @details Calls init, run and finalise routines from a driver module
+!> @details Calls init, step and finalise routines from a
+!>          DA specific linear driver module in the
+!>          lfric-da component
 
 program da_dev
 
   use cli_mod,               only : get_initial_filename
-  use da_dev_mod,            only : da_dev_required_namelists
-  use da_dev_driver_mod,     only : initialise_lfric, run, finalise_lfric, &
-                                    initialise_model, finalise_model
+  use gungho_mod,            only : gungho_required_namelists
+  use lfric_da_linear_driver_mod,                     &
+                             only : initialise, &
+                                    step,       &
+                                    finalise
   use driver_comm_mod,       only : init_comm, final_comm
   use driver_config_mod,     only : init_config, final_config
   use driver_log_mod,        only : init_logger, final_logger
-  use driver_model_data_mod, only : model_data_type
+  use gungho_model_data_mod, only : model_data_type
+  use driver_time_mod,       only : init_time
   use constants_mod,         only : i_native
   use log_mod,               only : log_event, log_level_trace
+  use model_clock_mod,       only : model_clock_type
   use mpi_mod,               only : global_mpi
 
   implicit none
 
-  type(model_data_type) :: model_data
+  type(model_data_type)               :: model_data
+  type(model_clock_type), allocatable :: model_clock
 
   character(*), parameter :: program_name = "da_dev"
 
@@ -34,17 +41,27 @@ program da_dev
 
   call init_comm( program_name )
   call get_initial_filename( filename )
-  call init_config( filename, da_dev_required_namelists )
+  call init_config( filename, gungho_required_namelists )
   deallocate( filename )
   call init_logger( global_mpi%get_comm(), program_name )
 
+  ! Create the depository, prognostics and diagnostics field collections
+  call model_data%depository%initialise(name='depository', table_len=100)
+  call model_data%prognostic_fields%initialise(name="prognostics", table_len=100)
+  call model_data%diagnostic_fields%initialise(name="diagnostics", table_len=100)
+
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise_lfric( program_name, global_mpi )
-  call initialise_model(global_mpi, model_data)
-  call run(program_name, model_data)
+  call init_time( model_clock )
+  call initialise( program_name, model_data, global_mpi, model_clock)
+
+  call log_event( 'Running ' // program_name // ' ...', log_level_trace )
+  do while ( model_clock%tick() )
+    call step( model_data, model_clock )
+  end do
+
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
-  call finalise_model(program_name, model_data%depository)
-  call finalise_lfric()
+  call finalise( program_name, model_data, model_clock )
+  deallocate( model_clock )
 
   call final_logger( program_name )
   call final_config()

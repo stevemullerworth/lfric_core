@@ -28,6 +28,7 @@ module jedi_state_mod
                                             log_scratch_space,  &
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_ERROR
+  use lfric_da_fake_nl_driver_mod,   only : mesh, twod_mesh
   use constants_mod,                 only : i_def, l_def
 
   implicit none
@@ -52,7 +53,7 @@ type, public :: jedi_state_type
   type( atlas_field_interface_type ), allocatable :: fields_to_io_collection(:)
 
   !> Model data that stores the model_data fields to propagate
-  type( model_data_type ), public                 :: model_data
+  type( model_data_type ),  public                :: model_data
 
   !> Field collection to perform IO
   type( field_collection_type ), public           :: io_collection
@@ -122,19 +123,20 @@ contains
 !> @param [in] config   The configuration object including the required
 !>                      information to construct a state and read a file to
 !>                      initialise the fields
-subroutine state_initialiser_read( self, geometry, config )
+subroutine state_initialiser_read( self, program_name, geometry, config )
 
   implicit none
 
-  class( jedi_state_type ), intent(inout)        :: self
-  type( jedi_geometry_type ), target, intent(in) :: geometry
-  type( jedi_state_config_type ), intent(inout)  :: config
+  class( jedi_state_type ),           intent(inout) :: self
+  character(len=*),                   intent(in)    :: program_name
+  type( jedi_geometry_type ), target, intent(in)    :: geometry
+  type( jedi_state_config_type ),     intent(inout) :: config
 
   call self%state_initialiser( geometry, config )
 
   ! Initialise the Atlas field emulators via the model_data or the
   ! io_collection
-  if ( config%use_nl_model ) then
+  if ( .not. config%use_pseudo_model ) then
     ! This calls the models initialise method that populates model_data and
     ! does a copy from model_data to the fields
     call self%initialise_model_data()
@@ -154,9 +156,8 @@ end subroutine state_initialiser_read
 !>                      information to construct a state
 subroutine state_initialiser( self, geometry, config )
 
-  use da_dev_model_init_mod, only : create_da_model_data
-  use da_dev_driver_mod,     only : mesh, twod_mesh
-  use fs_continuity_mod,     only : W3, Wtheta
+  use lfric_da_fake_nl_init_mod, only : create_da_model_data
+  use fs_continuity_mod,               only : W3, Wtheta
 
   implicit none
 
@@ -216,7 +217,7 @@ subroutine state_initialiser( self, geometry, config )
   call self%io_collection%initialise(name = 'io_collection', table_len=100)
 
   ! If running the model, create model data and link to fields .
-  if ( config%use_nl_model ) then
+  if ( .not. config%use_pseudo_model ) then
     call create_da_model_data( mesh, twod_mesh, self%model_data )
     call self%setup_interface_to_model_data()
   end if
@@ -228,7 +229,7 @@ end subroutine state_initialiser
 !>
 subroutine initialise_model_data( self )
 
-  use da_dev_model_init_mod, only : initialise_da_model_data
+  use lfric_da_fake_nl_init_mod, only : initialise_da_model_data
 
   implicit none
 
@@ -250,7 +251,6 @@ end subroutine initialise_model_data
 subroutine read_file( self, datetime, file_prefix )
 
   use da_dev_io_update_mod, only : update_io_field_collection
-  use da_dev_driver_mod,    only : mesh, twod_mesh
   use lfric_xios_read_mod,  only : read_state
 
   implicit none
@@ -437,8 +437,8 @@ end subroutine update_time
 !> @param [in] new_datetime  The datetime to be used to update the LFRic clock
 subroutine set_clock( self, new_datetime )
 
-  use da_dev_driver_mod,       only : model_clock
-  use timestepping_config_mod, only : dt
+  use lfric_da_fake_nl_driver_mod, only : model_clock
+  use timestepping_config_mod,     only : dt
 
   implicit none
 

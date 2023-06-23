@@ -15,9 +15,11 @@
 !>
 program jedi_forecast_pseudo
 
-  use constants_mod,     only : i_def, i_native
-  use da_dev_driver_mod, only : finalise_model
-  use log_mod,           only : log_event, log_level_trace
+  use constants_mod,           only : PRECISION_REAL, i_def, i_native
+  use log_mod,                 only : log_event, log_scratch_space, &
+                                      LOG_LEVEL_ALWAYS
+
+  use lfric_da_fake_nl_driver_mod, only : finalise
 
   ! Data types and methods to get/store configurations
   use jedi_state_config_mod,        only : jedi_state_config_type
@@ -37,7 +39,7 @@ program jedi_forecast_pseudo
   ! Jedi objects
   type(jedi_geometry_type)     :: jedi_geometry
   type(jedi_state_type)        :: jedi_state
-  type(jedi_pseudo_model_type) :: jedi_model
+  type(jedi_pseudo_model_type) :: jedi_psuedo_model
   type(jedi_run_type)          :: jedi_run
 
   ! Emulator configs
@@ -49,6 +51,12 @@ program jedi_forecast_pseudo
   character(:), allocatable :: filename
   integer( kind=i_native )  :: model_communicator
   character(*), parameter   :: program_name = "jedi_forecast_pseudo"
+
+  call log_event( 'Running ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
+  write(log_scratch_space,'(A)')                        &
+        'Application built with '//trim(PRECISION_REAL)// &
+        '-bit real numbers'
+  call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   ! Infrastructure config
   call get_initial_filename( filename )
@@ -64,7 +72,7 @@ program jedi_forecast_pseudo
 
   ! Config for the jedi emulator objects
   ! State config
-  call jedi_state_config%initialise( use_nl_model = .false. )
+  call jedi_state_config%initialise( use_pseudo_model = .true. )
 
   ! Model config
   call jedi_pseudo_model_config%initialise()
@@ -76,16 +84,16 @@ program jedi_forecast_pseudo
   call jedi_geometry%initialise()
 
   ! State
-  call jedi_state%initialise( jedi_geometry, jedi_state_config )
+  call jedi_state%initialise( program_name, jedi_geometry, jedi_state_config )
 
   ! Model
-  call jedi_model%initialise( jedi_pseudo_model_config )
+  call jedi_psuedo_model%initialise( jedi_pseudo_model_config )
 
   ! Run app via model class
-  call jedi_model%forecast( jedi_state, datetime_duration )
+  call jedi_psuedo_model%forecast( jedi_state, datetime_duration )
 
-  call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
+  call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   ! To provide KGO
-  call finalise_model( program_name, jedi_state%io_collection )
+  call finalise( program_name, jedi_state%io_collection )
 
 end program jedi_forecast_pseudo

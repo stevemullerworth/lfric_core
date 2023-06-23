@@ -85,19 +85,18 @@ end subroutine model_init
 !> @param [inout] state State object to propagated
 subroutine model_step(self, state)
 
-  use da_dev_driver_mod,  only: model_clock
-  use da_dev_driver_mod,  only: step_lfric
+  use lfric_da_fake_nl_driver_mod, only : model_clock, step
 
   implicit none
 
-  class( jedi_model_type ), target, intent(in) :: self
-  type( jedi_state_type ),  intent(inout)      :: state
+  class( jedi_model_type ), target, intent(inout) :: self
+  type( jedi_state_type ),          intent(inout) :: state
 
   ! Local
   logical :: clock_stopped
 
   ! check the clock
-  clock_stopped=.not.model_clock%tick()
+  clock_stopped = .not. model_clock%tick()
   ! If the clock has finished then it will just get the
   ! data at the end of the file - this prevents that
   if ( clock_stopped ) then
@@ -106,7 +105,7 @@ subroutine model_step(self, state)
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   endif
 
-  call step_lfric( state%model_data )
+  call step( state%model_data )
 
   ! Copy fields from model data
   call state%from_model_data()
@@ -151,9 +150,9 @@ subroutine forecast(self, state, datetime_duration)
 
   implicit none
 
-  class( jedi_model_type ),   target, intent(in) :: self
-  type( jedi_state_type ),    intent(inout)      :: state
-  type( jedi_duration_type ), intent(in)         :: datetime_duration
+  class( jedi_model_type ), target, intent(inout) :: self
+  type( jedi_state_type ),          intent(inout) :: state
+  type( jedi_duration_type ),       intent(in)    :: datetime_duration
 
   ! Local
   type( jedi_datetime_type ) :: datetime_end

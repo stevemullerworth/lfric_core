@@ -26,7 +26,9 @@ export INTERNAL_DEPENDENCIES = $(ROOT_DIR)/infrastructure \
                                $(ROOT_DIR)/components/science \
                                $(ROOT_DIR)/components/inventory \
                                $(ROOT_DIR)/components/lfric-da \
-                               $(ROOT_DIR)/components/lfric-xios
+                               $(ROOT_DIR)/components/lfric-xios \
+	                             $(ROOT_DIR)/gungho \
+                               $(ROOT_DIR)/linear
 
 export SUITE_GROUP ?= developer
 export SUITE_GROUP_NAME ?= $(notdir $(realpath $(shell pwd)/$(ROOT_DIR)))-$(PROJECT_NAME)-.*
@@ -43,7 +45,7 @@ ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
 endif
 
 .PHONY: default
-default: build unit-tests integration-tests
+default: build integration-tests
 	$(Q)echo > /dev/null
 
 .PHONY: documentation doc docs
@@ -119,7 +121,7 @@ build: export MOD_DIR     ?= $(PROJECT_DIR)/mod
 build: export CXX_LINK     = TRUE
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
 build: export PROJECT      = $(PROJECT_NAME)
-build: export WORKING_DIR := $(WORKING_DIR)/da-dev
+build: export WORKING_DIR := $(WORKING_DIR)/da_dev
 ifeq "$(PROFILE)" "full-debug"
 build: export FFLAG_GROUPS = DEBUG WARNINGS INIT RUNTIME NO_OPTIMISATION FORTRAN_STANDARD
 else ifeq "$(PROFILE)" "fast-debug"
@@ -153,8 +155,8 @@ build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
 	              PROJECT=$(PROJECT) \
 	              SOURCE_DIR=source \
-                  WORKING_DIR=$(WORKING_DIR) \
-                  META_FILE_DIR=$(META_FILE_DIR)
+                WORKING_DIR=$(WORKING_DIR) \
+                META_FILE_DIR=$(META_FILE_DIR)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -184,8 +186,11 @@ unit-tests/%: export ADDITIONAL_EXTRACTION                          \
 	                  $(ROOT_DIR)/components/science/source/kernel    \
 	                  $(ROOT_DIR)/components/science/source/algorithm \
 	                  $(ROOT_DIR)/components/science/source/psy       \
+										$(ROOT_DIR)/components/inventory/source         \
 	                  $(ROOT_DIR)/components/lfric-da/source          \
-	                  $(ROOT_DIR)/components/lfric-xios/source
+	                  $(ROOT_DIR)/components/lfric-xios/source        \
+										$(ROOT_DIR)/gungho/source                       \
+										$(ROOT_DIR)/linear/source
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export FFLAGS += -DUNIT_TEST
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-da_dev/HEAD
@@ -205,8 +210,11 @@ integration-tests/%: export ADDITIONAL_EXTRACTION                  \
                           $(ROOT_DIR)/components/driver/source     \
                           $(ROOT_DIR)/components/inventory/source  \
                           $(ROOT_DIR)/components/science/source    \
+													$(ROOT_DIR)/components/inventory/source  \
                           $(ROOT_DIR)/components/lfric-da/source   \
-                          $(ROOT_DIR)/components/lfric-xios/source
+                          $(ROOT_DIR)/components/lfric-xios/source \
+													$(ROOT_DIR)/gungho/source                \
+										      $(ROOT_DIR)/linear/source
 integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 integration-tests/%: export FFLAGS       += -DINT_TEST
 integration-tests/%: export META_FILE_DIR = rose-meta/lfric-da_dev/HEAD

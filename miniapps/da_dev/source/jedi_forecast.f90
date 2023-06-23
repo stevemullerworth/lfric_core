@@ -15,9 +15,11 @@
 !>
 program jedi_forecast
 
-  use constants_mod,         only : i_def, i_native
-  use da_dev_driver_mod,     only : finalise_model
-  use log_mod,               only : log_event, log_level_trace
+  use constants_mod,           only : PRECISION_REAL, i_def, i_native
+  use log_mod,                 only : log_event, log_scratch_space, &
+                                      LOG_LEVEL_ALWAYS
+
+  use lfric_da_fake_nl_driver_mod, only : finalise
 
   ! Data types and methods to get/store configurations
   use jedi_state_config_mod, only : jedi_state_config_type
@@ -48,6 +50,12 @@ program jedi_forecast
 
   character(*), parameter        :: program_name = "jedi_forecast"
 
+  call log_event( 'Running ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
+  write(log_scratch_space,'(A)')                        &
+        'Application built with '//trim(PRECISION_REAL)// &
+        '-bit real numbers'
+  call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+
   ! Infrastructure config
   call get_initial_filename( filename )
 
@@ -62,7 +70,7 @@ program jedi_forecast
 
   ! Configs for for the jedi emulator objects
   ! State config
-  call jedi_state_config%initialise( use_nl_model = .true. )
+  call jedi_state_config%initialise( use_pseudo_model = .false. )
 
   ! Model config
   datetime_duration_dt = 1
@@ -74,7 +82,7 @@ program jedi_forecast
   call jedi_geometry%initialise()
 
   ! State
-  call jedi_state%initialise( jedi_geometry, jedi_state_config )
+  call jedi_state%initialise( program_name, jedi_geometry, jedi_state_config )
 
   ! Model
   call jedi_model%initialise( datetime_duration_dt )
@@ -82,8 +90,8 @@ program jedi_forecast
   ! Run app via model class
   call jedi_model%forecast( jedi_state, datetime_duration )
 
-  call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
+  call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
   ! To provide KGO
-  call finalise_model( program_name, jedi_state%model_data%depository )
+  call finalise( program_name, jedi_state%model_data%depository )
 
 end program jedi_forecast

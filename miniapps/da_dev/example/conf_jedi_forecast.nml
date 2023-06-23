@@ -1,5 +1,5 @@
 &da_dev
-write_data=.true.
+write_data=.false.
 test_field='theta'
 /
 
@@ -9,7 +9,7 @@ file_prefix='mesh_C12',
 fplane=.false.,
 geometry='spherical',
 offline_partitioning=.false.,
-prime_mesh_name='dynamics',
+prime_mesh_name='C12',
 topology='fully_periodic',
 /
 
@@ -29,8 +29,8 @@ coord_system='alphabetaz'
 /
 
 &io
-  use_xios_io               = .true.
-  write_diag                = .true.
+  use_xios_io               = .false.
+  write_diag                = .false.
   diagnostic_frequency      = 1
   file_convention           = 'UGRID'
   subroutine_timers         = .false.

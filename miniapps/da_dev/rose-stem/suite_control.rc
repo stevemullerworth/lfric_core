@@ -29,7 +29,6 @@
 {%- set rdef_default    = "64" %}
 {%- set mesh_rdef       = "64" %}
 {%- set mesh_build      = "fast-debug" %}
-{%- set MAXRUNAHEAD     = 1 %}
 
 {#========================================================================#}
 {# MPI partitions & Panel decomposition                                   #}
@@ -68,8 +67,8 @@
 {#========================================================================#}
 
 
-{%- set application_configurations = { 'da_dev' : ['default', 'model', 'pseudomodel'],
-                                       'jedi_forecast' : ['default', 'model', 'no_xios'],
+{%- set application_configurations = { 'da_dev' : ['nwp_gal9', 'runge-kutta'],
+                                       'jedi_forecast' : ['default', 'no_xios'],
                                        'jedi_forecast_pseudo' : ['default', 'pseudomodel']} %}
 
 {%- set canned_configurations = ['da_dev', 'jedi_forecast', 'jedi_forecast_pseudo'] %}
@@ -80,33 +79,27 @@
     'check_config_dump_graph()',
     'check_style_graph()',
     'api_documentation_graph(publish=True)',
-    'run_application("da_dev", "default", resolutions=[("C12",)],
-                        env={"nrun":5})',
-    'run_application("da_dev", "model", resolutions=[("C12",)],
-                        env={"nrun":5})',
-    'run_application("da_dev", "pseudomodel", resolutions=[("C12",)],
-                        env={"nrun":5})',
-    'check_compilers("da_dev", "default", "fast-debug", resolution=("C12",))',
-    'check_compilers("da_dev", "default", "full-debug", resolution=("C12",))',
+    'run_application("da_dev", "nwp_gal9",
+                        resolutions=[("C12",1800.0)], env={"nrun":12,
+                                                           "directives":{"C12":{"mpi_parts":6,
+                                                                                "wallclock":"00:10:00"} } })',
+    
+    'run_application("da_dev", "runge-kutta",
+                        resolutions=[("C12",1.0)], env={"nrun":20})',                                                                            'check_compilers("fast-debug")',
+    'check_compilers("full-debug")',
     'canned_test("da_dev")',
     'validate_rose_meta_graph("jedi_forecast",appName="jedi_forecast")',
     'run_application("jedi_forecast", "default", resolutions=[("C12",)],
                         env={"nrun":5})',
-    'run_application("jedi_forecast", "model", resolutions=[("C12",)],
-                        env={"nrun":5})',
     'run_application("jedi_forecast", "no_xios", resolutions=[("C12",)],
                         env={"nrun":5,
                              "directives":{"default":{"use_xios":"False"} } } )',
-    'check_compilers("jedi_forecast", "default", "fast-debug", resolution=("C12",))',
-    'check_compilers("jedi_forecast", "default", "full-debug", resolution=("C12",))',
     'canned_test("jedi_forecast")',
     'validate_rose_meta_graph("jedi_forecast_pseudo",appName="jedi_forecast_pseudo")',
     'run_application("jedi_forecast_pseudo", "default", resolutions=[("C12",)],
                         env={"nrun":5})',
     'run_application("jedi_forecast_pseudo", "pseudomodel", resolutions=[("C12",)],
                         env={"nrun":5})',
-    'check_compilers("jedi_forecast_pseudo", "default", "fast-debug", resolution=("C12",))',
-    'check_compilers("jedi_forecast_pseudo", "default", "full-debug", resolution=("C12",))',
     'canned_test("jedi_forecast_pseudo")' ],
 'nightly': [
     'null_task_graph()' ]
@@ -115,4 +108,4 @@
 #########################################################################################
 
 {# Include any local miniapp include files here #}
-%include inc/MyMiniappIncludeFile.rc
+%include inc/suite_macros.rc

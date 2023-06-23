@@ -36,7 +36,7 @@ type, public :: jedi_state_config_type
   character( len=str_def )           :: read_file_prefix
   !> A logical that if true indicates that the state should include a
   !> model_data instance because it will be used with the non-linear model
-  logical( kind=l_def )              :: use_nl_model
+  logical( kind=l_def )              :: use_pseudo_model
 
 contains
 
@@ -56,13 +56,13 @@ contains
 
 !> @brief    Initialiser for jedi_state_config_type
 !>
-!> @param [in] use_nl_model  Set true if full model is going to be used
-subroutine initialise( self, use_nl_model )
+!> @param [in] use_pseudo_model  Set true if the psuedo model is going to be used
+subroutine initialise( self, use_pseudo_model )
 
   implicit none
 
   class( jedi_state_config_type ), intent(inout) :: self
-  logical( kind=l_def ),           intent(in)    :: use_nl_model
+  logical( kind=l_def ),           intent(in)    :: use_pseudo_model
 
   ! Local
   integer( kind=i_def ), parameter :: nvars = 3
@@ -73,7 +73,7 @@ subroutine initialise( self, use_nl_model )
   ! Configuration inputs
   call self%datetime%init_lfric_calendar_start()
   self%read_file_prefix = "read_"
-  self%use_nl_model = use_nl_model
+  self%use_pseudo_model = use_pseudo_model
 
   ! Setup arrays required for field_meta_data
   ! Variable names
