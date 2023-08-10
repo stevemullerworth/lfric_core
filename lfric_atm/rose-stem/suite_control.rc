@@ -221,7 +221,7 @@
                      resolutions=[("C12",1800.0)],
                      env={"crun":2, "nrun":72,
                           "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
+                                               "threads":2,
                                                "wallclock":"00:10:00"},
                                        },
                          },
@@ -241,7 +241,7 @@
                             resolutions=[("C12",1800.0)],
                             env={"crun":1, "nrun":2,
                             "directives":{"C12":{"mpi_parts":6,
-                                                 "threads":1,
+                                                 "threads":2,
                                                  "wallclock":"00:10:00"},
                                          },
                             }
@@ -250,7 +250,7 @@
                      resolutions=[("C12",1800.0)],
                      env={"crun":1, "nrun":4,
                           "directives":{"C12":{"mpi_parts":6,
-                                               "threads":1,
+                                               "threads":2,
                                                "wallclock":"00:10:00"},
                                        },
                          }
