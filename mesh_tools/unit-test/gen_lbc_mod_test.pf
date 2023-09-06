@@ -329,8 +329,7 @@ contains
 
 
    ! Tidy up
-   call global_mesh_maps%clear()
-   call LBC_LAM_global_mesh_map%clear()
+   call lbc_strategy%clear()
 
    deallocate( cell_cell )
    deallocate( vert_cell )
@@ -467,8 +466,7 @@ contains
     end do
 
    ! Tidy up
-   call global_mesh_maps%clear()
-   call LBC_LAM_global_mesh_map%clear()
+   call lbc_strategy%clear()
 
    deallocate( cell_cell )
    deallocate( vert_cell )
@@ -604,8 +602,7 @@ contains
     end do
 
    ! Tidy up
-   call global_mesh_maps%clear()
-   call LBC_LAM_global_mesh_map%clear()
+   call lbc_strategy%clear()
 
    deallocate( cell_cell )
    deallocate( vert_cell )
