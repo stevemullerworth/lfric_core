@@ -51,6 +51,13 @@
     <axis axis_ref="vert_axis_half_levels"/>
     <axis axis_ref="lbc_axis"/>
   </grid>
+  <!-- N.B. time axis must be before multidata axis -->
+  <grid id="pft_monthly_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="monthly_climatology"/>
+    <axis axis_ref="plant_func_types"/>
+  </grid>
+
   <!-- Zoom filters -->
   <grid id="full_level_0_face_zoom">
     <domain domain_ref="face"/>
