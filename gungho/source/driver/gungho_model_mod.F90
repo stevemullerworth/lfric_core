@@ -83,9 +83,11 @@ module gungho_model_mod
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_alg_init, &
                                          semi_implicit_alg_final
-  use section_choice_config_mod,  only : radiation,         &
-                                         radiation_socrates,&
-                                         surface, surface_jules
+  use section_choice_config_mod,  only : radiation,              &
+                                         radiation_socrates,     &
+                                         surface, surface_jules, &
+                                         stochastic_physics,     &
+                                         stochastic_physics_none
   use setup_orography_alg_mod,    only : setup_orography_alg
   use time_config_mod,            only : timestep_end, timestep_start
   use timestepping_config_mod,    only : dt,                     &
@@ -298,6 +300,7 @@ contains
     character(str_def), allocatable :: double_level_mesh_names(:)
     character(str_def), allocatable :: tmp_mesh_names(:)
     character(str_def), allocatable :: extra_io_mesh_names(:)
+    logical(l_def)                  :: create_rdef_div_operators
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
@@ -545,10 +548,16 @@ contains
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
+    if (stochastic_physics /= stochastic_physics_none) then
+      create_rdef_div_operators = .true.
+    else
+      create_rdef_div_operators = .false.
+    end if
     call create_runtime_constants( mesh_collection,    &
                                    chi_inventory,      &
                                    panel_id_inventory, &
-                                   model_clock )
+                                   model_clock,        &
+                                   create_rdef_div_operators )
 #ifdef UM_PHYSICS
     if ( use_physics ) then
 

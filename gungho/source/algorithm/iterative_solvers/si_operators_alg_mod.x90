@@ -374,12 +374,8 @@ contains
     use fem_constants_mod,                    only: get_normalisation_r_solver, &
                                                     get_rmultiplicity, &
                                                     get_div_r_solver, &
-                                                    get_mass_matrix, &
                                                     get_w2_mass_matrix, &
-                                                    w2_mass_matrix, &
                                                     w2_lagged_damping_layer_matrix, &
-                                                    w2_damping_layer_matrix, &
-                                                    w2_lagged_mass_matrix, &
                                                     get_detj_at_w3_r_solver, &
                                                     get_inverse_w3_mass_matrix_r_solver
     use limited_area_constants_mod,           only: get_mask
@@ -452,7 +448,6 @@ contains
     type(r_solver_field_type)              :: rsol_w2_rmultiplicity
     type(r_solver_operator_type)           :: m2_r_solver
     type(r_solver_field_type),     pointer :: detj_at_w3 => null()
-    integer(kind=i_def)                    :: w2_mass_matrix_type
 
     if ( subroutine_timers ) call timer('si_operators_alg:compute')
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_INFO )
@@ -615,21 +610,9 @@ contains
        end if
 
        ! Compute Hb_lumped_inv field
-       if (lagged_orog) then
-         w2_mass_matrix_type = w2_lagged_mass_matrix
-         if (dlayer_on) then
-            w2_mass_matrix_type = w2_lagged_mass_matrix
-         else
-            w2_mass_matrix_type = w2_lagged_damping_layer_matrix
-         end if
-       else
-         if (dlayer_on) then
-            w2_mass_matrix_type = w2_damping_layer_matrix
-         else
-            w2_mass_matrix_type = w2_mass_matrix
-         end if
-       end if
-       m2 => get_w2_mass_matrix(w2_mass_matrix_type, mesh%get_id() )
+       ! mass matrix should include damping layer and lagged-orography terms
+       ! if these options are not true, this matrix won't contain the terms
+       m2 => get_w2_mass_matrix(w2_lagged_damping_layer_matrix, mesh%get_id() )
 
        call m2_r_solver%initialise( w2_fs, w2_fs )
        call invoke( operator_setval_x_kernel_type( m2_r_solver, m2 ) )

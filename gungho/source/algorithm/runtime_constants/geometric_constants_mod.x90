@@ -116,6 +116,8 @@ contains
     type(function_space_type), pointer :: w2_k0_fs  => null() ! lowest order w2 fs
     type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs
     type(function_space_type), pointer :: wchi_fs  => null()
+    type(function_space_type), pointer :: w2_2d_fs  => null() ! lowest order w2 fs
+    type(function_space_type), pointer :: w3_2d_fs  => null() ! lowest order w3 fs
 
     ! Temporary runtime constants
     type(field_type), pointer :: extended_chi(:) => null()
@@ -131,6 +133,7 @@ contains
     type(field_type)          :: long_w2
 
     type(mesh_type), pointer :: mesh => null()
+    type(mesh_type), pointer :: twod_mesh => null()
 
     ! Temporary values for iterating through list
     integer(kind=i_def) :: i, num_meshes
@@ -165,7 +168,7 @@ contains
       w2_k0_fs  => function_space_collection%get_fs( mesh, 0, W2 )
 
       ! Don't need most function spaces for 2D meshes
-      if ( mesh%get_id() /= twod_mesh_label) then
+      if ( label_list(i) /= twod_mesh_label) then
         w1_k0_fs  => function_space_collection%get_fs( mesh, 0, W1 )
         wth_k0_fs => function_space_collection%get_fs( mesh, 0, Wtheta )
       end if
@@ -189,25 +192,35 @@ contains
 
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == shifted_mesh_label .or. &
-           label_list(i) == extra_mesh_label .or. &
-           label_list(i) == multigrid_mesh_label) then
-        call height_w1_inventory%add_field(height_w1, w1_k0_fs, mesh)
-        call height_w2_inventory%add_field(height_w2, w2_k0_fs, mesh)
+           label_list(i) == multigrid_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
         call height_w3_inventory%add_field(height_w3, w3_k0_fs, mesh)
         call height_wth_inventory%add_field(height_wth, wth_k0_fs, mesh)
-        call invoke( get_height_kernel_type( height_w1,          &
-                                             chi_in(:,i),        &
-                                             scaled_radius ),    &
-                     get_height_kernel_type( height_w2,          &
-                                             chi_in(:,i),        &
-                                             scaled_radius ),    &
-                     get_height_kernel_type( height_w3,          &
+        call invoke( get_height_kernel_type( height_w3,          &
                                              chi_in(:,i),        &
                                              scaled_radius ),    &
                      get_height_kernel_type( height_wth,         &
                                              chi_in(:,i),        &
                                              scaled_radius )     )
-        nullify(height_w1, height_w3, height_wth)
+        nullify(height_w3, height_wth)
+      end if
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+        call height_w1_inventory%add_field(height_w1, w1_k0_fs, mesh)
+        call invoke( get_height_kernel_type( height_w1,          &
+                                             chi_in(:,i),        &
+                                             scaled_radius ) )
+        nullify(height_w1)
+      end if
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+        call height_w2_inventory%add_field(height_w2, w2_k0_fs, mesh)
+        call invoke( get_height_kernel_type( height_w2,          &
+                                             chi_in(:,i),        &
+                                             scaled_radius ) )
       end if
 
       ! ======================= Calculate dz for w3 ===========================!
@@ -224,10 +237,12 @@ contains
 
       ! ================= Compute latitude and longitude maps =================!
 
-      if ( label_list(i) == twod_mesh_label ) then
-        ! for w3_k0_fs
-        call lat_w3_inventory%add_field(lat_w3, w3_k0_fs, mesh)
-        call long_w3_inventory%add_field(long_w3, w3_k0_fs, mesh)
+      if ( label_list(i) == primary_mesh_label ) then
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        w3_2d_fs => function_space_collection%get_fs( twod_mesh, 0, W3 )
+        w2_2d_fs  => function_space_collection%get_fs( twod_mesh, 0, W2 )
+        call lat_w3_inventory%add_field(lat_w3, w3_2d_fs, twod_mesh)
+        call long_w3_inventory%add_field(long_w3, w3_2d_fs, twod_mesh)
         if ( geometry == geometry_spherical ) then
           call invoke( compute_latlon_kernel_type( lat_w3, long_w3,  &
                                                    chi_in(:,i),      &
@@ -238,8 +253,8 @@ contains
         end if
 
         ! for w2_k0_fs (only lat)
-        call lat_w2_inventory%add_field(lat_w2, w2_k0_fs, mesh)
-        call long_w2%initialise( w2_k0_fs )
+        call lat_w2_inventory%add_field(lat_w2, w2_2d_fs, twod_mesh)
+        call long_w2%initialise( w2_2d_fs )
         if ( geometry == geometry_spherical ) then
           call invoke( compute_latlon_kernel_type( lat_w2, long_w2,  &
                                                    chi_in(:,i),      &

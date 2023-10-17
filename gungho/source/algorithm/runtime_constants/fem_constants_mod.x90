@@ -37,6 +37,8 @@ module fem_constants_mod
   use timer_mod,                          only: timer
 
   ! Configuration
+  use check_configuration_mod,            only: check_any_scheme_slice
+  use boundaries_config_mod,              only: limited_area
   use finite_element_config_mod,          only: element_order, nqp_exact
   use formulation_config_mod,             only: dlayer_on, &
                                                 rotating,  &
@@ -79,15 +81,19 @@ module fem_constants_mod
                                                     operator_x_times_y_kernel_type, &
                                                     operator_setval_x_kernel_type
   use project_ws_to_w2_operator_kernel_mod,   only: project_ws_to_w2_operator_kernel_type
-  use project_ws_to_w1_operator_kernel_mod,   only: project_ws_to_w1_operator_kernel_type
   use project_w3_to_w2b_operator_kernel_mod,  only: project_w3_to_w2b_operator_kernel_type
   use w2_normalisation_kernel_mod,            only: w2_normalisation_kernel_type
   use psykal_lite_mod,                        only: invoke_copy_to_rsolver, &
                                                     invoke_operator_setval_x_rtran
 
   use compute_mass_matrix_kernel_w_scalar_mod, only: compute_mass_matrix_kernel_w_scalar_type
-  use compute_mass_matrix_kernel_w1_mod,       only: compute_mass_matrix_kernel_w1_type
-  use compute_curl_operator_kernel_mod,        only: compute_curl_operator_kernel_type
+
+  ! Solver related config options
+  use mixed_solver_config_mod,   only: eliminate_variables, &
+                                       eliminate_variables_analytic
+  use formulation_config_mod,    only: eos_method,           &
+                                       eos_method_sampled
+
 
   implicit none
 
@@ -116,10 +122,7 @@ module fem_constants_mod
   type(inventory_by_mesh_type) :: curl_inventory
   type(inventory_by_mesh_type) :: div_inventory
   type(inventory_by_mesh_type) :: div_h_inventory
-  type(inventory_by_mesh_type) :: div_v_inventory
   type(inventory_by_mesh_type) :: im3_div_inventory
-  type(inventory_by_mesh_type) :: im3_div_h_inventory
-  type(inventory_by_mesh_type) :: im3_div_v_inventory
 
   ! Diagonals of mass matrices
   type(inventory_by_mesh_type) :: mm1_diag_inventory
@@ -132,14 +135,12 @@ module fem_constants_mod
   ! Lumped inverse mass matrices
   type(inventory_by_mesh_type) :: mm1_lumped_inv_inventory
   type(inventory_by_mesh_type) :: mmtheta_lumped_inv_inventory
-  type(inventory_by_mesh_type) :: mm3_lumped_inv_inventory
 
   ! Multiplicities and normalisations
   type(inventory_by_mesh_type) :: nodal_rmultiplicity_w0_inventory
   type(inventory_by_mesh_type) :: nodal_rmultiplicity_w1_inventory
   type(inventory_by_mesh_type) :: nodal_rmultiplicity_w2h_inventory
   type(inventory_by_mesh_type) :: nodal_rmultiplicity_w2_inventory
-  type(inventory_by_mesh_type) :: nodal_rmultiplicity_wt_inventory
   type(inventory_by_mesh_type) :: w2_normalisation_inventory
   type(inventory_by_mesh_type) :: detj_at_w2_inventory
   type(inventory_by_mesh_type) :: detj_at_w2_above_inventory
@@ -150,10 +151,6 @@ module fem_constants_mod
   type(inventory_by_mesh_type) :: project_ydot_to_w2_inventory
   type(inventory_by_mesh_type) :: project_zdot_to_w2_inventory
 
-  ! Projections from W3 to W1
-  type(inventory_by_mesh_type) :: project_lon_dot_to_w1_inventory
-  type(inventory_by_mesh_type) :: project_lat_dot_to_w1_inventory
-  type(inventory_by_mesh_type) :: project_r_dot_to_w1_inventory
 
   ! r_solver versions of operators
   type(inventory_by_mesh_type) :: div_r_solver_inventory
@@ -170,7 +167,6 @@ module fem_constants_mod
   type(inventory_by_mesh_type) :: im3_div_v_r_tran_inventory
   type(inventory_by_mesh_type) :: mm_w3_r_tran_inventory
   type(inventory_by_mesh_type) :: mm_w3_inv_r_tran_inventory
-  type(inventory_by_mesh_type) :: div_r_tran_inventory
 
   ! Quadrature objects
   type( quadrature_xyoz_type ),target   :: qr
@@ -179,8 +175,6 @@ module fem_constants_mod
 
 
   ! Public enumerated types for selecting W2 mass matrices
-  integer(kind=i_def), parameter, public :: w2_mass_matrix = 923478
-  integer(kind=i_def), parameter, public :: w2_lagged_mass_matrix= 136
   integer(kind=i_def), parameter, public :: w2_damping_layer_matrix  = 2370
   integer(kind=i_def), parameter, public :: w2_lagged_damping_layer_matrix = 4374
   integer(kind=i_def), parameter, public :: w2_si_matrix = 891
@@ -196,7 +190,6 @@ module fem_constants_mod
   public :: get_w2_mass_matrix
   public :: get_div
   public :: get_div_h
-  public :: get_div_v
   public :: get_curl
   public :: get_im3_div
   public :: get_directional_im3_div
@@ -205,9 +198,6 @@ module fem_constants_mod
   public :: get_detj_at_w2
   public :: get_detj_at_w2_above
   public :: get_detj_at_w2_below
-  public :: get_project_lon_dot_to_w1
-  public :: get_project_lat_dot_to_w1
-  public :: get_project_r_dot_to_w1
   public :: get_project_xdot_to_w2
   public :: get_project_ydot_to_w2
   public :: get_project_zdot_to_w2
@@ -227,7 +217,9 @@ module fem_constants_mod
   public :: get_directional_im3_div_r_tran
   public :: get_mass_matrix_r_tran
   public :: get_inverse_w3_mass_matrix_r_tran
-  public :: get_div_r_tran
+
+  private :: create_w1_fem_constants
+  private :: create_directional_w2_mass_matrices
 
 contains
 
@@ -237,11 +229,12 @@ contains
   !> @param[in] panel_id_list        List of panel_id fields
   !> @param[in] label_list           List of labels for meshes
   !> @param[in] model_clock          Time within the model.
-  subroutine create_fem_constants( mesh_id_list,  &
-                                   chi_list,      &
-                                   panel_id_list, &
-                                   label_list,    &
-                                   model_clock )
+  subroutine create_fem_constants( mesh_id_list,              &
+                                   chi_list,                  &
+                                   panel_id_list,             &
+                                   label_list,                &
+                                   model_clock,               &
+                                   create_rdef_div_operators )
     implicit none
 
     ! Arguments
@@ -250,10 +243,10 @@ contains
     type(field_type),        intent(in) :: panel_id_list(:)
     integer(kind=i_def),     intent(in) :: label_list(:)
     class(model_clock_type), intent(in) :: model_clock
+    logical(kind=l_def),     intent(in) :: create_rdef_div_operators
 
     ! Internal variables
     type(function_space_type), pointer :: w0_fs     => null()
-    type(function_space_type), pointer :: w1_fs     => null()
     type(function_space_type), pointer :: w2_fs     => null()
     type(function_space_type), pointer :: w2b_fs    => null()
     type(function_space_type), pointer :: w2h_fs    => null()
@@ -266,15 +259,10 @@ contains
     type(field_type)    :: nodal_multiplicity_w2
     type(field_type)    :: nodal_multiplicity_w2h
     type(field_type)    :: nodal_multiplicity_w0
-    type(field_type)    :: nodal_multiplicity_w1
-    type(field_type)    :: nodal_multiplicity_wt
 
     ! Mass matrices
-    type(operator_type), pointer :: mm_w1 => null()
     type(operator_type), pointer :: mm_w2 => null()
     type(operator_type), pointer :: mm_w2b => null()
-    type(operator_type), pointer :: mm_w2v => null()
-    type(operator_type), pointer :: mm_w2h => null()
     type(operator_type), pointer :: mm_w3 => null()
     type(operator_type), pointer :: mm_wtheta => null()
     type(operator_type), pointer :: mm_w3_inv => null()
@@ -287,32 +275,21 @@ contains
 
     ! Differential operators
     type(operator_type), pointer :: div => null()
-    type(operator_type), pointer :: div_v => null()
     type(operator_type), pointer :: div_h => null()
-    type(operator_type), pointer :: curl => null()
     type(operator_type), pointer :: im3_div => null()
-    type(operator_type), pointer :: im3_div_h => null()
-    type(operator_type), pointer :: im3_div_v => null()
 
     ! Diagonals of mass matrices
-    type(field_type),    pointer :: mm1_diag => null()
     type(field_type),    pointer :: mm2_diag => null()
-    type(field_type),    pointer :: mm2v_diag => null()
-    type(field_type),    pointer :: mm2h_diag => null()
     type(field_type),    pointer :: mm3_diag => null()
     type(field_type),    pointer :: mmtheta_diag => null()
 
     ! Lumped inverse mass matrices
-    type(field_type),    pointer :: mm1_lumped_inv => null()
     type(field_type),    pointer :: mmtheta_lumped_inv => null()
-    type(field_type),    pointer :: mm3_lumped_inv => null()
 
     ! Multiplicities and normalisations
     type(field_type),    pointer :: nodal_rmultiplicity_w0 => null()
-    type(field_type),    pointer :: nodal_rmultiplicity_w1 => null()
     type(field_type),    pointer :: nodal_rmultiplicity_w2h => null()
     type(field_type),    pointer :: nodal_rmultiplicity_w2 => null()
-    type(field_type),    pointer :: nodal_rmultiplicity_wt => null()
     type(field_type),    pointer :: w2_normalisation => null()
     type(field_type),    pointer :: detj_at_w2 => null()
     type(field_type),    pointer :: detj_at_w2_above => null()
@@ -323,10 +300,6 @@ contains
     type(operator_type), pointer :: project_ydot_to_w2 => null()
     type(operator_type), pointer :: project_zdot_to_w2 => null()
 
-    ! Projections from W3 to W1
-    type(operator_type), pointer :: project_lon_dot_to_w1 => null()
-    type(operator_type), pointer :: project_lat_dot_to_w1 => null()
-    type(operator_type), pointer :: project_r_dot_to_w1 => null()
 
     ! r_solver versions of operators
     type(r_solver_operator_type), pointer :: div_r_solver => null()
@@ -343,11 +316,16 @@ contains
     type(r_tran_operator_type),   pointer :: im3_div_v_r_tran => null()
     type(r_tran_operator_type),   pointer :: mm_w3_r_tran => null()
     type(r_tran_operator_type),   pointer :: mm_w3_inv_r_tran => null()
-    type(r_tran_operator_type),   pointer :: div_r_tran => null()
 
-    ! For computing SI W2 Matrix
+    ! Temporary operators for computing other operators
     type(operator_type) :: coriolis
     real(kind=r_def)    :: const
+    type(operator_type) :: div_v, im3_div_v, im3_div_h
+    type(operator_type), target :: div_tmp, div_h_tmp, mm_w3_inv_tmp
+    type(operator_type), target :: mm_w3_tmp, mm_w2_si_tmp
+    type(operator_type), target :: mm_w2_tmp, mm_wtheta_tmp, mm_w2_plus_dl_tmp
+    type(field_type),    target :: w2_normalisation_tmp, mmtheta_lumped_inv_tmp
+    type(r_tran_operator_type), target :: mm_w3_r_tran_tmp
 
     ! Auxiliary parameters for PSyclone builtins
     integer(kind=i_def), parameter :: i_minus_one = -1_i_def
@@ -367,6 +345,7 @@ contains
     real(r_second) :: delta_t
 
     logical(kind=l_def), parameter :: extend_mesh = .false.
+    logical(kind=l_def) :: any_scheme_slice
 
     if ( subroutine_timers ) call timer('fem_constants_alg')
     call log_event( "Gungho: creating fem_constants", LOG_LEVEL_INFO )
@@ -385,7 +364,6 @@ contains
     call curl_inventory%initialise(name="curl", table_len=num_meshes)
     call div_inventory%initialise(name="div", table_len=num_meshes)
     call div_h_inventory%initialise(name="div_h", table_len=num_meshes)
-    call div_v_inventory%initialise(name="div_v", table_len=num_meshes)
     call mm_w3_inv_inventory%initialise(name="mm_w3_inv", table_len=num_meshes)
     call mm_w3_inv_r_solver_inventory%initialise(name="mm_w3_inv_r_solver", table_len=num_meshes)
     call mm_w2b_inv_inventory%initialise(name="mm_w2b", table_len=num_meshes)
@@ -393,8 +371,6 @@ contains
     call mm_w2h_inventory%initialise(name="mm_w2h", table_len=num_meshes)
     call mm_w2_plus_dl_lagged_inventory%initialise(name="mm_w2_plus_dl_lagged", table_len=num_meshes)
     call im3_div_inventory%initialise(name="im3_div", table_len=num_meshes)
-    call im3_div_h_inventory%initialise(name="im3_div_h", table_len=num_meshes)
-    call im3_div_v_inventory%initialise(name="im3_div_v", table_len=num_meshes)
     call mm_w2_plus_dl_inventory%initialise(name="mm_w2_plus_dl", table_len=num_meshes)
     call mm_w2_si_inventory%initialise(name="mm_w2_si", table_len=num_meshes)
     call mm1_diag_inventory%initialise(name="mm_w1_diag", table_len=num_meshes)
@@ -404,13 +380,11 @@ contains
     call mm3_diag_inventory%initialise(name="mm_w3_diag", table_len=num_meshes)
     call mmtheta_diag_inventory%initialise(name="mm_wtheta_diag", table_len=num_meshes)
     call mm1_lumped_inv_inventory%initialise(name="mm_w1_lumped_inv", table_len=num_meshes)
-    call mm3_lumped_inv_inventory%initialise(name="mm_w3_lumped_inv", table_len=num_meshes)
     call mmtheta_lumped_inv_inventory%initialise(name="mm_wtheta_lumped_inv", table_len=num_meshes)
     call nodal_rmultiplicity_w0_inventory%initialise(name="nodal_rmultiplicity_w0", table_len=num_meshes)
     call nodal_rmultiplicity_w1_inventory%initialise(name="nodal_rmultiplicity_w1", table_len=num_meshes)
     call nodal_rmultiplicity_w2h_inventory%initialise(name="nodal_rmultiplicity_w2h", table_len=num_meshes)
     call nodal_rmultiplicity_w2_inventory%initialise(name="nodal_rmultiplicity_w2", table_len=num_meshes)
-    call nodal_rmultiplicity_wt_inventory%initialise(name="nodal_rmultiplicity_wtheta", table_len=num_meshes)
     call w2_normalisation_inventory%initialise(name="w2_normalisation", table_len=num_meshes)
     call w2_normalisation_r_solver_inventory%initialise(name="w2_normalisation_r_solver", table_len=num_meshes)
     call wt_normalisation_r_solver_inventory%initialise(name="wt_normalisation_r_solver", table_len=num_meshes)
@@ -423,15 +397,11 @@ contains
     call im3_div_v_r_tran_inventory%initialise(name="im3_div_v_r_tran", table_len=num_meshes)
     call mm_w3_inv_r_tran_inventory%initialise(name="mm_w3_inv_r_tran", table_len=num_meshes)
     call mm_w3_r_tran_inventory%initialise(name="mm_w3_r_tran", table_len=num_meshes)
-    call div_r_tran_inventory%initialise(name="div_r_tran", table_len=num_meshes)
     call mm_wtheta_r_solver_inventory%initialise(name="mm_wtheta_r_solver", table_len=num_meshes)
     call mm_w2_si_r_solver_inventory%initialise(name="mm_w2_si_r_solver", table_len=num_meshes)
     call project_xdot_to_w2_inventory%initialise(name="project_xdot_to_w2", table_len=num_meshes)
     call project_ydot_to_w2_inventory%initialise(name="project_ydot_to_w2", table_len=num_meshes)
     call project_zdot_to_w2_inventory%initialise(name="project_zdot_to_w2", table_len=num_meshes)
-    call project_lon_dot_to_w1_inventory%initialise(name="project_lon_dot_to_w1", table_len=num_meshes)
-    call project_lat_dot_to_w1_inventory%initialise(name="project_lat_dot_to_w1", table_len=num_meshes)
-    call project_r_dot_to_w1_inventory%initialise(name="project_r_dot_to_w1", table_len=num_meshes)
 
     !======================== Create quadrature object ========================!
 
@@ -451,7 +421,6 @@ contains
       ! Don't set up any constants for 2D mesh
       if ( mesh%get_id() /= twod_mesh_label) then
         w0_fs     => function_space_collection%get_fs( mesh, element_order, W0 )
-        w1_fs     => function_space_collection%get_fs( mesh, element_order, W1 )
         w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
         w2b_fs    => function_space_collection%get_fs( mesh, element_order, W2broken )
         w2v_fs    => function_space_collection%get_fs( mesh, element_order, W2V )
@@ -464,12 +433,23 @@ contains
 
       if ( label_list(i) == twod_mesh_label ) then
         ! Do nothing as we don't need these objects on 2D meshes
-      else if ( label_list(i) /= multigrid_mesh_label ) then
+      else if ( label_list(i) == primary_mesh_label .or. &
+                label_list(i) == shifted_mesh_label .or. &
+                label_list(i) == extra_mesh_label ) then
         write(log_scratch_space,'(A,I4)') 'Creating DeRham operators on mesh ',i
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
         call mm_w3_inventory%add_operator(mm_w3, w3_fs, w3_fs, mesh)
-        call div_inventory%add_operator(div, w3_fs, w2_fs, mesh)
+
+        ! Only need rdef div operator in certain situations
+        if (create_rdef_div_operators .and. label_list(i) == primary_mesh_label ) then
+          call div_inventory%add_operator(div, w3_fs, w2_fs, mesh)
+        else
+          ! Still need rdef div to compute other div operators
+          call div_tmp%initialise( w3_fs, w2_fs )
+          div => div_tmp
+        end if
+
         call invoke( name= "compute_m3_and_div", &
                      compute_mass_matrix_kernel_w_scalar_type(mm_w3, chi_list(:,i), panel_id_list(i), &
                                                               extend_mesh, qr), &
@@ -478,41 +458,28 @@ contains
         if ( label_list(i) == primary_mesh_label .or. &
              label_list(i) == extra_mesh_label ) then
           ! Primary mesh
-          call mm_w1_inventory%add_operator(mm_w1, w1_fs, w1_fs, mesh)
           call mm_w2_inventory%add_operator(mm_w2, w2_fs, w2_fs, mesh)
           call mm_w2b_inventory%add_operator(mm_w2b, w2b_fs, w2b_fs, mesh)
           call mm_wtheta_inventory%add_operator(mm_wtheta, wtheta_fs, wtheta_fs, mesh)
-          call curl_inventory%add_operator(curl, w2_fs, w1_fs, mesh)
           call invoke( name= "create_derham_mass_matrices", &
                        compute_mass_matrix_kernel_w2_type(mm_w2, chi_list(:,i), panel_id_list(i), qr),      &
-                       compute_mass_matrix_kernel_w1_type(mm_w1, chi_list(:,i), panel_id_list(i), qr),      &
-                       compute_curl_operator_kernel_type(curl, chi_list(:,i), panel_id_list(i), qr),        &
                        compute_mass_matrix_kernel_w_scalar_type(mm_wtheta, chi_list(:,i), panel_id_list(i), &
-                                                                extend_mesh, qr), &
-                       compute_div_operator_kernel_type(div, chi_list(:,i), panel_id_list(i), qr) )
+                                                                extend_mesh, qr) )
           call invoke( name= "create_broken_m2", &
                        compute_mass_matrix_kernel_w2_type(mm_w2b, chi_list(:,i), panel_id_list(i), qr) )
 
-          nullify(curl)
-
-        else if ( label_list(i) == shifted_mesh_label .or. &
-                  label_list(i) == extra_mesh_label ) then
-          call mm_w2_inventory%add_operator(mm_w2, w2_fs, w2_fs, mesh)
-          call invoke( compute_mass_matrix_kernel_w2_type(mm_w2, chi_list(:,i), panel_id_list(i), qr) )
         end if
 
-        ! Compute r_tran operators on transport (primary, double-level &
-        ! shifted) meshes
-        call mm_w3_r_tran_inventory%add_operator(mm_w3_r_tran, w3_fs, w3_fs, mesh)
-        call invoke_operator_setval_x_rtran( mm_w3_r_tran, mm_w3 )
-        call div_r_tran_inventory%add_operator(div_r_tran, w3_fs, w2_fs, mesh)
-        call invoke_operator_setval_x_rtran( div_r_tran, div )
       else
         ! Multigrid mesh, so only set-up certain mass matrices and operators
-        call mm_w2_inventory%add_operator(mm_w2, w2_fs, w2_fs, mesh)
-        call mm_wtheta_inventory%add_operator(mm_wtheta, wtheta_fs, wtheta_fs, mesh)
-        call mm_w3_inventory%add_operator(mm_w3, w3_fs, w3_fs, mesh)
-        call div_inventory%add_operator(div, w3_fs, w2_fs, mesh)
+        call mm_w2_tmp%initialise( w2_fs, w2_fs )
+        mm_w2 => mm_w2_tmp
+        call mm_w3_tmp%initialise( w3_fs, w3_fs )
+        mm_w3 => mm_w3_tmp
+        call mm_wtheta_tmp%initialise( wtheta_fs, wtheta_fs )
+        mm_wtheta => mm_wtheta_tmp
+        call div_tmp%initialise( w3_fs, w2_fs )
+        div => div_tmp
 
         call invoke( name = "create_mg_de_rham_matrices",             &
                      mg_derham_mat_kernel_type( mm_w2, mm_w3,         &
@@ -520,51 +487,84 @@ contains
                                                 chi_list(:,i),        &
                                                 panel_id_list(i), qr) )
       end if
-      if ( label_list(i) /= twod_mesh_label ) then
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == multigrid_mesh_label ) then
         call div_r_solver_inventory%add_operator(div_r_solver, w3_fs, w2_fs, mesh)
         call invoke( operator_setval_x_kernel_type(div_r_solver, div) )
         nullify(div_r_solver)
       end if
       !============ Compute vertical and horizontal only operators ============!
 
-      if ( label_list(i) /= twod_mesh_label ) then
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
         ! Construct vertical- and horizontal-only weak divergence operator
-        call div_v_inventory%add_operator(div_v, w3_fs, w2v_fs, mesh)
-        call div_h_inventory%add_operator(div_h, w3_fs, w2h_fs, mesh)
+        call div_v%initialise( w3_fs, w2v_fs )
 
-        call invoke( name = "compute_vert_divergence_operator",                 &
-                     compute_div_operator_kernel_type( div_v, chi_list(:,i),    &
-                                                       panel_id_list(i), qr ) )
-        call invoke( name = "compute_hori_divergence_operator",                 &
-                     compute_div_operator_kernel_type( div_h, chi_list(:,i),    &
-                                                       panel_id_list(i), qr ) )
-
-        if ( label_list(i) == primary_mesh_label .or. &
-             label_list(i) == multigrid_mesh_label .or. &
-             label_list(i) == extra_mesh_label ) then
-          ! Construct vertical- and horizontal-only velocity mass matrices
-          call mm_w2v_inventory%add_operator(mm_w2v, w2v_fs, w2v_fs, mesh)
-          call mm_w2h_inventory%add_operator(mm_w2h, w2h_fs, w2h_fs, mesh)
-
-          call invoke( name = "compute_w2_hori_mass_matrix",                      &
-                       compute_mass_matrix_kernel_w2_type( mm_w2v, chi_list(:,i), &
-                                                           panel_id_list(i), qr ) )
-          call invoke( name = "compute_w2_vert_mass_matrix",                      &
-                       compute_mass_matrix_kernel_w2_type( mm_w2h, chi_list(:,i), &
-                                                           panel_id_list(i), qr ) )
+        ! Only need rdef div_h operator in certain situations
+        if (create_rdef_div_operators) then
+          call div_h_inventory%add_operator(div_h, w3_fs, w2h_fs, mesh)
+        else
+          ! Still need rdef div_h to compute other div operators
+          call div_h_tmp%initialise( w3_fs, w2h_fs )
+          div_h => div_h_tmp
         end if
+
+        call invoke( name = "compute_vert_divergence_operator",                &
+                     compute_div_operator_kernel_type( div_v, chi_list(:,i),   &
+                                                       panel_id_list(i), qr ) )
+        call invoke( name = "compute_hori_divergence_operator",                &
+                     compute_div_operator_kernel_type( div_h, chi_list(:,i),   &
+                                                       panel_id_list(i), qr ) )
+      end if
+
       !======================== Inverse W3 mass matrix ========================!
 
-        call mm_w3_inv_inventory%add_operator(mm_w3_inv, w3_fs, w3_fs, mesh)
+      if ( label_list(i) /= twod_mesh_label .and. &
+           label_list(i) /= double_level_mesh_label ) then
+        if ( label_list(i) == multigrid_mesh_label ) then
+          ! Don't need to store constant
+          call mm_w3_inv_tmp%initialise( w3_fs, w3_fs )
+          mm_w3_inv => mm_w3_inv_tmp
+        else
+          call mm_w3_inv_inventory%add_operator(mm_w3_inv, w3_fs, w3_fs, mesh)
+        end if
+
+        call invoke( name = "create_w3_inv_mass_matrix", &
+                     invert_local_operator_kernel_type(mm_w3_inv, mm_w3) )
+      end if
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == multigrid_mesh_label ) then
+        call mm_w3_inv_r_solver_inventory%add_operator(mm_w3_inv_r_solver, w3_fs, w3_fs, mesh)
+        call invoke( operator_setval_x_kernel_type( mm_w3_inv_r_solver, mm_w3_inv ) )
+        nullify( mm_w3_inv_r_solver )
+      end if
+
+      ! Only transport meshes
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+
+        any_scheme_slice = check_any_scheme_slice()
+        if (any_scheme_slice) then
+          call mm_w3_r_tran_inventory%add_operator(mm_w3_r_tran, w3_fs, w3_fs, mesh)
+        else
+          call mm_w3_r_tran_tmp%initialise( w3_fs, w3_fs )
+          mm_w3_r_tran => mm_w3_r_tran_tmp
+        end if
+        call invoke_operator_setval_x_rtran( mm_w3_r_tran, mm_w3 )
+
+        call mm_w3_inv_r_tran_inventory%add_operator(mm_w3_inv_r_tran, w3_fs, w3_fs, mesh)
+        call invoke_operator_setval_x_rtran( mm_w3_inv_r_tran, mm_w3_inv )
+
         call im3_div_inventory%add_operator(im3_div, w3_fs, w2_fs, mesh)
-        call im3_div_h_inventory%add_operator(im3_div_h, w3_fs, w2h_fs, mesh)
-        call im3_div_v_inventory%add_operator(im3_div_v, w3_fs, w2v_fs, mesh)
+        call im3_div_h%initialise( w3_fs, w2h_fs )
+        call im3_div_v%initialise( w3_fs, w2v_fs )
         call im3_div_r_tran_inventory%add_operator(im3_div_r_tran, w3_fs, w2_fs, mesh)
         call im3_div_h_r_tran_inventory%add_operator(im3_div_h_r_tran, w3_fs, w2h_fs, mesh)
         call im3_div_v_r_tran_inventory%add_operator(im3_div_v_r_tran, w3_fs, w2v_fs, mesh)
 
-        call invoke( name = "create_w3_inv_mass_matrix", &
-                     invert_local_operator_kernel_type(mm_w3_inv, mm_w3) )
         call invoke( operator_x_times_y_kernel_type( im3_div, mm_w3_inv, div ),  &
                      operator_x_times_y_kernel_type( im3_div_h, mm_w3_inv, div_h ), &
                      operator_x_times_y_kernel_type( im3_div_v, mm_w3_inv, div_v )  )
@@ -572,10 +572,10 @@ contains
         call invoke_operator_setval_x_rtran( im3_div_r_tran, im3_div )
         call invoke_operator_setval_x_rtran( im3_div_h_r_tran, im3_div_h )
         call invoke_operator_setval_x_rtran( im3_div_v_r_tran, im3_div_v )
-
-        nullify(im3_div, im3_div_h, im3_div_v, im3_div_r_tran, &
-                im3_div_h_r_tran, im3_div_v_r_tran, div, div_h, div_v)
       end if
+
+      nullify(im3_div, im3_div_r_tran, im3_div_h_r_tran, im3_div_v_r_tran, &
+              div, div_h, mm_w3_inv_r_tran, mm_w3_inv)
 
       !======================== Inverse W2b mass matrix =======================!
 
@@ -590,11 +590,18 @@ contains
 
       !========================= Special mass matrices ========================!
 
-      if ( label_list(i) /= twod_mesh_label .and.    &
-           label_list(i) /= shifted_mesh_label .and. &
-           label_list(i) /= double_level_mesh_label ) then
+      if ( label_list(i) == primary_mesh_label .or.    &
+           label_list(i) == multigrid_mesh_label ) then
 
-        call mm_w2_plus_dl_inventory%add_operator(mm_w2_plus_dl, w2_fs, w2_fs, mesh)
+        if ( label_list(i) == primary_mesh_label ) then
+          ! Need to store mm_w2_plus_dl
+          call mm_w2_plus_dl_inventory%add_operator(mm_w2_plus_dl, w2_fs, w2_fs, mesh)
+        else
+          ! Need to compute mm_w2_plus_dl but not store it
+          call mm_w2_plus_dl_tmp%initialise( w2_fs, w2_fs )
+          mm_w2_plus_dl => mm_w2_plus_dl_tmp
+        end if
+
         if ( dlayer_on ) then
           ! Compute W2 mass matrix with damping layer
           ! Eventually this may be absorbed into the de Rham complex computations
@@ -632,7 +639,13 @@ contains
       end if
 
       if ( label_list(i) == primary_mesh_label ) then
-        call mm_w2_si_inventory%add_operator(mm_w2_si, w2_fs, w2_fs, mesh)
+        if (limited_area) then
+          ! Only need to store this operator for LAMs
+          call mm_w2_si_inventory%add_operator(mm_w2_si, w2_fs, w2_fs, mesh)
+        else
+          call mm_w2_si_tmp%initialise( w2_fs, w2_fs )
+          mm_w2_si => mm_w2_si_tmp
+        end if
         call coriolis%initialise( w2_fs, w2_fs )
 
         ! Compute temporary Coriolis operator
@@ -665,7 +678,6 @@ contains
       !======================== Diagonal mass matrices ========================!
 
       if ( label_list(i) == primary_mesh_label .or. &
-           label_list(i) == multigrid_mesh_label .or. &
            label_list(i) == extra_mesh_label) then
         ! Initialise fields
         call mm2_diag_inventory%add_field(mm2_diag, w2_fs, mesh)
@@ -678,28 +690,12 @@ contains
                       mm_diagonal_kernel_type(mm3_diag, mm_w3)  )
         nullify(mm2_diag, mm3_diag)
 
-        if ( label_list(i) == primary_mesh_label .or. &
-             label_list(i) == extra_mesh_label ) then
-          ! W2H and W2V diagonal mass matrices
-          call mm2v_diag_inventory%add_field(mm2v_diag, w2v_fs, mesh)
-          call mm2h_diag_inventory%add_field(mm2h_diag, w2h_fs, mesh)
-          call invoke( setval_c(mm2v_diag,      0.0_r_def),           &
-                       setval_c(mm2h_diag,      0.0_r_def),           &
-                       mm_diagonal_kernel_type(mm2v_diag, mm_w2v),    &
-                       mm_diagonal_kernel_type(mm2h_diag, mm_w2h) )
-          nullify(mm2v_diag, mm2h_diag)
-
-          ! W1 and Wtheta diagonal mass matrices
-          call mm1_diag_inventory%add_field(mm1_diag, w1_fs, mesh)
-          call mmtheta_diag_inventory%add_field(mmtheta_diag, wtheta_fs, mesh)
-          call invoke( name = "create_more_diagonal_fields",                   &
-                       setval_c(mm1_diag,     0.0_r_def),                      &
-                       setval_c(mmtheta_diag, 0.0_r_def),                      &
-                       mm_diagonal_kernel_type(mm1_diag, mm_w1),               &
-                       mm_diagonal_kernel_type(mmtheta_diag, mm_wtheta) )
-          nullify(mm1_diag, mmtheta_diag)
-
-        end if ! Primary/extra mesh
+        ! Wtheta diagonal mass matrices
+        call mmtheta_diag_inventory%add_field(mmtheta_diag, wtheta_fs, mesh)
+        call invoke( name = "create_more_diagonal_fields",                   &
+                     setval_c(mmtheta_diag, 0.0_r_def),                      &
+                     mm_diagonal_kernel_type(mmtheta_diag, mm_wtheta) )
+        nullify(mmtheta_diag)
 
       else if ( label_list(i) == shifted_mesh_label ) then
         call mm3_diag_inventory%add_field(mm3_diag, w3_fs, mesh)
@@ -708,46 +704,30 @@ contains
         nullify(mm3_diag)
 
       end if ! Primary or shifted mesh
-      nullify(mm_w3, mm_w2, mm_w2v, mm_w2h)
+      nullify(mm_w3, mm_w2)
 
       !================= Create inverse lumped mass matrices ==================!
-
-      if ( label_list(i) /= twod_mesh_label ) then
-        call mm3_lumped_inv_inventory%add_field(mm3_lumped_inv, w3_fs, mesh)
-        call invoke( name = "compute_lumped_w3_inverse",                       &
-                     setval_c(mm3_lumped_inv, 0.0_r_def),                      &
-                     mm_diagonal_kernel_type(mm3_lumped_inv, mm_w3_inv) )
-        call mm_w3_inv_r_solver_inventory%add_operator(mm_w3_inv_r_solver, w3_fs, w3_fs, mesh)
-        call invoke( operator_setval_x_kernel_type( mm_w3_inv_r_solver, mm_w3_inv ) )
-        call mm_w3_inv_r_tran_inventory%add_operator(mm_w3_inv_r_tran, w3_fs, w3_fs, mesh)
-        call invoke_operator_setval_x_rtran( mm_w3_inv_r_tran, mm_w3_inv )
-        nullify(mm_w3_inv, mm_w3_inv_r_solver, mm_w3_inv_r_tran, mm3_lumped_inv)
-      end if
-
-      if ( label_list(i) == primary_mesh_label ) then
-        call ones%initialise( vector_space = w1_fs )
-        call mm1_lumped_inv_inventory%add_field(mm1_lumped_inv, w1_fs, mesh)
-        call invoke( name = "create_m1_lumped_inv",                            &
-                     setval_c(ones, 1.0_r_def),                                &
-                     setval_c(mm1_lumped_inv, 0.0_r_def),                      &
-                     matrix_vector_kernel_type(mm1_lumped_inv, ones, mm_w1),   &
-                     inc_X_powint_n(mm1_lumped_inv, i_minus_one) )
-        call ones%field_final()
-        nullify(mm1_lumped_inv)
-      end if
-      nullify(mm_w1)
 
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == multigrid_mesh_label .or. &
            label_list(i) == extra_mesh_label ) then
         call ones%initialise( vector_space = wtheta_fs )
-        call mmtheta_lumped_inv_inventory%add_field(mmtheta_lumped_inv, wtheta_fs, mesh)
+        if ( label_list(i) /= multigrid_mesh_label ) then
+          ! Need to store mmtheta_lumped_inv
+          call mmtheta_lumped_inv_inventory%add_field(mmtheta_lumped_inv, wtheta_fs, mesh)
+        else
+          ! Need to compute mmwtheta_lumped_inv but not store it
+          call mmtheta_lumped_inv_tmp%initialise( wtheta_fs )
+          mmtheta_lumped_inv => mmtheta_lumped_inv_tmp
+        end if
+
         call invoke( name = "create_mmtheta_lumped_inv",                       &
                      setval_c(ones, 1.0_r_def),                                &
                      setval_c(mmtheta_lumped_inv, 0.0_r_def),                  &
                      dg_inc_matrix_vector_kernel_type(mmtheta_lumped_inv,      &
                                                       ones, mm_wtheta),        &
                      inc_X_powint_n(mmtheta_lumped_inv, i_minus_one) )
+
         call wt_normalisation_r_solver_inventory%add_field(wt_normalisation_r_solver, wtheta_fs, mesh)
         call invoke_copy_to_rsolver(wt_normalisation_r_solver, mmtheta_lumped_inv)
         nullify(mmtheta_lumped_inv, wt_normalisation_r_solver)
@@ -761,38 +741,38 @@ contains
            label_list(i) == shifted_mesh_label .or.   &
            label_list(i) == multigrid_mesh_label .or. &
            label_list(i) == extra_mesh_label ) then
-        call ones%initialise( vector_space = w2_fs )
         call nodal_multiplicity_w2%initialise( vector_space = w2_fs )
-        call nodal_rmultiplicity_w2_inventory%add_field(nodal_rmultiplicity_w2, w2_fs, mesh)
-        call invoke( name = "compute_w2_nodal_rmultiplicity",            &
-                     setval_c(ones, 1.0_r_def),                          &
-                     setval_c(nodal_multiplicity_w2, 0.0_r_def),         &
-                     multiplicity_kernel_type(nodal_multiplicity_w2),    &
-                     X_divideby_Y(nodal_rmultiplicity_w2, ones,          &
-                                  nodal_multiplicity_w2) )
-        call ones%field_final()
-        nullify(nodal_rmultiplicity_w2)
+
+        if ( label_list(i) == shifted_mesh_label .or. &
+             (label_list(i) == multigrid_mesh_label .and. .not. limited_area) ) then
+          ! Don't need to store nodal_rmultiplicity
+          call invoke( setval_c(nodal_multiplicity_w2, 0.0_r_def),     &
+                       multiplicity_kernel_type(nodal_multiplicity_w2) )
+        else
+          call ones%initialise( vector_space = w2_fs )
+          call nodal_rmultiplicity_w2_inventory%add_field(nodal_rmultiplicity_w2, w2_fs, mesh)
+          call invoke( name = "compute_w2_nodal_rmultiplicity",            &
+                       setval_c(ones, 1.0_r_def),                          &
+                       setval_c(nodal_multiplicity_w2, 0.0_r_def),         &
+                       multiplicity_kernel_type(nodal_multiplicity_w2),    &
+                       X_divideby_Y(nodal_rmultiplicity_w2, ones,          &
+                                    nodal_multiplicity_w2) )
+          call ones%field_final()
+          nullify(nodal_rmultiplicity_w2)
+        end if
       end if
 
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == extra_mesh_label ) then
         ! NB most of the time we want 1/multiplicity
         call nodal_multiplicity_w0%initialise( vector_space = w0_fs )
-        call nodal_multiplicity_w1%initialise( vector_space = w1_fs )
         call nodal_multiplicity_w2h%initialise( vector_space = w2h_fs )
-        call nodal_multiplicity_wt%initialise( vector_space = wtheta_fs )
         call nodal_rmultiplicity_w0_inventory%add_field(nodal_rmultiplicity_w0, w0_fs, mesh)
-        call nodal_rmultiplicity_w1_inventory%add_field(nodal_rmultiplicity_w1, w1_fs, mesh)
         call nodal_rmultiplicity_w2h_inventory%add_field(nodal_rmultiplicity_w2h, w2h_fs, mesh)
-        call nodal_rmultiplicity_wt_inventory%add_field(nodal_rmultiplicity_wt, wtheta_fs, mesh)
 
         call invoke( name = "create_multiplicities",                  &
                      setval_c(nodal_multiplicity_w0, 0.0_r_def),      &
                      multiplicity_kernel_type(nodal_multiplicity_w0), &
-                     setval_c(nodal_multiplicity_w1, 0.0_r_def),      &
-                     multiplicity_kernel_type(nodal_multiplicity_w1), &
-                     setval_c(nodal_multiplicity_wt, 0.0_r_def),      &
-                     multiplicity_kernel_type(nodal_multiplicity_wt), &
                      setval_c(nodal_multiplicity_w2h, 0.0_r_def),     &
                      multiplicity_kernel_type(nodal_multiplicity_w2h) )
 
@@ -803,37 +783,30 @@ contains
                      X_divideby_Y(nodal_rmultiplicity_w0, ones,     &
                                   nodal_multiplicity_w0) )
 
-        call ones%initialise( vector_space = w1_fs )
-        call invoke( name = "compute_w1_rmultiplicity",             &
-                     setval_c(ones, 1.0_r_def),                     &
-                     X_divideby_Y(nodal_rmultiplicity_w1, ones,     &
-                                  nodal_multiplicity_w1) )
-
         call ones%initialise( vector_space = w2h_fs )
         call invoke( name = "compute_w2h_rmultiplicity",            &
                      setval_c( ones, 1.0_r_def ),                   &
                      X_divideby_Y(nodal_rmultiplicity_w2h, ones,    &
                                   nodal_multiplicity_w2h) )
 
-        call ones%initialise( vector_space = wtheta_fs )
-        call invoke( name = "compute_wt_rmultiplicity",             &
-                     setval_c(ones, 1.0_r_def),                     &
-                     X_divideby_Y(nodal_rmultiplicity_wt, ones,     &
-                                  nodal_multiplicity_wt) )
         call ones%field_final()
         call nodal_multiplicity_w0%field_final()
-        call nodal_multiplicity_w1%field_final()
         call nodal_multiplicity_w2h%field_final()
-        call nodal_multiplicity_wt%field_final()
-        nullify(nodal_rmultiplicity_w0, nodal_rmultiplicity_w1, &
-                nodal_rmultiplicity_w2h, nodal_rmultiplicity_wt)
+        nullify(nodal_rmultiplicity_w0, nodal_rmultiplicity_w2h)
       end if
 
       !============================ Normalisations ============================!
 
       if ( label_list(i) == primary_mesh_label .or. &
            label_list(i) == multigrid_mesh_label ) then
-        call w2_normalisation_inventory%add_field(w2_normalisation, w2_fs, mesh)
+        ! Need to store w2_normalisation on primary mesh
+        if ( label_list(i) == primary_mesh_label ) then
+          call w2_normalisation_inventory%add_field(w2_normalisation, w2_fs, mesh)
+        else
+          call w2_normalisation_tmp%initialise( w2_fs )
+          w2_normalisation => w2_normalisation_tmp
+        end if
+
         call invoke( name = "calculate_w2_normalisation",                    &
                      setval_c(w2_normalisation, 0.0_r_def),                  &
                      w2_normalisation_kernel_type(w2_normalisation,          &
@@ -841,6 +814,7 @@ contains
                                                   panel_id_list(i),          &
                                                   nodal_multiplicity_w2),    &
                      inc_X_powint_n(w2_normalisation, i_minus_one) )
+
         call w2_normalisation_r_solver_inventory%add_field(w2_normalisation_r_solver, w2_fs, mesh)
         call invoke_copy_to_rsolver(w2_normalisation_r_solver, w2_normalisation)
         nullify(w2_normalisation, w2_normalisation_r_solver)
@@ -848,9 +822,10 @@ contains
 
       !================ Create Det(J) values at W3 dof locations ==============!
 
-      if ( label_list(i) == primary_mesh_label .or.  &
-           label_list(i) == shifted_mesh_label  .or. &
-           label_list(i) == multigrid_mesh_label  ) then
+      if ( (label_list(i) == primary_mesh_label .or.  &
+           (label_list(i) == multigrid_mesh_label) .and. &
+           eliminate_variables == eliminate_variables_analytic .and. &
+           eos_method == eos_method_sampled) ) then
         call detj_at_w3_r_solver_inventory%add_field(detj_at_w3_r_solver, w3_fs, mesh)
         call invoke( name = "calculate_detj_at_w3",                      &
                      calc_detj_at_w3_kernel_type(detj_at_w3_r_solver, &
@@ -864,7 +839,6 @@ contains
 
       if ( label_list(i) == primary_mesh_label .or.   &
            label_list(i) == shifted_mesh_label .or.   &
-           label_list(i) == multigrid_mesh_label .or. &
            label_list(i) == extra_mesh_label ) then
         call detj_at_w2_inventory%add_field(detj_at_w2, w2_fs, mesh)
         call invoke( name = "calculate_detj_at_w2",                            &
@@ -930,23 +904,6 @@ contains
         nullify(project_xdot_to_w2, project_ydot_to_w2, project_zdot_to_w2)
       end if
 
-      !================== Projection operators from W3 to W1 ==================!
-
-      if ( label_list(i) == primary_mesh_label ) then
-        call project_lon_dot_to_w1_inventory%add_operator(project_lon_dot_to_w1, w1_fs, w3_fs, mesh)
-        call project_lat_dot_to_w1_inventory%add_operator(project_lat_dot_to_w1, w1_fs, w3_fs, mesh)
-        call project_r_dot_to_w1_inventory%add_operator(project_r_dot_to_w1, w1_fs, w3_fs, mesh)
-        call invoke( project_ws_to_w1_operator_kernel_type(                      &
-                                        project_lon_dot_to_w1, chi_list(:,i),    &
-                                        panel_id_list(i), xdirection, qr),       &
-                     project_ws_to_w1_operator_kernel_type(                      &
-                                        project_lat_dot_to_w1, chi_list(:,i),    &
-                                        panel_id_list(i), ydirection, qr),       &
-                     project_ws_to_w1_operator_kernel_type(                      &
-                                        project_r_dot_to_w1, chi_list(:,i),      &
-                                        panel_id_list(i), zdirection, qr) )
-        nullify(project_lon_dot_to_w1, project_lat_dot_to_w1, project_r_dot_to_w1)
-      end if
 
       if ( label_list(i) == primary_mesh_label ) then
         ! Set up r_solver objects (only needed on the fine dynamics mesh)
@@ -954,7 +911,7 @@ contains
         call mm_w2_si_r_solver_inventory%add_operator(mm_w2_si_r_solver, w2_fs, w2_fs, mesh)
         call invoke( operator_setval_x_kernel_type( mm_wtheta_r_solver, mm_wtheta ) )
         call invoke( operator_setval_x_kernel_type( mm_w2_si_r_solver,  mm_w2_si ) )
-        nullify(mm_wtheta_r_solver, mm_w2_si_r_solver, mm_wtheta, mm_w2_si)
+        nullify(mm_wtheta_r_solver, mm_w2_si_r_solver, mm_wtheta)
       end if
 
     end do ! Loop through meshes
@@ -965,13 +922,127 @@ contains
     nullify( w2h_fs )
     nullify( w2b_fs )
     nullify( w2_fs  )
-    nullify( w1_fs  )
     nullify( w0_fs  )
 
     call log_event( "Gungho: created fem_constants", LOG_LEVEL_INFO )
     if ( subroutine_timers ) call timer('fem_constants_alg')
 
   end subroutine create_fem_constants
+
+  !> @brief Routine to create runtime constants associated with the W1 space
+  !> @details This is a separate routine to allow these constants to be created
+  !!          only if they are due to be used.
+  !> @param[in] mesh   The mesh to create the constants on
+  subroutine create_w1_fem_constants(mesh)
+
+    use compute_mass_matrix_kernel_w1_mod, only: compute_mass_matrix_kernel_w1_type
+    use compute_curl_operator_kernel_mod,  only: compute_curl_operator_kernel_type
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Pointers to things already create
+    type(function_space_type),  pointer :: w1_fs => null()
+    type(function_space_type),  pointer :: w2_fs => null()
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    ! Pointers to new runtime constants
+    type(operator_type),        pointer :: curl => null()
+    type(operator_type),        pointer :: mm_w1 => null()
+    type(field_type),           pointer :: mm1_diag => null()
+    type(field_type),           pointer :: mm1_lumped_inv => null()
+    type(field_type),           pointer :: nodal_rmultiplicity_w1 => null()
+    ! Temporary variables
+    type(field_type)                    :: ones
+    type(field_type)                    :: nodal_multiplicity_w1
+    integer(kind=i_def),      parameter :: i_minus_one = -1_i_def
+
+    qr => get_qr()
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    w1_fs => function_space_collection%get_fs( mesh, element_order, W1 )
+    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+
+    ! Add new constants to inventories -- return pointers to new constants
+    call mm_w1_inventory%add_operator(mm_w1, w1_fs, w1_fs, mesh)
+    call curl_inventory%add_operator(curl, w2_fs, w1_fs, mesh)
+    call mm1_diag_inventory%add_field(mm1_diag, w1_fs, mesh)
+    call mm1_lumped_inv_inventory%add_field(mm1_lumped_inv, w1_fs, mesh)
+    call nodal_rmultiplicity_w1_inventory%add_field(nodal_rmultiplicity_w1, w1_fs, mesh)
+
+    call ones%initialise( vector_space = w1_fs )
+    call nodal_multiplicity_w1%initialise( vector_space = w1_fs )
+
+    call invoke( name="create_w1_operators",                                   &
+                 compute_mass_matrix_kernel_w1_type(mm_w1, chi, panel_id, qr), &
+                 compute_curl_operator_kernel_type(curl, chi, panel_id, qr),   &
+                 ! Compute diagonal W1 mass matrix
+                 setval_c(mm1_diag,     0.0_r_def),                            &
+                 mm_diagonal_kernel_type(mm1_diag, mm_w1),                     &
+                 ! Compute lumped inverse W1 mass matrix
+                 setval_c(ones, 1.0_r_def),                                    &
+                 setval_c(mm1_lumped_inv, 0.0_r_def),                          &
+                 matrix_vector_kernel_type(mm1_lumped_inv, ones, mm_w1),       &
+                 inc_X_powint_n(mm1_lumped_inv, i_minus_one),                  &
+                 ! Calculate nodal multiplicity
+                 setval_c(nodal_multiplicity_w1, 0.0_r_def),                   &
+                 multiplicity_kernel_type(nodal_multiplicity_w1),              &
+                 X_divideby_Y(nodal_rmultiplicity_w1, ones,                    &
+                              nodal_multiplicity_w1) )
+
+  nullify(w1_fs, w2_fs, chi, panel_id, qr, mm_w1, mm1_diag, mm1_lumped_inv, &
+          curl, nodal_rmultiplicity_w1)
+
+  end subroutine create_w1_fem_constants
+
+  !> @brief Routine to create the W2H and W2V mass matrices
+  !> @details This is a separate routine to allow these constants to be created
+  !!          only if they are due to be used.
+  !> @param[in] mesh   The mesh to create the constants on
+  subroutine create_directional_w2_mass_matrices(mesh)
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Pointers to things already create
+    type(function_space_type),  pointer :: w2h_fs    => null()
+    type(function_space_type),  pointer :: w2v_fs    => null()
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    ! Pointers to new runtime constants
+    type(operator_type),        pointer :: mm_w2v => null()
+    type(operator_type),        pointer :: mm_w2h => null()
+    type(field_type),           pointer :: mm2v_diag => null()
+    type(field_type),           pointer :: mm2h_diag => null()
+
+    qr => get_qr()
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    w2h_fs => function_space_collection%get_fs( mesh, element_order, W2H )
+    w2v_fs => function_space_collection%get_fs( mesh, element_order, W2V )
+
+    ! Add new constants to inventories -- return pointers to new constants
+    call mm_w2v_inventory%add_operator(mm_w2v, w2v_fs, w2v_fs, mesh)
+    call mm_w2h_inventory%add_operator(mm_w2h, w2h_fs, w2h_fs, mesh)
+    call mm2v_diag_inventory%add_field(mm2v_diag, w2v_fs, mesh)
+    call mm2h_diag_inventory%add_field(mm2h_diag, w2h_fs, mesh)
+
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_w2v, chi,              &
+                                                     panel_id, qr ),           &
+                 setval_c(mm2v_diag, 0.0_r_def),                               &
+                 mm_diagonal_kernel_type(mm2v_diag, mm_w2v) )
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_w2h, chi,              &
+                                                     panel_id, qr ),           &
+                 setval_c(mm2h_diag, 0.0_r_def),                               &
+                 mm_diagonal_kernel_type(mm2h_diag, mm_w2h) )
+
+  nullify(w2h_fs, w2v_fs, chi, panel_id, qr, mm_w2h, mm_w2v, mm2v_diag, mm2h_diag)
+
+  end subroutine create_directional_w2_mass_matrices
 
   !> @brief Returns a pointer to the quadrature object
   !> @return The quadrature object
@@ -992,25 +1063,31 @@ contains
     integer(kind=i_def),   intent(in) :: mesh_id
     type(mesh_type),          pointer :: mesh => null()
     type(operator_type),      pointer :: mm_op
+    logical(kind=l_def)               :: constant_exists
 
     mesh => mesh_collection%get_mesh(mesh_id)
 
-
     select case (space)
       case (W1)
-      call mm_w1_inventory%get_operator(mesh, mm_op)
+        constant_exists = mm_w1_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_w1_fem_constants(mesh)
+        call mm_w1_inventory%get_operator(mesh, mm_op)
       case (W2)
-      call mm_w2_inventory%get_operator(mesh, mm_op)
+        call mm_w2_inventory%get_operator(mesh, mm_op)
       case (W2broken)
-      call mm_w2b_inventory%get_operator(mesh, mm_op)
+        call mm_w2b_inventory%get_operator(mesh, mm_op)
       case (W2V)
-      call mm_w2v_inventory%get_operator(mesh, mm_op)
+        constant_exists = mm_w2v_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_directional_w2_mass_matrices(mesh)
+        call mm_w2v_inventory%get_operator(mesh, mm_op)
       case (W2H)
-      call mm_w2h_inventory%get_operator(mesh, mm_op)
+        constant_exists = mm_w2h_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_directional_w2_mass_matrices(mesh)
+        call mm_w2h_inventory%get_operator(mesh, mm_op)
       case (W3)
-      call mm_w3_inventory%get_operator(mesh, mm_op)
+        call mm_w3_inventory%get_operator(mesh, mm_op)
       case (Wtheta)
-      call mm_wtheta_inventory%get_operator(mesh, mm_op)
+        call mm_wtheta_inventory%get_operator(mesh, mm_op)
       case default
         mm_op => null()
         call log_event( "Mass matrix operator does not exist", LOG_LEVEL_ERROR)
@@ -1083,17 +1160,24 @@ contains
     integer(kind=i_def), intent(in) :: mesh_id
     type(mesh_type),        pointer :: mesh => null()
     type(field_type),       pointer :: mmd
+    logical(kind=l_def)             :: constant_exists
 
     mesh => mesh_collection%get_mesh(mesh_id)
 
     select case (space)
       case (W1)
+        constant_exists = mm1_diag_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_w1_fem_constants(mesh)
         call mm1_diag_inventory%get_field(mesh, mmd)
       case (W2)
         call mm2_diag_inventory%get_field(mesh, mmd)
       case (W2H)
+        constant_exists = mm2h_diag_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_directional_w2_mass_matrices(mesh)
         call mm2h_diag_inventory%get_field(mesh, mmd)
       case (W2V)
+        constant_exists = mm2v_diag_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_directional_w2_mass_matrices(mesh)
         call mm2v_diag_inventory%get_field(mesh, mmd)
       case (Wtheta)
         call mmtheta_diag_inventory%get_field(mesh, mmd)
@@ -1119,14 +1203,15 @@ contains
     integer(kind=i_def), intent(in) :: mesh_id
     type(mesh_type),        pointer :: mesh => null()
     type(field_type),       pointer :: mm
+    logical(kind=l_def)             :: constant_exists
 
     mesh => mesh_collection%get_mesh(mesh_id)
 
     select case (space)
       case (W1)
+      constant_exists = mm1_lumped_inv_inventory%paired_object_exists(mesh%get_id())
+      if (.not. constant_exists) call create_w1_fem_constants(mesh)
       call mm1_lumped_inv_inventory%get_field(mesh, mm)
-      case (W3)
-      call mm3_lumped_inv_inventory%get_field(mesh, mm)
       case (Wtheta)
       call mmtheta_lumped_inv_inventory%get_field(mesh, mm)
       case default
@@ -1214,13 +1299,13 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
 
     select case (w2_op_name)
-      case(w2_mass_matrix)
-        call mm_w2_inventory%get_operator(mesh, mm_w2_op)
       case(w2_damping_layer_matrix)
+        ! If no damping layer, this is the W2 mass matrix
         call mm_w2_plus_dl_inventory%get_operator(mesh, mm_w2_op)
-      case(w2_lagged_mass_matrix, w2_lagged_damping_layer_matrix)
+      case(w2_lagged_damping_layer_matrix)
+        ! If no damping layer or lagging, this is the W2 mass matrix
         call mm_w2_plus_dl_lagged_inventory%get_operator(mesh, mm_w2_op)
-      case (w2_si_matrix)
+      case(w2_si_matrix)
         call mm_w2_si_inventory%get_operator(mesh, mm_w2_op)
       case default
         write(log_scratch_space,*) 'Generalised W2 mass matrix does not exist'
@@ -1259,8 +1344,11 @@ contains
     integer(kind=i_def),   intent(in) :: mesh_id
     type(mesh_type),          pointer :: mesh => null()
     type(operator_type),      pointer :: curl_op
+    logical(kind=l_def)               :: constant_exists
 
     mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = curl_inventory%paired_object_exists(mesh%get_id())
+    if (.not. constant_exists) call create_w1_fem_constants(mesh)
     call curl_inventory%get_operator(mesh, curl_op)
 
   end function get_curl
@@ -1279,21 +1367,6 @@ contains
     nullify(mesh)
 
   end function get_div_r_solver
-
-  !> @brief Returns a pointer to the r_tran div operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The div operator
-  function get_div_r_tran(mesh_id) result(div_op_r_tran)
-    implicit none
-    integer(kind=i_def),        intent(in) :: mesh_id
-    type(mesh_type),               pointer :: mesh => null()
-    type(r_tran_operator_type),    pointer :: div_op_r_tran
-
-    mesh => mesh_collection%get_mesh(mesh_id)
-    call div_r_tran_inventory%get_operator(mesh, div_op_r_tran)
-    nullify(mesh)
-
-  end function get_div_r_tran
 
   !> @brief Returns a pointer to the div operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -1324,21 +1397,6 @@ contains
     nullify(mesh)
 
   end function get_div_h
-
-  !> @brief Returns a pointer to the div operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The div operator
-  function get_div_v(mesh_id) result(div_op)
-    implicit none
-    integer(kind=i_def),   intent(in) :: mesh_id
-    type(mesh_type),          pointer :: mesh => null()
-    type(operator_type),      pointer :: div_op
-
-    mesh => mesh_collection%get_mesh(mesh_id)
-    call div_v_inventory%get_operator(mesh, div_op)
-    nullify(mesh)
-
-  end function get_div_v
 
   !> @brief Returns a pointer to the inv_m3 * div operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -1374,10 +1432,9 @@ contains
     select case (direction)
     case (direction_3d)
       call im3_div_inventory%get_operator(mesh, div_op)
-    case (direction_h)
-      call im3_div_h_inventory%get_operator(mesh, div_op)
-    case (direction_v)
-      call im3_div_v_inventory%get_operator(mesh, div_op)
+    case default
+      call log_event( "rdef im3_div operator only exists for 3D direction", LOG_LEVEL_ERROR )
+      stop
     end select
 
     nullify(mesh)
@@ -1484,6 +1541,7 @@ contains
     integer(kind=i_def), intent(in) :: mesh_id
     type(mesh_type),        pointer :: mesh => null()
     type(field_type),       pointer :: rmultiplicity
+    logical(kind=l_def)             :: constant_exists
 
     mesh => mesh_collection%get_mesh(mesh_id)
 
@@ -1491,13 +1549,13 @@ contains
       case (W0)
         call nodal_rmultiplicity_w0_inventory%get_field(mesh, rmultiplicity)
       case (W1)
+        constant_exists = nodal_rmultiplicity_w1_inventory%paired_object_exists(mesh%get_id())
+        if (.not. constant_exists) call create_w1_fem_constants(mesh)
         call nodal_rmultiplicity_w1_inventory%get_field(mesh, rmultiplicity)
       case (W2)
         call nodal_rmultiplicity_w2_inventory%get_field(mesh, rmultiplicity)
       case (W2H)
         call nodal_rmultiplicity_w2h_inventory%get_field(mesh, rmultiplicity)
-      case (Wtheta)
-        call nodal_rmultiplicity_wt_inventory%get_field(mesh, rmultiplicity)
       case default
         rmultiplicity => null()
         call log_event( "RMultiplicity does not exist for given space", &
@@ -1568,47 +1626,6 @@ contains
 
   end function get_detj_at_w2_below
 
-  !> @brief Returns a pointer to the operator projection from lon dot to W1
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The projection operator
-  function get_project_lon_dot_to_w1(mesh_id) result(proj_op)
-    implicit none
-    integer(kind=i_def),   intent(in) :: mesh_id
-    type(mesh_type),          pointer :: mesh => null()
-    type(operator_type),      pointer :: proj_op
-
-    mesh => mesh_collection%get_mesh(mesh_id)
-    call project_lon_dot_to_w1_inventory%get_operator(mesh, proj_op)
-
-  end function get_project_lon_dot_to_w1
-
-  !> @brief Returns a pointer to the operator projection from lat dot to W1
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The projection operator
-  function get_project_lat_dot_to_w1(mesh_id) result(proj_op)
-    implicit none
-    integer(kind=i_def),   intent(in) :: mesh_id
-    type(mesh_type),          pointer :: mesh => null()
-    type(operator_type),      pointer :: proj_op
-
-    mesh => mesh_collection%get_mesh(mesh_id)
-    call project_lat_dot_to_w1_inventory%get_operator(mesh, proj_op)
-
-  end function get_project_lat_dot_to_w1
-
-  !> @brief Returns a pointer to the operator projection from r dot to W1
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @return The projection operator
-  function get_project_r_dot_to_w1(mesh_id) result(proj_op)
-    implicit none
-    integer(kind=i_def),   intent(in) :: mesh_id
-    type(mesh_type),          pointer :: mesh => null()
-    type(operator_type),      pointer :: proj_op
-
-    mesh => mesh_collection%get_mesh(mesh_id)
-    call project_r_dot_to_w1_inventory%get_operator(mesh, proj_op)
-
-  end function get_project_r_dot_to_w1
 
   !> @brief Returns a pointer to the operator projection from xdot to W2
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -1716,16 +1733,13 @@ contains
     call nodal_rmultiplicity_w2h_inventory%clear()
     call nodal_rmultiplicity_w1_inventory%clear()
     call nodal_rmultiplicity_w0_inventory%clear()
-    call nodal_rmultiplicity_wt_inventory%clear()
     call mmtheta_lumped_inv_inventory%clear()
-    call mm3_lumped_inv_inventory%clear()
     call mm_w3_inv_r_solver_inventory%clear()
     call mm1_lumped_inv_inventory%clear()
     call mmtheta_diag_inventory%clear()
     call mm3_diag_inventory%clear()
     call mm2_diag_inventory%clear()
     call mm1_diag_inventory%clear()
-    call mm_w2_si_inventory%clear()
     call mm_w2_plus_dl_inventory%clear()
     call mm_w2h_inventory%clear()
     call mm_w2v_inventory%clear()
@@ -1739,10 +1753,7 @@ contains
     call mm_w2_inventory%clear()
     call mm_w1_inventory%clear()
     call im3_div_inventory%clear()
-    call im3_div_v_inventory%clear()
-    call im3_div_h_inventory%clear()
     call div_inventory%clear()
-    call div_v_inventory%clear()
     call div_h_inventory%clear()
     call im3_div_r_tran_inventory%clear()
     call im3_div_v_r_tran_inventory%clear()

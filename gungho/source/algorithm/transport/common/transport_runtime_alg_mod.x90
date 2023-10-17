@@ -155,8 +155,7 @@ contains
     use map_w2_to_sh_w2_alg_mod,       only: sample_w2_to_sh_w2_alg
     use calc_max_cfl_kernel_mod,       only: calc_max_cfl_kernel_type
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
-    use fem_constants_mod,             only: get_div_r_tran, &
-                                             get_inverse_W3_mass_matrix_r_tran
+    use fem_constants_mod,             only: get_inverse_W3_mass_matrix_r_tran
     use r_tran_operator_mod,           only: r_tran_operator_type
     use psykal_lite_mod,               only: invoke_copy_to_rtran
 

@@ -112,6 +112,8 @@ end subroutine write_divergence_diagnostic
 subroutine write_hydbal_diagnostic( theta_field, moist_dyn_field, exner_field,  &
                                     mesh )
 
+  use logging_config_mod, only: run_log_level, run_log_level_debug
+
   implicit none
 
   type(field_type), intent(in)    :: theta_field
@@ -121,13 +123,14 @@ subroutine write_hydbal_diagnostic( theta_field, moist_dyn_field, exner_field,  
 
   real(r_def)                     :: l2_norm = 0.0_r_def
 
-  call hydbal_diagnostic_alg(l2_norm, theta_field, moist_dyn_field,            &
-                             exner_field, mesh)
+  if (run_log_level == run_log_level_debug) then
+    call hydbal_diagnostic_alg(l2_norm, theta_field, moist_dyn_field,          &
+                               exner_field, mesh)
 
-  write( log_scratch_space, '(A,E16.8)' )  &
-       'L2 of hydrostatic imbalance =', l2_norm
-  call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
+    write( log_scratch_space, '(A,E16.8)' )  &
+        'L2 of hydrostatic imbalance =', l2_norm
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end if
 
 end subroutine write_hydbal_diagnostic
 

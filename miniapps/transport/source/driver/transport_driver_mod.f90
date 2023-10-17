@@ -111,6 +111,7 @@ contains
     character(str_def),       allocatable :: shifted_mesh_names(:)
     character(str_def),       allocatable :: double_level_mesh_names(:)
     character(str_def),       allocatable :: extra_io_mesh_names(:)
+    logical(l_def)                        :: create_rdef_div_operators
 
     call set_derived_config( .true. )
 
@@ -156,10 +157,12 @@ contains
     call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
 
     ! Create runtime_constants object.
+    create_rdef_div_operators = .true.
     call create_runtime_constants( mesh_collection,    &
                                    chi_inventory,      &
                                    panel_id_inventory, &
-                                   model_clock )
+                                   model_clock,        &
+                                   create_rdef_div_operators )
 
     ! Set up transport runtime collection type
     ! Transport on only one horizontal local mesh

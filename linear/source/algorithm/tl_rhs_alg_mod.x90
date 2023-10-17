@@ -12,7 +12,6 @@ module tl_rhs_alg_mod
                                                  get_panel_id
   use fem_constants_mod,                   only: get_mass_matrix,         &
                                                  get_w2_mass_matrix,      &
-                                                 w2_mass_matrix,          &
                                                  w2_damping_layer_matrix, &
                                                  get_inverse_w3_mass_matrix
   use physical_op_constants_mod,           only: get_coriolis,     &
@@ -146,7 +145,7 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     if (dlayer_rhs) then
       mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh%get_id())
     else
-      mm_vel => get_w2_mass_matrix(w2_mass_matrix, mesh%get_id())
+      mm_vel => get_mass_matrix(W2, mesh%get_id())
     end if
 
     u     => state(igh_u)

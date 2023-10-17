@@ -42,6 +42,7 @@ module physical_op_constants_mod
                                                 rehabilitate
   use formulation_config_mod,             only: rotating, use_physics
   use mixing_config_mod,                  only: smagorinsky
+  use physics_config_mod,                 only: sample_physics_winds
   use planet_config_mod,                  only: radius, gravity, &
                                                 scaled_omega, scaled_radius
   use base_mesh_config_mod,               only: f_lat, geometry, geometry_spherical
@@ -63,8 +64,12 @@ module physical_op_constants_mod
   use compute_sample_u_ops_kernel_mod,    only: compute_sample_u_ops_kernel_type
 
 #ifdef UM_PHYSICS
+  use project_ws_to_w1_operator_kernel_mod,  &
+                                          only: project_ws_to_w1_operator_kernel_type
   use get_Pnm_star_kernel_mod,            only: get_Pnm_star_kernel_type
-  use stochastic_physics_config_mod,      only: use_spt, stph_spectral_dim, stph_n_max
+  use stochastic_physics_config_mod,      only: use_spt, stph_spectral_dim, &
+                                                stph_n_max, use_skeb, &
+                                                skeb_rot_du, skeb_rot_du_fe
 #endif
 
   implicit none
@@ -86,6 +91,10 @@ module physical_op_constants_mod
   type(inventory_by_mesh_type) :: dA_msl_proj_inventory
 #ifdef UM_PHYSICS
   type(inventory_by_mesh_type) :: Pnm_star_inventory
+  ! Projections from W3 to W1
+  type(inventory_by_mesh_type) :: project_lon_dot_to_w1_inventory
+  type(inventory_by_mesh_type) :: project_lat_dot_to_w1_inventory
+  type(inventory_by_mesh_type) :: project_r_dot_to_w1_inventory
 #endif
 
   type(inventory_by_mesh_type) :: coriolis_inventory
@@ -119,6 +128,9 @@ module physical_op_constants_mod
   public :: get_dA_msl_proj
 #ifdef UM_PHYSICS
   public :: get_Pnm_star
+  public :: get_project_lon_dot_to_w1
+  public :: get_project_lat_dot_to_w1
+  public :: get_project_r_dot_to_w1
 #endif
 
 contains
@@ -185,6 +197,14 @@ contains
     type(function_space_type),  pointer :: w_Pnm_star_fs => null()
     type(field_type),           pointer :: latitude => null()
     type(field_type),           pointer :: Pnm_star => null()
+    ! Projections from W3 to W1
+    type(operator_type),        pointer :: project_lon_dot_to_w1 => null()
+    type(operator_type),        pointer :: project_lat_dot_to_w1 => null()
+    type(operator_type),        pointer :: project_r_dot_to_w1 => null()
+
+    integer(kind=i_def),      parameter :: xdirection = 1_i_def
+    integer(kind=i_def),      parameter :: ydirection = 2_i_def
+    integer(kind=i_def),      parameter :: zdirection = 3_i_def
 #endif
     procedure(write_interface), pointer :: write_behaviour => null()
 
@@ -289,30 +309,34 @@ contains
 
         ! Operators needed to map finite difference physics winds to W2
         ! finite element winds
-        call u_lon_map_inventory%add_operator(u_lon_map, w2_fs, w3_fs, mesh)
-        call u_lat_map_inventory%add_operator(u_lat_map, w2_fs, w3_fs, mesh)
-        call u_up_map_inventory%add_operator(u_up_map, w2_fs, wtheta_fs, mesh)
+        if (sample_physics_winds) then
 
-        call invoke( name="compute_lonlatr_galerkin_operators",              &
-                      compute_map_u_operators_kernel_type(u_lon_map,          &
-                                                          u_lat_map,          &
-                                                          u_up_map,           &
-                                                          chi_list(:,i),      &
-                                                          panel_id_list(i),   &
-                                                          qr) )
-        nullify(u_lon_map, u_lat_map, u_up_map)
+          call u_lon_sample_inventory%add_operator(u_lon_sample, w2b_fs, w3_fs, mesh)
+          call u_lat_sample_inventory%add_operator(u_lat_sample, w2b_fs, w3_fs, mesh)
+          call u_up_sample_inventory%add_operator(u_up_sample, w2b_fs, wtheta_fs, mesh)
 
-        call u_lon_sample_inventory%add_operator(u_lon_sample, w2b_fs, w3_fs, mesh)
-        call u_lat_sample_inventory%add_operator(u_lat_sample, w2b_fs, w3_fs, mesh)
-        call u_up_sample_inventory%add_operator(u_up_sample, w2b_fs, wtheta_fs, mesh)
+          call invoke( name="compute_lonlatr_sample_operators",                &
+                       compute_sample_u_ops_kernel_type(u_lon_sample,          &
+                                                        u_lat_sample,          &
+                                                        u_up_sample,           &
+                                                        chi_list(:,i),         &
+                                                        panel_id_list(i)) )
+          nullify(u_lon_sample, u_lat_sample, u_up_sample)
+        else
 
-        call invoke( name="compute_lonlatr_sample_operators",                &
-                      compute_sample_u_ops_kernel_type(u_lon_sample,          &
-                                                      u_lat_sample,          &
-                                                      u_up_sample,           &
-                                                      chi_list(:,i),         &
-                                                      panel_id_list(i)) )
-        nullify(u_lon_sample, u_lat_sample, u_up_sample)
+          call u_lon_map_inventory%add_operator(u_lon_map, w2_fs, w3_fs, mesh)
+          call u_lat_map_inventory%add_operator(u_lat_map, w2_fs, w3_fs, mesh)
+          call u_up_map_inventory%add_operator(u_up_map, w2_fs, wtheta_fs, mesh)
+
+          call invoke( name="compute_lonlatr_galerkin_operators",              &
+                       compute_map_u_operators_kernel_type(u_lon_map,          &
+                                                           u_lat_map,          &
+                                                           u_up_map,           &
+                                                           chi_list(:,i),      &
+                                                           panel_id_list(i),   &
+                                                           qr) )
+          nullify(u_lon_map, u_lat_map, u_up_map)
+        end if
 
         if (use_physics) then
 
@@ -418,6 +442,28 @@ contains
 
             nullify(latitude, w_Pnm_star_fs, Pnm_star)
 
+          end if
+
+          !================== Projection operators from W3 to W1 ==================!
+
+          if ( use_skeb .and. skeb_rot_du == skeb_rot_du_fe ) then
+            call project_lon_dot_to_w1_inventory%initialise(name="project_lon_dot_to_w1", table_len=num_meshes)
+            call project_lat_dot_to_w1_inventory%initialise(name="project_lat_dot_to_w1", table_len=num_meshes)
+            call project_r_dot_to_w1_inventory%initialise(name="project_r_dot_to_w1", table_len=num_meshes)
+
+            call project_lon_dot_to_w1_inventory%add_operator(project_lon_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call project_lat_dot_to_w1_inventory%add_operator(project_lat_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call project_r_dot_to_w1_inventory%add_operator(project_r_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call invoke( project_ws_to_w1_operator_kernel_type(                    &
+                                             project_lon_dot_to_w1, chi_list(:,i), &
+                                             panel_id_list(i), xdirection, qr),    &
+                         project_ws_to_w1_operator_kernel_type(                    &
+                                             project_lat_dot_to_w1, chi_list(:,i), &
+                                             panel_id_list(i), ydirection, qr),    &
+                         project_ws_to_w1_operator_kernel_type(                    &
+                                             project_r_dot_to_w1, chi_list(:,i),   &
+                                             panel_id_list(i), zdirection, qr) )
+            nullify(project_lon_dot_to_w1, project_lat_dot_to_w1, project_r_dot_to_w1)
           end if
 #endif
 
@@ -608,6 +654,48 @@ contains
       nullify(mesh)
 
   end function get_Pnm_star
+
+  !> @brief Returns a pointer to the operator projection from lon dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_lon_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_lon_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_lon_dot_to_w1
+
+  !> @brief Returns a pointer to the operator projection from lat dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_lat_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_lat_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_lat_dot_to_w1
+
+  !> @brief Returns a pointer to the operator projection from r dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_r_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_r_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_r_dot_to_w1
 #endif
   !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
   !> @param[in] mesh_id The ID of the mesh to get the object for

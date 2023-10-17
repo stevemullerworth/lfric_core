@@ -22,7 +22,7 @@ module gw_pressure_operator_alg_mod
   use vector_mod,                         only: abstract_vector_type
   use r_solver_field_mod,                 only: r_solver_field_type
   use r_solver_field_vector_mod,          only: r_solver_field_vector_type
-  use constants_mod,                      only: i_def, r_solver
+  use constants_mod,                      only: i_def, r_solver, l_def
   use fem_constants_mod,                  only: get_mass_matrix,     &
                                                 get_inverse_w3_mass_matrix_r_solver, &
                                                 get_div_r_solver
@@ -98,6 +98,8 @@ contains
   !> @param[in] level Multigrid level
   !> @return Instance of the Helmholtz operator
   function gw_pressure_operator_constructor(level) result(self)
+    use field_mod,                          only: field_type
+    use geometric_constants_mod,            only: get_coordinates, get_panel_id
     use function_space_mod,                 only: function_space_type
     use fs_continuity_mod,                  only: W2, W0, W3, Wtheta
     use finite_element_config_mod,          only: element_order
@@ -111,6 +113,9 @@ contains
     use multigrid_config_mod,               only: chain_mesh_tags
     use base_mesh_config_mod,               only: prime_mesh_name
     use operator_algebra_kernel_mod,        only: operator_setval_x_kernel_type
+    use compute_mass_matrix_kernel_w_scalar_mod, &
+                                            only: compute_mass_matrix_kernel_w_scalar_type
+    use compute_mass_matrix_kernel_w2_mod,  only: compute_mass_matrix_kernel_w2_type
     implicit none
 
     type(gw_pressure_operator_type)     :: self
@@ -118,17 +123,20 @@ contains
     type(function_space_type), pointer  :: wu => null(), &
                                            wb => null(), &
                                            wp => null()
+    type(field_type), pointer           :: chi(:) => null()
+    type(field_type), pointer           :: panel_id => null()
     integer(kind=i_def)                 :: order
     type(mesh_type), pointer            :: mesh => null()
     real(kind=r_solver)                 :: const1
     type(r_solver_field_type)           :: ones, M_lumped, &
                                            ones_u, M_lumped_u, &
                                            Mb_lumped_inv, QT1
-    type(operator_type), pointer        :: Mm => null()
+    type(operator_type)                 :: Mm
     type(r_solver_operator_type)        :: Mu, Mb
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_rule_gaussian_type) :: quadrature_rule
     type(r_solver_operator_type)        :: Q
+    logical(kind=l_def)                 :: extend_mesh
 
 
     call log_event( 'Constructing pressure operator...', LOG_LEVEL_INFO )
@@ -162,27 +170,23 @@ contains
     call self%div_grad_p%initialise( vector_space = wp )
 
     ! Compute inverse approximate \tilde{M}_b^{-1}
+    qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    extend_mesh = .false.
     call ones%initialise( vector_space = wb )
     call M_lumped%initialise( vector_space = wb )
     call Mb_lumped_inv%initialise( vector_space = wb )
-    select case(b_space)
-      case(b_space_w0)
-        Mm => get_mass_matrix(W0, mesh%get_id())
-      case(b_space_w3)
-        Mm => get_mass_matrix(W3, mesh%get_id())
-      case(b_space_wtheta)
-        Mm => get_mass_matrix(Wtheta, mesh%get_id())
-    end select
     call Mb%initialise( wb, wb )
-    call invoke( operator_setval_x_kernel_type( Mb, Mm ),       &
-                 setval_c( ones,     1.0_r_solver ),            &
-                 setval_c( M_lumped, 0.0_r_solver ),            &
-                 matrix_vector_kernel_type(M_lumped, ones, Mb), &
+    call invoke( compute_mass_matrix_kernel_w_scalar_type(Mb, chi, panel_id, &
+                                                          extend_mesh, qr),  &
+                 setval_c( ones,     1.0_r_solver ),                         &
+                 setval_c( M_lumped, 0.0_r_solver ),                         &
+                 matrix_vector_kernel_type(M_lumped, ones, Mb),              &
                  X_divideby_Y(Mb_lumped_inv, ones, M_lumped) )
 
     ! Compute Q (projection) operator
     call Q%initialise( wu, wb )
-    qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
     call invoke( compute_q_operator_type(Q, qr) )
 
     ! Compute inverse approximate \f$ \tilde{H}_b^{-1} \f$
@@ -190,18 +194,19 @@ contains
     call M_lumped_u%initialise( vector_space = wu )
     call QT1%initialise( vector_space = wb )
     call self%Hb_lumped_inv%initialise( vector_space = wu )
-    Mm => get_mass_matrix(W2, mesh%get_id())
-    call Mu%initialise( Mm%get_fs_to(), Mm%get_fs_from() )
+    call Mm%initialise( wu , wu )
+    call Mu%initialise( wu , wu )
     const1 = self%alpha**2*real(dt**2*bvf_square, r_solver)
-    call invoke( operator_setval_x_kernel_type( Mu, Mm ),                &
-                 setval_c(ones_u,     1.0_r_solver),                     &
-                 setval_c(M_lumped_u, 0.0_r_solver),                     &
-                 setval_c(QT1,        0.0_r_solver),                     &
-                 transpose_matrix_vector_kernel_type(QT1, ones_u, Q),    &
-                 inc_X_times_Y(QT1, Mb_lumped_inv),                      &
-                 matrix_vector_kernel_type(M_lumped_u, QT1, Q),          &
-                 inc_a_times_X(const1, M_lumped_u),                      &
-                 matrix_vector_kernel_type(M_lumped_u, ones_u, Mu),      &
+    call invoke( compute_mass_matrix_kernel_w2_type(Mm, chi, panel_id, qr), &
+                 operator_setval_x_kernel_type( Mu, Mm ),                   &
+                 setval_c(ones_u,     1.0_r_solver),                        &
+                 setval_c(M_lumped_u, 0.0_r_solver),                        &
+                 setval_c(QT1,        0.0_r_solver),                        &
+                 transpose_matrix_vector_kernel_type(QT1, ones_u, Q),       &
+                 inc_X_times_Y(QT1, Mb_lumped_inv),                         &
+                 matrix_vector_kernel_type(M_lumped_u, QT1, Q),             &
+                 inc_a_times_X(const1, M_lumped_u),                         &
+                 matrix_vector_kernel_type(M_lumped_u, ones_u, Mu),         &
                  X_divideby_Y(self%Hb_lumped_inv, ones_u, M_lumped_u) )
 
 

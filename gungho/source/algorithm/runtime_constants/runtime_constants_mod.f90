@@ -17,7 +17,7 @@ module runtime_constants_mod
   use extrusion_mod,           only: PRIME_EXTRUSION, SHIFTED, &
                                      TWOD, DOUBLE_LEVEL
   use field_mod,               only: field_type
-  use formulation_config_mod,  only: l_multigrid
+  use formulation_config_mod,  only: l_multigrid, use_multires_coupling
   use inventory_by_mesh_mod,   only: inventory_by_mesh_type
   use io_config_mod,           only: subroutine_timers
   use log_mod,                 only: log_event, LOG_LEVEL_INFO, &
@@ -48,10 +48,13 @@ contains
   !> @param[in] chi_inventory        Stores the coordinate fields by their mesh
   !> @param[in] panel_id_inventory   Stores the panel id fields by their mesh
   !> @param[in] model_clock          Model time.
+  !> @param[in] create_rdef_div_flag Optional flag as to whether rdef div
+  !!                                 operators need creating.
   subroutine create_runtime_constants(mesh_collection,       &
                                       chi_inventory,         &
                                       panel_id_inventory,    &
-                                      model_clock)
+                                      model_clock,           &
+                                      create_rdef_div_flag)
 
     ! Other runtime_constants modules
     use wt_advective_update_alg_mod,  only: wt_advective_update_set_num_meshes
@@ -67,10 +70,11 @@ contains
 
     implicit none
 
-    type(mesh_collection_type),   intent(in) :: mesh_collection
-    type(inventory_by_mesh_type), intent(in) :: chi_inventory
-    type(inventory_by_mesh_type), intent(in) :: panel_id_inventory
-    class(model_clock_type),      intent(in) :: model_clock
+    type(mesh_collection_type),    intent(in) :: mesh_collection
+    type(inventory_by_mesh_type),  intent(in) :: chi_inventory
+    type(inventory_by_mesh_type),  intent(in) :: panel_id_inventory
+    class(model_clock_type),       intent(in) :: model_clock
+    logical(kind=l_def), optional, intent(in) :: create_rdef_div_flag
 
     type(mesh_type),  pointer :: mesh => null()
     type(field_type), pointer :: chi(:) => null()
@@ -87,6 +91,7 @@ contains
     type(field_type),    allocatable :: panel_id_list(:)
     logical(kind=l_def)              :: is_multigrid_mesh
     integer(kind=i_def)              :: num_mg_meshes
+    logical(kind=l_def)              :: create_rdef_div_operators
 
     if ( subroutine_timers ) call timer('runtime_constants_alg')
     call log_event( "Gungho: creating runtime_constants", LOG_LEVEL_INFO )
@@ -188,11 +193,18 @@ contains
 
     ! Finite element constants should be created after geometric constants
     ! The chi fields set up in geometric constants are used here
+    if (present(create_rdef_div_flag)) then
+      create_rdef_div_operators = create_rdef_div_flag
+    else
+      create_rdef_div_operators = .false.
+    end if
+
     call create_fem_constants(mesh_id_list,  &
                               chi_list,      &
                               panel_id_list, &
                               label_list,    &
-                              model_clock )
+                              model_clock,   &
+                              create_rdef_div_operators)
 
     call create_physical_op_constants(mesh_id_list,  &
                                       chi_list,      &
@@ -206,7 +218,8 @@ contains
                                          label_list )
     end if
 
-    call create_intermesh_constants(mesh_collection)
+    call create_intermesh_constants(mesh_collection, &
+                                    use_multires_coupling)
 
     ! Set-up arrays for transport coefficients
     call runge_kutta_init()

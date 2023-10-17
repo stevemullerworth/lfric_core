@@ -149,8 +149,8 @@ module skeb_main_alg_mod
   ! operators to derive rotational and divergent components
   ! from psif_hat
   use fem_constants_mod,             only: get_div,            &
-                                           get_rmultiplicity,  &
-                                           get_project_r_dot_to_w1
+                                           get_rmultiplicity
+  use physical_op_constants_mod,     only: get_project_r_dot_to_w1
 
   ! Get the verical grid spacing for W3 fields
   use physical_op_constants_mod,     only: get_rdz_w3, get_dx_at_w2

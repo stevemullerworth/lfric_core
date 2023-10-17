@@ -14,7 +14,7 @@ module shallow_water_model_mod
   use checksum_alg_mod,               only: checksum_alg
   use conservation_algorithm_mod,     only: conservation_algorithm
   use constants_mod,                  only: i_def, i_native, str_def, &
-                                            PRECISION_REAL
+                                            PRECISION_REAL, l_def
   use convert_to_upper_mod,           only: convert_to_upper
   use derived_config_mod,             only: set_derived_config
   use driver_fem_mod,                 only: init_fem, final_fem
@@ -84,6 +84,7 @@ module shallow_water_model_mod
 
     character(len=*),   parameter   :: io_context_name = "shallow_water"
     character(str_def), allocatable :: base_mesh_names(:)
+    logical(l_def)                  :: create_rdef_div_operators
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
@@ -140,8 +141,10 @@ module shallow_water_model_mod
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field
-    call create_runtime_constants(mesh_collection, chi_inventory, &
-                                  panel_id_inventory, model_clock)
+    create_rdef_div_operators = .true.
+    call create_runtime_constants(mesh_collection, chi_inventory,  &
+                                  panel_id_inventory, model_clock, &
+                                  create_rdef_div_operators)
 
     deallocate(base_mesh_names)
     nullify(chi_inventory, panel_id_inventory)

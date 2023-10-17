@@ -50,6 +50,7 @@ module intermesh_constants_mod
   use weights_prolong_w2_kernel_mod,     only: weights_prolong_w2_kernel_type
   use weights_intermesh_w3_kernel_mod,   only: weights_intermesh_w3_kernel_type
   use psykal_lite_mod,                   only: invoke_copy_to_rtran
+  use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
 
   implicit none
 
@@ -82,12 +83,12 @@ module intermesh_constants_mod
 contains
   !>@brief Subroutine to create the intermesh mapping constants
   !> @param[in] mesh_collection      Collection of model's meshes
-  subroutine create_intermesh_constants(mesh_collection)
+  subroutine create_intermesh_constants(mesh_collection, use_multires_coupling)
     implicit none
 
     ! Arguments
     type(mesh_collection_type), intent(in) :: mesh_collection
-
+    logical(kind=l_def),        intent(in) :: use_multires_coupling
 
     ! Internal variables
     type(mesh_type),            pointer :: target_mesh => null()
@@ -106,6 +107,10 @@ contains
     type(function_space_type),  pointer :: source_w3_fs => null()
     type(operator_type),        pointer :: mm_w3 => null()
     type(operator_type),        pointer :: mm_inv_sh_w3 => null()
+    type(operator_type),        pointer :: mm_w3_full_fine => null()
+    type(operator_type),        pointer :: mm_w3_full_coarse => null()
+    type(field_type),           target  :: mm_w3_diag_fine_tmp
+    type(field_type),           target  :: mm_w3_diag_coarse_tmp
     type(quadrature_xyoz_type), pointer :: qr => null()
     type(field_type)                    :: dummy_theta
     type(field_type)                    :: dummy_w2_field
@@ -116,7 +121,7 @@ contains
     type(field_type),           pointer :: intermesh_weights_w3_rdef => null()
     type(r_tran_field_type),    pointer :: intermesh_weights_w3_rtran => null()
     logical(kind=l_def)                 :: any_wt_eqn_conservative
-    character(str_def), allocatable     :: all_mesh_names(:)
+    character(str_def),     allocatable :: all_mesh_names(:)
     integer(kind=i_def)                 :: num_meshes
     integer(kind=i_def)                 :: max_num_shifted
     integer(kind=i_def)                 :: max_num_mesh_maps
@@ -166,14 +171,14 @@ contains
         w3_fs => function_space_collection%get_fs(prime_extrusion_mesh, 0, W3)
 
         ! ============== Operator for mapping W3 to shifted W3 =============== !
-        call consist_w3_to_sh_w3_rdef_inventory%add_field_array(               &
-                      consist_w3_to_sh_w3_rdef, w3_fs, 2, prime_extrusion_mesh)
         call consist_w3_to_sh_w3_rtran_inventory%add_field_array(              &
                       consist_w3_to_sh_w3_rtran, w3_fs, 2, prime_extrusion_mesh)
 
         mm_w3 => get_mass_matrix(W3, prime_extrusion_mesh%get_id())
         mm_inv_sh_w3 => get_inverse_W3_mass_matrix(target_mesh%get_id())
 
+        call consist_w3_to_sh_w3_rdef_inventory%add_field_array(               &
+                      consist_w3_to_sh_w3_rdef, w3_fs, 2, prime_extrusion_mesh)
         call invoke( consist_w3_to_sh_w3_op_kernel_type(                  &
                                                 consist_w3_to_sh_w3_rdef, &
                                                 mm_inv_sh_w3,             &
@@ -185,7 +190,6 @@ contains
 
         nullify( mm_w3, mm_inv_sh_w3, consist_w3_to_sh_w3_rtran, &
                  consist_w3_to_sh_w3_rdef )
-
 
         if ( any_wt_eqn_conservative ) then
 
@@ -216,64 +220,88 @@ contains
         end if
         nullify( prime_extrusion_mesh, w3_fs )
       end if
-
-      ! ================ LOOP FOR HORIZONTAL MESH TRANSFORMS ================= !
-
-      do j = 1, num_meshes
-        source_mesh => mesh_collection%get_mesh(all_mesh_names(j))
-
-        ! Only do this for prime extrusions, and if there is a mesh map
-        if ( i /= j .and.                                                      &
-             target_mesh%get_extrusion_id() == source_mesh%get_extrusion_id()  &
-             .and. (target_mesh%get_extrusion_id() == PRIME_EXTRUSION .or.     &
-                    target_mesh%get_extrusion_id() == SHIFTED) ) then
-
-          source_ncells = source_mesh%get_ncells()
-          target_ncells = target_mesh%get_ncells()
-
-          if ( target_ncells > source_ncells .and. &
-               source_mesh%query_mesh_map(target_mesh) ) then
-
-            ! Weights for prolongation
-            source_w2_fs => function_space_collection%get_fs(source_mesh, 0, W2)
-            target_w2_fs => function_space_collection%get_fs(target_mesh, 0, W2)
-
-            call dummy_w2_field%initialise(vector_space = source_w2_fs)
-            call invoke( setval_c(dummy_w2_field, 0.0_r_def) )
-            call intermesh_wghts_w2_inventory%add_field(                       &
-                  intermesh_weights_w2, target_w2_fs, source_mesh, target_mesh)
-
-            call invoke( setval_c(intermesh_weights_w2, 0.0_r_def),            &
-                         weights_prolong_w2_kernel_type(intermesh_weights_w2,  &
-                                                        dummy_w2_field) )
-
-            source_w3_fs => function_space_collection%get_fs(source_mesh, 0, W3)
-            target_w3_fs => function_space_collection%get_fs(target_mesh, 0, W3)
-
-            mm_w3_fine => get_mass_matrix_diagonal(W3, target_mesh%get_id())
-            mm_w3_coarse => get_mass_matrix_diagonal(W3, source_mesh%get_id())
-
-            call intermesh_wghts_rdef_w3_inventory%add_field(                  &
-                                    intermesh_weights_w3_rdef, target_w3_fs,   &
-                                    source_mesh, target_mesh)
-            call intermesh_wghts_rtran_w3_inventory%add_field(                 &
-                                    intermesh_weights_w3_rtran, target_w3_fs,  &
-                                    source_mesh, target_mesh)
-
-            call invoke( weights_intermesh_w3_kernel_type(                  &
-                                                intermesh_weights_w3_rdef,  &
-                                                mm_w3_fine, mm_w3_coarse) )
-            call invoke_copy_to_rtran(intermesh_weights_w3_rtran,           &
-                                      intermesh_weights_w3_rdef)
-
-            nullify( source_w2_fs, target_w2_fs, source_w3_fs, target_w3_fs, &
-                     mm_w3_fine, mm_w3_coarse, intermesh_weights_w2,         &
-                     intermesh_weights_w3_rdef, intermesh_weights_w3_rtran )
-          end if
-        end if
-        nullify( source_mesh )
-      end do
     end do
+
+    ! ================= LOOP FOR HORIZONTAL MESH TRANSFORMS ================= !
+
+    if (use_multires_coupling) then
+      do i = 1, num_meshes
+        target_mesh => mesh_collection%get_mesh(all_mesh_names(i))
+        do j = 1, num_meshes
+          source_mesh => mesh_collection%get_mesh(all_mesh_names(j))
+
+          ! Only do this for prime extrusions, and if there is a mesh map
+          if ( i /= j .and.                                                      &
+              target_mesh%get_extrusion_id() == source_mesh%get_extrusion_id()  &
+              .and. (target_mesh%get_extrusion_id() == PRIME_EXTRUSION .or.     &
+                      target_mesh%get_extrusion_id() == SHIFTED) ) then
+
+            source_ncells = source_mesh%get_ncells()
+            target_ncells = target_mesh%get_ncells()
+
+            if ( target_ncells > source_ncells .and. &
+                 source_mesh%query_mesh_map(target_mesh) ) then
+
+              ! Weights for prolongation
+              source_w2_fs => function_space_collection%get_fs(source_mesh, 0, W2)
+              target_w2_fs => function_space_collection%get_fs(target_mesh, 0, W2)
+
+              call dummy_w2_field%initialise(vector_space = source_w2_fs)
+              call invoke( setval_c(dummy_w2_field, 0.0_r_def) )
+              call intermesh_wghts_w2_inventory%add_field(                       &
+                    intermesh_weights_w2, target_w2_fs, source_mesh, target_mesh)
+
+              call invoke( setval_c(intermesh_weights_w2, 0.0_r_def),            &
+                          weights_prolong_w2_kernel_type(intermesh_weights_w2,  &
+                                                          dummy_w2_field) )
+
+              source_w3_fs => function_space_collection%get_fs(source_mesh, 0, W3)
+              target_w3_fs => function_space_collection%get_fs(target_mesh, 0, W3)
+
+              if (target_mesh%get_extrusion_id() == SHIFTED) then
+                ! Diagonal mass matrices not stored in general for shifted mesh
+                ! so create them here instead
+                mm_w3_full_fine => get_mass_matrix(W3, target_mesh%get_id())
+                mm_w3_full_coarse => get_mass_matrix(W3, source_mesh%get_id())
+                call mm_w3_diag_fine_tmp%initialise( target_w3_fs )
+                call mm_w3_diag_coarse_tmp%initialise( source_w3_fs )
+                call invoke ( setval_c(mm_w3_diag_fine_tmp, 0.0_r_def),     &
+                              mm_diagonal_kernel_type(mm_w3_diag_fine_tmp,  &
+                                                      mm_w3_full_fine) )
+                ! Different meshes so different invokes
+                call invoke ( setval_c(mm_w3_diag_coarse_tmp, 0.0_r_def),     &
+                              mm_diagonal_kernel_type(mm_w3_diag_coarse_tmp,  &
+                                                      mm_w3_full_coarse) )
+
+                  mm_w3_fine => mm_w3_diag_fine_tmp
+                  mm_w3_coarse => mm_w3_diag_coarse_tmp
+              else
+                mm_w3_fine => get_mass_matrix_diagonal(W3, target_mesh%get_id())
+                mm_w3_coarse => get_mass_matrix_diagonal(W3, source_mesh%get_id())
+              end if
+
+              call intermesh_wghts_rdef_w3_inventory%add_field(                  &
+                                      intermesh_weights_w3_rdef, target_w3_fs,   &
+                                      source_mesh, target_mesh)
+              call intermesh_wghts_rtran_w3_inventory%add_field(                 &
+                                      intermesh_weights_w3_rtran, target_w3_fs,  &
+                                      source_mesh, target_mesh)
+
+              call invoke( weights_intermesh_w3_kernel_type(                  &
+                                                  intermesh_weights_w3_rdef,  &
+                                                  mm_w3_fine, mm_w3_coarse) )
+              call invoke_copy_to_rtran(intermesh_weights_w3_rtran,           &
+                                        intermesh_weights_w3_rdef)
+
+              nullify( source_w2_fs, target_w2_fs, source_w3_fs, target_w3_fs, &
+                      mm_w3_fine, mm_w3_coarse, intermesh_weights_w2,         &
+                      intermesh_weights_w3_rdef, intermesh_weights_w3_rtran )
+            end if
+          end if
+          nullify( source_mesh )
+        end do
+      end do
+    end if
 
     nullify( qr, target_mesh )
 

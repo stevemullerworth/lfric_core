@@ -18,11 +18,13 @@
 !!                      size as an integer argument.
 module reconstruct_w3_field_alg_mod
 
-  use domain_mod,                     only: domain_type
+  use check_configuration_mod,        only: check_any_horizontal_method_mol, &
+                                            check_any_vertical_method_mol
   use combine_multidata_field_kernel_mod, &
                                       only: combine_multidata_field_kernel_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def, &
                                             radians_to_degrees
+  use domain_mod,                     only: domain_type
   use geometric_constants_mod,        only: get_coordinates,          &
                                             get_extended_coordinates, &
                                             get_panel_id,             &
@@ -200,11 +202,14 @@ contains
     type(domain_type)        :: domain
     type(operator_type)      :: mm_w3
     type(field_type), target :: mm3_diag
+    logical(kind=l_def)      :: any_horizontal_mol, any_vertical_mol
 
     real(kind=r_def) :: domain_size_x, domain_size_y
 
     reference_element => mesh%get_reference_element()
     mesh_index = find_mesh_index(mesh%get_id())
+    any_horizontal_mol = check_any_horizontal_method_mol()
+    any_vertical_mol = check_any_vertical_method_mol()
 
     ! Set default values of 0 for the integers to be stored for this mesh,
     ! in case they aren't set below
@@ -291,82 +296,85 @@ contains
         qrf = quadrature_face_type(nqp_xy, nqp_z, horizontal_faces, vertical_faces, &
                                    reference_element, gaussian_quadrature)
 
-        call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
+        if (any_horizontal_mol) then
+          call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
 
-        md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
-        ! Create multi-data space and field for the horizontal flux coefficients
-        ndata_h = nfaces_re_h*flux_stencil_size
-        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, &
-                                                          ndata_h, ndata_first=.false. )
-        call ndata_h_inventory%add_integer(ndata_h, mesh)
-        call flux_coeffs_inventory%add_field(flux_coeffs, multidata_fs, mesh)
+          md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
+          ! Create multi-data space and field for the horizontal flux coefficients
+          ndata_h = nfaces_re_h*flux_stencil_size
+          multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, &
+                                                            ndata_h, ndata_first=.false. )
+          call ndata_h_inventory%add_integer(ndata_h, mesh)
+          call flux_coeffs_inventory%add_field(flux_coeffs, multidata_fs, mesh)
 
-        if ( oned_reconstruction ) then
-          if ( extended_mesh ) then
-            chi => get_extended_coordinates(mesh%get_id())
-            call mm_w3%initialise( md_w3%get_function_space(), &
-                                   md_w3%get_function_space() )
-            call mm3_diag%initialise( md_w3%get_function_space() )
-            qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
-            call invoke( name="mm_w3", &
-                         compute_mass_matrix_kernel_w_scalar_type( &
-                               mm_w3, chi, panel_id, extended_mesh, qr_fem) )
-            call invoke( setval_c(mm3_diag, 0.0_r_def), &
-                         mm_diagonal_kernel_type(mm3_diag, mm_w3) )
-            md_w3 =>  mm3_diag
+          if ( oned_reconstruction ) then
+            if ( extended_mesh ) then
+              chi => get_extended_coordinates(mesh%get_id())
+              call mm_w3%initialise( md_w3%get_function_space(), &
+                                    md_w3%get_function_space() )
+              call mm3_diag%initialise( md_w3%get_function_space() )
+              qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+              call invoke( name="mm_w3", &
+                          compute_mass_matrix_kernel_w_scalar_type( &
+                                mm_w3, chi, panel_id, extended_mesh, qr_fem) )
+              call invoke( setval_c(mm3_diag, 0.0_r_def), &
+                          mm_diagonal_kernel_type(mm3_diag, mm_w3) )
+              md_w3 =>  mm3_diag
+            end if
+            call invoke(poly1d_flux_coeffs_kernel_type(                          &
+                                                  flux_coeffs,                   &
+                                                  md_w3,                         &
+                                                  flux_stencil_extent,           &
+                                                  chi,                           &
+                                                  flux_stencil_extent,           &
+                                                  panel_id,                      &
+                                                  flux_stencil_extent,           &
+                                                  ndata_h,                       &
+                                                  fv_horizontal_order,           &
+                                                  transform_radius,              &
+                                                  domain_size_x,                 &
+                                                  domain_size_y,                 &
+                                                  nlayers,                       &
+                                                  qr, qrf ) )
+          else
+            call invoke(poly2d_flux_coeffs_kernel_type(                          &
+                                                  flux_coeffs,                   &
+                                                  md_w3,                         &
+                                                  flux_stencil_extent,           &
+                                                  chi,                           &
+                                                  flux_stencil_extent,           &
+                                                  panel_id,                      &
+                                                  flux_stencil_extent,           &
+                                                  ndata_h,                       &
+                                                  fv_horizontal_order,           &
+                                                  flux_2d_stencil_size,          &
+                                                  transform_radius,              &
+                                                  domain_size_x,                 &
+                                                  domain_size_y,                 &
+                                                  nlayers,                       &
+                                                  qr, qrf) )
           end if
-          call invoke(poly1d_flux_coeffs_kernel_type(                          &
-                                                flux_coeffs,                   &
-                                                md_w3,                         &
-                                                flux_stencil_extent,           &
-                                                chi,                           &
-                                                flux_stencil_extent,           &
-                                                panel_id,                      &
-                                                flux_stencil_extent,           &
-                                                ndata_h,                       &
-                                                fv_horizontal_order,           &
-                                                transform_radius,              &
-                                                domain_size_x,                 &
-                                                domain_size_y,                 &
-                                                nlayers,                       &
-                                                qr, qrf ) )
-        else
-          call invoke(poly2d_flux_coeffs_kernel_type(                          &
-                                                flux_coeffs,                   &
-                                                md_w3,                         &
-                                                flux_stencil_extent,           &
-                                                chi,                           &
-                                                flux_stencil_extent,           &
-                                                panel_id,                      &
-                                                flux_stencil_extent,           &
-                                                ndata_h,                       &
-                                                fv_horizontal_order,           &
-                                                flux_2d_stencil_size,          &
-                                                transform_radius,              &
-                                                domain_size_x,                 &
-                                                domain_size_y,                 &
-                                                nlayers,                       &
-                                                qr, qrf) )
         end if
-        nullify(flux_coeffs)
 
         ! Vertical flux coeffs
-        call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
-        ! Create multi-data space and field for the vertical flux coefficients
-        vertical_order = fv_vertical_order
-        ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
-        call ndata_v_inventory%add_integer(ndata_v, mesh)
-        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
-                                                          ndata_v, ndata_first=.true. )
-        call vert_flux_coeffs_inventory%add_field( vert_flux_coeffs, multidata_fs, mesh)
-        height => get_height(Wtheta, mesh%get_id())
-        call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
-                                          vert_flux_coeffs,                    &
-                                          height,                              &
-                                          ndata_v,                             &
-                                          vertical_order,                      &
-                                          qr ) )
-        nullify(vert_flux_coeffs)
+        if (any_vertical_mol) then
+          call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
+          ! Create multi-data space and field for the vertical flux coefficients
+          vertical_order = fv_vertical_order
+          ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
+          call ndata_v_inventory%add_integer(ndata_v, mesh)
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
+                                                            ndata_v, ndata_first=.true. )
+          call vert_flux_coeffs_inventory%add_field( vert_flux_coeffs, multidata_fs, mesh)
+          height => get_height(Wtheta, mesh%get_id())
+          call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
+                                            vert_flux_coeffs,                    &
+                                            height,                              &
+                                            ndata_v,                             &
+                                            vertical_order,                      &
+                                            qr ) )
+          nullify(vert_flux_coeffs)
+        end if
 
         if ( any(reversible) ) then
           ! Compute reversible vertical coefficients

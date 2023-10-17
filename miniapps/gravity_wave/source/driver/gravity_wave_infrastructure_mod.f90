@@ -67,6 +67,7 @@ contains
     integer(i_def)                  :: i, j, mesh_ctr, max_num_meshes
     character(str_def), allocatable :: base_mesh_names(:)
     character(str_def), allocatable :: tmp_mesh_names(:)
+    logical(l_def)                  :: create_rdef_div_operators
 
     write(log_scratch_space,'(A)')                        &
         'Application built with '//trim(PRECISION_REAL)// &
@@ -142,8 +143,10 @@ contains
     ! Create runtime_constants object. This in turn creates various things
     ! needed by the timestepping algorithms such as mass matrix operators, mass
     ! matrix diagonal fields and the geopotential field and limited area masks.
-    call create_runtime_constants( mesh_collection, chi_inventory, &
-                                   panel_id_inventory, model_clock )
+    create_rdef_div_operators = .true.
+    call create_runtime_constants( mesh_collection, chi_inventory,  &
+                                   panel_id_inventory, model_clock, &
+                                   create_rdef_div_operators )
 
 
     nullify(chi_inventory, panel_id_inventory)

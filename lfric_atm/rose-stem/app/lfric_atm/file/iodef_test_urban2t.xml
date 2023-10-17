@@ -20,14 +20,10 @@
     <file_definition src="./file_def_check_restart.xml"/>
     <file_definition src="./file_def_diags_idealised.xml"/>
     <file_definition src="./file_def_diags_ave.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" par_access="collective" time_counter="none">
-
-      <!-- Initial conditions diagnostic file -->
-      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-        <field_group group_ref="initial_fields" />
-      </file>
 
       <!-- File definition for writing an FD dump -->
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >

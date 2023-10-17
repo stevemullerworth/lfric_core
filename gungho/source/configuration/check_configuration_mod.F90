@@ -39,6 +39,7 @@ module check_configuration_mod
                                   scheme_split,                &
                                   split_method_mol,            &
                                   split_method_ffsl,           &
+                                  split_method_sl,             &
                                   equation_form_advective,     &
                                   equation_form_conservative,  &
                                   equation_form_consistent,    &
@@ -52,8 +53,11 @@ module check_configuration_mod
 
   public :: check_configuration
   public :: check_any_scheme_mol
+  public :: check_any_horizontal_method_mol
+  public :: check_any_vertical_method_mol
   public :: check_any_scheme_split
   public :: check_any_scheme_ffsl
+  public :: check_any_scheme_slice
   public :: check_any_splitting_hvh
   public :: check_any_splitting_vhv
   public :: check_any_shifted
@@ -452,21 +456,59 @@ contains
     implicit none
 
     logical(kind=l_def) :: any_scheme_mol
+
+    any_scheme_mol = (check_any_horizontal_method_mol() .or. &
+                      check_any_vertical_method_mol())
+
+  end function check_any_scheme_mol
+
+  !> @brief   Determine whether any transport scheme uses horizontal MoL
+  !> @details Loops through the transport schemes specified for different
+  !>          variables and determines whether any use horizontal MoL
+  !> @return  any_horizontal_mol
+  function check_any_horizontal_method_mol() result(any_horizontal_mol)
+
+    implicit none
+
+    logical(kind=l_def) :: any_horizontal_mol
     integer(kind=i_def) :: i
 
-    any_scheme_mol = .false.
+    any_horizontal_mol = .false.
 
     do i = 1, profile_size
       if ( ( scheme(i) == scheme_mol_3d ) .or.                      &
            ( scheme(i) == scheme_split .and.                        &
-             ( vertical_method(i) == split_method_mol .or.          &
-               horizontal_method(i) == split_method_mol ) ) ) then
-        any_scheme_mol = .true.
+             horizontal_method(i) == split_method_mol ) ) then
+        any_horizontal_mol = .true.
         exit
       end if
     end do
 
-  end function check_any_scheme_mol
+  end function check_any_horizontal_method_mol
+
+  !> @brief   Determine whether any transport scheme uses vertical MoL
+  !> @details Loops through the transport schemes specified for different
+  !>          variables and determines whether any use vertical MoL
+  !> @return  any_vertical_mol
+  function check_any_vertical_method_mol() result(any_vertical_mol)
+
+    implicit none
+
+    logical(kind=l_def) :: any_vertical_mol
+    integer(kind=i_def) :: i
+
+    any_vertical_mol = .false.
+
+    do i = 1, profile_size
+      if ( ( scheme(i) == scheme_mol_3d ) .or.                      &
+           ( scheme(i) == scheme_split .and.                        &
+             vertical_method(i) == split_method_mol ) ) then
+        any_vertical_mol = .true.
+        exit
+      end if
+    end do
+
+  end function check_any_vertical_method_mol
 
   !> @brief   Determine whether any of the transport schemes are split
   !> @details Loops through the transport schemes specified for different
@@ -516,6 +558,29 @@ contains
     end do
 
   end function check_any_scheme_ffsl
+
+  !> @brief   Determine whether any of the transport schemes are SLICE
+  !> @details Loops through the transport schemes specified for different
+  !>          variables and determines whether any are using SLICE
+  !> @return  any_scheme_slice
+  function check_any_scheme_slice() result(any_scheme_slice)
+
+    implicit none
+
+    logical(kind=l_def) :: any_scheme_slice
+    integer(kind=i_def) :: i
+
+    any_scheme_slice = .false.
+
+    do i = 1, profile_size
+      if ( vertical_method(i) == split_method_sl .and. &
+           equation_form(i) /= equation_form_advective ) then
+        any_scheme_slice = .true.
+        exit
+      end if
+    end do
+
+  end function check_any_scheme_slice
 
   !> @brief   Determine whether any of the split transport schemes use
   !!          Strang HVH splitting
