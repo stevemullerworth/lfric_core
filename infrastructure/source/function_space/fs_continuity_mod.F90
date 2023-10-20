@@ -32,6 +32,7 @@ module fs_continuity_mod
   integer(i_def), public, parameter :: W2V       = 857
   integer(i_def), public, parameter :: W2H       = 884
   integer(i_def), public, parameter :: W2broken  = 211
+  integer(i_def), public, parameter :: W2Hbroken = 112
   integer(i_def), public, parameter :: W2trace   = 213
   integer(i_def), public, parameter :: W2Vtrace  = 666
   integer(i_def), public, parameter :: W2Htrace  = 777
@@ -39,7 +40,7 @@ module fs_continuity_mod
   integer(i_def), public, parameter :: Wtheta    = 274
   integer(i_def), public, parameter :: Wchi      = 869
 
-  integer(i_def), private, parameter :: num_fs   = 12
+  integer(i_def), private, parameter :: num_fs   = 13
 
   integer(i_def), private, parameter :: fs_enumerator(num_fs, 3) = &
          transpose(reshape( [                                      &
@@ -51,6 +52,7 @@ module fs_continuity_mod
               W2V,          0,              1, &
               W2H,          1,              0, &
               W2broken,     0,              0, &
+              W2Hbroken,    0,              0, &
               W2trace,      1,              1, &
               W2Vtrace,     0,              1, &
               W2Htrace,     1,              0, &
@@ -67,6 +69,7 @@ module fs_continuity_mod
              'W2V',       &
              'W2H',       &
              'W2broken',  &
+             'W2Hbroken', &
              'W2trace',   &
              'W2Htrace',  &
              'W2Vtrace',  &

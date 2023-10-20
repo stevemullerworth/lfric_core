@@ -88,7 +88,7 @@ contains
     type(r_tran_field_type),      pointer :: adv_one => null()
 
     ! Constant
-    real(r_tran)      :: one_over_dt
+    real(r_tran) :: one_over_dt
 
     ! Get transport_runtime
     mesh => field%get_mesh()
@@ -98,12 +98,6 @@ contains
     call adv_rho%initialise( vector_space=field%get_function_space() )
     call inc_part%initialise( vector_space=field%get_function_space() )
     call divide_part%initialise( vector_space=field%get_function_space() )
-    call invoke( setval_c(adv_rho, 0.0_r_tran),   &
-                 setval_c(inc_part, 0.0_r_tran),  &
-                 setval_c(divide_part, 0.0_r_tran)  )
-
-    ! Set constant
-    one_over_dt = 1.0_r_tran / dt
 
     ! Compute the conservative increment of the field, F(q)
     call ffsl_1d_flux_vert( field, dep_pts, detj_at_w2, order,   &
@@ -123,6 +117,7 @@ contains
     ! adv_one   = 1 - dt * F(1)
     ! inc_part  = q - adv_rho / adv_one
     ! increment = inc_part / dt
+    one_over_dt = 1.0_r_tran / dt
     call invoke( X_divideby_Y(divide_part, adv_rho, adv_one), &
                  X_minus_Y(inc_part, field, divide_part),     &
                  a_times_X(increment_adv, one_over_dt, inc_part) )

@@ -87,11 +87,11 @@ subroutine combine_w2_field_code_r_double(nlayers,                    &
   integer(kind=i_def) :: df, k
 
   do k = 0, nlayers-1
-    do df = 1,4
+    do df = 1,ndf_w2h
       uvw(map_w2(df) + k) = uv(map_w2h(df) + k)
     end do
-    do df = 1,2
-      uvw(map_w2(4+df) + k) = w(map_w2v(df) + k)
+    do df = 1,ndf_w2v
+      uvw(map_w2(ndf_w2h+df) + k) = w(map_w2v(df) + k)
     end do
   end do
 
@@ -121,12 +121,14 @@ subroutine combine_w2_field_code_r_single(nlayers,                    &
   ! Internal variables
   integer(kind=i_def) :: df, k
 
-  do k = 0, nlayers-1
-    do df = 1,4
+  do df = 1,ndf_w2h
+    do k = 0, nlayers-1
       uvw(map_w2(df) + k) = uv(map_w2h(df) + k)
     end do
-    do df = 1,2
-      uvw(map_w2(4+df) + k) = w(map_w2v(df) + k)
+  end do
+  do df = 1,ndf_w2v
+    do k = 0, nlayers-1
+      uvw(map_w2(ndf_w2h+df) + k) = w(map_w2v(df) + k)
     end do
   end do
 

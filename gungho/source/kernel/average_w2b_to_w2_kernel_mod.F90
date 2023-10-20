@@ -90,13 +90,12 @@ subroutine average_w2b_to_w2_code( nlayers,          &
 
   horizontal_dofs = (/ N, E, S, W /)
 
-  ! Loop over layers of mesh
-  do k = 0, nlayers - 1
-
-    ! Loop over horizontal W2 DoFs
-    ! Contribution from broken field is based on multiplicity
-    do j = 1, size(horizontal_dofs)
-      df = horizontal_dofs(j)
+  ! Loop over horizontal W2 DoFs
+  ! Contribution from broken field is based on multiplicity
+  do j = 1, size(horizontal_dofs)
+    df = horizontal_dofs(j)
+    ! Loop over layers of mesh
+    do k = 0, nlayers - 1
 
       field_w2(map_w2(df)+k) = field_w2(map_w2(df)+k)              &
         + rmultiplicity_w2(map_w2(df)+k) * field_w2_broken(map_w2_broken(df)+k)
@@ -104,14 +103,16 @@ subroutine average_w2b_to_w2_code( nlayers,          &
     end do
   end do
 
+  ! Bottom value is the same as the original space
+  field_w2(map_w2(B)) = field_w2_broken(map_w2_broken(B))
+
   do k = 1, nlayers - 1
     ! Loop over vertical W2 DoFs -- no need to use rmultiplicity
     field_w2(map_w2(B)+k) = 0.5_r_def * &
         (field_w2_broken(map_w2_broken(B)+k) + field_w2_broken(map_w2_broken(T)+k-1))
   end do
 
-  ! Top and bottom values are the same as the original space
-  field_w2(map_w2(B)) = field_w2_broken(map_w2_broken(B))
+  ! Top value is the same as the original space
   field_w2(map_w2(T)+nlayers-1) = field_w2_broken(map_w2_broken(T)+nlayers-1)
 
 end subroutine average_w2b_to_w2_code

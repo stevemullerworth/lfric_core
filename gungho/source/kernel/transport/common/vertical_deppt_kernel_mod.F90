@@ -100,8 +100,8 @@ subroutine vertical_deppt_code(  nlayers,             &
                                  undf_w2,             &
                                  map_w2 )
 
-  use departure_points_mod,        only : calc_vertical_dep_cfl, &
-                                          vertical_increasing_check
+  use departure_points_mod, only : calc_vertical_dep_cfl, &
+                                   vertical_increasing_check
 
   implicit none
 
@@ -132,7 +132,7 @@ subroutine vertical_deppt_code(  nlayers,             &
   real(kind=r_tran)    :: u_np1_local(1:nlayers+1)
   real(kind=r_tran)    :: u_dep(1:nlayers+1)
   real(kind=r_tran)    :: height_local(1:nlayers+1)
-  real(kind=r_tran)    :: dz_local(1:nlayers)
+  real(kind=r_tran)    :: dz_local_m, dz_local_p
   real(kind=r_tran)    :: upwind_dz_n
   real(kind=r_tran)    :: upwind_dz_np1
   real(kind=r_tran)    :: dep_local(1:nlayers-1)
@@ -141,43 +141,32 @@ subroutine vertical_deppt_code(  nlayers,             &
   ! Number of cell edgs
   nCellEdges = nlayers+1
 
-  ! Initialise local variables to zero
-  u_dep        = 0.0_r_tran
-  u_n_local    = 0.0_r_tran
-  u_np1_local  = 0.0_r_tran
-  height_local = 0.0_r_tran
-  dz_local     = 0.0_r_tran
-  dep_local    = 0.0_r_tran
-
-  ! Set up dz (the spacing between vertical W2 dofs)
-  do k=0,nlayers-1
-    dz_local(k+1) = height_w2(map_w2(6)+k)-height_w2(map_w2(5)+k)
-  end do
-
   ! Compute the physical velocity as departure_wind*upwind_dz
+  ! Apply vertical boundary conditions
+  height_local(1) = height_w2(map_w2(5))
+  u_dep(1)        = 0.0_r_tran
+  u_n_local(1)    = 0.0_r_tran
+  u_np1_local(1)  = 0.0_r_tran
+  ! Compute local values
   do k=1,nlayers-1
-    upwind_dz_n   = ( 0.5_r_tran + sign( 0.5_r_tran, u_n(map_w2(5)+k) ) ) * dz_local(k) + &
-                    ( 0.5_r_tran - sign( 0.5_r_tran, u_n(map_w2(5)+k) ) ) * dz_local(k+1)
-    upwind_dz_np1 = ( 0.5_r_tran + sign( 0.5_r_tran, u_np1(map_w2(5)+k) ) ) * dz_local(k) + &
-                    ( 0.5_r_tran - sign( 0.5_r_tran, u_np1(map_w2(5)+k) ) ) * dz_local(k+1)
+    dz_local_m = height_w2(map_w2(6)+k-1) - height_w2(map_w2(5)+k-1)
+    dz_local_p = height_w2(map_w2(6)+k)   - height_w2(map_w2(5)+k)
+
+    upwind_dz_n   = ( 0.5_r_tran + sign( 0.5_r_tran, u_n(map_w2(5)+k) ) ) * dz_local_m + &
+                    ( 0.5_r_tran - sign( 0.5_r_tran, u_n(map_w2(5)+k) ) ) * dz_local_p
+    upwind_dz_np1 = ( 0.5_r_tran + sign( 0.5_r_tran, u_np1(map_w2(5)+k) ) ) * dz_local_m + &
+                    ( 0.5_r_tran - sign( 0.5_r_tran, u_np1(map_w2(5)+k) ) ) * dz_local_p
     u_dep(k+1)       = 0.5_r_tran * ( u_n(map_w2(5)+k) + u_np1(map_w2(5)+k) )
     u_n_local(k+1)   = u_n(map_w2(5)+k) * upwind_dz_n
     u_np1_local(k+1) = u_np1(map_w2(5)+k) * upwind_dz_np1
     height_local(k+1) = height_w2(map_w2(5)+k)
   end do
   ! Apply vertical boundary conditions
-  height_local(1) = height_w2(map_w2(5))
-  u_dep(1)        = 0.0_r_tran
-  u_n_local(1)    = 0.0_r_tran
-  u_np1_local(1)  = 0.0_r_tran
   height_local(nCellEdges) = height_w2(map_w2(6)+nlayers-1)
   u_dep(nCellEdges)        = 0.0_r_tran
   u_n_local(nCellEdges)    = 0.0_r_tran
   u_np1_local(nCellEdges)  = 0.0_r_tran
 
-  ! Apply vertical boundary conditions to the departure points.
-  dep_pts_z( map_w2v(1) ) =  0.0_r_tran
-  dep_pts_z( map_w2v(2)+nlayers-1 ) =  0.0_r_tran
 
   ! Loop over all layers except the bottom layer.
   ! This code is hard-wired to work with 6 W2 dofs per cell where dof=5 is the
@@ -206,10 +195,13 @@ subroutine vertical_deppt_code(  nlayers,             &
     call vertical_increasing_check(dep_local, nlayers)
   end if
 
+  ! Compute departure points.
+  dep_pts_z( map_w2v(1) ) =  0.0_r_tran
   do k=1,nlayers-1
     xArrival_comp = real(k,r_tran)
     dep_pts_z( map_w2v(1) + k ) =  xArrival_comp - dep_local(k)
   end do
+  dep_pts_z( map_w2v(2)+nlayers-1 ) =  0.0_r_tran
 
 end subroutine vertical_deppt_code
 

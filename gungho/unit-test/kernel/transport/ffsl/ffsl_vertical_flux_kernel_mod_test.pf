@@ -24,7 +24,7 @@ module ffsl_vertical_flux_kernel_mod_test
   @TestCase
   type, extends(TestCase) :: ffsl_vertical_flux_test_type
     private
-    real(kind=r_tran), allocatable :: dep_pts(:), flux(:), rho(:)
+    real(kind=r_tran), allocatable :: dep_pts(:), flux(:), rho(:), detj(:)
     real(kind=r_tran), allocatable :: a0_coeffs(:), a1_coeffs(:), a2_coeffs(:)
 
     integer(i_def) :: map_w2(1:6)
@@ -55,6 +55,7 @@ contains
 
     allocate( this%dep_pts(1:undf_w2) )
     allocate( this%flux(1:undf_w2) )
+    allocate( this%detj(1:undf_w2) )
     allocate( this%rho(1:undf_w3) )
     allocate( this%a0_coeffs(1:undf_w3) )
     allocate( this%a1_coeffs(1:undf_w3) )
@@ -66,6 +67,7 @@ contains
     this%a1_coeffs(:) = (/ 0.0_r_tran, 0.0_r_tran, 3.5_r_tran, 0.0_r_tran, 0.0_r_tran /)
     this%a2_coeffs(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.75_r_tran, 0.0_r_tran, 0.0_r_tran /)
     this%rho(:) = (/ 1.0_r_tran, 3.0_r_tran, 6.5_r_tran, 11.5_r_tran, 18.0_r_tran /)
+    this%detj(:) = 2.0_r_tran
 
   end subroutine setUp
 
@@ -82,6 +84,7 @@ contains
     deallocate( this%rho )
     deallocate( this%flux )
     deallocate( this%dep_pts )
+    deallocate( this%detj )
 
   end subroutine tearDown
 
@@ -111,6 +114,7 @@ contains
     call ffsl_vertical_flux_code( nlayers,          &
                                   this%flux,        &
                                   this%dep_pts,     &
+                                  this%detj,        &
                                   this%rho,         &
                                   this%a0_coeffs,   &
                                   this%a1_coeffs,   &
@@ -127,10 +131,10 @@ contains
     ! The mass flux is a half for all cells except the middle cell since this is
     ! the only cell which uses PPM.
     @assertEqual(0.0_r_tran, this%flux(1), tol)
-    @assertEqual(0.5_r_tran, this%flux(2), tol)
-    @assertEqual(1.5_r_tran, this%flux(3), tol)
-    @assertEqual(3.78125_r_tran, this%flux(4), tol)
-    @assertEqual(5.75_r_tran, this%flux(5), tol)
+    @assertEqual(1.0_r_tran, this%flux(2), tol)
+    @assertEqual(3.0_r_tran, this%flux(3), tol)
+    @assertEqual(7.5625_r_tran, this%flux(4), tol)
+    @assertEqual(11.5_r_tran, this%flux(5), tol)
     @assertEqual(0.0_r_tran, this%flux(6), tol)
 
   end subroutine test_positive_flux_small_cfl
@@ -157,6 +161,7 @@ contains
     call ffsl_vertical_flux_code( nlayers,          &
                                   this%flux,        &
                                   this%dep_pts,     &
+                                  this%detj,        &
                                   this%rho,         &
                                   this%a0_coeffs,   &
                                   this%a1_coeffs,   &
@@ -170,10 +175,10 @@ contains
                                   map_w3 )
 
     @assertEqual(0.0_r_tran, this%flux(1), tol)
-    @assertEqual(0.5_r_tran, this%flux(2), tol)
-    @assertEqual(3.2_r_tran, this%flux(3), tol)
-    @assertEqual(4.985750_r_tran, this%flux(4), tol)
-    @assertEqual(2.3_r_tran, this%flux(5), tol)
+    @assertEqual(1.0_r_tran, this%flux(2), tol)
+    @assertEqual(6.4_r_tran, this%flux(3), tol)
+    @assertEqual(9.9715_r_tran, this%flux(4), tol)
+    @assertEqual(4.6_r_tran, this%flux(5), tol)
     @assertEqual(0.0_r_tran, this%flux(6), tol)
 
   end subroutine test_positive_flux_large_cfl
@@ -200,6 +205,7 @@ contains
     call ffsl_vertical_flux_code( nlayers,          &
                                   this%flux,        &
                                   this%dep_pts,     &
+                                  this%detj,        &
                                   this%rho,         &
                                   this%a0_coeffs,   &
                                   this%a1_coeffs,   &
@@ -213,10 +219,10 @@ contains
                                   map_w3 )
 
     @assertEqual(0.0_r_tran, this%flux(1), tol)
-    @assertEqual(-0.9_r_tran, this%flux(2), tol)
-    @assertEqual(-2.096_r_tran, this%flux(3), tol)
-    @assertEqual(-4.025_r_tran, this%flux(4), tol)
-    @assertEqual(-3.6_r_tran, this%flux(5), tol)
+    @assertEqual(-1.8_r_tran, this%flux(2), tol)
+    @assertEqual(-4.192_r_tran, this%flux(3), tol)
+    @assertEqual(-8.05_r_tran, this%flux(4), tol)
+    @assertEqual(-7.2_r_tran, this%flux(5), tol)
     @assertEqual(0.0_r_tran, this%flux(6), tol)
 
   end subroutine test_negative_flux_small_cfl
@@ -243,6 +249,7 @@ contains
     call ffsl_vertical_flux_code( nlayers,          &
                                   this%flux,        &
                                   this%dep_pts,     &
+                                  this%detj,        &
                                   this%rho,         &
                                   this%a0_coeffs,   &
                                   this%a1_coeffs,   &
@@ -256,10 +263,10 @@ contains
                                   map_w3 )
 
     @assertEqual(0.0_r_tran, this%flux(1), tol)
-    @assertEqual(-1.5_r_tran, this%flux(2), tol)
-    @assertEqual(-8.8_r_tran, this%flux(3), tol)
-    @assertEqual(-4.6_r_tran, this%flux(4), tol)
-    @assertEqual(-3.6_r_tran, this%flux(5), tol)
+    @assertEqual(-3.0_r_tran, this%flux(2), tol)
+    @assertEqual(-17.6_r_tran, this%flux(3), tol)
+    @assertEqual(-9.2_r_tran, this%flux(4), tol)
+    @assertEqual(-7.2_r_tran, this%flux(5), tol)
     @assertEqual(0.0_r_tran, this%flux(6), tol)
 
   end subroutine test_negative_flux_large_cfl

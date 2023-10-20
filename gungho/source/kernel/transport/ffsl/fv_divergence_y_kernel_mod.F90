@@ -15,11 +15,11 @@ module fv_divergence_y_kernel_mod
 
   use argument_mod,       only : arg_type,            &
                                  GH_FIELD, GH_SCALAR, &
+                                 GH_OPERATOR,         &
                                  GH_REAL, GH_INTEGER, &
                                  GH_WRITE, GH_READ,   &
                                  CELL_COLUMN
-  use constants_mod,      only : r_tran, i_def
-  use flux_direction_mod, only : x_direction, y_direction, z_direction
+  use constants_mod,      only : r_tran, r_def, i_def
   use fs_continuity_mod,  only : W2h, W3
   use kernel_mod,         only : kernel_type
 
@@ -35,9 +35,10 @@ module fv_divergence_y_kernel_mod
   !>
   type, public, extends(kernel_type) :: fv_divergence_y_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                 &
-         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W3), & ! difference
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h) & ! flux
+    type(arg_type) :: meta_args(3) = (/                   &
+         arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),    & ! difference
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),   & ! flux
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3) & ! m3^-1
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -51,19 +52,25 @@ module fv_divergence_y_kernel_mod
 
 contains
 
-  !> @brief Computes the finite-volume divergence in either the x, y or z direction.
+  !> @brief Computes the finite-volume divergence in the y direction.
+  !> @param[in]     cell              Horizontal cell index
   !> @param[in]     nlayers           The number of layers
   !> @param[in,out] divergence        The divergence or difference values in W3 space
   !> @param[in]     mass_flux         The flux values which are calculated
+  !> @param[in]     ncell_3d          Total number of cells
+  !> @param[in]     inv_m3            Inverse W3 mass matrix
   !> @param[in]     ndf_w3            Number of degrees of freedom for W3 per cell
   !> @param[in]     undf_w3           Number of unique degrees of freedom for W3
   !> @param[in]     map_w3            Dofmap for W3
   !> @param[in]     ndf_w2h           Number of degrees of freedom for W2h per cell
   !> @param[in]     undf_w2h          Number of unique degrees of freedom for W2h
   !> @param[in]     map_w2h           Dofmap for W2h
-  subroutine fv_divergence_y_code( nlayers,    &
+  subroutine fv_divergence_y_code( cell,       &
+                                   nlayers,    &
                                    divergence, &
                                    mass_flux,  &
+                                   ncell_3d,   &
+                                   inv_m3,     &
                                    ndf_w3,     &
                                    undf_w3,    &
                                    map_w3,     &
@@ -74,6 +81,8 @@ contains
     implicit none
 
     ! Arguments
+    integer(kind=i_def), intent(in)                         :: cell
+    integer(kind=i_def), intent(in)                         :: ncell_3d
     integer(kind=i_def), intent(in)                         :: nlayers
     integer(kind=i_def), intent(in)                         :: ndf_w3
     integer(kind=i_def), intent(in)                         :: undf_w3
@@ -84,7 +93,9 @@ contains
     real(kind=r_tran),   dimension(undf_w3),  intent(inout) :: divergence
     real(kind=r_tran),   dimension(undf_w2h), intent(in)    :: mass_flux
 
-    integer(kind=i_def) :: k
+    real(kind=r_def),    dimension(ndf_w3,ndf_w3,ncell_3d), intent(in) :: inv_m3
+
+    integer(kind=i_def) :: k, ik
 
     ! This is based on the lowest order W2h dof map
     !
@@ -95,8 +106,10 @@ contains
     !    ---2---
 
     do k = 0,nlayers-1
-      divergence( map_w3(1)+k ) = mass_flux(map_w2h(4)+k) - &
-                                  mass_flux(map_w2h(2)+k)
+      ik = (cell-1)*nlayers + k + 1
+      divergence( map_w3(1)+k ) = real(inv_m3(1,1,ik),r_tran) &
+                                 *(mass_flux(map_w2h(4)+k) -  &
+                                   mass_flux(map_w2h(2)+k) )
     end do
 
   end subroutine fv_divergence_y_code

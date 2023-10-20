@@ -12,6 +12,7 @@ module function_space_constructor_helper_functions_mod
   use mesh_mod,              only: mesh_type
   use fs_continuity_mod,     only: W0, W1, W2, W2V, W2H,   &
                                    W2broken, W2trace,      &
+                                   W2Hbroken,              &
                                    W2Vtrace, W2Htrace,     &
                                    W3, Wtheta, Wchi
   use reference_element_mod, only: reference_element_type, &
@@ -363,7 +364,7 @@ contains
       !
       ! For order 0 the value of the vector normal to the
       ! face is constant across the face(tangential) but can
-      ! varying linearly passing through the face(normal) to
+      ! vary linearly passing through the face(normal) to
       ! the next cell.
       !
       ! So linear   in normal: 1-dim, ndof = 2
@@ -372,6 +373,26 @@ contains
       !
       ! NOTE: Not correct for simplices
       ndof_vol  = 3 * (k + 1) * (k + 1) * (k + 2)
+      ndof_cell = ndof_vol
+
+    case (W2Hbroken)
+      ! Dofs are geometrically located on faces for
+      ! vector fields and direction is normal to the face.
+      ! However, they are topologically associated with
+      ! the cell volume. Hence, this function space is
+      ! discontinuous between cells.
+      !
+      ! For order 0 the value of the vector normal to the
+      ! face is constant across the face(tangential) but can
+      ! vary linearly passing through the face(normal) to
+      ! the next cell.
+      !
+      ! So linear   in normal: 1-dim, ndof = 2
+      ! So constant in tangengial: 2-dim, each ndof = 1
+      ! So 3 dimensions each with ndof (k+2)(k+1)(k+1)
+      !
+      ! NOTE: Not correct for simplices
+      ndof_vol  = 2 * (k + 1) * (k + 1) * (k + 2)
       ndof_cell = ndof_vol
 
     case (W2trace)
@@ -444,7 +465,7 @@ contains
 
     ! Calculated the global number of dofs on the function space
     select case (gungho_fs)
-    case (W0, W1, W2, W2broken, W2trace, W3, WCHI)
+    case (W0, W1, W2, W2broken,W2trace, W3, WCHI)
       ndof_glob = ncells * nlayers * ndof_vol + nface_g * ndof_face &
                 + nedge_g * ndof_edge + nvert_g * ndof_vert
 
@@ -452,7 +473,7 @@ contains
       ndof_glob = ncells * nlayers * ndof_vol + ncells * (nlayers + 1) &
                 * ndof_face
 
-    case (W2H, W2Htrace)
+    case (W2H, W2Htrace, W2Hbroken)
       ndof_glob = ncells * nlayers * ndof_vol + nedges_per_level * nlayers &
                 * ndof_face + nedge_g * ndof_edge + nvert_g * ndof_vert
     end select
@@ -639,7 +660,7 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2trace, W2Vtrace, W2Htrace)
+    case (W1, W2, W2H, W2V, W2broken, W2Hbroken, W2trace, W2Vtrace, W2Htrace)
       allocate( unit_vec(3, ndof_cell) )
     end select
 
@@ -1341,7 +1362,7 @@ contains
       basis_index(2,:) = ly(1:ndof_cell)
       basis_index(3,:) = lz(1:ndof_cell)
 
-    case (W2H)
+    case (W2H, W2Hbroken)
       !---------------------------------------------------------------------------
       ! Section for test/trial functions of W2H space
       !---------------------------------------------------------------------------
@@ -1563,7 +1584,7 @@ contains
 
     ! Allocate arrays to allow on the fly evaluation of basis functions
     select case (gungho_fs)
-    case (W1, W2, W2H, W2V, W2broken, W2trace, W2Vtrace, W2Htrace)
+    case (W1, W2, W2H, W2V, W2broken, W2Hbroken, W2trace, W2Vtrace, W2Htrace)
       deallocate(unit_vec)
     end select
 
@@ -1824,7 +1845,7 @@ contains
       select_entity => select_entity_all
     case(WTHETA)
       select_entity => select_entity_theta
-    case(W2H, W2Htrace)
+    case(W2H, W2Htrace, W2Hbroken)
       select_entity => select_entity_w2h
     case(W2V, W2Vtrace)
       select_entity => select_entity_w2v
@@ -2375,7 +2396,7 @@ contains
                            tmp_levs,                       &
                            idx )
 
-    case (W2H)
+    case (W2H, W2Hbroken)
       ! W2H locates data on selected faces
       ! (top and bottom)
 

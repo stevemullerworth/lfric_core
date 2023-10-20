@@ -89,8 +89,8 @@ subroutine average_w2_to_w2b_code_r_single( nlayers,          &
   integer(kind=i_def) :: df, k
 
   ! Loop over layers of mesh
-  do k = 0, nlayers - 1
-    do df = 1, ndf_w2
+  do df = 1, ndf_w2
+    do k = 0, nlayers - 1
       field_w2_broken(map_w2_broken(df)+k) = field_w2(map_w2(df)+k)
     end do
   end do
@@ -124,8 +124,8 @@ subroutine average_w2_to_w2b_code_r_double( nlayers,          &
   integer(kind=i_def) :: df, k
 
   ! Loop over layers of mesh
-  do k = 0, nlayers - 1
-    do df = 1, ndf_w2
+  do df = 1, ndf_w2
+    do k = 0, nlayers - 1
       field_w2_broken(map_w2_broken(df)+k) = field_w2(map_w2(df)+k)
     end do
   end do

@@ -427,10 +427,6 @@ contains
       call invoke( setval_X(cfl, self%advecting_wind(mesh_idx)),               &
                    inc_X_divideby_Y(cfl, self%detj_at_w2_transport(mesh_idx)), &
                    inc_a_times_X(cast_dt, cfl),                                &
-                   setval_c(horizontal_cfl, 0.0_r_tran),                       &
-                   setval_c(vertical_cfl, 0.0_r_tran),                         &
-                   setval_c(sum_horizontal_cfl, 0.0_r_tran),                   &
-                   setval_c(sum_cfl, 0.0_r_tran),                              &
                    split_w2_field_kernel_type(horizontal_cfl,                  &
                                               vertical_cfl,                    &
                                               cfl) )

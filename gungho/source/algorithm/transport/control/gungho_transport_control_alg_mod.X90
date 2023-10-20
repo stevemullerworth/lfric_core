@@ -31,7 +31,9 @@ module gungho_transport_control_alg_mod
                                                get_transport_runtime
   use transport_metadata_collection_mod, only: transport_metadata_collection_type, &
                                                transport_metadata_collection
-  use check_configuration_mod,           only: check_any_shifted, check_transport_name
+  use check_configuration_mod,           only: check_any_shifted,    &
+                                               check_transport_name, &
+                                               check_any_scheme_mol
 
   implicit none
 
@@ -114,11 +116,13 @@ contains
     end do
 
     ! Initialise any necessary transport fields or coefficients
-    call reconstruct_w3_field_alg_init( mesh )
-    call wt_advective_update_alg_init( mesh )
-    if (check_any_shifted()) then
-      shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
-      call reconstruct_w3_field_alg_init( shifted_mesh )
+    if ( check_any_scheme_mol() ) then
+      call reconstruct_w3_field_alg_init( mesh )
+      call wt_advective_update_alg_init( mesh )
+      if (check_any_shifted()) then
+        shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+        call reconstruct_w3_field_alg_init( shifted_mesh )
+      end if
     end if
 
     ! Initialise transport_runtime_collection
@@ -132,11 +136,13 @@ contains
       local_mesh_ids(2) = local_mesh%get_id()
 
       ! Initialise transport coefficients for aerosol meshes
-      call reconstruct_w3_field_alg_init( aerosol_mesh )
-      call wt_advective_update_alg_init( aerosol_mesh )
-      if (check_any_shifted()) then
-        shifted_mesh => mesh_collection%get_mesh(aerosol_mesh, SHIFTED)
-        call reconstruct_w3_field_alg_init( shifted_mesh )
+      if ( check_any_scheme_mol() ) then
+        call reconstruct_w3_field_alg_init( aerosol_mesh )
+        call wt_advective_update_alg_init( aerosol_mesh )
+        if (check_any_shifted()) then
+          shifted_mesh => mesh_collection%get_mesh(aerosol_mesh, SHIFTED)
+          call reconstruct_w3_field_alg_init( shifted_mesh )
+        end if
       end if
     else
       ! No coarse transport, so only one transport runtime needed

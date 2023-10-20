@@ -117,6 +117,8 @@ contains
     type(field_type),        pointer :: panel_id => null()
     integer(kind=i_def)              :: hori_monotone, vert_monotone
     type(function_space_type),    pointer :: w2_fs => null()
+    type(function_space_type),    pointer :: w2h_fs => null()
+    type(function_space_type),    pointer :: w2v_fs => null()
     type(transport_runtime_type), pointer :: transport_runtime => null()
 
     call log_event('Conservative FFSL transport', LOG_LEVEL_INFO)
@@ -131,22 +133,28 @@ contains
     log_space = transport_metadata%get_log_space()
     reversibility = transport_metadata%get_reversible()
 
+    ! Get all needed W2 function spaces
+    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+    w2h_fs => function_space_collection%get_fs( mesh, element_order, W2H )
+    w2v_fs => function_space_collection%get_fs( mesh, element_order, W2V )
+
     ! Get Det(J) and departure points
-    detj_at_w2    => transport_runtime%get_detj_at_w2_transport(mesh_id)
-    dep_pts_x_get => transport_runtime%get_departure_points_x_w2(mesh_id)
-    dep_pts_y_get => transport_runtime%get_departure_points_y_w2(mesh_id)
-    dep_pts_z_get => transport_runtime%get_departure_points_z_w2(mesh_id)
-    call detj_at_w2h%initialise( vector_space = dep_pts_x_get%get_function_space() )
-    call detj_at_w2v%initialise( vector_space = dep_pts_z_get%get_function_space() )
+    detj_at_w2 => transport_runtime%get_detj_at_w2_transport(mesh_id)
+    call detj_at_w2h%initialise( vector_space = w2h_fs )
+    call detj_at_w2v%initialise( vector_space = w2v_fs )
     call invoke( split_w2_field_kernel_type(detj_at_w2h, detj_at_w2v, detj_at_w2) )
 
-    ! Copy departure points so they can be corrected if Strang splitting is used
-    call dep_pts_x%initialise( vector_space = dep_pts_x_get%get_function_space() )
-    call dep_pts_y%initialise( vector_space = dep_pts_y_get%get_function_space() )
-    call dep_pts_z%initialise( vector_space = dep_pts_z_get%get_function_space() )
-    call invoke( setval_X(dep_pts_z, dep_pts_z_get), &
-                 setval_X(dep_pts_x, dep_pts_x_get), &
-                 setval_X(dep_pts_y, dep_pts_y_get) )
+    if ( direction /= direction_v ) then
+      dep_pts_x_get => transport_runtime%get_departure_points_x_w2(mesh_id)
+      dep_pts_y_get => transport_runtime%get_departure_points_y_w2(mesh_id)
+      call dep_pts_x%initialise( vector_space = dep_pts_x_get%get_function_space() )
+      call dep_pts_y%initialise( vector_space = dep_pts_y_get%get_function_space() )
+    end if
+
+    if ( direction /= direction_h ) then
+      dep_pts_z_get => transport_runtime%get_departure_points_z_w2(mesh_id)
+      call dep_pts_z%initialise( vector_space = dep_pts_z_get%get_function_space() )
+    end if
 
     ! Set horizontal and vertical monotone options
     hori_monotone = transport_metadata%get_horizontal_monotone()
@@ -165,25 +173,22 @@ contains
       call log_event( "ffsl_control_alg: Invalid vertical monotone option", LOG_LEVEL_ERROR )
     end if
 
-    call flux_3d%initialise( vector_space = dep_pts_x_get%get_function_space() )
+    call flux_3d%initialise( vector_space = detj_at_w2%get_function_space() )
     call increment_con%initialise( vector_space=field_n%get_function_space() )
     call increment_adv%initialise( vector_space=field_n%get_function_space() )
-    call invoke( setval_c(increment_con, 0.0_r_tran), &
-                 setval_c(increment_adv, 0.0_r_tran), &
-                 setval_c(flux_3d,       0.0_r_tran) )
+    call invoke( setval_c(flux_3d, 0.0_r_tran) )
 
     ! Call routine based on direction: vertical; horizontal; or 3D.
     select case (direction)
 
       case (direction_v)
-        w2_fs => function_space_collection%get_fs( mesh, element_order, W2V )
-        call mass_flux%initialise( w2_fs )
-        call invoke( setval_C(mass_flux, 0.0_r_tran) )
+        call mass_flux%initialise( w2v_fs )
         ! If vertical scheme for Strang splitting divide departure distance by 2
         if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-          call invoke( inc_a_times_X(0.5_r_tran, dep_pts_z) )
+          call invoke( a_times_X(dep_pts_z, 0.5_r_tran, dep_pts_z_get) )
           hori_half_flag = .true.
         else
+          call invoke( setval_X(dep_pts_z, dep_pts_z_get) )
           hori_half_flag = .false.
         end if
 
@@ -205,15 +210,15 @@ contains
         end if
 
       case (direction_h)
-        w2_fs => function_space_collection%get_fs( mesh, element_order, W2H )
-        call mass_flux%initialise( w2_fs )
-        call invoke( setval_C(mass_flux, 0.0_r_tran) )
+        call mass_flux%initialise( w2h_fs )
         ! If horizontal scheme for Strang splitting divide departure distance by 2
         if ( transport_metadata%get_splitting() ==  splitting_strang_hvh ) then
-          call invoke( inc_a_times_X(0.5_r_tran, dep_pts_x), &
-                       inc_a_times_X(0.5_r_tran, dep_pts_y) )
+          call invoke( a_times_X(dep_pts_x, 0.5_r_tran, dep_pts_x_get), &
+                       a_times_X(dep_pts_y, 0.5_r_tran, dep_pts_y_get) )
           hori_half_flag = .true.
         else
+          call invoke( setval_X(dep_pts_x, dep_pts_x_get), &
+                       setval_X(dep_pts_y, dep_pts_y_get) )
           hori_half_flag = .false.
         end if
         ! 2D FFSL
@@ -239,9 +244,10 @@ contains
 
       case (direction_3d)
         ! 3D FFSL
-        w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+        call invoke( setval_X(dep_pts_x, dep_pts_x_get), &
+                     setval_X(dep_pts_y, dep_pts_y_get), &
+                     setval_X(dep_pts_z, dep_pts_z_get) )
         call mass_flux%initialise( w2_fs )
-        call invoke( setval_C(mass_flux, 0.0_r_tran) )
         call ffsl_conservative_transport_alg( field_n, dep_pts_x, dep_pts_y,       &
                                               dep_pts_z, detj_at_w2h, detj_at_w2v, &
                                               panel_id, step_dt, log_space,        &
@@ -263,7 +269,8 @@ contains
     call end_of_conservative_step_alg(field_np1, field_n, mass_flux, transport_metadata)
 
     nullify(transport_runtime, mesh, detj_at_w2, panel_id, &
-            dep_pts_x_get, dep_pts_y_get, dep_pts_z_get, w2_fs)
+            dep_pts_x_get, dep_pts_y_get, dep_pts_z_get,   &
+            w2_fs, w2h_fs, w2v_fs)
 
   end subroutine ffsl_conservative_control
 
@@ -319,12 +326,15 @@ contains
     ! Function Spaces
     integer(kind=i_def)                :: function_space
     type(function_space_type), pointer :: w3_shifted_fs => null()
+    type(function_space_type), pointer :: w2h_fs => null()
+    type(function_space_type), pointer :: w2v_fs => null()
     type(mesh_type),           pointer :: shifted_mesh => null()
 
     call log_event('Advective FFSL transport', LOG_LEVEL_INFO)
 
     ! Function space of the field to be advected
     function_space = field_n%which_function_space()
+    mesh => field_n%get_mesh()
 
     if (function_space == Wtheta) then
       ! If Wtheta variable move onto shifted W3 mesh
@@ -332,10 +342,14 @@ contains
       w3_shifted_fs   => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
       call field_to_adv%initialise( vector_space = w3_shifted_fs )
       call invoke( inject_wt_to_sh_w3_kernel_type(field_to_adv, field_n) )
+      w2h_fs => function_space_collection%get_fs( shifted_mesh, element_order, W2h )
+      w2v_fs => function_space_collection%get_fs( shifted_mesh, element_order, W2V )
     else
       ! Stay on current mesh
       call field_to_adv%initialise( field_n%get_function_space() )
       call invoke( setval_X(field_to_adv, field_n) )
+      w2h_fs => function_space_collection%get_fs( mesh, element_order, W2h )
+      w2v_fs => function_space_collection%get_fs( mesh, element_order, W2V )
     end if
 
     ! Mesh ID and Panel ID
@@ -343,27 +357,27 @@ contains
     panel_id => get_panel_id(mesh_id)
 
     ! Get transport_runtime and reversible option
-    mesh => field_n%get_mesh()
     transport_runtime => get_transport_runtime(mesh)
     log_space = transport_metadata%get_log_space()
     reversibility = transport_metadata%get_reversible()
 
     ! Get Det(J) and departure points
-    detj_at_w2    => transport_runtime%get_detj_at_w2_transport(mesh_id)
-    dep_pts_x_get => transport_runtime%get_departure_points_x_w2(mesh_id)
-    dep_pts_y_get => transport_runtime%get_departure_points_y_w2(mesh_id)
-    dep_pts_z_get => transport_runtime%get_departure_points_z_w2(mesh_id)
-    call detj_at_w2h%initialise( vector_space = dep_pts_x_get%get_function_space() )
-    call detj_at_w2v%initialise( vector_space = dep_pts_z_get%get_function_space() )
+    detj_at_w2 => transport_runtime%get_detj_at_w2_transport(mesh_id)
+    call detj_at_w2h%initialise( vector_space = w2h_fs )
+    call detj_at_w2v%initialise( vector_space = w2v_fs )
     call invoke( split_w2_field_kernel_type(detj_at_w2h, detj_at_w2v, detj_at_w2) )
 
-    ! Copy departure points so they can be corrected if Strang splitting is used
-    call dep_pts_x%initialise( vector_space = dep_pts_x_get%get_function_space() )
-    call dep_pts_y%initialise( vector_space = dep_pts_y_get%get_function_space() )
-    call dep_pts_z%initialise( vector_space = dep_pts_z_get%get_function_space() )
-    call invoke( setval_X(dep_pts_z, dep_pts_z_get), &
-                 setval_X(dep_pts_x, dep_pts_x_get), &
-                 setval_X(dep_pts_y, dep_pts_y_get) )
+    if ( direction /= direction_v ) then
+      dep_pts_x_get => transport_runtime%get_departure_points_x_w2(mesh_id)
+      dep_pts_y_get => transport_runtime%get_departure_points_y_w2(mesh_id)
+      call dep_pts_x%initialise( vector_space = dep_pts_x_get%get_function_space() )
+      call dep_pts_y%initialise( vector_space = dep_pts_y_get%get_function_space() )
+    end if
+
+    if ( direction /= direction_h ) then
+      dep_pts_z_get => transport_runtime%get_departure_points_z_w2(mesh_id)
+      call dep_pts_z%initialise( vector_space = dep_pts_z_get%get_function_space() )
+    end if
 
     ! Set horizontal and vertical monotone options, checking that a valid option has been selected
     hori_monotone = transport_metadata%get_horizontal_monotone()
@@ -390,10 +404,11 @@ contains
       case (direction_v)
         ! If vertical scheme for Strang splitting divide departure distance by 2
         if ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) then
-          call invoke( inc_a_times_X(0.5_r_tran, dep_pts_z) )
+          call invoke( a_times_X( dep_pts_z, 0.5_r_tran, dep_pts_z_get ) )
           vert_half_flag = .true.
         else
           vert_half_flag = .false.
+          call invoke( setval_X( dep_pts_z, dep_pts_z_get ) )
         end if
         ! Vertical PPM scheme
         call ffsl_1d_advect_vert( field_to_adv, dep_pts_z, detj_at_w2v, outer_order, &
@@ -403,10 +418,12 @@ contains
       case (direction_h)
         ! If horizontal scheme for Strang splitting divide departure distance by 2
         if ( transport_metadata%get_splitting() ==  splitting_strang_hvh ) then
-          call invoke( inc_a_times_X(0.5_r_tran, dep_pts_x), &
-                       inc_a_times_X(0.5_r_tran, dep_pts_y) )
+          call invoke( a_times_X(dep_pts_x, 0.5_r_tran, dep_pts_x_get), &
+                       a_times_X(dep_pts_y, 0.5_r_tran, dep_pts_y_get) )
           hori_half_flag = .true.
         else
+          call invoke( setval_X(dep_pts_x, dep_pts_x_get), &
+                       setval_X(dep_pts_y, dep_pts_y_get) )
           hori_half_flag = .false.
         end if
         ! 2D FFSL
@@ -416,6 +433,9 @@ contains
 
       case (direction_3d)
         ! 3D FFSL
+        call invoke( setval_X(dep_pts_x, dep_pts_x_get), &
+                     setval_X(dep_pts_y, dep_pts_y_get), &
+                     setval_X(dep_pts_z, dep_pts_z_get ) )
         call ffsl_advective_transport_alg( field_to_adv, dep_pts_x, dep_pts_y,  &
                                            dep_pts_z, detj_at_w2h, detj_at_w2v, &
                                            panel_id, step_dt, log_space,        &
@@ -443,7 +463,8 @@ contains
     call end_of_advective_step_alg(field_np1, field_n, transport_metadata)
 
     nullify(transport_runtime, mesh, detj_at_w2, panel_id, &
-            dep_pts_x_get, dep_pts_y_get, dep_pts_z_get)
+            dep_pts_x_get, dep_pts_y_get, dep_pts_z_get,   &
+            w2h_fs, w2v_fs)
 
   end subroutine ffsl_advective_control
 

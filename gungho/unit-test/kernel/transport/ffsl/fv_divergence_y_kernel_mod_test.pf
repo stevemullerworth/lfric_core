@@ -21,6 +21,7 @@ module fv_divergence_y_kernel_mod_test
     private
     real(kind=r_tran), allocatable :: mass_divergence(:)
     real(kind=r_tran), allocatable :: mass_flux(:)
+    real(kind=r_tran), allocatable :: inv_m3(:,:,:)
 
     integer(kind=i_def), allocatable :: map_w2(:)
     integer(kind=i_def), allocatable :: map_w3(:)
@@ -32,6 +33,7 @@ module fv_divergence_y_kernel_mod_test
   end type fv_divergence_y_test_type
 
     integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ncell = 1*nlayers
     integer(kind=i_def), parameter :: ndf_w2  = 6
     integer(kind=i_def), parameter :: undf_w2 = ndf_w2
     integer(kind=i_def), parameter :: ndf_w3  = 1
@@ -49,6 +51,7 @@ contains
 
     allocate( this%mass_flux(undf_w2) )
     allocate( this%mass_divergence(undf_w3) )
+    allocate( this%inv_m3(1,1,ncell) )
     allocate( this%map_w2(ndf_w2) )
     allocate( this%map_w3(ndf_w3) )
 
@@ -66,6 +69,7 @@ contains
 
     deallocate( this%mass_flux )
     deallocate( this%mass_divergence )
+    deallocate( this%inv_m3 )
     deallocate( this%map_w2 )
     deallocate( this%map_w3 )
 
@@ -83,41 +87,53 @@ contains
 
     real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
 
+    integer(kind=i_def), parameter :: cell = 1
+
+    ! Volume factor is 1/2
+    this%inv_m3(:,:,:) = 0.5
+
     this%mass_flux = (/ 3.0_r_tran, 1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
     ! The fluxes have the following setup:
     !          9.0
     !     3.0       10.0
     !          1.0
-    ! Hence the y-direction divergence will be 8.
+    ! Hence the y-direction divergence will be (9-1)*0.5 = 4.
 
-    call fv_divergence_y_code( nlayers,              &
+
+    call fv_divergence_y_code( cell,                 &
+                               nlayers,              &
                                this%mass_divergence, &
                                this%mass_flux,       &
+                               ncell,                &
+                               this%inv_m3,          &
                                ndf_w3,               &
                                undf_w3,              &
                                this%map_w3,          &
                                ndf_w2,               &
                                undf_w2,              &
                                this%map_w2 )
-    @assertEqual(this%mass_divergence(1), 8.0_r_tran, tol)
+    @assertEqual(this%mass_divergence(1), 4.0_r_tran, tol)
 
     this%mass_flux = (/ 1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 3.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
     ! The fluxes have the following setup:
     !          3.0
     !     1.0       9.0
     !          10.0
-    ! Hence the y-direction divergence will be -7.
+    ! Hence the y-direction divergence will be (3-10)*0.5 = -3.5.
 
-    call fv_divergence_y_code( nlayers,              &
+    call fv_divergence_y_code( ncell,                &
+                               nlayers,              &
                                this%mass_divergence, &
                                this%mass_flux,       &
+                               ncell,                &
+                               this%inv_m3,          &
                                ndf_w3,               &
                                undf_w3,              &
                                this%map_w3,          &
                                ndf_w2,               &
                                undf_w2,              &
                                this%map_w2 )
-    @assertEqual(this%mass_divergence(1), -7.0_r_tran, tol)
+    @assertEqual(this%mass_divergence(1), -3.5_r_tran, tol)
 
   end subroutine test_all
 

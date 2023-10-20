@@ -123,6 +123,7 @@ subroutine poly_adv_update_code( nlayers,                &
 
   ! Internal variables
   integer(kind=i_def)                      :: k, df, ijp, df1, df2
+  integer(kind=i_def), dimension(4)        :: direction_dofs
   integer(kind=i_def), parameter           :: nfaces = 4
   real(kind=r_tran)                         :: direction
   real(kind=r_tran), dimension(nfaces)      :: v_dot_n
@@ -182,16 +183,10 @@ subroutine poly_adv_update_code( nlayers,                &
   ! so if u.n > 0 then we set the field to be the value on this edge from this cell
   ! and if u.n < 0 then we set the field to be the value on this edge from a
   ! neighbouring cell
+  direction_dofs = (/ 1, 2, 1, 2 /)
   do df = 1,nfaces
-    if ( df == 1 .or. df == 3 ) then
-      ! U components
-      df1 = 1
-    else
-      ! V components
-      df1 = 2
-    end if
     do k = 0, nlayers
-      direction = uv(df1,k)*v_dot_n(df)
+      direction = uv(direction_dofs(df),k)*v_dot_n(df)
       if ( direction > 0.0_r_tran .or. missing_neighbour(df) ) then
         ! Take value on edge from this column
         ijp = map_md(1) + (df-1)*(nlayers+1)

@@ -34,8 +34,9 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ffsl_vertical_flux_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/               &
+  type(arg_type) :: meta_args(8) = (/               &
        arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W2v), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2v), &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2v), &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),  &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),  &
@@ -59,6 +60,7 @@ contains
 !> @param[in]     nlayers   Number of layers
 !> @param[in,out] flux      Flux values which are calculated
 !> @param[in]     dep_pts   Departure points
+!> @param[in]     detj      Volume factor
 !> @param[in]     rho       Density values in W3
 !> @param[in]     a0_coeffs Coefficients for the subgrid approximation of density
 !> @param[in]     a1_coeffs Coefficients for the subgrid approximation of density
@@ -73,6 +75,7 @@ contains
 subroutine ffsl_vertical_flux_code( nlayers,             &
                                     flux,                &
                                     dep_pts,             &
+                                    detj,                &
                                     rho,                 &
                                     a0_coeffs,           &
                                     a1_coeffs,           &
@@ -107,6 +110,7 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
   integer(kind=i_def), dimension(ndf_w2v), intent(in)    :: map_w2v
   real(kind=r_tran), dimension(undf_w2v),  intent(inout) :: flux
   real(kind=r_tran), dimension(undf_w2v),  intent(in)    :: dep_pts
+  real(kind=r_tran), dimension(undf_w2v),  intent(in)    :: detj
   real(kind=r_tran),                       intent(in)    :: deltaT
 
   ! Internal variables
@@ -125,10 +129,6 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
   real(kind=r_tran)   :: left_integration_limit
   real(kind=r_tran)   :: right_integration_limit
   real(kind=r_tran)   :: subgrid_coeffs(3)
-  real(kind=r_tran)   :: rho_local(nlayers)
-  real(kind=r_tran)   :: a0_local(nlayers)
-  real(kind=r_tran)   :: a1_local(nlayers)
-  real(kind=r_tran)   :: a2_local(nlayers)
 
   ! Flux boundary conditions
   k = 0
@@ -139,10 +139,6 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
   flux(map_w2v(df)+k) = 0.0_r_tran ! Top boundary condition, zero flux.
 
   local_density_index = 0_i_def
-  rho_local = 0.0_r_tran
-  a0_local = 0.0_r_tran
-  a1_local = 0.0_r_tran
-  a2_local = 0.0_r_tran
 
   do k=0,nlayers-2
     departure_dist = dep_pts(map_w2v(df)+k)
@@ -155,13 +151,6 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
     edge = 1
     call calc_local_vertical_index(local_density_index,departure_dist,n_cells_to_sum,k,nlayers,edge)
 
-    do ii=1,n_cells_to_sum
-      rho_local(ii) = rho(map_w3(1)+local_density_index(ii))
-      a0_local(ii) = a0_coeffs(map_w3(1)+local_density_index(ii))
-      a1_local(ii) = a1_coeffs(map_w3(1)+local_density_index(ii))
-      a2_local(ii) = a2_coeffs(map_w3(1)+local_density_index(ii))
-    end do
-
     ! Calculates the left and right integration limits for the fractional cell
     if (departure_dist >= 0.0_r_tran) then
       call calc_integration_limits_positive( fractional_distance,    &
@@ -173,11 +162,15 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
                                              right_integration_limit )
     end if
 
-    mass_from_whole_cells = sum(rho_local(1:n_cells_to_sum-1))
+    mass_from_whole_cells = 0.0_r_tran
+    do ii = 1,n_cells_to_sum-1
+      mass_from_whole_cells = mass_from_whole_cells &
+                            + rho(map_w3(1) + local_density_index(ii))
+    end do
 
-    subgrid_coeffs = (/ a0_local(n_cells_to_sum), &
-                        a1_local(n_cells_to_sum), &
-                        a2_local(n_cells_to_sum) /)
+    subgrid_coeffs = (/ a0_coeffs(map_w3(1) + local_density_index(n_cells_to_sum)), &
+                        a1_coeffs(map_w3(1) + local_density_index(n_cells_to_sum)), &
+                        a2_coeffs(map_w3(1) + local_density_index(n_cells_to_sum)) /)
 
     mass_frac = return_part_mass(3,subgrid_coeffs,left_integration_limit,right_integration_limit)
 
@@ -186,7 +179,8 @@ subroutine ffsl_vertical_flux_code( nlayers,             &
     ! departure distance, and the fractional part of the departure distance.
     mass_total = mass_from_whole_cells + mass_frac
 
-    flux(map_w2v(df)+k) = sign(1.0_r_tran,departure_dist)*mass_total/deltaT
+    flux(map_w2v(df)+k) = sign(1.0_r_tran,departure_dist)*mass_total/deltaT &
+                         *detj(map_w2v(df)+k)
 
   end do
 

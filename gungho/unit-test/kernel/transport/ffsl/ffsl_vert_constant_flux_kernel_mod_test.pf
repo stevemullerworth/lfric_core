@@ -21,7 +21,7 @@ module ffsl_vert_constant_flux_kernel_mod_test
   @TestCase
   type, extends(TestCase) :: ffsl_vert_constant_flux_test_type
     private
-    real(kind=r_tran), allocatable :: dep_pts(:), flux(:), rho(:)
+    real(kind=r_tran), allocatable :: dep_pts(:), flux(:), rho(:), detj(:)
     integer(i_def) :: map_w2(1:6)
   contains
     procedure setUp
@@ -51,9 +51,11 @@ contains
     allocate( this%dep_pts(1:undf_w2) )
     allocate( this%flux(1:undf_w2) )
     allocate( this%rho(1:undf_w3) )
+    allocate( this%detj(1:undf_w2) )
 
     this%flux(:) = 0.0_r_tran
     this%rho(:) = (/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
+    this%detj(:) = 2.0_r_tran
 
   end subroutine setUp
 
@@ -67,6 +69,7 @@ contains
     deallocate( this%rho )
     deallocate( this%flux )
     deallocate( this%dep_pts )
+    deallocate( this%detj )
 
   end subroutine tearDown
 
@@ -98,6 +101,7 @@ contains
     call ffsl_vert_constant_flux_code( nlayers,      &
                                        this%flux,    &
                                        this%dep_pts, &
+                                       this%detj,    &
                                        this%rho,     &
                                        deltaT,       &
                                        ndf_w2,       &
@@ -111,10 +115,10 @@ contains
     ! As the departure distance is 0.5 and the reconstruction is constant,
     ! the flux should be half*rho.
     @assertEqual(0.0_r_tran, this%flux(1), tol)
-    @assertEqual(0.5_r_tran, this%flux(2), tol)
-    @assertEqual(1.0_r_tran, this%flux(3), tol)
-    @assertEqual(1.5_r_tran, this%flux(4), tol)
-    @assertEqual(2.0_r_tran, this%flux(5), tol)
+    @assertEqual(1.0_r_tran, this%flux(2), tol)
+    @assertEqual(2.0_r_tran, this%flux(3), tol)
+    @assertEqual(3.0_r_tran, this%flux(4), tol)
+    @assertEqual(4.0_r_tran, this%flux(5), tol)
     @assertEqual(0.0_r_tran, this%flux(6), tol)
 
     ! Test with large cfl and negative cfl values
@@ -125,6 +129,7 @@ contains
     call ffsl_vert_constant_flux_code( nlayers,      &
                                        this%flux,    &
                                        this%dep_pts, &
+                                       this%detj,    &
                                        this%rho,     &
                                        deltaT,       &
                                        ndf_w2,       &
@@ -138,12 +143,12 @@ contains
     ! For the integer part of the dep_pts we take the value of rho
     ! in the cell, for the fractional part it is that fraction*rho.
     ! For negative dep_pts the flux will be negative.
-    @assertEqual(0.0_r_tran,  this%flux(1), tol)
-    @assertEqual(0.8_r_tran,  this%flux(2), tol)
-    @assertEqual(2.5_r_tran,  this%flux(3), tol)
-    @assertEqual(-5.0_r_tran, this%flux(4), tol)
-    @assertEqual(-2.5_r_tran, this%flux(5), tol)
-    @assertEqual(0.0_r_tran,  this%flux(6), tol)
+    @assertEqual(0.0_r_tran, this%flux(1), tol)
+    @assertEqual(1.6_r_tran, this%flux(2), tol)
+    @assertEqual(5.0_r_tran, this%flux(3), tol)
+    @assertEqual(-10.0_r_tran, this%flux(4), tol)
+    @assertEqual(-5.0_r_tran, this%flux(5), tol)
+    @assertEqual(0.0_r_tran, this%flux(6), tol)
 
   end subroutine test_all
 

@@ -35,9 +35,10 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ffsl_vert_constant_flux_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/               &
+  type(arg_type) :: meta_args(5) = (/               &
        arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W2v), & ! flux
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2v), & ! dep_pts
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2v), & ! detj
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),  & ! rho
        arg_type(GH_SCALAR, GH_REAL, GH_READ)        & ! dt
        /)
@@ -57,6 +58,7 @@ contains
 !> @param[in]     nlayers   Number of layers
 !> @param[in,out] flux      Flux values which are calculated
 !> @param[in]     dep_pts   Departure points
+!> @param[in]     detj      Volume factor
 !> @param[in]     rho       Density values in W3
 !> @param[in]     deltaT    Length of a timestep
 !> @param[in]     ndf_w2v   Number of degrees of freedom per cell
@@ -68,6 +70,7 @@ contains
 subroutine ffsl_vert_constant_flux_code( nlayers,  &
                                          flux,     &
                                          dep_pts,  &
+                                         detj,     &
                                          rho,      &
                                          deltaT,   &
                                          ndf_w2v,  &
@@ -96,6 +99,7 @@ subroutine ffsl_vert_constant_flux_code( nlayers,  &
   integer(kind=i_def), dimension(ndf_w2v), intent(in)    :: map_w2v
   real(kind=r_tran), dimension(undf_w2v),  intent(inout) :: flux
   real(kind=r_tran), dimension(undf_w2v),  intent(in)    :: dep_pts
+  real(kind=r_tran), dimension(undf_w2v),  intent(in)    :: detj
   real(kind=r_tran),                       intent(in)    :: deltaT
 
   ! Internal variables
@@ -170,7 +174,8 @@ subroutine ffsl_vert_constant_flux_code( nlayers,  &
     ! departure distance, and the fractional part of the departure distance.
     mass_total = mass_from_whole_cells + mass_frac
 
-    flux(map_w2v(df)+k) = sign(1.0_r_tran,departure_dist)*mass_total/deltaT
+    flux(map_w2v(df)+k) = sign(1.0_r_tran,departure_dist)*mass_total/deltaT &
+                         *detj(map_w2v(df)+k)
 
   end do
 

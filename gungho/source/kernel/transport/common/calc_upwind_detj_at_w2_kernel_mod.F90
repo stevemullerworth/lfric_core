@@ -13,7 +13,7 @@
 module calc_upwind_detj_at_w2_kernel_mod
 
   use argument_mod,          only : arg_type, GH_FIELD,  &
-                                    GH_REAL, GH_INC,     &
+                                    GH_REAL, GH_WRITE,   &
                                     GH_READ, CELL_COLUMN
 
   use constants_mod,         only : r_tran, i_def
@@ -34,10 +34,10 @@ module calc_upwind_detj_at_w2_kernel_mod
   type, public, extends(kernel_type) :: calc_upwind_detj_at_w2_kernel_type
     private
     type(arg_type) :: meta_args(4) = (/            &
-         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W2), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W2)  &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2), &
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2)  &
          /)
     integer :: operates_on = CELL_COLUMN
   contains

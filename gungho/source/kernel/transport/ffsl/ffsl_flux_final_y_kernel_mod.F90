@@ -39,12 +39,13 @@ module ffsl_flux_final_y_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
   type, public, extends(kernel_type) :: ffsl_flux_final_y_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                                                      &
+    type(arg_type) :: meta_args(10) = (/                                                     &
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2h),                                     & ! flux
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(Y1D)),                        & ! field_x
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3, STENCIL(Y1D)),                        & ! field_y
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1, STENCIL(Y1D)), & ! panel_id
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                                     & ! dep_pts
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2h),                                     & ! detj
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),                                      & ! order
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),                                      & ! monotone
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ     ),                                      & ! extent_size
@@ -75,6 +76,7 @@ contains
   !> @param[in]     stencil_size_p    Local length of panel ID stencil
   !> @param[in]     stencil_map_p     Dofmap for the panel ID stencil
   !> @param[in]     dep_pts           Departure points in y
+  !> @param[in]     detj              Volume factor
   !> @param[in]     order             Order of reconstruction
   !> @param[in]     monotone          Horizontal monotone option for FFSL
   !> @param[in]     extent_size       Stencil extent needed for the LAM edge
@@ -103,6 +105,7 @@ contains
                                      stencil_size_p, &
                                      stencil_map_p,  &
                                      dep_pts,        &
+                                     detj,           &
                                      order,          &
                                      monotone,       &
                                      extent_size,    &
@@ -153,8 +156,9 @@ contains
     real(kind=r_tran), dimension(undf_w2h), intent(inout) :: flux
     real(kind=r_tran), dimension(undf_w3),  intent(in)    :: field_x
     real(kind=r_tran), dimension(undf_w3),  intent(in)    :: field_y
-    real(kind=r_def), dimension(undf_wp),   intent(in)    :: panel_id
+    real(kind=r_def),  dimension(undf_wp),  intent(in)    :: panel_id
     real(kind=r_tran), dimension(undf_w2h), intent(in)    :: dep_pts
+    real(kind=r_tran), dimension(undf_w2h), intent(in)    :: detj
     integer(kind=i_def), intent(in)                       :: order
     integer(kind=i_def), intent(in)                       :: monotone
     integer(kind=i_def), intent(in)                       :: extent_size
@@ -302,7 +306,8 @@ contains
             mass_total = mass_from_whole_cells + mass_frac
 
             ! Assign to flux variable and divide by dt to get the correct form
-            flux(map_w2h(local_dofs(dof_iterator)) + k) =  sign(1.0_r_tran,departure_dist) * mass_total / dt
+            flux(map_w2h(local_dofs(dof_iterator)) + k) = sign(1.0_r_tran,departure_dist) * mass_total / dt &
+                                                         *detj(map_w2h(local_dofs(dof_iterator)) + k)
 
           end do ! vertical levels k
 

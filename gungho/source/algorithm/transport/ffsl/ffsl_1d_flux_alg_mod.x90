@@ -14,11 +14,11 @@ module ffsl_1d_flux_alg_mod
 
   ! Constants and types
   use constants_mod,                  only: r_tran, i_def, l_def
-  use fem_constants_mod,              only: get_inverse_w3_mass_matrix_r_tran
+  use fem_constants_mod,              only: get_inverse_w3_mass_matrix
   use field_mod,                      only: field_type
   use r_tran_field_mod,               only: r_tran_field_type
   use geometric_constants_mod,        only: get_dz_w3
-  use r_tran_operator_mod,            only: r_tran_operator_type
+  use operator_mod,                   only: operator_type
   use transport_enumerated_types_mod, only: vertical_monotone_none,      &
                                             vertical_monotone_strict,    &
                                             vertical_monotone_relaxed
@@ -36,8 +36,6 @@ module ffsl_1d_flux_alg_mod
   use vert_ppm_no_limiter_kernel_mod, only: vert_ppm_no_limiter_kernel_type
   use vert_ppm_strict_limiter_kernel_mod, &
                                       only: vert_ppm_strict_limiter_kernel_type
-
-  use psykal_lite_mod,                only: invoke_dg_matrix_vector_rtran
 
   implicit none
 
@@ -89,29 +87,21 @@ contains
     type(r_tran_field_type), intent(inout) :: increment
 
     ! Variables needed for reconstruction and flux
-    type(r_tran_field_type) :: flux
-    type(r_tran_field_type) :: difference
     type(r_tran_field_type) :: a0, a1, a2
 
     ! Pointers
-    type(r_tran_operator_type), pointer :: m3_inv => null()
-    type(field_type),           pointer :: dz_w3_rdef => null()
-    type(r_tran_field_type)             :: dz_w3
+    type(operator_type), pointer :: m3_inv => null()
+    type(field_type),    pointer :: dz_w3_rdef => null()
+    type(r_tran_field_type)      :: dz_w3
 
     ! Initialise variables
-    call flux%initialise( vector_space=mass_flux%get_function_space() )
-    call difference%initialise( vector_space=field%get_function_space() )
     call a0%initialise( vector_space=field%get_function_space() )
     call a1%initialise( vector_space=field%get_function_space() )
     call a2%initialise( vector_space=field%get_function_space() )
-    call invoke( setval_c(flux, 0.0_r_tran),       &
-                 setval_c(difference, 0.0_r_tran), &
-                 setval_c(a0, 0.0_r_tran),         &
-                 setval_c(a1, 0.0_r_tran),         &
-                 setval_c(a2, 0.0_r_tran) )
+    call invoke( setval_c(mass_flux, 0.0_r_tran) )
 
     ! Get inverse mass matrix and vertical spacing
-    m3_inv => get_inverse_w3_mass_matrix_r_tran(field%get_mesh_id())
+    m3_inv => get_inverse_w3_mass_matrix(field%get_mesh_id())
     dz_w3_rdef => get_dz_w3(field%get_mesh_id())
     call dz_w3%initialise(vector_space = dz_w3_rdef%get_function_space() )
     call invoke_copy_to_rtran(dz_w3, dz_w3_rdef)
@@ -119,20 +109,20 @@ contains
     ! Compute subgrid coefficients and compute the flux
     if (order == 0) then
       ! Constant reconstruction and flux
-      call invoke( ffsl_vert_constant_flux_kernel_type(flux, dep_pts, field, dt) )
+      call invoke( ffsl_vert_constant_flux_kernel_type(mass_flux, dep_pts, detj_at_w2, field, dt) )
     else if (order == 1) then
       if (reversible) then
         ! Reversible Nirvana reconstruction
         call invoke( vert_nirvana_reversible_kernel_type( a0, a1, a2, field, &
                                                           dz_w3, monotone,   &
                                                           log_space ),       &
-                     ffsl_vertical_flux_kernel_type( flux, dep_pts, field,   &
+                     ffsl_vertical_flux_kernel_type( mass_flux, dep_pts, detj_at_w2, field,   &
                                                      a0, a1, a2, dt ) )
       else
         ! Standard Nirvana reconstruction
         call invoke( vert_nirvana_kernel_type( a0, a1, a2, field, dz_w3,   &
                                                monotone ),                 &
-                     ffsl_vertical_flux_kernel_type( flux, dep_pts, field, &
+                     ffsl_vertical_flux_kernel_type( mass_flux, dep_pts, detj_at_w2, field, &
                                                      a0, a1, a2, dt) )
       end if
     else
@@ -140,27 +130,25 @@ contains
         ! Compute unlimited PPM coefficients for reconstruction and compute flux
         call invoke( vert_ppm_no_limiter_kernel_type(a0, a1, a2, field,   &
                                                      dz_w3, log_space),   &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, &
+                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts, detj_at_w2, field, &
                                                     a0, a1, a2, dt) )
       else if ( monotone == vertical_monotone_strict ) then
         ! Compute strict monotonic PPM coefficients for reconstruction and compute flux
         call invoke( vert_ppm_strict_limiter_kernel_type(a0, a1, a2, field, &
                                                          dz_w3, log_space), &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field,   &
+                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts, detj_at_w2, field,   &
                                                     a0, a1, a2, dt) )
       else
         ! Compute relaxed monotonic PPM coefficients for reconstruction and compute flux
         call invoke( vert_ppm_limiter_kernel_type(a0, a1, a2, field,      &
                                                   dz_w3, log_space),      &
-                     ffsl_vertical_flux_kernel_type(flux, dep_pts, field, &
+                     ffsl_vertical_flux_kernel_type(mass_flux, dep_pts, detj_at_w2, field, &
                                                     a0, a1, a2, dt) )
       end if
     end if
     ! Multiply by Det(J) to get mass flux, take difference and multiply by inverse
     ! mass matrix to get increment
-    call invoke( X_times_Y(mass_flux, flux, detj_at_w2), &
-                 fv_divergence_z_kernel_type( difference, mass_flux ))
-    call invoke_dg_matrix_vector_rtran(increment, difference, m3_inv)
+    call invoke( fv_divergence_z_kernel_type( increment, mass_flux, m3_inv ))
 
     nullify( m3_inv, dz_w3_rdef )
 

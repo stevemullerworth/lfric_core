@@ -59,7 +59,7 @@ contains
     integer(kind=i_def), dimension(ndf_pid, smap_max, 4) :: smap_pid
 
     real(kind=r_tran), dimension(undf_w2 ) :: flux_x, flux_y
-    real(kind=r_tran), dimension(undf_w2b) :: flux_x_b, flux_y_b
+    real(kind=r_tran), dimension(undf_w2b) :: flux_b
     real(kind=r_def),  dimension(undf_pid) :: panel_id
 
     integer(kind=i_def) :: cell, df
@@ -79,9 +79,11 @@ contains
 
     panel_id = real( (/ 1, 4, 6, 2, 5 /), r_def )
 
-    flux_x_b(:)   = 1.0_r_tran
-    flux_x_b(1:4) = 2.0_r_tran
-    flux_y_b      = -flux_x_b
+    flux_b(:)   = 1.0_r_tran
+    flux_b(1) = 2.0_r_tran
+    flux_b(2) = -2.0_r_tran
+    flux_b(3) = 2.0_r_tran
+    flux_b(4) = -2.0_r_tran
 
     flux_x = 0.0_r_tran
     flux_y = 0.0_r_tran
@@ -89,11 +91,7 @@ contains
     call ffsl_unify_flux_kernel_code( nlayers,   &
                                       flux_x,    &
                                       flux_y,    &
-                                      flux_x_b,  &
-                                      smap_size, &
-                                      smap_max,  &
-                                      smap_w2b,  &
-                                      flux_y_b,  &
+                                      flux_b,    &
                                       smap_size, &
                                       smap_max,  &
                                       smap_w2b,  &
@@ -110,10 +108,10 @@ contains
                                       ndf_pid,   &
                                       undf_pid,  &
                                       map_pid )
-  @assertEqual(1.5_r_tran, flux_x(1), tol)
+  @assertEqual(0.5_r_tran, flux_x(1), tol)
   @assertEqual(-1.5_r_tran, flux_y(2), tol)
   @assertEqual(1.5_r_tran, flux_x(3), tol)
-  @assertEqual(-1.5_r_tran, flux_y(4), tol)
+  @assertEqual(-0.5_r_tran, flux_y(4), tol)
 
   end subroutine test_all
 

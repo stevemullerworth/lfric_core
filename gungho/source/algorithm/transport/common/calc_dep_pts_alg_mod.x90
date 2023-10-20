@@ -52,6 +52,7 @@ module calc_dep_pts_alg_mod
   use geometric_constants_mod,           only: get_height
   use log_mod,                           only: log_event,               &
                                                LOG_LEVEL_INFO,          &
+                                               LOG_LEVEL_TRACE,         &
                                                LOG_LEVEL_ERROR
   use mesh_mod,                          only: mesh_type
   use psykal_lite_mod,                   only: invoke_copy_to_rtran
@@ -166,8 +167,8 @@ contains
 
     end select
 
-    call dep_pts_x%log_minmax( LOG_LEVEL_INFO, 'dep_pts_x' )
-    call dep_pts_y%log_minmax( LOG_LEVEL_INFO, 'dep_pts_y' )
+    call dep_pts_x%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_x' )
+    call dep_pts_y%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_y' )
 
     nullify( w2_fs, mesh )
 
@@ -237,8 +238,6 @@ contains
     ! at timestep n.
     call invoke( setval_c( dep_pts_z, 0.0_r_tran ),                       &
                  setval_c( cfl, 0.0_r_tran ),                             &
-                 setval_c( departure_wind_n, 0.0_r_tran ),                &
-                 setval_c( departure_wind_np1, 0.0_r_tran ),              &
                  X_divideby_Y(departure_wind_n, wind_n, detj_at_w2),      &
                  X_divideby_Y(departure_wind_np1, wind_np1, detj_at_w2) )
 
@@ -264,7 +263,7 @@ contains
                                                vertical_method, dt )  )
     end select
 
-    call dep_pts_z%log_minmax( LOG_LEVEL_INFO, 'dep_pts_z' )
+    call dep_pts_z%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_z' )
 
     nullify( w2_fs, mesh )
 
