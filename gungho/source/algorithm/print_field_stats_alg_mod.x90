@@ -37,6 +37,7 @@ subroutine print_field_stats_alg(field, level, printmin, printmax, name)
   use geometric_constants_mod, only: get_latitude, get_longitude, get_height
   use field_stats_kernel_mod,  only: field_stats_kernel_type
   use extrusion_mod,           only: TWOD
+  use psykal_lite_mod,         only: invoke_field_min_max
 
   implicit none
 
@@ -60,7 +61,7 @@ subroutine print_field_stats_alg(field, level, printmin, printmax, name)
 
   if (log_level() <= level) then
 
-    call field%field_minmax(fmin, fmax)
+    call invoke_field_min_max(fmin, fmax, field)
 
     if (present(name)) then
       field_name = name

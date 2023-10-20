@@ -79,7 +79,8 @@ module wt_advective_update_alg_mod
   use transport_runtime_collection_mod,   only: get_transport_runtime
   use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
   use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
-  use psykal_lite_mod,                    only: invoke_copy_to_rtran
+  use psykal_lite_mod,                    only: invoke_copy_to_rtran, &
+                                                invoke_field_min_max
   use io_config_mod,                      only: subroutine_timers
   use timer_mod,                          only: timer
 
@@ -285,7 +286,7 @@ contains
           ! Compute the smallest surface height of chi(3)
           ! (this is only needed for spherically-based coordinates
           ! Transform radius is minimum height + 1
-          call chi(3)%field_minmax(transform_radius, chi3_max)
+          call invoke_field_min_max(transform_radius, chi3_max, chi(3))
           transform_radius = 1.0_r_def + abs(transform_radius)
         end if
 

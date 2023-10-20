@@ -15,6 +15,7 @@ module transport_stats_mod
   use log_mod,                           only: log_event,           &
                                                log_scratch_space,   &
                                                LOG_LEVEL_INFO
+  use psykal_lite_mod,                   only: invoke_field_min_max
 
   implicit none
 
@@ -47,8 +48,12 @@ contains
     real(kind=r_def)                   :: l2_error, diss, disp
 
     ! Compute statistics
-    call field%field_minmax(min_field, max_field)
-    call true_field%field_minmax(min_field0, max_field0)
+    ! field min and max
+    call invoke_field_min_max(min_field, max_field, field)
+
+    ! true_field min and max
+    call invoke_field_min_max(min_field0, max_field0, true_field)
+
     volume = volume_normalisation_alg(field)
     l2_field = l2_norm_alg(field)
     l2_field0 = l2_norm_alg(true_field)

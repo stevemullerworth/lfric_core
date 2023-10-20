@@ -36,7 +36,8 @@ module transport_runtime_alg_mod
   use model_clock_mod,                only: model_clock_type
   use runtime_tools_mod,              only: check_initialised_field
   use transport_enumerated_types_mod, only: scheme_split
-  use psykal_lite_mod,                only: invoke_copy_to_rtran
+  use psykal_lite_mod,                only: invoke_copy_to_rtran, &
+                                            invoke_rtran_field_min_max
 
   implicit none
 
@@ -157,7 +158,8 @@ contains
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
     use fem_constants_mod,             only: get_inverse_W3_mass_matrix_r_tran
     use r_tran_operator_mod,           only: r_tran_operator_type
-    use psykal_lite_mod,               only: invoke_copy_to_rtran
+    use psykal_lite_mod,               only: invoke_copy_to_rtran, &
+                                             invoke_rtran_field_min_max
 
     implicit none
 
@@ -434,13 +436,13 @@ contains
       select case(max_vert_cfl_calc)
       ! Calculate the maximum vertical cfl for substepping
       case(max_vert_cfl_calc_uniform)
-        call vertical_cfl%field_minmax(v_cfl_min, v_cfl_max)
+        call invoke_rtran_field_min_max(v_cfl_min, v_cfl_max, vertical_cfl)
       case(max_vert_cfl_calc_dep_point)
         call hori_cfl_dep%initialise( self%horizontal_advecting_wind(mesh_idx)%get_function_space() )
         call invoke( split_w2_field_kernel_type(hori_cfl_dep, &
                                                 vertical_cfl, &
                                                 cfl_dep) )
-        call cfl_dep%field_minmax(v_cfl_min, v_cfl_max)
+        call invoke_rtran_field_min_max(v_cfl_min, v_cfl_max, cfl_dep)
       case default
         write(log_scratch_space, '(A)') &
           'transport_runtime: maximum vertical CFL method not defined '
@@ -451,13 +453,16 @@ contains
       if (element_order == 0_i_def) then
         call invoke( calc_max_cfl_kernel_type(sum_cfl, sum_horizontal_cfl, &
                                               horizontal_cfl, vertical_cfl) )
-        call sum_horizontal_cfl%field_minmax(h_cfl_min, h_cfl_max)
-        call sum_cfl%field_minmax(cfl_min, cfl_max)
+        call invoke_rtran_field_min_max(h_cfl_min, h_cfl_max, sum_horizontal_cfl)
+
+        call invoke_rtran_field_min_max(cfl_min, cfl_max, sum_cfl)
+
         self%horizontal_cfl_max(mesh_idx) = max(abs(h_cfl_max), abs(h_cfl_min))
         self%vertical_cfl_max(mesh_idx) = max(abs(v_cfl_max), abs(v_cfl_min))
         self%total_cfl_max(mesh_idx) = max(abs(cfl_max), abs(cfl_min))
       else
-        call horizontal_cfl%field_minmax(h_cfl_min, h_cfl_max)
+        call invoke_rtran_field_min_max(h_cfl_min, h_cfl_max, horizontal_cfl)
+
         self%horizontal_cfl_max(mesh_idx) = max(abs(h_cfl_max), abs(h_cfl_min))
         self%vertical_cfl_max(mesh_idx) = max(abs(v_cfl_max), abs(v_cfl_min))
         self%total_cfl_max(mesh_idx) = max( self%horizontal_cfl_max(mesh_idx), &
