@@ -14,7 +14,24 @@ jobs:
       pages: write
       id-token: write
     steps:
-    - id: deployment
-      uses: sphinx-notes/pages@v3
+    - id: setup environment
+      uses: setup-python@v4
       with:
-        documentation_path: ./documentation
+        python_version: 3.12
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install sphinx
+    - id: extract
+      uses: checkout@v4
+    - id: sphinx
+      run: |
+        cd documentation
+        make html
+        tar --directory html -cf "${{ runner.temp }}/artifact.tar"
+    - id: deployment
+      uses: actions/upload-pages-artifact@v2
+      with:
+        name: github-pages
+        path: ${{ runner.temp }}/artifact.tar
+        retention-days: 1
+        if-no-files-found: error
