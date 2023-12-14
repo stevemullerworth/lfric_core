@@ -81,6 +81,9 @@ contains
   !> field emulators and the fields in a LFRic field collection
   procedure, private :: setup_interface_to_field_collection
 
+  !> Get Atlas field from the bundle using the fieldname
+  procedure, private :: get_field_data
+
   !> Copy the data in the internal Atlas field emulators from the LFRic fields
   !> stored in the a field_collection
   procedure, public :: from_lfric_field_collection
@@ -486,13 +489,52 @@ subroutine setup_interface_to_field_collection( self, &
     ! Get the required data and setup field interface
     call get_model_field( variable_names(ivar), &
                           field_collection, lfric_field_ptr )
-    atlas_data_ptr => self%fields(ivar)%get_data()
+    call self%get_field_data(variable_names(ivar), atlas_data_ptr)
     call interface_fields(ivar)%initialise( atlas_data_ptr,     &
                                             horizontal_map_ptr, &
                                             lfric_field_ptr )
   end do
 
 end subroutine setup_interface_to_field_collection
+
+!> @brief  Method to get a pointer to the field for a given variable name
+!>
+!> @param [in]  variable_names  The name of the field to retrieve
+!> @param [out] atlas_data_ptr  The field pointer to the atlas_emulator array
+subroutine get_field_data( self, variable_name, atlas_data_ptr )
+
+  implicit none
+
+  class( jedi_state_type ), intent(inout) :: self
+  character( len=str_def ),    intent(in) :: variable_name
+  real( real64 ), pointer,    intent(out) :: atlas_data_ptr(:,:)
+
+  ! Local
+  integer( i_def ) :: ivar
+  integer( i_def ) :: n_variables
+  logical( l_def ) :: field_found
+
+  ! Find the field requested
+  n_variables = size(self%fields)
+
+  field_found = .false.
+  do ivar = 1, n_variables
+    if (variable_name==self%fields(ivar)%get_field_name()) then
+      atlas_data_ptr => self%fields(ivar)%get_data()
+      field_found = .true.
+      return
+    endif
+  end do
+
+  if (.not. field_found) then
+    nullify(atlas_data_ptr)
+    write ( log_scratch_space, '(3A)' ) &
+      "The Atlas field with the name ", trim(variable_name), &
+      ", could not be found."
+    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+  endif
+
+end subroutine get_field_data
 
 !> @brief    Copy from a field_collection to the Atlas field emulators
 !>

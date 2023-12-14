@@ -34,7 +34,7 @@ module jedi_lfric_fake_nl_driver_mod
   !> @todo: Test code should not appear in the component
   !> @{
   use jedi_lfric_tests_config_mod, &
-                                only: write_data, test_field
+                                only: test_field
   !> @}
   use jedi_lfric_fake_nl_extrusion_mod, &
                                 only: create_extrusion
@@ -171,12 +171,6 @@ contains
 #endif
 
     call jedi_lfric_increment_alg( working_field )
-
-#ifdef USE_XIOS
-    if ( write_data ) then
-      call write_state( depository, prefix="write_" )
-    end if
-#endif
 
   end subroutine step
 

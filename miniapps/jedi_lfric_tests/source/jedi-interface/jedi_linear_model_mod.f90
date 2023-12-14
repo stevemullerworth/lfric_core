@@ -81,7 +81,6 @@ contains
 !> @param [in] config  The linear model configuration
 subroutine initialise( self, config )
 
-  use jedi_lfric_fake_nl_driver_mod, only : mesh
   use jedi_linear_model_config_mod,  only : jedi_linear_model_config_type
 
   implicit none
@@ -91,9 +90,7 @@ subroutine initialise( self, config )
 
   self%time_step = config%time_step
   call self%linear_state_trajectory%initialise( config%forecast_length, &
-                                                config%time_step,       &
-                                                config%field_meta_data, &
-                                                mesh )
+                                                config%time_step )
 end subroutine initialise
 
 !> @brief    Set an instance of the trajectory
@@ -101,26 +98,30 @@ end subroutine initialise
 !> @param [in] jedi_state The state to add to the trajectory
 subroutine set_trajectory( self, jedi_state )
 
+  use jedi_lfric_fake_nl_driver_mod, only : mesh
+  use jedi_lfric_linear_fields_mod,  only : variable_names, &
+                                            create_linear_fields
+
   implicit none
 
   class( jedi_linear_model_type ),   intent(inout) :: self
   type( jedi_state_type ),           intent(inout) :: jedi_state
 
   ! Local
-  type( field_collection_type ), pointer :: next_linear_state
-  character( len=str_def ), allocatable  :: variable_names(:)
+  type( field_collection_type )          :: next_linear_state
 
-  ! Create a new linear state and return a pointer to it
-  call self%linear_state_trajectory%create_next_linear_state( &
-                                              jedi_state%valid_time(), &
-                                              next_linear_state )
+  ! Create field collection that contains the linear state fields
+  ! without "ls_" prepended.
+  call create_linear_fields(mesh, next_linear_state)
 
-  ! Get the names of the variables to copy
-  call self%linear_state_trajectory%get_variable_names(variable_names)
-
-  ! Copy data from the input state into the model_data
+  ! Copy data from the input state into next_linear_state
   call jedi_state%to_lfric_field_collection( variable_names, &
                                              next_linear_state )
+
+  ! Add the new linear state to the trajectory (prepends fieldnames with "ls_")
+  call self%linear_state_trajectory%add_linear_state( &
+                                              jedi_state%valid_time(), &
+                                              next_linear_state )
 
 end subroutine set_trajectory
 
@@ -131,8 +132,8 @@ subroutine model_initTL(self, increment)
 
   implicit none
 
-  class( jedi_linear_model_type ), target, intent(in) :: self
-  type( jedi_increment_type ),          intent(inout) :: increment
+  class( jedi_linear_model_type ), intent(in) :: self
+  type( jedi_increment_type ),  intent(inout) :: increment
 
   ! Create a model_data to propagate
   call increment%create_model_data()
@@ -144,7 +145,7 @@ end subroutine model_initTL
 !> @param [inout] increment Increment object to be propagated
 subroutine model_stepTL(self, increment)
 
-  use trajectory_copy_fields_mod, only : trajectory_copy_fields
+  use jedi_lfric_fake_tlm_mod, only : step_fake_tlm
 
   implicit none
 
@@ -152,43 +153,29 @@ subroutine model_stepTL(self, increment)
   type( jedi_increment_type ),             intent(inout) :: increment
 
   ! Local
-  type( field_collection_type ), pointer :: linear_state
   type( field_collection_type ), pointer :: depository
 
+  ! 1. Update the model_data
+  ! 1.1 Update the prognostic fields: copy from Atlas
+  call increment%to_model_data()
+
+  ! 1.2 Update the linear state fields: copy from the trajectory into the model_data
   nullify(depository)
   depository => increment%model_data%get_field_collection("depository")
-
-  ! Get the linear state to be used with the linear model time-step
   call self%linear_state_trajectory%get_linear_state( increment%valid_time(), &
-                                                      linear_state )
+                                                      depository )
 
-  !> @todo The linear model step would be called here but it is not yet
-  !> available. The fields are stored in the model_data and includes the
-  !> linear-state fields inside model_data. For each field, there is an
-  !> increment to be propagated and a linear state that has the same name with
-  !> “_ls” postpended. In the LFRic linear model, the linear-state is updated
-  !>  via a file read but here the data will be copied from the linear-state
-  !> trajectory.
+  !> @todo The linear model step will be called here. For now, use the following
+  !>       fake step to perform a copy from the linearisation state fields ("ls_")
+  !>       into the prognostic fields via step_fake_tlm.
 
-  !> When the LFRic linear model is available, we will need to:
-  !> 1. Copy the linear-state values from the linear-state into the model_data
-  !> “_ls” fields. A copy method such as the one used here could do that, e.g.:
-  !>  call trajectory_copy_fields(increment%model_data%depository, linear_state)
-  !> 2. Call the linear step method with the model_data:
-  !>  call linear_step( mesh,       &
-  !>                    twod_mesh,  &
-  !>                    model_data, &
-  !>                    model_clock )
-  !> 3. copy model data into Atlas fields
+  ! 2. Step the model
+  call step_fake_tlm( increment%model_data )
 
-  ! For now, we can partially test this by simply copying the linear state into
-  ! the model_data
-  call trajectory_copy_fields( depository, linear_state )
-
-  ! Copy model_data back to the Atlas fields
+  ! 3. Update the Atlas fields with the LFRic model_data
   call increment%from_model_data()
 
-  ! Update the increment time
+  ! 4. Update the increment time
   call increment%update_time( self%time_step )
 
 end subroutine model_stepTL

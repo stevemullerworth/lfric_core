@@ -7,7 +7,7 @@
 !!
 module linear_state_trajectory_test
 
-  use constants_mod,                 only : i_def, l_def, str_def, r_def
+  use constants_mod,                 only : i_def, str_def, r_def
   use field_collection_mod,          only : field_collection_type
   use field_mod,                     only : field_type, field_proxy_type
   use fs_continuity_mod,             only : W3, Wtheta
@@ -20,7 +20,6 @@ module linear_state_trajectory_test
   use mesh_collection_mod,           only : mesh_collection_type, &
                                             mesh_collection
   use linear_state_trajectory_mod,   only : linear_state_trajectory_type
-  use jedi_lfric_field_meta_mod,     only : jedi_lfric_field_meta_type
   use jedi_lfric_datetime_mod,       only : jedi_datetime_type
   use jedi_lfric_duration_mod,       only : jedi_duration_type
 
@@ -40,6 +39,7 @@ module linear_state_trajectory_test
     procedure setUp
     procedure tearDown
     procedure get_local_mesh_ptr
+    procedure create_real_collection
     procedure test_linear_state_trajectory
   end type linear_state_trajectory_test_type
 
@@ -101,6 +101,55 @@ contains
 
   end function get_local_mesh_ptr
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine create_real_collection( this, field_collection,   &
+                                     variable_names,           &
+                                     variable_function_spaces, &
+                                     variable_initial_value,   &
+                                     field_collection_name )
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(in) :: this
+    type( field_collection_type ),  intent(out) :: field_collection
+    character( len=str_def ),       intent(in) :: variable_names(:)
+    integer( kind=i_def ),          intent(in) :: variable_function_spaces(:)
+    real( kind=r_def ),             intent(in) :: variable_initial_value(:)
+    character( len=* ),             intent(in) :: field_collection_name
+
+    ! Local
+    type( mesh_type ), pointer      :: mesh
+    type( field_type ), allocatable :: field
+    type( field_proxy_type )        :: field_proxy
+    integer                         :: i
+
+    ! Setup the field_collection
+    call field_collection%initialise( &
+             name = trim(field_collection_name), table_len=100)
+
+    ! Create and add the fields defined in the list of variable names
+    mesh => this%mesh
+    do i=1,size(variable_function_spaces)
+
+      allocate(field)
+
+      call field%initialise( &
+             vector_space = function_space_collection%get_fs             &
+                    ( mesh, element_order, variable_function_spaces(i)), &
+             name = variable_names(i) )
+
+      field_proxy = field%get_proxy()
+      field_proxy%data = variable_initial_value(i)
+
+      call field_collection%add_field( field )
+
+      deallocate( field )
+
+    end do
+
+  end subroutine create_real_collection
+
   !> Test for the linear_state_trajectory_type
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test
@@ -116,9 +165,8 @@ contains
     type( jedi_datetime_type )             :: test_datetime
     type( jedi_duration_type )             :: forecast_length
     type( jedi_duration_type )             :: time_step
-    type( jedi_lfric_field_meta_type )     :: field_meta_data
     type( linear_state_trajectory_type )   :: linear_state_trajectory
-    type( field_collection_type ), pointer :: linear_state_collection
+    type( field_collection_type )          :: linear_state_collection
     type( field_type ), pointer            :: field_ptr
     type( field_proxy_type )               :: field_proxy
     integer( kind=i_def ), parameter       :: nvars = 3_i_def
@@ -126,15 +174,14 @@ contains
     integer( kind=i_def )                  :: ivar
     integer( kind=i_def )                  :: itime
     character( len=str_def )               :: variable_names(nvars)
+    character( len=str_def )               :: ls_variable_names(nvars)
     integer( kind=i_def )                  :: variable_function_spaces(nvars)
-    logical( kind=l_def )                  :: variable_is_2d(nvars)
     real( kind=r_def )                     :: variable_initial_value(nvars, ntimes)
     real( kind=r_def )                     :: expected_value(nvars)
 
     ! Define the field information
     variable_names = (/"field1", "field2", "field3"/)
     variable_function_spaces = (/W3 , Wtheta, W3/)
-    variable_is_2d = (/.false., .false., .false./)
 
     ! Define the time step and forecast length duration and start datetime
     call time_step%init('P0DT0H30M0S')
@@ -146,37 +193,46 @@ contains
     variable_initial_value(:,2) = (/3.0, 10.0, 5.0/)
     variable_initial_value(:,3) = (/0.5, -6.0, 9.0/)
 
-    ! Setup the meta data
-    call field_meta_data%initialise( variable_names,           &
-                                     variable_function_spaces, &
-                                     variable_is_2d )
     ! Create a linear state object
-    call linear_state_trajectory%initialise( forecast_length, time_step, &
-                                             field_meta_data, this%mesh )
+    call linear_state_trajectory%initialise( forecast_length, time_step )
 
     ! Create the linear states and initialise the values using variable_initial_value
     current_datetime = start_datetime
     do itime=1,ntimes
-      ! Create next linear state
-      call linear_state_trajectory%create_next_linear_state( current_datetime, linear_state_collection )
-      ! Setup the fields with some known values to populate the linear_state_collection
-      do ivar=1,nvars
-        call linear_state_collection%get_field(variable_names(ivar), field_ptr)
-        field_proxy = field_ptr%get_proxy()
-        field_proxy%data = variable_initial_value(ivar,itime)
-      enddo
+      ! Create next linear state collection and initialise with known values
+      call this%create_real_collection( linear_state_collection,         &
+                                        variable_names,                  &
+                                        variable_function_spaces,        &
+                                        variable_initial_value(:,itime), &
+                                        "linear_state_fields" )
+      ! Add the collection to the trajectory (prepends fieldnames with "ls_")
+      call linear_state_trajectory%add_linear_state( current_datetime, linear_state_collection )
+
       ! Move time on by one time step
       current_datetime = current_datetime + time_step
     end do
 
-    ! Retrieve the linear state collections and compare with expected values
+    ! Prepend "ls_" because this is prepended to the trajectory collection copied into the linear
+    ! model in add_linear_state method
+    do ivar=1,nvars
+      ls_variable_names(ivar) = "ls_"//trim(variable_names(ivar))
+    enddo
+
+    ! Create collection to update from the trajectory
+    call this%create_real_collection( linear_state_collection,         &
+                                      ls_variable_names,               &
+                                      variable_function_spaces,        &
+                                      variable_initial_value(:,itime), &
+                                      "linear_state_fields" )
+
+    ! Update the linear state collections and compare with expected values
 
     ! 1. Start datetime
     call test_datetime%init( '2023-05-04T09:00:00Z' )
     expected_value = (/0.0, -1.0, 2.0/)
     call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
     do ivar=1,nvars
-      call linear_state_collection%get_field(variable_names(ivar), field_ptr)
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
       @assertEqual(field_proxy%data(1), expected_value(ivar))
     enddo
@@ -186,7 +242,7 @@ contains
     expected_value = (/1.5, 4.5, 3.5/)
     call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
     do ivar=1,nvars
-      call linear_state_collection%get_field(variable_names(ivar), field_ptr)
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
       @assertEqual(field_proxy%data(1), expected_value(ivar))
     enddo
@@ -196,7 +252,7 @@ contains
     expected_value = (/3.0, 10.0, 5.0/)
     call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
     do ivar=1,nvars
-      call linear_state_collection%get_field(variable_names(ivar), field_ptr)
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
       @assertEqual(field_proxy%data(1), expected_value(ivar))
     enddo
@@ -207,7 +263,7 @@ contains
 
     call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
     do ivar=1,nvars
-      call linear_state_collection%get_field(variable_names(ivar), field_ptr)
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
       @assertEqual(field_proxy%data(1), expected_value(ivar))
     enddo
@@ -217,7 +273,7 @@ contains
     expected_value = (/0.5, -6.0, 9.0/)
     call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
     do ivar=1,nvars
-      call linear_state_collection%get_field(variable_names(ivar), field_ptr)
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
       field_proxy = field_ptr%get_proxy()
       @assertEqual(field_proxy%data(1), expected_value(ivar))
     enddo

@@ -67,7 +67,7 @@ subroutine initialise( self, use_pseudo_model )
   logical( kind=l_def ),           intent(in)    :: use_pseudo_model
 
   ! Local
-  integer( kind=i_def ), parameter :: nvars = 3
+  integer( kind=i_def ), parameter :: nvars = 11
   character( len=str_def ) :: variable_names(nvars)
   integer( kind=i_def )    :: variable_function_spaces(nvars)
   logical( kind=l_def )    :: variable_is_2d(nvars)
@@ -83,13 +83,32 @@ subroutine initialise( self, use_pseudo_model )
   variable_names(1) = "theta"
   variable_names(2) = "rho"
   variable_names(3) = "u10m"
+  variable_names(4) = "exner"
+  variable_names(5) = "u_in_w3"
+  variable_names(6) = "v_in_w3"
+  variable_names(7) = "w_in_wth"
+  variable_names(8) = "m_v"
+  variable_names(9) = "m_cl"
+  variable_names(10) = "m_r"
+  variable_names(11) = "m_ci"
+
+
   ! Variable function spaces
   variable_function_spaces(1) = Wtheta
   variable_function_spaces(2) = W3
   variable_function_spaces(3) = W3
+  variable_function_spaces(4) = W3
+  variable_function_spaces(5) = W3
+  variable_function_spaces(6) = W3
+  variable_function_spaces(7) = Wtheta
+  variable_function_spaces(8) = Wtheta
+  variable_function_spaces(9) = Wtheta
+  variable_function_spaces(10) = Wtheta
+  variable_function_spaces(11) = Wtheta
+
+
   ! Variable is_2d
-  variable_is_2d(1) = .false.
-  variable_is_2d(2) = .false.
+  variable_is_2d = .false.
   variable_is_2d(3) = .true.
 
   call self%field_meta_data%initialise( variable_names,           &

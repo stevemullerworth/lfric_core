@@ -108,6 +108,10 @@ contains
   !> Atlas field emulators
   procedure, public :: from_model_data
 
+  !> Copy the data in the internal Atlas field emulators to the LFRic fields
+  !> stored in the model_data
+  procedure, public :: to_model_data
+
   !> Finalizer
   final             :: jedi_increment_destructor
 
@@ -291,19 +295,19 @@ end subroutine zero
 ! Local methods to support LFRic-JEDI implementation
 !------------------------------------------------------------------------------
 
-!> @brief    Create an instance of the model_data for jedi_increment_type
+!> @brief    Create the locally stored model_data for jedi_increment_type
 !>
 subroutine create_model_data( self )
 
-  use jedi_lfric_fake_tlm_init_mod,  only : create_fake_tlm_model_data
-  use jedi_lfric_fake_nl_driver_mod, only : mesh, twod_mesh
+  use jedi_lfric_fake_tlm_mod,       only : create_fake_tlm_model_data
+  use jedi_lfric_fake_nl_driver_mod, only : mesh
 
   implicit none
 
   class( jedi_increment_type ),       intent(inout) :: self
 
   ! Create model data and then link to the Atlas fields
-  call create_fake_tlm_model_data( mesh, twod_mesh, self%model_data )
+  call create_fake_tlm_model_data( mesh, self%model_data )
   call self%setup_interface_to_model_data()
 
 end subroutine create_model_data
@@ -379,6 +383,24 @@ subroutine from_model_data( self )
   end do
 
 end subroutine from_model_data
+
+!> @brief    Copy from the Atlas field emulators to the model_data
+!>
+subroutine to_model_data( self )
+
+  implicit none
+
+  class( jedi_increment_type ), intent(inout) :: self
+
+  ! Local
+  integer(i_def) :: ivar
+
+  ! Copy from the Atlas emulator fields
+  do ivar = 1, size(self%fields_to_model_data)
+    call self%fields_to_model_data(ivar)%copy_to_lfric()
+  end do
+
+end subroutine to_model_data
 
 !> @brief    Setup atlas_lfric_interface_fields that enables copying
 !>           between Atlas field emulators and the LFRic fields in

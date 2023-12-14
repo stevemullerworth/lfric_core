@@ -47,9 +47,17 @@ module jedi_lfric_fake_nl_init_mod
     depository => model_data%get_field_collection("depository")
 
     ! Create fields and add them to model_data
-    call add_real_field( depository, mesh, Wtheta, "theta" )
-    call add_real_field( depository, mesh, W3,     "rho"   )
-    call add_real_field( depository, mesh2d, W3,   "u10m"  )
+    call add_real_field( depository, mesh,   Wtheta, "theta"    )
+    call add_real_field( depository, mesh,   W3,     "rho"      )
+    call add_real_field( depository, mesh2d, W3,     "u10m"     )
+    call add_real_field( depository, mesh,   W3,     "exner"    )
+    call add_real_field( depository, mesh,   W3,     "u_in_w3"  )
+    call add_real_field( depository, mesh,   W3,     "v_in_w3"  )
+    call add_real_field( depository, mesh,   Wtheta, "w_in_wth" )
+    call add_real_field( depository, mesh,   Wtheta, "m_v"      )
+    call add_real_field( depository, mesh,   Wtheta, "m_cl"     )
+    call add_real_field( depository, mesh,   Wtheta, "m_r"      )
+    call add_real_field( depository, mesh,   Wtheta, "m_ci"     )
 
     call log_event( 'jedi_lfric_tests: Miniapp initialised', LOG_LEVEL_INFO )
 

@@ -17,24 +17,21 @@
 !>
 module linear_state_trajectory_mod
 
-  use jedi_lfric_datetime_mod,       only : jedi_datetime_type
-  use jedi_lfric_duration_mod,       only : jedi_duration_type
-  use log_mod,                       only : log_event,          &
-                                            log_scratch_space,  &
-                                            LOG_LEVEL_INFO,     &
-                                            LOG_LEVEL_ERROR
-  use constants_mod,                 only : i_def, l_def, str_def, &
-                                            r_def, imdi, rmdi
-  use field_collection_mod,          only : field_collection_type
-  use fs_continuity_mod,             only : W3, Wtheta, W2
-  use mesh_mod,                      only : mesh_type
-  use jedi_lfric_field_meta_mod,     only : jedi_lfric_field_meta_type
+  use jedi_lfric_datetime_mod,         only : jedi_datetime_type
+  use jedi_lfric_duration_mod,         only : jedi_duration_type
+  use log_mod,                         only : log_event,          &
+                                              log_scratch_space,  &
+                                              LOG_LEVEL_ERROR
+  use constants_mod,                   only : i_def, str_def, r_def, &
+                                              imdi, rmdi
+  use field_collection_mod,            only : field_collection_type
+  use trajectory_field_utils_mod,      only : copy_fields,        &
+                                              copy_create_fields, &
+                                              interpolate_fields
 
   implicit none
 
   private
-
-  integer(i_def), parameter    :: element_order = 0
 
 type, public :: linear_state_trajectory_type
   private
@@ -54,37 +51,16 @@ type, public :: linear_state_trajectory_type
   !> The length of the time-step
   type( jedi_duration_type )                 :: time_step
 
-  !> A mesh object that will be used to create the linear_state fields
-  type ( mesh_type ), pointer                :: mesh
-
-  !> A list of the variables stored in the linear state
-  character( len=str_def ), allocatable      :: variable_names(:)
-
-  !> A list of function_spaces for each variable
-  integer( kind=i_def ), allocatable         :: variable_function_spaces(:)
-
-  !> A linear state instance to store time-interpolated fields
-  type( field_collection_type )              :: interpolated_linear_state
-
-  !> A logical that is true when the interpolated_linear_state has not be created
-  logical( kind=l_def )                      :: interpolated_state_not_init = .true.
-
 contains
 
   !> Initialiser for the linear_state_trajectory_trajectory.
   procedure          :: initialise
 
-  !> Create and add the next linear state
-  procedure          :: create_next_linear_state
+  !> Add the next linear state and associate with a datetime
+  procedure          :: add_linear_state
 
   !> Get the linear state for a given datetime
   procedure          :: get_linear_state
-
-  !> Get the names of the variables stored in the object
-  procedure          :: get_variable_names
-
-  !> Create a linear state collection
-  procedure, private :: create_ls_collection
 
   !> Finalizer
   final              :: linear_state_trajectory_destructor
@@ -99,25 +75,18 @@ contains
 !> @brief    Initialiser for linear_state_trajectory_type
 !>
 !> @param [in] forecast_length  The duration of the forecast to store
-!> @param [in] time_step The duration of a time step
-!> @param [in] mesh               The mesh object that will be used to create
-!>                                the linear_state fields
-subroutine initialise( self, forecast_length, time_step, field_meta_data, mesh )
+!> @param [in] time_step        The duration of a time step
+subroutine initialise( self, forecast_length, time_step )
 
   implicit none
 
   class( linear_state_trajectory_type ), intent(inout) :: self
   type( jedi_duration_type ),               intent(in) :: forecast_length
   type( jedi_duration_type ),               intent(in) :: time_step
-  type( jedi_lfric_field_meta_type ),       intent(in) :: field_meta_data
-  type( mesh_type ), target,                intent(in) :: mesh
 
   ! Local
   integer :: forecast_length_secs
   integer :: time_step_secs
-  integer :: n_variables
-  integer :: i
-
 
   ! Get the number of slots
   call forecast_length%get_duration(forecast_length_secs)
@@ -130,32 +99,21 @@ subroutine initialise( self, forecast_length, time_step, field_meta_data, mesh )
 
   self%next_item_index = 1_i_def
   self%time_step = time_step
-  self%mesh => mesh
-
-  n_variables = field_meta_data%get_n_variables()
-  ! Store a list of variables
-  allocate(self%variable_names(n_variables))
-  allocate(self%variable_function_spaces(n_variables))
-
-  do i=1,n_variables
-    self%variable_names(i) = field_meta_data%get_variable_name(i)
-    self%variable_function_spaces(i) = field_meta_data%get_variable_function_space(i)
-  enddo
 
 end subroutine initialise
 
-!> @brief    Create and add the next next linear state to the trajectory
+!> @brief    Add the next next linear state to the trajectory
 !>
 !> @param [in]  next_datetime      The datetime to associated  with the next
 !>                                 linear state field collection
 !> @param [out] next_linear_state  The next linear state field collection
-subroutine create_next_linear_state( self, next_datetime, next_linear_state )
+subroutine add_linear_state( self, next_datetime, next_linear_state )
 
   implicit none
 
-  class( linear_state_trajectory_type ), target, intent(inout) :: self
-  type( jedi_datetime_type ),                       intent(in) :: next_datetime
-  type( field_collection_type ),          pointer, intent(out) :: next_linear_state
+  class( linear_state_trajectory_type ), intent(inout) :: self
+  type( jedi_datetime_type ),               intent(in) :: next_datetime
+  type( field_collection_type ),            intent(in) :: next_linear_state
 
   ! Local
   type(jedi_duration_type) :: time_difference
@@ -185,31 +143,29 @@ subroutine create_next_linear_state( self, next_datetime, next_linear_state )
 
   enddo
 
-  ! Setup the linear state field collection
-  call self%create_ls_collection( self%linear_state_fields(next_item_index) )
+  ! Copy create the linear_state_fields stored internally from the collection
+  ! passed in.
+  call copy_create_fields( self%linear_state_fields(next_item_index), &
+                                      next_linear_state, &
+                                      prefix_name="ls_")
   self%linear_state_time(next_item_index) = next_datetime
   self%next_item_index = self%next_item_index + 1_i_def
 
-  ! Get the next model data
-  next_linear_state => self%linear_state_fields(next_item_index)
-
-end subroutine create_next_linear_state
+end subroutine add_linear_state
 
 !> @brief    Get the linear state field collection for a given datetime
 !>
 !> @param [in]  req_time          The datetime to associated with the linear
 !>                                state field collection
-!> @param [out] req_linear_state  The linear state field collection at the
-!>                                requested datetime
+!> @param [out] req_linear_state  The linear state field collection to be
+!>                                updated at the requested datetime
 subroutine get_linear_state( self, req_time, req_linear_state )
-
-  use trajectory_interpolate_fields_mod, only : trajectory_interpolate_fields
 
   implicit none
 
-  class( linear_state_trajectory_type ), target, intent(inout) :: self
-  type( jedi_datetime_type ),                       intent(in) :: req_time
-  type( field_collection_type ),          pointer, intent(out) :: req_linear_state
+  class( linear_state_trajectory_type ), intent(inout) :: self
+  type( jedi_datetime_type ),               intent(in) :: req_time
+  type( field_collection_type ),         intent(inout) :: req_linear_state
 
   ! Local
   type(jedi_duration_type) :: time_difference
@@ -269,84 +225,20 @@ subroutine get_linear_state( self, req_time, req_linear_state )
 
   ! Interpolate
   if (time_index(1)==time_index(2)) then
-    ! No interpolation required, just return a pointer to the correct collection
-    req_linear_state => self%linear_state_fields(time_index(1))
+    ! No interpolation required, just copy the correct collection
+    call copy_fields( req_linear_state, &
+                      self%linear_state_fields(time_index(1)) )
+
   else
-    ! check to see if it needs to be created
-    if (self%interpolated_state_not_init) then
-      ! Setup the interpolated linear state field collection
-      call self%create_ls_collection( self%interpolated_linear_state )
-      self%interpolated_state_not_init=.false.
-    endif
-    ! Do the interpolation using weights and indexes here and pass out the result
-    call trajectory_interpolate_fields(                                       &
-                                 self%interpolated_linear_state,              &
-                                 self%linear_state_fields(time_index(1)), &
-                                 self%linear_state_fields(time_index(2)), &
-                                 time_weight(1),                              &
-                                 time_weight(2) )
-    req_linear_state => self%interpolated_linear_state
+    ! Do the interpolation using weights and indexes and put result into the output collection
+    call interpolate_fields( req_linear_state,                        &
+                           self%linear_state_fields(time_index(1)), &
+                           self%linear_state_fields(time_index(2)), &
+                           time_weight(1),                          &
+                           time_weight(2) )
   endif
 
 end subroutine get_linear_state
-
-!> @brief    Get the variable names stored in the object
-!>
-!> @param[out] variable_names  The variable names stored in the object
-subroutine get_variable_names(self, variable_names)
-
-  implicit none
-
-  class( linear_state_trajectory_type ),  intent(in) :: self
-  character( len=str_def ), allocatable, intent(out) :: variable_names(:)
-
-  if (allocated(variable_names)) deallocate(variable_names)
-  allocate(variable_names(size(self%variable_names)))
-  variable_names = self%variable_names
-
-end subroutine get_variable_names
-
-!> @brief    Create the linear state fields and store in collection passed in
-!>
-!> @param [out] linear_state_fields  A field collection that includes the linear
-!>                                       state fields
-subroutine create_ls_collection( self, linear_state_fields )
-
-  use function_space_collection_mod, only : function_space_collection
-  use field_mod,                     only : field_type
-
-  implicit none
-
-  class( linear_state_trajectory_type ), intent(in) :: self
-  type( field_collection_type ),        intent(out) :: linear_state_fields
-
-  ! Local
-  type( field_type ), allocatable :: field
-  integer                         :: i
-  integer                         :: nvars
-
-  ! Get the number of fields to be stored
-  nvars = size( self%variable_names )
-
-  ! Setup the field_collection
-  call linear_state_fields%initialise(name = 'linear_state_trajectory', table_len=nvars)
-
-  ! Create and add the fields defined in the list of variable names
-  do i=1,size(self%variable_function_spaces)
-
-    allocate(field)
-
-    call field%initialise( &
-           vector_space = function_space_collection%get_fs(self%mesh, element_order, self%variable_function_spaces(i)), &
-           name = self%variable_names(i) )
-
-    call linear_state_fields%add_field( field )
-
-    deallocate( field )
-
-  end do
-
-end subroutine create_ls_collection
 
 !> @brief    The linear_state_trajectory_type finalizer
 !>
@@ -359,8 +251,6 @@ subroutine linear_state_trajectory_destructor( self )
   if ( allocated(self%linear_state_fields) ) &
                                   deallocate(self%linear_state_fields )
   if ( allocated(self%linear_state_time) ) deallocate(self%linear_state_time )
-  self%interpolated_state_not_init=.true.
-  call self%interpolated_linear_state%clear()
 
 end subroutine linear_state_trajectory_destructor
 
