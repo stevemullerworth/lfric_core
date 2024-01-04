@@ -47,7 +47,7 @@ module init_gungho_prognostics_alg_mod
                                              profile_rotational,              &
                                              profile_pw_linear
   use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
-                                             recip_epsilon
+                                             radius, recip_epsilon
 
   ! PsyKAl-lite kernels
   use field_bundle_builtins_mod,       only: set_bundle_scalar
@@ -267,7 +267,7 @@ contains
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
                                                     chi, panel_id, gravity,  &
-                                                    p_zero, rd, cp ) )
+                                                    p_zero, rd, cp, radius ) )
       case(method_sampled)
         ! Initialise exner through sampling analytic solution
         call invoke (initial_exner_sample_kernel_type( exner, chi, panel_id, time ) )
@@ -392,8 +392,8 @@ contains
         initial_time = 0.0_r_def
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
-                                                    chi, panel_id,           &
-                                                    gravity, p_zero, rd, cp ) )
+                                                    chi, panel_id, gravity,  &
+                                                    p_zero, rd, cp, radius ) )
 
         call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
       end if

@@ -267,6 +267,9 @@
         <field field_ref="u_in_w2h"/>
         <field field_ref="v_in_w2h"/>
         <field field_ref="w_in_wth"/>
+        <field field_ref="u_in_w3"/>
+        <field field_ref="v_in_w3"/>
+        <field field_ref="w_in_w3"/>
         <field field_ref="divergence"/>
         <field field_ref="potential_vorticity"/>
         <field field_ref="exner"/>
@@ -280,6 +283,7 @@
         <field field_ref="processed__tot_col_kinetic_energy" />
         <field field_ref="processed__tot_col_encorr" />
         <field field_ref="processed__wbig" />
+        <field field_ref="processed__dtheta_slow" />
         <field field_ref="ageofair"/>
       </file>
 

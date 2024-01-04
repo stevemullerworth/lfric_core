@@ -21,7 +21,7 @@ use constants_mod,              only : r_def, i_def
 use idealised_config_mod,       only : test
 use kernel_mod,                 only : kernel_type
 use fs_continuity_mod,          only : Wtheta, W3
-use formulation_config_mod,     only : init_exner_bt
+use formulation_config_mod,     only : init_exner_bt, shallow
 
 implicit none
 
@@ -33,7 +33,7 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
   private
-  type(arg_type) :: meta_args(11) = (/                                     &
+  type(arg_type) :: meta_args(12) = (/                                     &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta),                    &
@@ -41,6 +41,7 @@ type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
@@ -81,6 +82,7 @@ contains
 !> @param[in] p_zero Reference surface pressure
 !> @param[in] rd Gas constant for dry air
 !> @param[in] cp Specific heat of dry air at constant pressure
+!> @param[in] radius Radius of planet at surface
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for W3
 !> @param[in] undf_w3 Number of unique degrees of freedom for W3
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for W3
@@ -101,6 +103,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
                                   height_wt, height_w3,          &
                                   chi_1, chi_2, chi_3, panel_id, &
                                   gravity, p_zero, rd, cp,       &
+                                  radius,                        &
                                   ndf_w3, undf_w3, map_w3,       &
                                   ndf_wt, undf_wt, map_wt,       &
                                   ndf_chi, undf_chi, map_chi,    &
@@ -136,11 +139,13 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   real(kind=r_def),                                 intent(in)    :: p_zero
   real(kind=r_def),                                 intent(in)    :: rd
   real(kind=r_def),                                 intent(in)    :: cp
+  real(kind=r_def),                                 intent(in)    :: radius
 
   ! Internal variables
   integer(kind=i_def)                  :: k, dfc, layers_offset, wt_dof, ipanel
   real(kind=r_def)                     :: dz
   real(kind=r_def)                     :: theta_moist
+  real(kind=r_def)                     :: g_local(0:nlayers-1)
   real(kind=r_def)                     :: coords(3), xyz(3)
   real(kind=r_def)                     :: exner_start
   real(kind=r_def), dimension(ndf_chi) :: chi_1_e, chi_2_e, chi_3_e
@@ -174,6 +179,17 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   ! Exner at the model surface or top
   exner_start = analytic_pressure( xyz, test, 0.0_r_def)
 
+  ! Set local value of gravity at each vertical level
+  if (shallow) then
+    do k = 0, nlayers-1
+      g_local(k) = gravity
+    end do
+  else
+    do k = 0, nlayers-1
+      g_local(k) = gravity * (radius / (radius + height_wt(map_wt(1)+k))) ** 2
+    end do
+  end if
+
   if (init_exner_bt) then
 
     ! Bottom-up initialization
@@ -181,14 +197,14 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
     dz = height_w3(map_w3(1))-height_wt(map_wt(1))
     theta_moist = moist_dyn_gas(map_wt(1)) * theta(map_wt(1)) /   &
                   moist_dyn_tot(map_wt(1))
-    exner(map_w3(1)) = exner_start - gravity * dz / (cp * theta_moist)
+    exner(map_w3(1)) = exner_start - g_local(0) * dz / (cp * theta_moist)
 
     ! Exner on other levels
     do k = 1, nlayers-1
       dz = height_w3(map_w3(1)+k)-height_w3(map_w3(1)+k-1)
       theta_moist = moist_dyn_gas(map_wt(1)+k) * theta(map_wt(1)+k) /   &
                     moist_dyn_tot(map_wt(1)+k)
-      exner(map_w3(1)+k) = exner(map_w3(1)+k-1) - gravity * dz / (cp * theta_moist)
+      exner(map_w3(1)+k) = exner(map_w3(1)+k-1) - g_local(k) * dz / (cp * theta_moist)
     end do
 
   else
@@ -198,15 +214,14 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
     dz = height_wt(map_wt(1)+nlayers) - height_w3(map_w3(1)+nlayers-1)
     theta_moist = moist_dyn_gas(map_wt(1)+nlayers) * theta(map_wt(1)+nlayers) / &
                   moist_dyn_tot(map_wt(1)+nlayers)
-
-    exner(map_w3(1)+nlayers-1) = exner_start + gravity * dz / (cp * theta_moist)
+    exner(map_w3(1)+nlayers-1) = exner_start + g_local(nlayers-1) * dz / (cp * theta_moist)
 
     ! Exner on other levels
     do k = nlayers-1, 1, -1
       dz = height_w3(map_w3(1)+k)-height_w3(map_w3(1)+k-1)
       theta_moist = moist_dyn_gas(map_wt(1)+k) * theta(map_wt(1)+k) /   &
                     moist_dyn_tot(map_wt(1)+k)
-      exner(map_w3(1)+k-1) = exner(map_w3(1)+k) + gravity * dz / (cp * theta_moist)
+      exner(map_w3(1)+k-1) = exner(map_w3(1)+k) + g_local(k-1) * dz / (cp * theta_moist)
     end do
 
   end if

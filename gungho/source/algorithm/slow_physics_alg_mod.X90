@@ -314,8 +314,8 @@ contains
     ! External forcing options
     !--------------------------------------------------------------------
     if ( external_forcing ) then
-      call external_forcing_alg(derived_fields, theta, exner, exner_in_wth, &
-                                dt, dtheta_forcing, du_forcing,             &
+      call external_forcing_alg(derived_fields, u, theta, exner, exner_in_wth, &
+                                dt, dtheta_forcing, du_forcing,                &
                                 theta_forcing_done, wind_forcing_done)
     end if
 
