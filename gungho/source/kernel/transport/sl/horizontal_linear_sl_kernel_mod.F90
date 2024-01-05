@@ -116,7 +116,7 @@ contains
     real(kind=r_tran)   :: frac_d, x0, x1, xx, q0, q1
 
     ! Indices
-    integer(kind=i_def) :: ind_lo, ind_hi, nl
+    integer(kind=i_def) :: ind_lo, ind_hi, nl, k_w2h
     integer(kind=i_def) :: k, km1, kp1, jj, int_d
 
     ! Stencils
@@ -161,11 +161,12 @@ contains
       ! Loop over k levels
       do k = 0, nl
 
+        k_w2h = min(k,nlayers-1)
         km1 = max(k-1,0)
         kp1 = min(k,nlayers-1)
 
         ! x direction departure distance at centre
-        departure_dist_w3 = ( dep_pts_x( map_w2h(1) + k)+dep_pts_x( map_w2h(3) + k) )/2.0_r_tran
+        departure_dist_w3 = ( dep_pts_x( map_w2h(1) + k_w2h)+dep_pts_x( map_w2h(3) + k_w2h) )/2.0_r_tran
         departure_dist_wt = ( dep_pts_x( map_w2h(1) + km1)+dep_pts_x( map_w2h(3) + km1) + &
                               dep_pts_x( map_w2h(1) + kp1)+dep_pts_x( map_w2h(3) + kp1) )/4.0_r_tran
         departure_dist = (2 - ndf_wf) * departure_dist_w3 + (ndf_wf - 1) * departure_dist_wt
@@ -174,7 +175,7 @@ contains
         frac_d = departure_dist - int(departure_dist)
         int_d = int(departure_dist,i_def)
 
-        ! Get local field values from cross stenci;
+        ! Get local field values from cross stencil
         do jj = 1, stencil_half
           field_local(jj) = field(stencil_map(1,stencil_half+1-jj) + k)
         end do
@@ -201,7 +202,7 @@ contains
         field_x(map_wf(1)+k) = (xx-x1)/(x0-x1)*q0 + (xx-x0)/(x1-x0)*q1
 
         ! y direction departure distance at centre
-        departure_dist_w3 = ( dep_pts_y( map_w2h(2) + k)+dep_pts_y( map_w2h(4) + k) )/2.0_r_tran
+        departure_dist_w3 = ( dep_pts_y( map_w2h(2) + k_w2h)+dep_pts_y( map_w2h(4) + k_w2h) )/2.0_r_tran
         departure_dist_wt = ( dep_pts_y( map_w2h(2) + km1)+dep_pts_y( map_w2h(4) + km1) + &
                               dep_pts_y( map_w2h(2) + kp1)+dep_pts_y( map_w2h(4) + kp1) )/4.0_r_tran
         departure_dist = (2 - ndf_wf) * departure_dist_w3 + (ndf_wf - 1) * departure_dist_wt
@@ -210,7 +211,7 @@ contains
         frac_d = departure_dist - int(departure_dist)
         int_d = int(departure_dist,i_def)
 
-        ! Get local field values from cross stenci;
+        ! Get local field values from cross stencil
         field_local(stencil_half) = field(stencil_map(1,1) + k)
         do jj = 1, stencil_half-1
           field_local(jj) = field(stencil_map(1,stencil_size+1-jj) + k)

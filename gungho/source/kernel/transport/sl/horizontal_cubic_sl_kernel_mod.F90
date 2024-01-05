@@ -173,7 +173,7 @@ contains
     real(kind=r_tran)   :: qx_max, qx_min, qy_max, qy_min
 
     ! Indices
-    integer(kind=i_def) :: ind_lo, ind_hi
+    integer(kind=i_def) :: ind_lo, ind_hi, k_w2h
     integer(kind=i_def) :: k, km1, kp1, jj, ijk, int_d, nl
 
     ! Stencils
@@ -220,11 +220,12 @@ contains
       ! Loop over k levels
       do k = 0, nl
 
+        k_w2h = min(k,nlayers-1)
         km1 = max(k-1,0)
         kp1 = min(k,nlayers-1)
 
         ! x direction departure distance at centre
-        departure_dist_w3 = ( dep_pts_x( map_w2h(1) + k)+dep_pts_x( map_w2h(3) + k) )/2.0_r_tran
+        departure_dist_w3 = ( dep_pts_x( map_w2h(1) + k_w2h)+dep_pts_x( map_w2h(3) + k_w2h) )/2.0_r_tran
         departure_dist_wt = ( dep_pts_x( map_w2h(1) + km1)+dep_pts_x( map_w2h(3) + km1) + &
                               dep_pts_x( map_w2h(1) + kp1)+dep_pts_x( map_w2h(3) + kp1) )/4.0_r_tran
         departure_dist = (2 - ndf_wf) * departure_dist_w3 + (ndf_wf - 1) * departure_dist_wt
@@ -274,7 +275,7 @@ contains
                       ((xx-x0)*(xx-x1)*(xx-x2))/((x3-x0)*(x3-x1)*(x3-x2))*q3
 
         ! y direction departure distance at centre
-        departure_dist_w3 = ( dep_pts_y( map_w2h(2) + k)+dep_pts_y( map_w2h(4) + k) )/2.0_r_tran
+        departure_dist_w3 = ( dep_pts_y( map_w2h(2) + k_w2h)+dep_pts_y( map_w2h(4) + k_w2h) )/2.0_r_tran
         departure_dist_wt = ( dep_pts_y( map_w2h(2) + km1)+dep_pts_y( map_w2h(4) + km1) + &
                               dep_pts_y( map_w2h(2) + kp1)+dep_pts_y( map_w2h(4) + kp1) )/4.0_r_tran
         departure_dist = (2 - ndf_wf) * departure_dist_w3 + (ndf_wf - 1) * departure_dist_wt
