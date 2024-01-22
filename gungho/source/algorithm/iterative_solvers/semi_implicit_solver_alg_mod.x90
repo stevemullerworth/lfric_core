@@ -434,6 +434,7 @@ contains
     use mass_matrix_solver_alg_mod,    only: mass_matrix_solver_alg
     use psykal_lite_mod,               only: invoke_copy_to_rdef, &
                                              invoke_copy_to_rsolver
+    use field_minmax_alg_mod,          only: log_field_minmax
 
     implicit none
 
@@ -588,7 +589,7 @@ contains
 
     ! Get the pressure increment
     inc_exner_rsol => vector_inc%get_field_from_position(isol_p)
-    call inc_exner_rsol%log_minmax(LOG_LEVEL_INFO, 'exner_inc')
+    call log_field_minmax( LOG_LEVEL_INFO, 'exner_inc', inc_exner_rsol )
 
     ! Get the velocity increments and if necessary combine them
     call inc_uvw_rsol%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
@@ -596,12 +597,12 @@ contains
       inc_uv_rsol => vector_inc%get_field_from_position(isol_uv)
       inc_w_rsol  => vector_inc%get_field_from_position(isol_w)
       call invoke( combine_w2_field_kernel_type( inc_uvw_rsol, inc_uv_rsol, inc_w_rsol ) )
-      call inc_uv_rsol%log_minmax(LOG_LEVEL_INFO, 'uv_inc')
-      call inc_w_rsol%log_minmax(LOG_LEVEL_INFO, 'w_inc')
+      call log_field_minmax( LOG_LEVEL_INFO, 'uv_inc', inc_uv_rsol )
+      call log_field_minmax( LOG_LEVEL_INFO, 'w_inc', inc_w_rsol )
     else
       call vector_inc%vector(isol_u)%copy_field_properties(inc_uvw_rsol)
       call invoke( setval_X(inc_uvw_rsol, vector_inc%vector(isol_u)) )
-      call inc_uvw_rsol%log_minmax(LOG_LEVEL_INFO, 'uvw_inc')
+      call log_field_minmax( LOG_LEVEL_INFO, 'uvw_inc', inc_uvw_rsol )
     end if
 
     ! Get the theta and rho increments

@@ -35,8 +35,7 @@ module end_of_transport_step_alg_mod
   use operator_mod,                   only: operator_type
   use psykal_lite_mod,                only: invoke_copy_rtran_to_rdef,     &
                                             invoke_copy_to_rtran,          &
-                                            invoke_dg_matrix_vector_rtran, &
-                                            invoke_rtran_field_min_max
+                                            invoke_dg_matrix_vector_rtran
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type
   use timer_mod,                      only: timer
@@ -54,6 +53,7 @@ module end_of_transport_step_alg_mod
   use transport_runtime_alg_mod,      only: transport_runtime_type
   use transport_runtime_collection_mod,   &
                                       only: get_transport_runtime
+  use field_minmax_alg_mod,           only: get_field_minmax
 
   implicit none
 
@@ -222,7 +222,7 @@ contains
           call invoke_dg_matrix_vector_rtran(increment, sum_flux, div)
           call invoke( X_minus_Y(field_np1, field_start, increment) )
 
-          call invoke_rtran_field_min_max(field_min, field_max, field_np1)
+          call get_field_minmax( field_np1, field_min, field_max )
 
           if (field_min > acceptable_min) then
             write(log_scratch_space,'(A,I8,A)') 'Reduced negative values ' // &
@@ -555,7 +555,7 @@ contains
           call invoke_dg_matrix_vector_rtran(increment, sum_flux, div)
           call invoke( X_minus_Y(rho_X_np1, rho_X_start, increment) )
 
-          call invoke_rtran_field_min_max(field_min, field_max, rho_X_np1)
+          call get_field_minmax( rho_X_np1, field_min, field_max )
 
           if (field_min > acceptable_min) then
             write(log_scratch_space,'(A,I8,A)') 'Reduced negative values ' // &

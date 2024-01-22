@@ -60,6 +60,7 @@ module calc_dep_pts_alg_mod
                                                LOG_LEVEL_ERROR
   use mesh_mod,                          only: mesh_type
   use psykal_lite_mod,                   only: invoke_copy_to_rtran
+  use field_minmax_alg_mod,              only: log_field_minmax
 
   implicit none
 
@@ -178,10 +179,10 @@ contains
 
     end select
 
-    call dep_pts_x%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_x' )
-    call dep_pts_y%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_y' )
-
     nullify( w2_fs, w2h_fs, mesh, detj_at_w3 )
+    call log_field_minmax( LOG_LEVEL_TRACE, "dep_pts_x", dep_pts_x )
+    call log_field_minmax( LOG_LEVEL_TRACE, "dep_pts_y", dep_pts_y )
+
 
     if ( subroutine_timers ) call timer( 'transport.hori_dep_pts' )
 
@@ -275,7 +276,7 @@ contains
                                                vertical_method, dt )  )
     end select
 
-    call dep_pts_z%log_minmax( LOG_LEVEL_TRACE, 'dep_pts_z' )
+    call log_field_minmax( LOG_LEVEL_TRACE, "dep_pts_z", dep_pts_z )
 
     nullify( w2v_fs, mesh, detj_at_w3, height_w2_rdef )
 

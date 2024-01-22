@@ -15,7 +15,7 @@ module transport_stats_mod
   use log_mod,                           only: log_event,           &
                                                log_scratch_space,   &
                                                LOG_LEVEL_INFO
-  use psykal_lite_mod,                   only: invoke_field_min_max
+  use field_minmax_alg_mod,              only: get_field_minmax
 
   implicit none
 
@@ -49,10 +49,10 @@ contains
 
     ! Compute statistics
     ! field min and max
-    call invoke_field_min_max(min_field, max_field, field)
+    call get_field_minmax( field, min_field, max_field )
 
     ! true_field min and max
-    call invoke_field_min_max(min_field0, max_field0, true_field)
+    call get_field_minmax( true_field, min_field0, max_field0 )
 
     volume = volume_normalisation_alg(field)
     l2_field = l2_norm_alg(field)

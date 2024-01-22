@@ -22,6 +22,7 @@ module psykal_lite_mod
                                            r_solver_operator_type, r_solver_operator_proxy_type, &
                                            r_tran_operator_type, r_tran_operator_proxy_type
   use constants_mod,                only : r_def, i_def, r_double, r_solver, r_tran, l_def, cache_block
+  use, intrinsic :: iso_fortran_env, only: real32, real64
   use mesh_mod,                     only : mesh_type
   use function_space_mod,           only : BASIS, DIFF_BASIS
 
@@ -1546,699 +1547,176 @@ stencil_dofmap(:,:,cell), ndf_adspc1_target_field, &
     !
   end subroutine invoke_prolong_scalar_linear_kernel_type
 
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rsolver_field_min(field_norm, rsolver_field)
-
-    use r_solver_scalar_mod,         only: r_solver_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_solver_field_mod,          only: r_solver_field_type, &
-                                           r_solver_field_proxy_type
-
-    implicit none
-
-    real(kind=r_solver),            intent(out) :: field_norm
-    type(r_solver_field_type),       intent(in) :: rsolver_field
-    type(r_solver_scalar_type)                  :: global_min
-    integer(kind=i_def)                         :: df
-    real(kind=r_solver), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_solver_field_proxy_type)             :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rsolver_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_solver
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_solver
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = min(l_field_norm(th_idx), &
-                                   field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = min(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_min%value = field_norm
-    field_norm = global_min%get_min()
-    !
-  end subroutine invoke_rsolver_field_min
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rsolver_field_max(field_norm, rsolver_field)
-
-    use r_solver_scalar_mod,         only: r_solver_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_solver_field_mod,          only: r_solver_field_type, &
-                                           r_solver_field_proxy_type
-
-    implicit none
-
-    real(kind=r_solver),            intent(out) :: field_norm
-    type(r_solver_field_type),       intent(in) :: rsolver_field
-    type(r_solver_scalar_type)                  :: global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_solver), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_solver_field_proxy_type)             :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rsolver_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_solver
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_solver
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = max(l_field_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find maximum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = max(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_max%value = field_norm
-    field_norm = global_max%get_max()
-    !
-  end subroutine invoke_rsolver_field_max
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rsolver_field_min_max(field_min_norm, &
-                                          field_max_norm, &
-                                          rsolver_field)
-
-    use r_solver_scalar_mod,         only: r_solver_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_solver_field_mod,          only: r_solver_field_type, &
-                                           r_solver_field_proxy_type
-
-    implicit none
-
-    real(kind=r_solver),            intent(out) :: field_min_norm
-    real(kind=r_solver),            intent(out) :: field_max_norm
-    type(r_solver_field_type),       intent(in) :: rsolver_field
-    type(r_solver_scalar_type)                  :: global_min, global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_solver), allocatable, dimension(:) :: l_field_min_norm
-    real(kind=r_solver), allocatable, dimension(:) :: l_field_max_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_solver_field_proxy_type)             :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rsolver_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables:
-    !   - field_min_norm, field_max_norm
-    !   - l_field_min_norm, l_field_max_norm
-    !
-    field_min_norm = 0.0_r_solver
-    field_max_norm = 0.0_r_solver
-    ALLOCATE (l_field_min_norm(nthreads))
-    ALLOCATE (l_field_max_norm(nthreads))
-    l_field_min_norm = 0.0_r_solver
-    l_field_max_norm = 0.0_r_solver
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_min_norm(th_idx) = min(l_field_min_norm(th_idx), &
-                                     field_proxy%data(df))
-      l_field_max_norm(th_idx) = max(l_field_max_norm(th_idx), &
-                                     field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum and maximum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_min_norm = min(field_min_norm, l_field_min_norm(th_idx))
-      field_max_norm = max(field_max_norm, l_field_max_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_min_norm, l_field_max_norm)
-    global_min%value = field_min_norm
-    global_max%value = field_max_norm
-    field_min_norm = global_min%get_min()
-    field_max_norm = global_max%get_max()
-    !
-  end subroutine invoke_rsolver_field_min_max
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_field_min(field_norm, rdef_field)
-
-    use scalar_mod,         only: scalar_type
-    use omp_lib,            only: omp_get_thread_num
-    use omp_lib,            only: omp_get_max_threads
-    use mesh_mod,           only: mesh_type
-    use field_mod,          only: field_type, field_proxy_type
-
-    implicit none
-
-    real(kind=r_def),               intent(out) :: field_norm
-    type(field_type),                intent(in) :: rdef_field
-
-    type(scalar_type)                           :: global_min
-    integer(kind=i_def)                         :: df
-    real(kind=r_def), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(field_proxy_type)                      :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rdef_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_def
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_def
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = min(l_field_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = min(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_min%value = field_norm
-    field_norm = global_min%get_min()
-    !
-  end subroutine invoke_field_min
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_field_max(field_norm, rdef_field)
-
-    use scalar_mod,         only: scalar_type
-    use omp_lib,            only: omp_get_thread_num
-    use omp_lib,            only: omp_get_max_threads
-    use mesh_mod,           only: mesh_type
-    use field_mod,          only: field_type, field_proxy_type
-
-    implicit none
-
-    real(kind=r_def),               intent(out) :: field_norm
-    type(field_type),                intent(in) :: rdef_field
-
-    type(scalar_type)                           :: global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_def), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(field_proxy_type)                      :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rdef_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_def
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_def
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = max(l_field_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find maximum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = max(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_max%value = field_norm
-    field_norm = global_max%get_max()
-    !
-  end subroutine invoke_field_max
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_field_min_max(field_min_norm, &
-                                  field_max_norm, &
-                                  rdef_field)
-
-    use scalar_mod,         only: scalar_type
-    use omp_lib,            only: omp_get_thread_num
-    use omp_lib,            only: omp_get_max_threads
-    use mesh_mod,           only: mesh_type
-    use field_mod,          only: field_type, field_proxy_type
-
-    implicit none
-
-    real(kind=r_def),               intent(out) :: field_min_norm
-    real(kind=r_def),               intent(out) :: field_max_norm
-    type(field_type),                intent(in) :: rdef_field
-
-    type(scalar_type)                           :: global_min, global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_def), allocatable, dimension(:) :: l_field_min_norm
-    real(kind=r_def), allocatable, dimension(:) :: l_field_max_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(field_proxy_type)                      :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rdef_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables:
-    !    field_min_norm, field_max_norm
-    !    l_field_min_norm, l_field_max_norm
-    !
-    field_min_norm = 0.0_r_def
-    field_max_norm = 0.0_r_def
-    ALLOCATE (l_field_min_norm(nthreads))
-    ALLOCATE (l_field_max_norm(nthreads))
-    l_field_min_norm = 0.0_r_def
-    l_field_max_norm = 0.0_r_def
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_min_norm(th_idx) = min(l_field_min_norm(th_idx), &
-                                 field_proxy%data(df))
-      l_field_max_norm(th_idx) = max(l_field_max_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_min_norm = min(field_min_norm, l_field_min_norm(th_idx))
-      field_max_norm = max(field_max_norm, l_field_max_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_min_norm, l_field_max_norm)
-    global_min%value = field_min_norm
-    global_max%value = field_max_norm
-    field_min_norm = global_min%get_min()
-    field_max_norm = global_max%get_max()
-    !
-  end subroutine invoke_field_min_max
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rtran_field_min(field_norm, rtran_field)
-
-    use r_tran_scalar_mod,           only: r_tran_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_tran_field_mod,            only: r_tran_field_type, &
-                                           r_tran_field_proxy_type
-
-    implicit none
-
-    real(kind=r_tran),              intent(out) :: field_norm
-    type(r_tran_field_type),         intent(in) :: rtran_field
-
-    type(r_tran_scalar_type)                    :: global_min
-    integer(kind=i_def)                         :: df
-    real(kind=r_tran), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_tran_field_proxy_type)               :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rtran_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_tran
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_tran
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = min(l_field_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = min(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_min%value = field_norm
-    field_norm = global_min%get_min()
-    !
-  end subroutine invoke_rtran_field_min
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rtran_field_max(field_norm, rtran_field)
-
-    use r_tran_scalar_mod,           only: r_tran_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_tran_field_mod,            only: r_tran_field_type, &
-                                           r_tran_field_proxy_type
-
-    implicit none
-
-    real(kind=r_tran),              intent(out) :: field_norm
-    type(r_tran_field_type),         intent(in) :: rtran_field
-
-    type(r_tran_scalar_type)                    :: global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_tran), allocatable, dimension(:) :: l_field_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_tran_field_proxy_type)               :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rtran_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables - field_norm and l_field_norm
-    !
-    field_norm = 0.0_r_tran
-    ALLOCATE (l_field_norm(nthreads))
-    l_field_norm = 0.0_r_tran
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_norm(th_idx) = max(l_field_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find maximum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_norm = max(field_norm, l_field_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_norm)
-    global_max%value = field_norm
-    field_norm = global_max%get_max()
-    !
-  end subroutine invoke_rtran_field_max
-
-  !-------------------------------------------------------------------------------
-  subroutine invoke_rtran_field_min_max(field_min_norm, &
-                                        field_max_norm, &
-                                        rtran_field)
-
-    use r_tran_scalar_mod,           only: r_tran_scalar_type
-    use omp_lib,                     only: omp_get_thread_num
-    use omp_lib,                     only: omp_get_max_threads
-    use mesh_mod,                    only: mesh_type
-    use r_tran_field_mod,            only: r_tran_field_type, &
-                                           r_tran_field_proxy_type
-
-    implicit none
-
-    real(kind=r_tran),              intent(out) :: field_min_norm
-    real(kind=r_tran),              intent(out) :: field_max_norm
-    type(r_tran_field_type),         intent(in) :: rtran_field
-    type(r_tran_scalar_type)                    :: global_min, global_max
-    integer(kind=i_def)                         :: df
-    real(kind=r_tran), allocatable, dimension(:) :: l_field_min_norm
-    real(kind=r_tran), allocatable, dimension(:) :: l_field_max_norm
-    integer(kind=i_def)                         :: th_idx
-    integer(kind=i_def)                         :: loop0_start, loop0_stop
-    integer(kind=i_def)                         :: nthreads
-    type(r_tran_field_proxy_type)               :: field_proxy
-    integer(kind=i_def)                         :: max_halo_depth_mesh
-    type(mesh_type), pointer                    :: mesh => null()
-    !
-    ! Determine the number of OpenMP threads
-    !
-    nthreads = omp_get_max_threads()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    field_proxy = rtran_field%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => field_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = field_proxy%vspace%get_last_dof_owned()
-    !
-    ! Call kernels and communication routines
-    !
-    !
-    ! Zero minima variables:
-    !   - field_min_norm, field_max_norm
-    !   - l_field_min_norm, l_field_max_norm
-    !
-    field_min_norm = 0.0_r_tran
-    field_max_norm = 0.0_r_tran
-    ALLOCATE (l_field_min_norm(nthreads))
-    ALLOCATE (l_field_max_norm(nthreads))
-    l_field_min_norm = 0.0_r_tran
-    l_field_max_norm = 0.0_r_tran
-    !
-    !$omp parallel default(shared), private(df,th_idx)
-    th_idx = omp_get_thread_num()+1
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      l_field_min_norm(th_idx) = min(l_field_min_norm(th_idx), &
-                                 field_proxy%data(df))
-      l_field_max_norm(th_idx) = max(l_field_max_norm(th_idx), &
-                                 field_proxy%data(df))
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Find minimum in the partial results sequentially
-    !
-    DO th_idx=1,nthreads
-      field_min_norm = min(field_min_norm, l_field_min_norm(th_idx))
-      field_max_norm = max(field_max_norm, l_field_max_norm(th_idx))
-    END DO
-    DEALLOCATE (l_field_min_norm, l_field_max_norm)
-    global_min%value = field_min_norm
-    global_max%value = field_max_norm
-    field_min_norm = global_min%get_min()
-    field_max_norm = global_max%get_max()
-    !
-  end subroutine invoke_rtran_field_min_max
-
 !==============================================================================
+
+  subroutine invoke_r32_field_min_max(field_min_norm, &
+                                  field_max_norm, &
+                                  r32_field)
+
+    use scalar_r32_mod,     only: scalar_r32_type
+    use omp_lib,            only: omp_get_thread_num
+    use omp_lib,            only: omp_get_max_threads
+    use mesh_mod,           only: mesh_type
+    use field_r32_mod,      only: field_r32_type, field_r32_proxy_type
+
+    implicit none
+
+    real(kind=real32),              intent(out)  :: field_min_norm
+    real(kind=real32),              intent(out)  :: field_max_norm
+    type(field_r32_type),            intent(in)  :: r32_field
+    type(scalar_r32_type)                        :: global_min, global_max
+    integer(kind=i_def)                          :: df
+    real(kind=real32), allocatable, dimension(:) :: l_field_min_norm
+    real(kind=real32), allocatable, dimension(:) :: l_field_max_norm
+    real(kind=real32)                            :: minv, maxv
+    integer(kind=i_def)                          :: th_idx
+    integer(kind=i_def)                          :: loop0_start, loop0_stop
+    integer(kind=i_def)                          :: nthreads
+    type(field_r32_proxy_type)                   :: field_proxy
+    integer(kind=i_def)                          :: max_halo_depth_mesh
+    type(mesh_type), pointer                     :: mesh => null()
+    !
+    ! Determine the number of OpenMP threads
+    !
+    nthreads = omp_get_max_threads()
+    !
+    ! Initialise field and/or operator proxies
+    !
+    field_proxy = r32_field%get_proxy()
+    maxv = huge(maxv)
+    minv = -huge(minv)
+    !
+    ! Create a mesh object
+    !
+    mesh => field_proxy%vspace%get_mesh()
+    max_halo_depth_mesh = mesh%get_halo_depth()
+    !
+    ! Set-up all of the loop bounds
+    !
+    loop0_start = 1
+    loop0_stop = field_proxy%vspace%get_last_dof_owned()
+    !
+    ! Call kernels and communication routines
+    !
+    ALLOCATE (l_field_min_norm(nthreads))
+    ALLOCATE (l_field_max_norm(nthreads))
+    !
+    l_field_min_norm(:) = maxv
+    l_field_max_norm(:) = minv
+    !
+    !$omp parallel default(shared), private(df,th_idx)
+    th_idx = omp_get_thread_num()+1
+    !$omp do schedule(static)
+    DO df=loop0_start,loop0_stop
+      l_field_min_norm(th_idx) = min(l_field_min_norm(th_idx), &
+                                 field_proxy%data(df))
+      l_field_max_norm(th_idx) = max(l_field_max_norm(th_idx), &
+                                 field_proxy%data(df))
+    END DO
+    !$omp end do
+    !$omp end parallel
+    !
+    ! Find minimum in the partial results sequentially
+    !
+    field_min_norm = l_field_min_norm(1)
+    field_max_norm = l_field_max_norm(1)
+    DO th_idx=2,nthreads
+      field_min_norm = min(field_min_norm, l_field_min_norm(th_idx))
+      field_max_norm = max(field_max_norm, l_field_max_norm(th_idx))
+    END DO
+    DEALLOCATE (l_field_min_norm, l_field_max_norm)
+    global_min%value = field_min_norm
+    global_max%value = field_max_norm
+    field_min_norm = global_min%get_min()
+    field_max_norm = global_max%get_max()
+    !
+  end subroutine invoke_r32_field_min_max
+
+  !-------------------------------------------------------------------------------
+  subroutine invoke_r64_field_min_max(field_min_norm, &
+                                  field_max_norm, &
+                                  r64_field)
+
+    use scalar_r64_mod,     only: scalar_r64_type
+    use omp_lib,            only: omp_get_thread_num
+    use omp_lib,            only: omp_get_max_threads
+    use mesh_mod,           only: mesh_type
+    use field_r64_mod,      only: field_r64_type, field_r64_proxy_type
+
+    implicit none
+
+    real(kind=real64),               intent(out) :: field_min_norm
+    real(kind=real64),               intent(out) :: field_max_norm
+    type(field_r64_type),             intent(in) :: r64_field
+    type(scalar_r64_type)                        :: global_min, global_max
+    integer(kind=i_def)                          :: df
+    real(kind=real64), allocatable, dimension(:) :: l_field_min_norm
+    real(kind=real64), allocatable, dimension(:) :: l_field_max_norm
+    real(kind=real64)                            :: minv, maxv
+    integer(kind=i_def)                          :: th_idx
+    integer(kind=i_def)                          :: loop0_start, loop0_stop
+    integer(kind=i_def)                          :: nthreads
+    type(field_r64_proxy_type)                   :: field_proxy
+    integer(kind=i_def)                          :: max_halo_depth_mesh
+    type(mesh_type), pointer                     :: mesh => null()
+    !
+    ! Determine the number of OpenMP threads
+    !
+    nthreads = omp_get_max_threads()
+    !
+    ! Initialise field and/or operator proxies
+    !
+    field_proxy = r64_field%get_proxy()
+    maxv = huge(maxv)
+    minv = -huge(minv)
+    !
+    ! Create a mesh object
+    !
+    mesh => field_proxy%vspace%get_mesh()
+    max_halo_depth_mesh = mesh%get_halo_depth()
+    !
+    ! Set-up all of the loop bounds
+    !
+    loop0_start = 1
+    loop0_stop = field_proxy%vspace%get_last_dof_owned()
+    !
+    ! Call kernels and communication routines
+    !
+    ALLOCATE (l_field_min_norm(nthreads))
+    ALLOCATE (l_field_max_norm(nthreads))
+    !
+    l_field_min_norm(:) = maxv
+    l_field_max_norm(:) = minv
+    !
+    !$omp parallel default(shared), private(df,th_idx)
+    th_idx = omp_get_thread_num()+1
+    !$omp do schedule(static)
+    DO df=loop0_start,loop0_stop
+      l_field_min_norm(th_idx) = min(l_field_min_norm(th_idx), &
+                                 field_proxy%data(df))
+      l_field_max_norm(th_idx) = max(l_field_max_norm(th_idx), &
+                                 field_proxy%data(df))
+    END DO
+    !$omp end do
+    !$omp end parallel
+    !
+    ! Find minimum in the partial results sequentially
+    !
+    field_min_norm = l_field_min_norm(1)
+    field_max_norm = l_field_max_norm(1)
+    DO th_idx=2,nthreads
+      field_min_norm = min(field_min_norm, l_field_min_norm(th_idx))
+      field_max_norm = max(field_max_norm, l_field_max_norm(th_idx))
+    END DO
+    DEALLOCATE (l_field_min_norm, l_field_max_norm)
+    global_min%value = field_min_norm
+    global_max%value = field_max_norm
+    field_min_norm = global_min%get_min()
+    field_max_norm = global_max%get_max()
+    !
+  end subroutine invoke_r64_field_min_max
+
+!------------------------------------------------------------------------------
 
   ! Psykal-lite implementation required because we want to loop up to the edge
   ! of the halo, and mark this field as clean so that no halo swaps are performed
