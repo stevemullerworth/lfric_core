@@ -9,6 +9,9 @@
 module atlas_field_interface_test
 
   use, intrinsic :: iso_fortran_env,  only: real64
+  use atlas_field_interface_mod,      only: atlas_field_interface_type, &
+                                            surface_level_absent_copy_level_above, &
+                                            surface_level_absent_zero_level
   use constants_mod,                  only: i_def, l_def, str_def
   use pFUnit_Mod
   use local_mesh_mod,                 only: local_mesh_type
@@ -22,7 +25,7 @@ module atlas_field_interface_test
   use halo_routing_collection_mod,    only: halo_routing_collection_type, &
                                             halo_routing_collection
   use field_mod,                      only: field_type, field_proxy_type
-  use extrusion_mod, only: TWOD
+  use extrusion_mod,                  only: TWOD
 
   implicit none
 
@@ -102,8 +105,6 @@ contains
 
   @Test
   subroutine test_w3_field( this )
-
-    use atlas_field_interface_mod, only: atlas_field_interface_type
 
     implicit none
 
@@ -263,8 +264,6 @@ contains
   @Test
   subroutine test_wtheta_field( this )
 
-    use atlas_field_interface_mod, only: atlas_field_interface_type
-
     implicit none
 
     class( atlas_field_interface_test_type ), intent(inout) :: this
@@ -326,19 +325,19 @@ contains
     ! create the Atlas field
     horizontal_map_ptr => horizontal_map
     data_ptr => data_array
+
+    !! Test the atlas_field_interface methods
+
+    !-- A. test copy_to setting the missing data to zero
     call atlas_field_interface%initialise( data_ptr, horizontal_map_ptr, &
                                            lfric_field_ptr, &
-                                           missing_surface_level=.true. )
+                                           surface_level_absent_zero_level )
 
-    !! test the atlas_field_interface methods
-
-    !-- test copy_to
-
-    ! copy Atlas field to the LFRic field
+    ! Copy Atlas field to the LFRic field
     call atlas_field_interface % copy_to_lfric()
 
     ! Check LFRic data after copy
-    @assertEqual((/ 0.0, 7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/0.0,  7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(1:nlevels))
     @assertEqual((/0.0,  6.0, 12.0, 18.0, 24.0, 30.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
     @assertEqual((/0.0,  5.0, 10.0, 15.0, 20.0, 25.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
     @assertEqual((/0.0,  4.0,  8.0, 12.0, 16.0, 20.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
@@ -348,7 +347,26 @@ contains
     @assertEqual((/0.0,  0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
     @assertEqual((/0.0, -1.0, -2.0, -3.0, -4.0, -5.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
 
-    !-- test copy_from
+    !-- B. test copy_to setting the missing data to copy from the point above
+    call atlas_field_interface%initialise( data_ptr, horizontal_map_ptr, &
+                                           lfric_field_ptr, &
+                                           surface_level_absent_copy_level_above )
+
+    ! Copy Atlas field to the LFRic field
+    call atlas_field_interface % copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/7.0,   7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/6.0,   6.0, 12.0, 18.0, 24.0, 30.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/5.0,   5.0, 10.0, 15.0, 20.0, 25.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/4.0,   4.0,  8.0, 12.0, 16.0, 20.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/3.0,   3.0,  6.0,  9.0, 12.0, 15.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/2.0,   2.0,  4.0,  6.0,  8.0, 10.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/1.0,   1.0,  2.0,  3.0,  4.0,  5.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/0.0,   0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/-1.0, -1.0, -2.0, -3.0, -4.0, -5.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    !-- C. test copy_from method
 
     ! Update the LFRic field data
     lfric_field_proxy%data = lfric_field_proxy%data + 5.5
@@ -381,8 +399,6 @@ contains
 
   @Test
   subroutine test_twod_w3_field( this )
-
-    use atlas_field_interface_mod, only: atlas_field_interface_type
 
     implicit none
 
@@ -534,8 +550,6 @@ contains
   @Test
   subroutine test_twod_wtheta_field( this )
 
-    use atlas_field_interface_mod, only: atlas_field_interface_type
-
     implicit none
 
     class( atlas_field_interface_test_type ), intent(inout) :: this
@@ -594,18 +608,18 @@ contains
     ! get the LFRic field proxy
     lfric_field_proxy = lfric_field%get_proxy()
 
-    ! create the Atlas field
+    ! Create the Atlas field
     horizontal_map_ptr => horizontal_map
     data_ptr => data_array
-    call atlas_field_interface%initialise( data_ptr, horizontal_map_ptr, &
-                                           lfric_field_ptr, &
-                                           missing_surface_level=.true. )
 
     !! test the atlas_field_interface methods
 
-    !-- test copy_to
+    !-- A. test copy_to setting the missing data to zero
+    call atlas_field_interface%initialise( data_ptr, horizontal_map_ptr, &
+                                           lfric_field_ptr, &
+                                           surface_level_absent_zero_level )
 
-    ! copy Atlas field to the LFRic field
+    ! Copy Atlas field to the LFRic field
     call atlas_field_interface % copy_to_lfric()
 
     ! Check LFRic data after copy
@@ -619,7 +633,26 @@ contains
     @assertEqual((/0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
     @assertEqual((/0.0, -1.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
 
-    !-- test copy_from
+    !-- B. test copy_to setting the missing data to copy from the point above
+    call atlas_field_interface%initialise( data_ptr, horizontal_map_ptr, &
+                                           lfric_field_ptr, &
+                                           surface_level_absent_copy_level_above )
+
+    ! Copy Atlas field to the LFRic field
+    call atlas_field_interface % copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/7.0,   7.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/6.0,   6.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/5.0,   5.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/4.0,   4.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/3.0,   3.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/2.0,   2.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/1.0,   1.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/0.0,   0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/-1.0, -1.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    !-- C. test copy_from
 
     ! Update the LFRic field data
     lfric_field_proxy%data = lfric_field_proxy%data + 5.5

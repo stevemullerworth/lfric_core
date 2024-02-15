@@ -28,6 +28,10 @@ module atlas_field_interface_mod
 
   private
 
+  integer(i_def), parameter, public :: surface_level_present = 123
+  integer(i_def), parameter, public :: surface_level_absent_copy_level_above = 456
+  integer(i_def), parameter, public :: surface_level_absent_zero_level = 789
+
 type, extends(abstract_external_field_type), public :: atlas_field_interface_type
   private
 
@@ -36,24 +40,24 @@ type, extends(abstract_external_field_type), public :: atlas_field_interface_typ
   !> Map that defines the order of the horizontal points in
   !> the atlas data to collumns in the LFRic field data
   integer(i_def),      pointer :: map_horizontal(:)
-  !> the name of the atlas field
+  !> The name of the atlas field
   character( len=str_def )     :: atlas_name
-  !> is true if the surface point in the LFRic field is not present in the
-  !> atlas field
-  logical( kind=l_def )        :: missing_surface_level
-  !> number of vertical points in the atlas data
+  !> Enumerator defining how the surface level is treated. There are three options
+  !> present (no processing), absent (set to zero), absent (copy level above)
+  integer(i_def)               :: surface_level_type
+  !> Number of vertical points in the atlas data
   integer(i_def)               :: n_vertical
-  !> number of horizontal points in the atlas data
+  !> Number of horizontal points in the atlas data
   integer(i_def)               :: n_horizontal
-  !> vertical start index for the LFRic data
+  !> Vertical start index for the LFRic data
   integer(i_def)               :: lfric_kstart
-  !> number of vertical points in the LFRic data
+  !> Number of vertical points in the LFRic data
   integer(i_def)               :: n_vertical_lfric
-  !> vertical start index for the atlas data
+  !> Vertical start index for the atlas data
   integer(i_def)               :: atlas_kstart
-  !> vertical end index for the atlas data
+  !> Vertical end index for the atlas data
   integer(i_def)               :: atlas_kend
-  !> vertical fill direction for the atlas data
+  !> Vertical fill direction for the atlas data
   integer(i_def)               :: atlas_kdirection
 
 contains
@@ -85,16 +89,16 @@ contains
 
 !> @param [in] atlas_data_ptr pointer to the atlas data
 !> @param [in] map_horizontal_ptr pointer to the horizontal map
-!> @param [in] lfric_field_ptr the LFRic field that atlas_field_interface will copy to
-!>               and from
+!> @param [in] lfric_field_ptr the LFRic field that atlas_field_interface will
+!>             copy to and from
+!> @param [in] surface_level_type enumerator defining how the lowest level
+!>             is treated.
 !> @param [in] atlas_name Optional name of the atlas field
-!> @param [in] missing_surface_level Optional logical set to true when surface
-!>               level is missing
 !> @param [in] fill_direction_up Optional logical set false if the atlas
 !>               field data is orientated from top-bottom
 subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
-                              lfric_field_ptr, atlas_name, &
-                              missing_surface_level, fill_direction_up )
+                              lfric_field_ptr, surface_level_type, &
+                              atlas_name, fill_direction_up )
 
   implicit none
 
@@ -102,8 +106,8 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
   real( kind=real64 ),   pointer,  intent(in) :: atlas_data_ptr(:,:)
   integer(i_def),        pointer,  intent(in) :: map_horizontal_ptr(:)
   type(field_type),      pointer,  intent(in) :: lfric_field_ptr
+  integer(i_def),        optional, intent(in) :: surface_level_type
   character( len=* ),    optional, intent(in) :: atlas_name
-  logical( kind=l_def ), optional, intent(in) :: missing_surface_level
   logical( kind=l_def ), optional, intent(in) :: fill_direction_up
 
   ! locals
@@ -129,10 +133,18 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
     self%atlas_name = lfric_field_ptr%get_name()
   endif
 
-  if (present(missing_surface_level)) then
-    self%missing_surface_level = missing_surface_level
+  if ( present(surface_level_type) ) then
+    ! Ensure the supplied option is valid
+    if ( surface_level_type /= surface_level_present .AND. &
+         surface_level_type /= surface_level_absent_copy_level_above .AND. &
+         surface_level_type /= surface_level_absent_zero_level ) then
+      write(log_scratch_space, '(A)') &
+        "The supplied optional argument surface_level_type is not valid."
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    endif
+    self%surface_level_type = surface_level_type
   else
-    self%missing_surface_level = .false.
+    self%surface_level_type = surface_level_present
   endif
 
   if (present(fill_direction_up)) then
@@ -146,7 +158,8 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
   self%n_vertical = size(atlas_data_ptr,dim=1)
 
   ! Setup vertical indices for data mapping
-  if ( self%missing_surface_level ) then
+  if ( self%surface_level_type == surface_level_absent_copy_level_above .OR. &
+       self%surface_level_type == surface_level_absent_zero_level ) then
     self%lfric_kstart = 2
     self%n_vertical_lfric = self%n_vertical+1
   else
@@ -307,18 +320,27 @@ subroutine copy_to_lfric( self, return_code )
 
   ! copy Atlas to lfric
 
-  ! missing data gets filled with zeros
-  if ( self%missing_surface_level ) then
-    do lfric_ij = 1,self%n_horizontal
-      field_proxy%data((lfric_ij-1)*n_vertical_lfric+1) = 0.0
-    end do
-  endif
-
+  ! Fill data ommiting the lowest level if its not available
   do lfric_ij = 1,self%n_horizontal
     atlas_ij = self%map_horizontal(lfric_ij)
     field_proxy%data((lfric_ij-1)*n_vertical_lfric+lfric_kstart:lfric_ij*n_vertical_lfric) &
       = self%atlas_data(atlas_kstart:atlas_kend:atlas_kdirection,atlas_ij)
   enddo
+
+  ! Fill missing data if required
+  if ( self%surface_level_type == surface_level_absent_zero_level ) then
+    ! Set to zero
+    do lfric_ij = 1,self%n_horizontal
+      field_proxy%data((lfric_ij-1)*n_vertical_lfric+1) = 0.0!!! set _rdef?
+    end do
+  elseif ( self%surface_level_type == surface_level_absent_copy_level_above ) then
+    ! Copy the level above
+    do lfric_ij = 1,self%n_horizontal
+      field_proxy%data((lfric_ij-1)*n_vertical_lfric+1) = &
+                      field_proxy%data((lfric_ij-1)*n_vertical_lfric+2)
+    end do
+  endif
+
   ! set halo to dirty
   call field_proxy%set_dirty()
 
