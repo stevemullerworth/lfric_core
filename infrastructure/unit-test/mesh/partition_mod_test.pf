@@ -136,7 +136,7 @@ contains
 
     local_rank = this%local_rank
     total_ranks = this%total_ranks
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     filename = 'data/mesh_BiP8x8-750x250.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)
@@ -275,7 +275,7 @@ contains
 
     local_rank = this%local_rank
     total_ranks = this%total_ranks
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     filename = 'data/mesh_planar.nc'
 
@@ -415,7 +415,7 @@ contains
 
     local_rank = this%local_rank
     total_ranks = this%total_ranks
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     filename = 'data/mesh_trench_x.nc'
 
@@ -555,7 +555,7 @@ contains
 
     local_rank = this%local_rank
     total_ranks = this%total_ranks
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     filename = 'data/mesh_trench_y.nc'
 
@@ -689,7 +689,7 @@ contains
     yproc = 1
     local_rank = this%local_rank
     total_ranks = this%total_ranks
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     filename = 'data/mesh_C4.nc'
     call ugrid_mesh_data%read_from_file(trim(filename), mesh_name)

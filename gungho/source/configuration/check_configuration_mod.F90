@@ -529,9 +529,10 @@ contains
     implicit none
 
     integer(kind=i_def) :: stencil_depth
+    integer(kind=i_def) :: sl_reconstruction_depth
     logical(kind=l_def) :: any_horz_dep_pts
 
-    stencil_depth = 1
+    stencil_depth = 2
 
     if (operators == operators_fv) then
       ! Need larger haloes for fv operators
@@ -541,9 +542,14 @@ contains
     any_horz_dep_pts = check_horz_dep_pts()
 
     if ( any_horz_dep_pts ) then
+      ! For SL schemes minimum stencil depth of
+      ! order + 1 is required. This is then extended
+      ! by the dep_pt_stencil_extent (effectively the
+      ! maximum CFL number we want the scheme to work for
+      sl_reconstruction_depth = max( inner_order, outer_order ) + 1
       stencil_depth = max( stencil_depth,          &
                            dep_pt_stencil_extent + &
-                           max( inner_order, outer_order ) )
+                           sl_reconstruction_depth )
     end if
 
   end function get_required_stencil_depth

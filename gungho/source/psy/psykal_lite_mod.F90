@@ -1132,8 +1132,8 @@ contains
       undf_panel_id = panel_id_proxy%vspace%get_undf()
 
       ! Call kernels and communication routines
-      if (field_proxy%is_dirty(depth=halo_compute_depth)) THEN
-        call field_proxy%halo_exchange(depth=halo_compute_depth)
+      if (field_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN
+        call field_proxy%halo_exchange(depth=mesh%get_halo_depth())
       end if
       if (panel_id_proxy%is_dirty(depth=halo_compute_depth)) THEN
         call panel_id_proxy%halo_exchange(depth=halo_compute_depth)

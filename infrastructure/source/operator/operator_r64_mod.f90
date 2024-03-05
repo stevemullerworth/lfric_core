@@ -13,7 +13,7 @@ module operator_r64_mod
 
   use, intrinsic :: iso_fortran_env, only : real64
 
-  use constants_mod,            only : i_def, l_def
+  use constants_mod,            only : i_def, l_def, default_halo_depth
   use function_space_mod,       only : function_space_type
   use mesh_mod,                 only : mesh_type
   use log_mod,                  only : log_event, LOG_LEVEL_ERROR
@@ -88,10 +88,16 @@ contains
     ! To be set to an invalid floating point number
     real(real64) :: NaN
 
+    type(mesh_type), pointer :: mesh
+
+    nullify( mesh )
+
     ! initialise the parent
     call self%operator_parent_initialiser( fs_to, fs_from )
 
-    self%ncell_3d = fs_from%get_ncell() * fs_from%get_nlayers()
+    mesh => fs_from%get_mesh()
+    self%ncell_3d = mesh%get_last_halo_cell(default_halo_depth) * fs_from%get_nlayers()
+    nullify(mesh)
     ! allocate the array in memory
     if(allocated(self%local_stencil))deallocate(self%local_stencil)
 

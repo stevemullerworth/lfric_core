@@ -1276,10 +1276,6 @@ contains
         weights_w3 => get_intermesh_weights_w3_rtran(source_mesh, target_mesh)
         w3_fs => function_space_collection%get_fs(target_mesh, 0, W3)
 
-        if (.not. self%rho_d(1,step)%is_initialised()) then
-          call self%rho_d(1,step)%initialise( vector_space = w3_fs )
-        end if
-
         if (extended_mesh) then
           if ( check_any_horizontal_method_mol() ) then
             remap_depth = get_required_stencil_depth()
@@ -1291,7 +1287,8 @@ contains
                               self%get_dep_stencil_extent_y(self%mesh_ids(1))) &
                         + 1_i_def + max(inner_order, outer_order)
           end if
-          call tmp_rho_d%initialise( vector_space = w3_fs )
+          call tmp_rho_d%initialise( vector_space = w3_fs, &
+                                     halo_depth=target_mesh%get_halo_depth() )
           call invoke( restrict_scalar_weighted_kernel_type(tmp_rho_d,         &
                                                             source_rho_d,      &
                                                             weights_w3) )
@@ -1301,6 +1298,10 @@ contains
                                            self%rho_minvalue,                  &
                                            remap_depth)
         else
+          if (.not. self%rho_d(1,step)%is_initialised()) then
+            call self%rho_d(1,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = target_mesh%get_halo_depth() )
+          end if
           ! Can restrict straight into self%rho_d
           call invoke( restrict_scalar_weighted_kernel_type(                   &
                                                     self%rho_d(1,step),        &
@@ -1318,8 +1319,10 @@ contains
             source_rho_d_ffsl_y => source_transport_runtime%get_rho_d_ffsl_y(source_mesh_id, step)
 
             if (.not. self%rho_d_ffsl_x(1,step)%is_initialised()) then
-              call self%rho_d_ffsl_x(1,step)%initialise( vector_space = w3_fs )
-              call self%rho_d_ffsl_y(1,step)%initialise( vector_space = w3_fs )
+              call self%rho_d_ffsl_x(1,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = target_mesh%get_halo_depth() )
+              call self%rho_d_ffsl_y(1,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = target_mesh%get_halo_depth() )
             end if
 
             if (extended_mesh) then
@@ -1453,17 +1456,15 @@ contains
                       + 2_i_def + max(inner_order, outer_order)
         end if
 
-        call tmp_rho_d_shifted%initialise( w3_fs )
       end if
+      if (extended_mesh) call tmp_rho_d_shifted%initialise( w3_fs, &
+                                 halo_depth=shifted_mesh%get_halo_depth() )
 
       do step = 1, self%num_dry_steps + 1
 
         ! -------------------------------------------------------------------- !
         ! rho_d
         ! -------------------------------------------------------------------- !
-        if (.not. self%rho_d(2,step)%is_initialised()) then
-          call self%rho_d(2,step)%initialise( vector_space = w3_fs )
-        end if
 
         if (extended_mesh) then
           call invoke( apply_w3_to_sh_w3_kernel_type(                          &
@@ -1478,6 +1479,10 @@ contains
                                            self%rho_minvalue,                  &
                                            remap_depth)
         else
+          if (.not. self%rho_d(2,step)%is_initialised()) then
+            call self%rho_d(2,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = shifted_mesh%get_halo_depth() )
+          end if
           call invoke( apply_w3_to_sh_w3_kernel_type(                          &
                                            self%rho_d(2,step),                 &
                                            self%rho_d(1,step),                 &
@@ -1491,8 +1496,10 @@ contains
         if ( any_hori_dep_pts .and. step < self%num_dry_steps + 1 ) then
           if ( self%rho_d_ffsl_x(1,step)%is_initialised() ) then
             if (.not. self%rho_d_ffsl_x(2,step)%is_initialised()) then
-              call self%rho_d_ffsl_x(2,step)%initialise( vector_space = w3_fs )
-              call self%rho_d_ffsl_y(2,step)%initialise( vector_space = w3_fs )
+              call self%rho_d_ffsl_x(2,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = shifted_mesh%get_halo_depth() )
+              call self%rho_d_ffsl_y(2,step)%initialise( vector_space = w3_fs, &
+                                                halo_depth = shifted_mesh%get_halo_depth() )
             end if
 
             if (extended_mesh) then
@@ -3078,8 +3085,8 @@ contains
       mesh => field%get_mesh()
       twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
       w3_fs => function_space_collection%get_fs(twod_mesh, 0, W3, nremap)
-      call self%remap_weights%initialise( w3_fs )
-      call self%remap_indices%initialise( w3_fs )
+      call self%remap_weights%initialise( w3_fs, halo_depth=twod_mesh%get_halo_depth() )
+      call self%remap_indices%initialise( w3_fs, halo_depth=twod_mesh%get_halo_depth() )
       call initialise_remap_on_extended_mesh(self%remap_weights, self%remap_indices)
       self%computed_remapping = .true.
     end if

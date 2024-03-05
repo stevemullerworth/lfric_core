@@ -45,7 +45,7 @@ module mesh_map_collection_mod_test
                   parameter :: filename    = 'data/mesh_C32_MG.nc'
   integer(i_def), parameter :: local_rank  = 0_i_def
   integer(i_def), parameter :: total_ranks = 1_i_def
-  integer(i_def), parameter :: max_stencil_depth = 0_i_def
+  integer(i_def), parameter :: max_stencil_depth = 1_i_def
   integer(i_def), parameter :: xproc       = 1_i_def
   integer(i_def), parameter :: yproc       = 1_i_def
   integer(i_def), parameter :: nlayers     = 5_i_def

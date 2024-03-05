@@ -200,12 +200,14 @@ contains
                                                  chi_space)
 
     fs_pressure => function_space_collection%get_fs(mesh, 1, W3)
-    call panel_id%initialise(vector_space = fs_pressure )
+    call panel_id%initialise(vector_space = fs_pressure, &
+                             halo_depth = mesh%get_halo_depth() )
 
     fs_coord => function_space_collection%get_fs(mesh, coord_order, Wchi)
 
     do i = 1,3
-      call chi(i)%initialise(vector_space = fs_coord )
+      call chi(i)%initialise(vector_space = fs_coord, &
+                             halo_depth = mesh%get_halo_depth() )
     end do
 
     call assign_coordinate_field( chi, panel_id, mesh )

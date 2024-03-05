@@ -81,6 +81,7 @@ end function halo_routing_collection_constructor
 !>                      information will be valid
 !> @param [in] fortran_kind The Fortran kind of the data for which this
 !>                      information will be valid
+!> @param [in] halo_depth Halo depth to get the routing to
 !> @return The halo_routing object that matches the input parameters
 function get_halo_routing( self, &
                            mesh, &
@@ -88,7 +89,8 @@ function get_halo_routing( self, &
                            lfric_fs, &
                            ndata, &
                            fortran_type, &
-                           fortran_kind )  result(halo_routing)
+                           fortran_kind, &
+                           halo_depth )  result(halo_routing)
   implicit none
 
   class(halo_routing_collection_type), intent(inout) :: self
@@ -102,14 +104,17 @@ function get_halo_routing( self, &
   integer(i_def), intent(in) :: ndata
   integer(i_def), intent(in) :: fortran_type
   integer(i_def), intent(in) :: fortran_kind
+  integer(i_def), intent(in) :: halo_depth
 
-  type(function_space_type), pointer :: function_space => null()
-  integer(i_halo_index), allocatable :: global_dof_id(:)
+  type(function_space_type), pointer :: function_space
+  integer(i_halo_index), pointer :: global_dof_id(:)
   integer(i_def), allocatable :: halo_start(:)
   integer(i_def), allocatable :: halo_finish(:)
   integer(i_def) :: idepth
   integer(i_def) :: last_owned_dof
   integer(i_def) :: mesh_id
+
+  nullify( function_space, global_dof_id )
 
   halo_routing => get_halo_routing_from_list( self, &
                                               mesh, &
@@ -117,7 +122,8 @@ function get_halo_routing( self, &
                                               lfric_fs, &
                                               ndata, &
                                               fortran_type, &
-                                              fortran_kind )
+                                              fortran_kind, &
+                                              halo_depth )
 
   if (.not. associated(halo_routing)) then
 
@@ -130,14 +136,13 @@ function get_halo_routing( self, &
     last_owned_dof = function_space%get_last_dof_owned()
 
     ! Set up the global dof index array
-    allocate( global_dof_id( function_space%get_ndof_glob()*ndata ) )
-    call function_space%get_global_dof_id(global_dof_id)
+    global_dof_id => function_space%get_global_dof_id()
 
     ! Set up the boundaries of the different depths of halo
-    allocate( halo_start(mesh%get_halo_depth()) )
-    allocate( halo_finish(mesh%get_halo_depth()) )
+    allocate( halo_start(halo_depth) )
+    allocate( halo_finish(halo_depth) )
 
-    do idepth = 1, mesh%get_halo_depth()
+    do idepth = 1, halo_depth
 
       halo_start(idepth)  = function_space%get_last_dof_owned()+1
       halo_finish(idepth) = function_space%get_last_dof_halo(idepth)
@@ -162,9 +167,9 @@ function get_halo_routing( self, &
                                                                 lfric_fs, &
                                                                 ndata, &
                                                                 fortran_type, &
-                                                                fortran_kind ) )
-    deallocate( halo_finish )
-    deallocate( global_dof_id )
+                                                                fortran_kind, &
+                                                                halo_depth ) )
+    deallocate( halo_start, halo_finish )
 
     halo_routing => get_halo_routing_from_list( self, &
                                                 mesh, &
@@ -172,7 +177,8 @@ function get_halo_routing( self, &
                                                 lfric_fs, &
                                                 ndata, &
                                                 fortran_type, &
-                                                fortran_kind )
+                                                fortran_kind, &
+                                                halo_depth )
 
   end if
 
@@ -191,7 +197,8 @@ function get_halo_routing_from_list(self, &
                                     lfric_fs, &
                                     ndata, &
                                     fortran_type, &
-                                    fortran_kind) &
+                                    fortran_kind, &
+                                    halo_depth) &
     result(instance)
 
   implicit none
@@ -205,6 +212,7 @@ function get_halo_routing_from_list(self, &
   integer(i_def),  intent(in) :: ndata
   integer(i_def),  intent(in) :: fortran_type
   integer(i_def),  intent(in) :: fortran_kind
+  integer(i_def),  intent(in) :: halo_depth
 
   type(halo_routing_type),   pointer  :: instance
 
@@ -234,8 +242,8 @@ function get_halo_routing_from_list(self, &
            element_order == listhalo_routing%get_element_order() .and. &
            lfric_fs == listhalo_routing%get_lfric_fs() .and. &
            ndata == listhalo_routing%get_ndata() .and. &
-           fortran_type == listhalo_routing%get_fortran_type() .and. &
-           fortran_kind == listhalo_routing%get_fortran_kind() ) then
+           fortran_kind == listhalo_routing%get_fortran_kind() .and. &
+           halo_depth == listhalo_routing%get_halo_depth() ) then
         instance => listhalo_routing
         exit
       end if

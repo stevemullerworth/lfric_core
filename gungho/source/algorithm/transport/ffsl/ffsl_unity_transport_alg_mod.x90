@@ -17,9 +17,10 @@
 !!          directly calls the FFSL kernels.
 module ffsl_unity_transport_alg_mod
 
-  use check_configuration_mod,          only: check_horz_dep_pts, &
-                                              check_vert_dep_pts, &
-                                              check_any_splitting_vhv
+  use check_configuration_mod,          only: check_horz_dep_pts,      &
+                                              check_vert_dep_pts,      &
+                                              check_any_splitting_vhv, &
+                                              get_required_stencil_depth
   use constants_mod,                    only: r_tran, i_def, l_def
   use fem_constants_mod,                only: get_inverse_w3_mass_matrix, &
                                               get_detj_at_w3_r_tran
@@ -150,7 +151,8 @@ contains
     any_splitting_vhv = check_any_splitting_vhv()
 
     ! Initialise fields
-    call ini_one%initialise( vector_space = field_fs )
+    call ini_one%initialise( vector_space = field_fs, &
+                             halo_depth = get_required_stencil_depth() )
 
     ! Check if we need increment of unity in x and y directions ----------------
     if (any_horz_dep_pts) then

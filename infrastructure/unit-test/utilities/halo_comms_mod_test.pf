@@ -118,7 +118,7 @@ contains
 
     type(halo_routing_type) :: halo_routing
     type(function_space_type), pointer :: function_space => null()
-    integer(i_halo_index), allocatable :: global_dof_id(:)
+    integer(i_halo_index), pointer :: global_dof_id(:) => null()
     integer(i_def), allocatable :: halo_start(:)
     integer(i_def), allocatable :: halo_finish(:)
     integer(i_def) :: idepth
@@ -140,8 +140,7 @@ contains
     last_owned_dof = function_space%get_last_dof_owned()
 
     ! Set up the global dof index array
-    allocate( global_dof_id( function_space%get_ndof_glob()*ndata ) )
-    call function_space%get_global_dof_id(global_dof_id)
+    global_dof_id => function_space%get_global_dof_id()
 
     ! Set up the boundaries of the different depths of halo
     allocate( halo_start(mesh%get_halo_depth()) )
@@ -172,9 +171,10 @@ contains
                                       W3, &
                                       ndata, &
                                       real_type, &
-                                      r_def )
+                                      r_def, &
+                                      mesh%get_halo_depth() )
     deallocate( halo_finish )
-    deallocate( global_dof_id )
+    nullify( global_dof_id )
 
     ! Test the getters on the halo_routing object return the correct values
     result = halo_routing%get_mesh_id()
@@ -260,7 +260,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       real_type, &
-                                      real32 )
+                                      real32, &
+                                      1_i_def )
 
     call perform_halo_exchange( dofs_r32, &
                                 halo_routing, &
@@ -284,7 +285,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       real_type, &
-                                      real64 )
+                                      real64, &
+                                      1_i_def )
 
     call perform_halo_exchange( dofs_r64, &
                                 halo_routing, &
@@ -308,7 +310,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       integer_type, &
-                                      int32 )
+                                      int32, &
+                                      1_i_def )
 
     call perform_halo_exchange( dofs_i32, &
                                 halo_routing, &
@@ -351,7 +354,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       real_type, &
-                                      real32 )
+                                      real32, &
+                                      1_i_def )
 
     call perform_halo_exchange_start( dofs_r32, &
                                       halo_routing, &
@@ -378,7 +382,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       real_type, &
-                                      real64 )
+                                      real64, &
+                                      1_i_def )
 
     call perform_halo_exchange_start( dofs_r64, &
                                       halo_routing, &
@@ -405,7 +410,8 @@ contains
                                       W3, &
                                       1_i_def, &
                                       integer_type, &
-                                      int32 )
+                                      int32, &
+                                      1_i_def )
 
     call perform_halo_exchange_start( dofs_i32, &
                                       halo_routing, &

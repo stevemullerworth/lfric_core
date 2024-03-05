@@ -42,7 +42,9 @@ contains
   !> @param[in] fs           The function space of the new field
   !> @param[in] id           The integer ID to pair with the field
   !> @param[in] array_size   The size of the field array
-  subroutine initialise(self, fs, id, array_size)
+  !> @param[in] halo_depth   Optional halo depth for field (to overwrite the
+  !!                         default halo depth)
+  subroutine initialise(self, fs, id, array_size, halo_depth)
 
     implicit none
 
@@ -50,13 +52,14 @@ contains
     type(function_space_type),       pointer, intent(in)    :: fs
     integer(kind=i_def),                      intent(in)    :: id
     integer(kind=i_def),                      intent(in)    :: array_size
+    integer(kind=i_def),            optional, intent(in)    :: halo_depth
 
     integer(kind=i_def) :: i
 
     allocate(self%field_array_(array_size))
 
     do i = 1, array_size
-      call self%field_array_(i)%initialise(fs)
+      call self%field_array_(i)%initialise(fs, halo_depth = halo_depth)
     end do
 
     call self%set_id(id)

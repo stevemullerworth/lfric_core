@@ -16,7 +16,8 @@ module field_r64_mod
   use, intrinsic :: iso_fortran_env, only : real64
 
   use constants_mod,        only: i_def, i_halo_index, l_def, &
-                                  str_def, real_type
+                                  str_def, real_type, &
+                                  default_halo_depth
   use field_parent_mod,     only: field_parent_type, &
                                   field_parent_proxy_type, &
                                   write_interface, read_interface, &
@@ -260,11 +261,13 @@ contains
   !> @param [in] vector_space the function space that the field lives on
   !> @param [in] name The field name. 'none' (constant name_none) is a reserved name
   !> @param [in] override_data Optional alternative data that can be attached to field
+  !> @param [in] halo_depth Optional alternative halo depth
   !>
   subroutine field_initialiser(self, &
                                vector_space, &
                                name, &
-                               override_data)
+                               override_data, &
+                               halo_depth)
 
     use, intrinsic :: ieee_arithmetic, only: IEEE_INVALID
     use, intrinsic :: ieee_exceptions, only: ieee_set_halting_mode, ieee_get_halting_mode
@@ -275,6 +278,7 @@ contains
     type(function_space_type), pointer, intent(in) :: vector_space
     character(*), optional, intent(in)             :: name
     real(real64), target, optional, intent(in)     :: override_data( : )
+    integer(i_def), optional, intent(in)           :: halo_depth
 
     character(str_def) :: local_name
 
@@ -282,11 +286,23 @@ contains
     logical :: halt_mode
     ! The signalling number
     real(real64) :: signalling_value
+    ! Depth of halo to allocate data array
+    integer(i_def) :: field_halo_depth
 
     if ( present(name) ) then
       local_name = name
     else
       local_name = name_none
+    end if
+
+    if ( present(halo_depth) ) then
+      if ( halo_depth > vector_space%get_halo_depth() ) then
+        call log_event('Requested field halo depth is greater then function space halo depth', LOG_LEVEL_ERROR)
+      else
+        field_halo_depth = halo_depth
+      end if
+    else
+      field_halo_depth = default_halo_depth
     end if
 
     ! In case the field is already initialised, destruct it ready for
@@ -296,7 +312,8 @@ contains
     call self%field_parent_initialiser(vector_space, &
                                        name=local_name, &
                                        fortran_type=real_type, &
-                                       fortran_kind=real64)
+                                       fortran_kind=real64, &
+                                       halo_depth=field_halo_depth)
 
     ! Associate data with the field
     if (present(override_data))then
@@ -313,13 +330,13 @@ contains
         call ieee_set_halting_mode(IEEE_INVALID, .false.)
 
         signalling_value = get_signalling_value(signalling_value)
-        allocate( self%data(vector_space%get_last_dof_halo()), &
+        allocate( self%data(vector_space%get_last_dof_halo(field_halo_depth)), &
                   source=signalling_value)
 
         call ieee_set_halting_mode(IEEE_INVALID, .true.)
       else
         ! Normal field allocation
-        allocate( self%data(vector_space%get_last_dof_halo()))
+        allocate( self%data(vector_space%get_last_dof_halo(field_halo_depth)))
       end if
 
       self%override_data => null()
@@ -395,10 +412,12 @@ contains
 
     if (present(name)) then
       call dest%initialise(vector_space = function_space,      &
-                           name = name)
+                           name = name, &
+                           halo_depth = self%get_field_halo_depth())
     else
       call dest%initialise(vector_space = function_space,      &
-                           name = self%get_name())
+                           name = self%get_name(), &
+                           halo_depth = self%get_field_halo_depth())
     end if
 
     dest%write_method => self%write_method
@@ -690,8 +709,8 @@ contains
 
     call log_event( label, log_level )
 
-    do df=1,function_space%get_undf()
-      write( log_scratch_space, '( I6, E16.8 )' ) df,self%data( df )
+    do df=1,function_space%get_last_dof_halo(self%get_field_halo_depth())
+      write( log_scratch_space, '( A, I6, E16.8 )' ) label,df,self%data( df )
       call log_event( log_scratch_space, log_level )
     end do
 
@@ -933,7 +952,7 @@ contains
     type(halo_routing_type), pointer :: halo_routing => null()
 
     if ( self%vspace%is_writable() ) then
-      if ( depth > self%max_halo_depth() ) &
+      if ( depth > self%get_field_proxy_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
@@ -965,7 +984,7 @@ contains
     integer(i_def), intent(in) :: depth
     type(halo_routing_type), pointer :: halo_routing => null()
     if ( self%vspace%is_writable() ) then
-      if ( depth > self%max_halo_depth() ) &
+      if ( depth > self%get_field_proxy_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
@@ -995,7 +1014,7 @@ contains
     integer(i_def), intent(in) :: depth
 
     if ( self%vspace%is_writable() ) then
-      if ( depth > self%max_halo_depth() ) &
+      if ( depth > self%get_field_proxy_halo_depth() ) &
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )

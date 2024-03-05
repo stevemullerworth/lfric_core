@@ -102,7 +102,7 @@ contains
         ! Initialise panel ID field object ---------------------------------------
         twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
         fs => function_space_collection%get_fs(twod_mesh, 0, W3)
-        call panel_id%initialise( vector_space = fs )
+        call panel_id%initialise( vector_space = fs, halo_depth = twod_mesh%get_halo_depth() )
 
         ! Initialise chi field object --------------------------------------------
         if ( coord_order == 0 ) then
@@ -121,7 +121,7 @@ contains
         end if
 
         do coord = 1, size(chi)
-          call chi(coord)%initialise(vector_space = fs )
+          call chi(coord)%initialise(vector_space = fs, halo_depth = twod_mesh%get_halo_depth() )
         end do
 
         ! Set coordinate fields --------------------------------------------------

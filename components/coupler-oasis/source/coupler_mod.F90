@@ -214,10 +214,10 @@ module coupler_mod
    !coordinates
    type( field_type )                          :: coord_output(3)
    !function space for coupling field
-   type(function_space_type), pointer          :: fld_cpld_fs   => null()
+   type(function_space_type), pointer          :: fld_cpld_fs
    type(function_space_type), pointer          :: sice_space => null()
    !global index for the mesh
-   integer(i_halo_index), allocatable          :: global_index(:)
+   integer(i_halo_index), pointer              :: global_index(:)
    !global index for the first mesh level
    integer(i_def), allocatable                 :: sglobal_index(:)
    !partition for OASIS
@@ -232,8 +232,6 @@ module coupler_mod
    integer(i_def)                              :: imass_shape(1)
    !error return by oasis routine
    integer(i_def)                              :: ierror
-   !temporary index
-   integer(i_def)                              :: local_undf
    !field proxy
    type( field_proxy_type )                    :: field_proxy
    !proxies for coordinates
@@ -277,6 +275,8 @@ module coupler_mod
    !rank number of current PE
    integer(i_def) :: local_rank
 
+   nullify( fld_cpld_fs, global_index )
+
    num_levels = twod_mesh%get_nlayers()
 
    if (num_levels > 1) then
@@ -301,11 +301,10 @@ module coupler_mod
 
    icpl_size = proxy_coord_output(1)%vspace%get_last_dof_owned()
 
-   allocate(global_index(fld_cpld_fs%get_ndof_glob()))
    allocate(sglobal_index(icpl_size))
    allocate(slocal_index(icpl_size))
 
-   call fld_cpld_fs%get_global_dof_id(global_index)
+   global_index => fld_cpld_fs%get_global_dof_id()
 
    if (maxval(global_index) > int(huge(i_def), i_halo_index)) then
       write(log_scratch_space,'(3A)') "cpl_define: global index", &
@@ -502,7 +501,7 @@ module coupler_mod
    call initialise_snow_mass( sice_space )
 
    nullify(field)
-   deallocate(global_index)
+   nullify(global_index)
    deallocate(sglobal_index)
    deallocate(ig_paral)
 #else

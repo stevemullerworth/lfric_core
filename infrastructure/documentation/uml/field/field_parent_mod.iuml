@@ -9,6 +9,7 @@ abstract class field_parent_mod::field_parent_type {
   -halo_dirty : integer[]<<allocatable>>
   -name : string
   -cpl_id : integer[]<<allocatable>>
+  -field_halo_depth : integer
 
   +field_parent_initialiser( <<in>>vector_space : function_space_type, <<in optional>> name : string, <<in optional>> ndata_first : logical,<<in optional>> )
   +field_parent_proxy_initialiser(field_proxy : field_proxy_type) :
@@ -22,6 +23,7 @@ abstract class field_parent_mod::field_parent_type {
   +get_name() : string
   +get_cpl_id( <<in>>i_multidata_lev: integer) : integer
   +set_cpl_id( <<in>>dcpl_id: integer, <<in>>i_multidata_lev: integer)
+  +get_field_halo_depth() : integer
 }
 
 abstract class field_parent_mod::field_parent_proxy_type {
@@ -30,8 +32,9 @@ abstract class field_parent_mod::field_parent_proxy_type {
   +halo_dirty: integer[] <<pointer>>
   +ndata_first : logical <<pointer>>
   +cpl_id : integer[]
+  -field_halo_depth : integer <<pointer>>
 
-  +max_halo_depth() : integer
+  +get_field_halo_depth() : integer
   +get_halo_routing( ) halo_routing: halo_routing_type <<pointer>>
   +is_dirty( <<in>>depth: integer ) : logical
   +set_dirty()

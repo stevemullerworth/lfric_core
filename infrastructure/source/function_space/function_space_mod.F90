@@ -352,6 +352,10 @@ module function_space_mod
     !> @return  Number of colours used to colour this mesh.
     procedure, public :: get_ncolours
 
+    !> @brief   Returns the halo depth of the function space
+    !> @return  Halo depth
+    procedure, public :: get_halo_depth
+
     procedure, public :: clear
 
     !> Routine to destroy function_space_type
@@ -1079,17 +1083,17 @@ contains
   !-----------------------------------------------------------------------------
   ! Gets the array that holds the global indices of all dofs
   !-----------------------------------------------------------------------------
-  subroutine get_global_dof_id(self, global_dof_id)
+  function get_global_dof_id(self) result(global_dof_id)
 
     implicit none
 
-    class(function_space_type) :: self
+    class(function_space_type), target, intent(in) :: self
 
-    integer(i_halo_index) :: global_dof_id(:)
+    integer(i_halo_index), pointer :: global_dof_id(:)
 
-    global_dof_id(:) = self%global_dof_id(:)
+    global_dof_id => self%global_dof_id(:)
 
-  end subroutine get_global_dof_id
+  end function get_global_dof_id
 
   !-----------------------------------------------------------------------------
   ! Gets the array that holds the global indices of cell dofs in 2D
@@ -1401,6 +1405,22 @@ contains
     call self%mesh%get_colours(ncolours, ncells_per_colour, colour_map)
 
   end subroutine get_colours
+
+  !-----------------------------------------------------------------------------
+  !> @brief   Returns the halo depth of the function space
+  !>
+  !> @return  Depth of the halo
+  !-----------------------------------------------------------------------------
+  function get_halo_depth(self) result(halo_depth)
+
+    implicit none
+
+    class(function_space_type), intent(in) :: self
+    integer(i_def) :: halo_depth
+
+    halo_depth = self%mesh%get_halo_depth()
+
+  end function get_halo_depth
 
   !-----------------------------------------------------------------------------
   !  Function to clear up objects - called by destructor

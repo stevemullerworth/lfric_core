@@ -186,7 +186,7 @@ contains
       case (4)
         xyprocs = 2
     end select
-    max_stencil_depth = 1
+    max_stencil_depth = 2
     filename = 'data/mesh_BiP8x8-750x250.nc'
 
     ! Initialise mesh, this also initialises tiling
@@ -278,7 +278,7 @@ contains
          last_halo_cells( ncolours, ntiles, ndepths )
 
     xyprocs = 2
-    max_stencil_depth = 3
+    max_stencil_depth = 4
     filename = 'data/mesh_planar-32x32.nc'
 
     ! The global mesh will be partitioned into 2x2 rectangular local meshes
@@ -439,7 +439,7 @@ contains
          last_halo_cells( ncolours, ntiles, ndepths )
 
     xyprocs = 2
-    max_stencil_depth = 3
+    max_stencil_depth = 4
     filename = 'data/mesh_planar-32x32.nc'
 
     ! Same test as "test_partitioned_planar_mesh_separated_halo", but without

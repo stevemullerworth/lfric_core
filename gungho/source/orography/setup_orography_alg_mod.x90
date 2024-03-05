@@ -97,12 +97,14 @@ contains
     if (w0_orography_mapping) then
       fs_id = W0
       call surface_altitude_list(1)%initialise( vector_space = &
-         function_space_collection%get_fs(source_twod_mesh, surface_order, fs_id) )
+         function_space_collection%get_fs(source_twod_mesh, surface_order, fs_id), &
+                                          halo_depth = source_twod_mesh%get_halo_depth() )
       call surface_altitude_alg(surface_altitude_list(1), surface_altitude)
     else
       fs_id = W3
       call surface_altitude_list(1)%initialise( vector_space = &
-         function_space_collection%get_fs(source_twod_mesh, surface_order, fs_id) )
+         function_space_collection%get_fs(source_twod_mesh, surface_order, fs_id), &
+                                          halo_depth = source_twod_mesh%get_halo_depth() )
       call invoke( setval_X(surface_altitude_list(1), surface_altitude) )
     end if
 
@@ -142,7 +144,8 @@ contains
       fs  => function_space_collection%get_fs(target_twod_mesh, surface_order, fs_id)
       call surface_altitude_inventory%get_field(source_twod_mesh, source_surface_altitude)
 
-      call surface_altitude_list(i+1)%initialise(vector_space = fs)
+      call surface_altitude_list(i+1)%initialise(vector_space = fs, &
+                                                 halo_depth = target_twod_mesh%get_halo_depth())
 
       ! We use a simple mapping from source to target meshes
       if (w0_orography_mapping) then

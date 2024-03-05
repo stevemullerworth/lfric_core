@@ -13,7 +13,8 @@
 
 module field_parent_mod
 
-  use constants_mod,               only: i_def, l_def, str_def, imdi, cmdi
+  use constants_mod,               only: i_def, l_def, str_def, imdi, cmdi, &
+                                         default_halo_depth
   use function_space_mod,          only: function_space_type
   use halo_routing_collection_mod, only: halo_routing_collection
   use halo_comms_mod,              only: halo_routing_type
@@ -42,6 +43,8 @@ module field_parent_mod
     character(str_def) :: name = cmdi
     !> Coupling id for each multidata-level
     integer(kind=i_def), allocatable :: cpl_id( : )
+    !> Depth of halo for this field
+    integer(kind=i_def) :: field_halo_depth
   contains
     !> Initialiser for a field parent object
     !> @param [in] vector_space The function space that the field lives on
@@ -78,6 +81,9 @@ module field_parent_mod
     procedure         :: get_cpl_id
     !> routine to set coupling id
     procedure         :: set_cpl_id
+    !> Return halo depth on this field
+    !> @return The halo depth on this field
+    procedure, public :: get_field_halo_depth
   end type field_parent_type
 
   !> Abstract field proxy type that is the patrent of any field proxy
@@ -98,10 +104,12 @@ module field_parent_mod
     type(halo_routing_type), public, pointer :: halo_routing => null()
     !> A pointer to the array that holds halo dirtiness
     integer(kind=i_def), public, pointer :: halo_dirty(:) => null()
+    !> Depth of halo for this field
+    integer(kind=i_def), pointer :: field_halo_depth
   contains
-    !> Return the maximum halo depth on this field
-    !> @return The maximum halo depth on this field
-    procedure, public :: max_halo_depth
+    !> Return the halo depth on this field
+    !> @return The halo depth on this field
+    procedure, public :: get_field_proxy_halo_depth
     !> Returns the halo routing information
     !> @return The halo routing object to be used in halo exchanges
     procedure, public :: get_halo_routing
@@ -183,13 +191,14 @@ contains
   !> @param [in] name The name of the field. 'none' is a reserved name
   !> @param [in] fortran_type The Fortran type of the field data
   !> @param [in] fortran_kind The Fortran kind of the field data
+  !> @param [in] field_halo_depth Depth of halo the field will be created with
   !>
   subroutine field_parent_initialiser( self, &
                                        vector_space, &
                                        fortran_type, &
                                        fortran_kind, &
-                                       name)
-
+                                       name,         &
+                                       halo_depth)
     implicit none
 
     class(field_parent_type), intent(inout)       :: self
@@ -199,11 +208,22 @@ contains
     !> The kind of data in the field to be halo swapped
     integer(i_def), intent(in)                    :: fortran_kind
     character(*), optional, intent(in)            :: name
+    !> Depth of halo this field will be created with
+    integer(i_def), optional, intent(in)          :: halo_depth
 
     type (mesh_type), pointer :: mesh => null()
 
     self%vspace => vector_space
     mesh => self%vspace%get_mesh()
+
+    ! Set the depth of the halos for this field. If the optional parameter
+    ! is not given, use the maximum halo depth offerred by the mesh
+    if ( present(halo_depth) ) then
+      self%field_halo_depth = halo_depth
+    else
+      self%field_halo_depth = default_halo_depth
+    end if
+
 
     ! Fields on a read-only function space can never halo exchanged
     ! - so only need a routing table for writable function spaces
@@ -215,7 +235,8 @@ contains
                                              vector_space%which(), &
                                              vector_space%get_ndata(), &
                                              fortran_type, &
-                                             fortran_kind )
+                                             fortran_kind, &
+                                             self%field_halo_depth )
     end if
 
     ! Set the name of the field if given, otherwise default to 'none'
@@ -225,11 +246,8 @@ contains
       self%name = name_none
     end if
 
-    ! Create a flag for holding whether a halo depth is dirty or not
-    mesh => vector_space%get_mesh()
-
     ! Allow unphysical zero depth halos to support optimised halo exchanges
-    allocate(self%halo_dirty(0:mesh%get_halo_depth()))
+    allocate(self%halo_dirty(0:self%field_halo_depth))
     self%halo_dirty(0) = 0
     self%halo_dirty(1:) = 1
 
@@ -260,9 +278,10 @@ contains
    class(field_parent_type), target, intent(in)  :: self
    class(field_parent_proxy_type), intent(inout) :: field_proxy
 
-   field_proxy%vspace       => self%vspace
-   field_proxy%halo_routing => self%halo_routing
-   field_proxy%halo_dirty   => self%halo_dirty
+   field_proxy%vspace           => self%vspace
+   field_proxy%halo_routing     => self%halo_routing
+   field_proxy%halo_dirty       => self%halo_dirty
+   field_proxy%field_halo_depth => self%field_halo_depth
 
   end subroutine field_parent_proxy_initialiser
 
@@ -273,8 +292,8 @@ contains
     class(field_parent_type), target, intent(in)    :: self
     class(field_parent_type), target, intent(inout) :: dest
 
+    dest%field_halo_depth = self%field_halo_depth
     dest%halo_dirty(:)=self%halo_dirty(:)
-
   end subroutine copy_field_parent
 
   ! Function to return the integer id of the function space from the field
@@ -352,21 +371,17 @@ contains
 
   end function get_name
 
-  ! Returns the max halo depth of the field.
-  function max_halo_depth(self) result(max_depth)
+  ! Returns the halo depth of the field.
+  function get_field_halo_depth(self) result(field_halo_depth)
 
     implicit none
 
-    class(field_parent_proxy_type), intent(in) :: self
-    integer(i_def) :: max_depth
+    class(field_parent_type), intent(in) :: self
+    integer(i_def) :: field_halo_depth
 
-    type(mesh_type), pointer :: mesh
+    field_halo_depth = self%field_halo_depth
 
-    mesh => self%vspace%get_mesh()
-    max_depth = mesh%get_halo_depth()
-    nullify( mesh )
-
-  end function max_halo_depth
+  end function get_field_halo_depth
 
   ! Returns the halo routing information
   function get_halo_routing(self) result(halo_routing)
@@ -390,17 +405,15 @@ contains
     class(field_parent_proxy_type), intent(in) :: self
     integer(i_def), intent(in) :: depth
     logical(l_def) :: dirtiness
-    type(mesh_type), pointer   :: mesh => null()
 
-    mesh => self%vspace%get_mesh()
-    if( depth > mesh%get_halo_depth() ) &
+    if( depth > self%field_halo_depth ) &
       call log_event( 'Error in field: '// &
                       'call to is_dirty() with depth out of range.', &
                       LOG_LEVEL_ERROR )
 
     dirtiness = .false.
     if(self%halo_dirty(depth) == 1)dirtiness = .true.
-    nullify( mesh )
+
   end function is_dirty
 
   ! Sets a halo depth to be flagged as dirty
@@ -424,16 +437,13 @@ contains
 
     class(field_parent_proxy_type), intent(inout) :: self
     integer(i_def), intent(in) :: depth
-    type(mesh_type), pointer   :: mesh => null()
 
-    mesh => self%vspace%get_mesh()
-    if( depth > mesh%get_halo_depth() ) &
+    if( depth > self%field_halo_depth ) &
       call log_event( 'Error in field: '// &
                       'call to set_clean() with depth out of range.', &
                       LOG_LEVEL_ERROR )
 
     self%halo_dirty(1:depth) = 0
-    nullify( mesh )
   end subroutine set_clean
 
   !> Returns the mpi object this field is built on
@@ -523,5 +533,17 @@ contains
     endif
 
   end subroutine set_cpl_id
+
+  ! Returns the halo depth of the field.
+  function get_field_proxy_halo_depth(self) result(field_halo_depth)
+
+    implicit none
+
+    class(field_parent_proxy_type), intent(in) :: self
+    integer(i_def) :: field_halo_depth
+
+    field_halo_depth = self%field_halo_depth
+
+  end function get_field_proxy_halo_depth
 
 end module field_parent_mod

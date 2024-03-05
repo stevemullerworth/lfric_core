@@ -176,7 +176,7 @@ module io_dev_driver_mod
     !-------------------------------------------------------------------------
     ! 1.3 Create the required meshes
     !-------------------------------------------------------------------------
-    stencil_depth = 1
+    stencil_depth = 2
     apply_partition_check = .false.
     call init_mesh( modeldb%configuration,       &
                     modeldb%mpi%get_comm_rank(), &

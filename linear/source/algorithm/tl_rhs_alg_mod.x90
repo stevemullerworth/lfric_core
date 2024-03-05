@@ -128,7 +128,9 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     class(reference_element_type), pointer :: reference_element => null()
     type (mesh_type),              pointer :: mesh => null()
     integer(kind=i_def)                    :: vorticity_fs
-    type(field_type)                       :: rhs_adv
+    type(field_type)                       :: rhs_adv, &
+                                              exner_big_halo, &
+                                              ls_exner_big_halo
 
     integer(kind=i_def), parameter :: exner_stencil_depth = 1
 
@@ -194,13 +196,21 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
 
 
     ! Compute rhs_u
-    call invoke( name = "compute_rhs_u_setup",                                       &
-                 tl_pressure_gradient_bd_kernel_type( rhs_tmp,                       &
-                                                      exner, exner_stencil_depth,    &
-                                                      theta, moist_dyn,              &
-                                                      ls_exner, exner_stencil_depth, &
-                                                      ls_theta, ls_moist_dyn,        &
-                                                      cp, qrf ),                     &
+    call exner_big_halo%initialise( exner%get_function_space(), &
+                                    halo_depth = 2 )
+    call ls_exner_big_halo%initialise( ls_exner%get_function_space(), &
+                                       halo_depth = 2 )
+    call invoke( name = "compute_rhs_u_setup",                                &
+                 setval_X( exner_big_halo, exner ),                           &
+                 setval_X( ls_exner_big_halo, ls_exner ),                     &
+                 tl_pressure_gradient_bd_kernel_type( rhs_tmp,                &
+                                                      exner_big_halo,         &
+                                                      exner_stencil_depth,    &
+                                                      theta, moist_dyn,       &
+                                                      ls_exner_big_halo,      &
+                                                      exner_stencil_depth,    &
+                                                      ls_theta, ls_moist_dyn, &
+                                                      cp, qrf ),              &
                  tl_hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
                                              ls_exner, ls_theta, ls_moist_dyn,  &
                                              cp, qr ),                          &

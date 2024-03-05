@@ -58,6 +58,8 @@ module halo_comms_mod
     integer(i_def) :: fortran_type
     !> Description of the kind of data in the field to be halo swapped
     integer(i_def) :: fortran_kind
+    !> Depth of halo this routing is computed to
+    integer(i_def) :: halo_depth
     !> YAXT redistribution map
 #ifdef NO_MPI
     ! If this is a non-mpi, serial build, redistribution maps are meaningless
@@ -86,6 +88,8 @@ module halo_comms_mod
     procedure, public :: get_fortran_kind
     !> Gets a YAXT redistribution map for halo swapping
     procedure, public :: get_redist
+    !> Get halo depth
+    procedure, public :: get_halo_depth
   end type halo_routing_type
   !---------------------------------------------------------------------
 
@@ -157,7 +161,8 @@ function halo_routing_constructor( global_dof_id, &
                                    lfric_fs, &
                                    ndata, &
                                    fortran_type, &
-                                   fortran_kind ) &
+                                   fortran_kind, &
+                                   halo_depth ) &
                      result(self)
 
   implicit none
@@ -173,6 +178,7 @@ function halo_routing_constructor( global_dof_id, &
   integer(i_def), intent(in) :: ndata
   integer(i_def), intent(in) :: fortran_type
   integer(i_def), intent(in) :: fortran_kind
+  integer(i_def), intent(in) :: halo_depth
 
   type(halo_routing_type) :: self
   integer(i_def) :: max_depth
@@ -185,6 +191,7 @@ function halo_routing_constructor( global_dof_id, &
   self%ndata = ndata
   self%fortran_type = fortran_type
   self%fortran_kind = fortran_kind
+  self%halo_depth = halo_depth
 
   max_depth = size(halo_start)
   allocate( self%redist(max_depth) )
@@ -265,6 +272,16 @@ function get_fortran_kind(self) result (fortran_kind)
   fortran_kind = self%fortran_kind
   return
 end function get_fortran_kind
+
+!> @brief Gets the halo depth for which this object is valid
+!> @return The halo depth for which this object is valid
+function get_halo_depth(self) result (halo_depth)
+  implicit none
+  class(halo_routing_type), intent(in) :: self
+  integer(i_def) :: halo_depth
+  halo_depth = self%halo_depth
+  return
+end function get_halo_depth
 
 !> @brief Gets a YAXT redistribution map for halo swapping
 !> @param [in] depth The depth of halo exchange that the redistribution map

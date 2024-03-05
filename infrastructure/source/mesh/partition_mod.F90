@@ -212,10 +212,10 @@ contains
   integer(i_def) :: last
 
   self%max_stencil_depth = max_stencil_depth
-  self%halo_depth = self%max_stencil_depth + 1
+  self%halo_depth = self%max_stencil_depth
   allocate( self%num_halo(self%halo_depth) )
   allocate( self%last_halo_cell(self%halo_depth) )
-  self%inner_depth = self%max_stencil_depth + 1
+  self%inner_depth = self%max_stencil_depth
   allocate( self%num_inner(self%inner_depth) )
   allocate( self%last_inner_cell(self%inner_depth) )
   self%global_num_cells = global_mesh%get_ncells()
@@ -834,9 +834,9 @@ contains
     ! get the number of edge cells currently stored in the known_cells list
     num_edge = known_cells%get_length()
 
-    ! Add all cells from the halos (up to max_stencil_depth+1) that are in a
+    ! Add all cells from the halos (up to max_stencil_depth) that are in a
     ! stencil around each of the owned cells, but are not part of the partition.
-    ! Also add a "ghost" halo (max_stencil_depth+2) - used later to work out
+    ! Also add a "ghost" halo (max_stencil_depth+1) - used later to work out
     ! dof ownerships
     start_subsect => known_cells%get_head() ! start at the beginning
                                             ! of known_cells list
@@ -846,7 +846,7 @@ contains
     !known_cells_ptr => known_cells
     ! insert point is end of current list
     insert_point => known_cells%get_tail()
-    do depth = 1,max_stencil_depth +2
+    do depth = 1,max_stencil_depth +1
       ! update number of cells currently in known_cells
       orig_num_in_list = known_cells%get_length()
       last => known_cells%get_tail() ! point at tail of current known_cells list
@@ -856,7 +856,7 @@ contains
                           num_apply, & ! the number of items in known_cells to iterate over
                           insert_point=insert_point, & ! where to insert in list
                           exclude=partition ) ! exclude cells in partition
-      if(depth <= max_stencil_depth+1)then
+      if(depth <= max_stencil_depth)then
         num_halo(depth) = known_cells%get_length() - orig_num_in_list ! num halo cells at this depth
                                                                       ! is the number we just added
         ! if cells were added at this depth, reset start point to previous end of known_cells list
@@ -868,7 +868,7 @@ contains
         ! num cells to apply stencil to next is the number of cells just added to known_cells
         num_apply = num_halo(depth)
       else
-        ! num ghost cells is the number we just added to known_cells at max_stencil_depth + 2
+        ! num ghost cells is the number we just added to known_cells at max_stencil_depth + 1
         num_ghost = known_cells%get_length() - orig_num_in_list
       end if
     end do
@@ -883,7 +883,7 @@ contains
     insert_point => known_cells%get_head()
     ! num cells to apply stencil to is the number of edge cells only (not halo cells)
     num_apply=num_edge
-    do depth = 1,max_stencil_depth
+    do depth = 1,max_stencil_depth-1
       ! update number of cells currently in known_cells
       orig_num_in_list = known_cells%get_length()
       call apply_stencil( global_mesh, &
@@ -903,9 +903,9 @@ contains
     end do
 
     ! Now check partition list for any cells not yet added. These must be inner halo
-    ! cells of depth max_stencil_depth+1
+    ! cells of depth max_stencil_depth
 
-    num_inner(max_stencil_depth+1)=0
+    num_inner(max_stencil_depth)=0
     ! update number of cells currently in known_cells
     orig_num_in_list = known_cells%get_length()
     ! point at head of partition list
@@ -926,7 +926,7 @@ contains
         loop => loop%next
       end do
       ! update num_inner cells added
-      num_inner(max_stencil_depth+1)=known_cells%get_length()  - orig_num_in_list
+      num_inner(max_stencil_depth)=known_cells%get_length()  - orig_num_in_list
     end if
 
     allocate(partitioned_cells(known_cells%get_length()))
@@ -951,7 +951,7 @@ contains
     !
     ! Sort the individual depths of inner halo cells
     end_sort=0
-    do depth = max_stencil_depth+1, 1, -1
+    do depth = max_stencil_depth, 1, -1
       start_sort = end_sort + 1
       end_sort = start_sort + num_inner(depth) - 1
       call bubble_sort( end_sort-start_sort+1, &
@@ -965,7 +965,7 @@ contains
                       partitioned_cells(start_sort:end_sort) )
     !
     ! Sort the individual depths of halo cells
-    do depth = 1,max_stencil_depth+1
+    do depth = 1,max_stencil_depth
       start_sort = end_sort + 1
       end_sort = start_sort + num_halo(depth) - 1
       call bubble_sort( end_sort-start_sort+1, &

@@ -101,6 +101,8 @@ module tl_test_pressure_grad_bd_mod
     integer(i_def), parameter :: exner_stencil_depth = 1
     real(r_def),    parameter :: tol = 1.e-3_r_def
 
+    type(field_type) :: n_exner_big_halo, ls_exner_big_halo
+
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
 
@@ -116,7 +118,15 @@ module tl_test_pressure_grad_bd_mod
     call prognostic_fields%get_field('exner', n_exner)
     call ls_fields%get_field('ls_exner', ls_exner)
     call p_exner%initialise( vector_space = &
-      function_space_collection%get_fs(mesh, element_order, W3) )
+      function_space_collection%get_fs(mesh, element_order, W3), &
+      halo_depth = 2 )
+    call n_exner_big_halo%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order, W3), &
+      halo_depth = 2 )
+    call ls_exner_big_halo%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order, W3), &
+      halo_depth = 2 )
+    call invoke( setval_X( ls_exner_big_halo, ls_exner ) )
 
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("moist_dyn", moist_dyn_array)
@@ -150,9 +160,10 @@ module tl_test_pressure_grad_bd_mod
 
     ! Taylor Remainder Convergence Test
     call invoke( setval_C( n1_rhs_u, 0.0_r_def ) )
-    call invoke( pressure_gradient_bd_kernel_type( n1_rhs_u,                      &
-                                                   ls_exner, exner_stencil_depth, &
-                                                   ls_theta,                      &
+    call invoke( pressure_gradient_bd_kernel_type( n1_rhs_u,            &
+                                                   ls_exner_big_halo,   &
+                                                   exner_stencil_depth, &
+                                                   ls_theta,            &
                                                    ls_moist_dyn, cp, qrf ) )
 
     call invoke( assign_field_random_kernel_type( random_exner, 1.0_r_def ), &
@@ -166,14 +177,14 @@ module tl_test_pressure_grad_bd_mod
     do n=1,2
       gamma = gamma/2.0_r_def
 
-      call invoke( setval_C( n2_rhs_u, 0.0_r_def ),           &
-                   setval_C( p_rhs_u, 0.0_r_def ),            &
-                   a_times_X( p_theta, gamma, random_theta ), &
-                   setval_X( n_theta, ls_theta ),             &
-                   inc_X_plus_Y( n_theta, p_theta ),          &
-                   a_times_X( p_exner, gamma, random_exner ), &
-                   setval_X( n_exner, ls_exner ),             &
-                   inc_X_plus_Y( n_exner, p_exner ) )
+      call invoke( setval_C( n2_rhs_u, 0.0_r_def ),                 &
+                   setval_C( p_rhs_u, 0.0_r_def ),                  &
+                   a_times_X( p_theta, gamma, random_theta ),       &
+                   setval_X( n_theta, ls_theta ),                   &
+                   inc_X_plus_Y( n_theta, p_theta ),                &
+                   a_times_X( p_exner, gamma, random_exner ),       &
+                   setval_X( n_exner_big_halo, ls_exner_big_halo ), &
+                   inc_X_plus_Y( n_exner_big_halo, p_exner ) )
 
       do i = 1, num_moist_factors
         call invoke( a_times_X( p_moist_dyn(i), gamma, random_moist_dyn(i) ), &
@@ -181,17 +192,19 @@ module tl_test_pressure_grad_bd_mod
                      inc_X_plus_Y( n_moist_dyn(i), p_moist_dyn(i) ) )
       end do
 
-      call invoke( pressure_gradient_bd_kernel_type( n2_rhs_u,                     &
-                                                     n_exner, exner_stencil_depth, &
-                                                     n_theta,                      &
+      call invoke( pressure_gradient_bd_kernel_type( n2_rhs_u,            &
+                                                     n_exner_big_halo,    &
+                                                     exner_stencil_depth, &
+                                                     n_theta,             &
                                                      n_moist_dyn, cp, qrf ) )
-      call invoke( tl_pressure_gradient_bd_kernel_type( p_rhs_u,                       &
-                                                        p_exner, exner_stencil_depth,  &
-                                                        p_theta,                       &
-                                                        p_moist_dyn,                   &
-                                                        ls_exner, exner_stencil_depth, &
-                                                        ls_theta,                      &
-                                                        ls_moist_dyn,                  &
+      call invoke( tl_pressure_gradient_bd_kernel_type( p_rhs_u,                      &
+                                                        p_exner, exner_stencil_depth, &
+                                                        p_theta,                      &
+                                                        p_moist_dyn,                  &
+                                                        ls_exner_big_halo,            &
+                                                        exner_stencil_depth,          &
+                                                        ls_theta,                     &
+                                                        ls_moist_dyn,                 &
                                                         cp, qrf ) )
 
       call invoke( X_minus_Y( diff, n2_rhs_u, n1_rhs_u ), &

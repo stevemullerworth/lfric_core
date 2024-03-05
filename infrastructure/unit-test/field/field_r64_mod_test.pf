@@ -138,6 +138,7 @@ contains
     type(field_r64_proxy_type)    :: f2_p
 
     character(str_def) :: name
+    integer(i_def)     :: halo_depth
 
     type(function_space_type), pointer :: fs => null()
     type(mesh_type),           pointer :: mesh_out => null()
@@ -147,11 +148,15 @@ contains
     integer(i_def) :: order
 
     ! Make a field with a function space
-    call f1%initialise( vector_space = this%w2_fs, name='f1' )
+    call f1%initialise( vector_space = this%w2_fs, name='f1', halo_depth=3 )
 
     ! Get  and check the the name of the field
     name = f1%get_name()
     @assertEqual( 'f1', trim(name) )
+
+    ! Check getter for halo depth
+    halo_depth=f1%get_field_halo_depth()
+    @assertEqual ( 3, halo_depth )
 
     ! get the proxy
     f1_p = f1%get_proxy()
@@ -205,14 +210,14 @@ contains
     type(field_r64_proxy_type) :: f2_p
     type(field_r64_proxy_type) :: f3_p
     integer(i_def)             :: i
-    integer(i_def)             :: max_halo_depth
+    integer(i_def)             :: halo_depth
     type(halo_routing_type), pointer :: halo_routing
     integer(i_def)             :: order
     real(real64)               :: test_sum, test_min, test_max
     logical                    :: dirty
 
     ! Make a field with a function space
-    call f1%initialise( vector_space = this%w2_fs, name='f1' )
+    call f1%initialise( vector_space = this%w2_fs, name='f1', halo_depth=3 )
 
     ! get the proxy
     f1_p = f1%get_proxy()
@@ -247,8 +252,8 @@ contains
     test_max=f1_p%get_max()
     @assertEqual( 90.0  , test_max, 1.0e-2_real64)
 
-    max_halo_depth=f1_p%max_halo_depth()
-    @assertEqual ( 3, max_halo_depth )
+    halo_depth=f1_p%get_field_proxy_halo_depth()
+    @assertEqual ( 3, halo_depth )
 
     halo_routing=>f1_p%get_halo_routing()
     order = halo_routing%get_element_order()

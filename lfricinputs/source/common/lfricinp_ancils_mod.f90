@@ -104,9 +104,11 @@ WRITE(log_scratch_space,'(3A,I6)') &
      "Creating new field for ", TRIM(name)
 CALL log_event(log_scratch_space,LOG_LEVEL_INFO)
 IF (PRESENT(twod)) THEN
-  CALL new_field%initialise( twod_space, name=TRIM(name) )
+  CALL new_field%initialise( twod_space, name=TRIM(name), &
+                             halo_depth = twod_mesh%get_halo_depth() )
 ELSE
-  CALL new_field%initialise( w3_space, name=TRIM(name) )
+  CALL new_field%initialise( w3_space, name=TRIM(name), &
+                             halo_depth = mesh%get_halo_depth() )
 END IF
 
 ! Add the new field to the field collection

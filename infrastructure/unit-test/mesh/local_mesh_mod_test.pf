@@ -167,7 +167,7 @@ contains
         xproc = 2
         yproc = 2
     end select
-    max_stencil_depth = 1
+    max_stencil_depth = 2
 
     partition = partition_type( global_mesh_ptr, &
                                 partitioner_ptr, &
@@ -474,7 +474,7 @@ contains
       call ugrid_mesh_data%clear()
       global_mesh_ptr => global_mesh
       partition = partition_type( global_mesh_ptr, partitioner_ptr, &
-                                  1, 1, 0, 0, 1 )
+                                  1, 1, 1, 0, 1 )
       call local_mesh(i)%initialise( global_mesh_ptr, partition )
     end do
 

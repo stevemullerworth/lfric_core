@@ -33,7 +33,7 @@ module constants_mod
             LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
             PI, degrees_to_radians, radians_to_degrees,                  &
             cache_block, PRECISION_REAL, PRECISION_R_SOLVER,             &
-            PRECISION_R_TRAN, EPS_R_TRAN
+            PRECISION_R_TRAN, EPS_R_TRAN, default_halo_depth
 
   ! Define default application-defined kinds for all intrinsic data types
 
@@ -181,13 +181,18 @@ module constants_mod
   real(r_def), parameter :: degrees_to_radians = PI / 180.0_r_def
   real(r_def), parameter :: radians_to_degrees = 180.0_r_def / PI
 
-  !> @}
-  ! Missing data indicators
+  !> @name Missing data indicators
+  !> @{
   real     (r_def),     parameter :: RMDI  = -32768.0*32768.0 !< Value for real numbers
   integer  (i_def),     parameter :: IMDI  = -32768           !< Value for integer numbers
   character(str_short), parameter :: CMDI  = 'unset'          !< Value for characters
   character(str_short), parameter :: UNSET_KEY  = CMDI        !< Chararater value for namelist enumerations
   integer  (i_def),     parameter :: EMDI  = -1_i_def         !< Integer value for namelist enumerations
+  !> @}
+
+  !> @name Halo defaults
+  !> @{
+  integer(i_def), parameter :: default_halo_depth = 1 !< Default halo depth for fields and operators
   !> @}
 
 end module constants_mod

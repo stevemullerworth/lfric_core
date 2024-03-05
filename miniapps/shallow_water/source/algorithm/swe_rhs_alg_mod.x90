@@ -108,6 +108,7 @@ contains
     ! Useful fields and constants
     type(field_type)    :: rhs_u
     type(field_type)    :: total_geopot
+    type(field_type)    :: buoyancy
     real(kind=r_def)    :: minus_alpha_dt
     integer(kind=i_def) :: buoyancy_stencil
 
@@ -145,17 +146,20 @@ contains
          call log_event("RHS thermal SW kernels only work for planar geometry",LOG_LEVEL_ERROR)
       else
         ! Volume integral
-        call invoke( swe_buoyancy_gradient_volume_kernel_type(       &
+        call buoyancy%initialise( state%vector(isw_b)%get_function_space(), &
+                                  halo_depth = 2 )
+        call invoke( setval_X( buoyancy, state%vector(isw_b) ),      &
+                     swe_buoyancy_gradient_volume_kernel_type(       &
                                                 rhs%vector(isw_u),   &
                                                 total_geopot,        &
                                                 state%vector(isw_b), &
                                                 qr ) )
         ! Facet integral
-        call invoke( swe_buoyancy_gradient_facet_kernel_type(        &
-                                                rhs%vector(isw_u),   &
-                                                total_geopot,        &
-                                                state%vector(isw_b), &
-                                                buoyancy_stencil,    &
+        call invoke( swe_buoyancy_gradient_facet_kernel_type(      &
+                                                rhs%vector(isw_u), &
+                                                total_geopot,      &
+                                                buoyancy,          &
+                                                buoyancy_stencil,  &
                                                 qrf ) )
 
         ! Add buoyancy time dependency

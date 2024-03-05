@@ -245,6 +245,10 @@ contains
     integer(kind=i_def)            :: st, stage, mesh_id
     integer(kind=i_def), parameter :: exner_stencil_depth = 1
 
+    ! Fields with larger haloes
+    type(field_type) :: ls_exner_big_halo, &
+                        exner_big_halo
+
     if ( subroutine_timers ) call timer('tl_rk_alg')
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
@@ -318,21 +322,23 @@ contains
                                                         ls_vorticity(stage),         &
                                                         chi, panel_id, qr) )
       end if
-
-      call invoke( name = "compute_new_rhs",                                          &
-                   pressure_gradient_bd_kernel_type( rhs_prediction(igh_u, stage),    &
-                                                     ls_state_stage(igh_p,stage), 1,  &
-                                                     ls_state_stage(igh_t,stage),     &
-                                                     ls_moist_dyn, cp, qrf ),         &
-                   hydrostatic_kernel_type( rhs_prediction(igh_u,stage),              &
-                                            ls_state_stage(igh_p,stage),              &
-                                            ls_state_stage(igh_t,stage),              &
-                                            ls_moist_dyn,                             &
-                                            geopotential, cp, qr ),                   &
-                   kinetic_energy_gradient_kernel_type(                               &
-                                        rhs_prediction(igh_u,stage),                  &
-                                        ls_state_stage(igh_u,stage),                  &
-                                        chi, panel_id, qr ),                          &
+      call ls_exner_big_halo%initialise( ls_exner%get_function_space(), &
+                                         halo_depth = 2 )
+      call invoke( name = "compute_new_rhs",                                       &
+                   setval_X( ls_exner_big_halo, ls_state_stage(igh_p,stage) ),     &
+                   pressure_gradient_bd_kernel_type( rhs_prediction(igh_u, stage), &
+                                                     ls_exner_big_halo, 1,         &
+                                                     ls_state_stage(igh_t,stage),  &
+                                                     ls_moist_dyn, cp, qrf ),      &
+                   hydrostatic_kernel_type( rhs_prediction(igh_u,stage),           &
+                                            ls_state_stage(igh_p,stage),           &
+                                            ls_state_stage(igh_t,stage),           &
+                                            ls_moist_dyn,                          &
+                                            geopotential, cp, qr ),                &
+                   kinetic_energy_gradient_kernel_type(                            &
+                                        rhs_prediction(igh_u,stage),               &
+                                        ls_state_stage(igh_u,stage),               &
+                                        chi, panel_id, qr ),                       &
                    enforce_bc_kernel_type( rhs_prediction(1,stage) ) )
 
       call set_bundle_scalar(0.0_r_def, rhs, bundle_size)
@@ -407,16 +413,19 @@ contains
                      LOG_LEVEL_ERROR )
       end if
 
-      call invoke( name = "tl_compute_new_rhs",                                            &
-                   tl_pressure_gradient_bd_kernel_type( rhs_prediction(igh_u, stage),      &
-                                                        state(igh_p), exner_stencil_depth, &
-                                                        state(igh_t),                      &
-                                                        moist_dyn,                         &
-                                                        ls_state_stage(igh_p,stage),       &
-                                                        exner_stencil_depth,               &
-                                                        ls_state_stage(igh_t,stage),       &
-                                                        ls_moist_dyn,                      &
-                                                        cp, qrf ),                         &
+      call exner_big_halo%initialise( state(igh_p)%get_function_space(), &
+                                      halo_depth = 2 )
+      call invoke( name = "tl_compute_new_rhs",                                              &
+                   setval_X( exner_big_halo, state(igh_p) ),                                 &
+                   tl_pressure_gradient_bd_kernel_type( rhs_prediction(igh_u, stage),        &
+                                                        exner_big_halo, exner_stencil_depth, &
+                                                        state(igh_t),                        &
+                                                        moist_dyn,                           &
+                                                        ls_exner_big_halo,                   &
+                                                        exner_stencil_depth,                 &
+                                                        ls_state_stage(igh_t,stage),         &
+                                                        ls_moist_dyn,                        &
+                                                        cp, qrf ),                           &
                    tl_hydrostatic_kernel_type( rhs_prediction(igh_u,stage),            &
                                                state(igh_p), state(igh_t),             &
                                                moist_dyn,                              &

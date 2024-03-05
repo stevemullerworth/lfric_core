@@ -226,7 +226,7 @@ contains
         single_layer_mesh => mesh_collection%get_mesh( mesh, TWOD )
         w3_fs_2d          => function_space_collection%get_fs( &
                              single_layer_mesh, element_order, W3 )
-        call onion_layers%initialise( vector_space = w3_fs, name = 'onion_layers' )
+        call onion_layers%initialise( vector_space = w3_fs, name = 'onion_layers', halo_depth=2 )
         call create_onion_layers( onion_layers )
         call mask_collection%add_field( onion_layers )
 

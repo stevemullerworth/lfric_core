@@ -152,6 +152,12 @@ contains
     integer(kind=i_def) :: mesh_id
     type(field_type)    :: theta_v
 
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+
     if ( subroutine_timers ) call timer('rhs_alg')
 
     mesh_id = base_state(igh_u)%get_mesh_id()
@@ -187,14 +193,15 @@ contains
       coriolis => get_coriolis(mesh_id)
       call invoke( matrix_vector_kernel_type( rhs_u, u, coriolis ) )
     end if
-    call theta_v%initialise( theta%get_function_space() )
-    call invoke( X_times_Y( theta_v, theta, moist_dyn(1) ),                  &
-                 inc_X_divideby_Y( theta_v,  moist_dyn(2) ),                 &
-                 pressure_gradient_p0_kernel_type( rhs_u, exner,             &
-                                                   geopotential, theta_v, 1, &
-                                                   cp),                      &
-                 matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ),    &
-                 inc_X_plus_bY( rhs(igh_u), alpha_dt, rhs_u ),               &
+    call theta_v%initialise( theta%get_function_space(), halo_depth = req_halo_depth )
+    call invoke( X_times_Y( theta_v, theta, moist_dyn(1) ),               &
+                 inc_X_divideby_Y( theta_v,  moist_dyn(2) ),              &
+                 pressure_gradient_p0_kernel_type( rhs_u, exner,          &
+                                                   geopotential, theta_v, &
+                                                   req_stencil_depth,     &
+                                                   cp),                   &
+                 matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ), &
+                 inc_X_plus_bY( rhs(igh_u), alpha_dt, rhs_u ),            &
                  enforce_bc_kernel_type(rhs(igh_u)) )
 
     if ( compute_rhs_t_d ) then
@@ -267,6 +274,13 @@ contains
     integer(kind=i_def)                    :: mesh_id
     integer(kind=i_def)                    :: vorticity_fs
     type(field_type)                       :: rhs_adv
+    type(field_type)                       :: exner_big_halo
+
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
 
     if ( subroutine_timers ) call timer('rhs_alg')
 
@@ -309,8 +323,11 @@ contains
                  setval_c( rhs(igh_t), 0.0_r_def ) )
 
     ! Compute rhs_u
+    call exner_big_halo%initialise( exner%get_function_space(), halo_depth = req_halo_depth)
+    call invoke( setval_x( exner_big_halo, exner ) )
     call invoke( name = "compute_rhs_u_setup",                               &
-                 pressure_gradient_bd_kernel_type( rhs_tmp, exner, 1, theta, &
+                 pressure_gradient_bd_kernel_type( rhs_tmp, exner_big_halo,  &
+                                                   req_stencil_depth, theta, &
                                                    moist_dyn, cp, qrf ),     &
                  hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
                                           geopotential, cp, qr ),            &

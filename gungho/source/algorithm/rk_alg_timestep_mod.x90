@@ -245,7 +245,7 @@ contains
     call self%state(igh_u)%initialise( vector_space = u%get_function_space() )
     call self%state(igh_t)%initialise( vector_space = theta%get_function_space() )
     call self%state(igh_d)%initialise( vector_space = rho%get_function_space() )
-    call self%state(igh_p)%initialise( vector_space = exner%get_function_space() )
+    call self%state(igh_p)%initialise( vector_space = exner%get_function_space(), halo_depth=2 )
 
     call clone_bundle(self%state, self%state_n, bundle_size)
     call clone_bundle(self%state, self%rhs, bundle_size)
@@ -381,15 +381,15 @@ contains
                                         chi, panel_id, qr) )
       end if
 
-
-      call invoke( name = "compute_new_rhs",                                                  &
-                   pressure_gradient_bd_kernel_type( self%rhs_prediction(igh_u, stage),       &
-                                                     self%state(igh_p), 1, self%state(igh_t), &
-                                                     moist_dyn, cp, qrf ),                    &
-                   hydrostatic_kernel_type( self%rhs_prediction(igh_u,stage),                 &
-                                            self%state(igh_p), self%state(igh_t),             &
-                                            moist_dyn, geopotential, cp, qr ),                &
-                   enforce_bc_kernel_type( self%rhs_prediction(1,stage) ) )
+      call invoke( name = "compute_new_rhs",                                            &
+                   pressure_gradient_bd_kernel_type( self%rhs_prediction(igh_u, stage), &
+                                                     self%state(igh_p), 1,              &
+                                                     self%state(igh_t),                 &
+                                                     moist_dyn, cp, qrf ),              &
+                   hydrostatic_kernel_type( self%rhs_prediction(igh_u, stage),          &
+                                            self%state(igh_p), self%state(igh_t),       &
+                                            moist_dyn, geopotential, cp, qr ),          &
+                   enforce_bc_kernel_type( self%rhs_prediction(igh_u,stage) ) )
       call set_bundle_scalar(0.0_r_def, self%rhs, bundle_size)
 
       do stages = 1, stage

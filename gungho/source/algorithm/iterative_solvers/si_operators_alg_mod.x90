@@ -449,6 +449,12 @@ contains
     type(r_solver_operator_type)           :: m2_r_solver
     type(r_solver_field_type),     pointer :: detj_at_w3 => null()
 
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+
     if ( subroutine_timers ) call timer('si_operators_alg:compute')
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_INFO )
 
@@ -457,9 +463,9 @@ contains
     wt_fs => state(igh_t)%get_function_space()
 
     ! Create reference state (as r_solver fields)
-    call exner%initialise( w3_fs )
-    call rho%initialise( w3_fs )
-    call theta%initialise( wt_fs )
+    call exner%initialise( w3_fs, halo_depth = req_halo_depth )
+    call rho%initialise( w3_fs, halo_depth = req_halo_depth )
+    call theta%initialise( wt_fs, halo_depth = req_halo_depth )
     call invoke_copy_to_rsolver(exner, state(igh_p))
     call invoke_copy_to_rsolver(rho,   state(igh_d))
     call invoke_copy_to_rsolver(theta, state(igh_t))
@@ -562,16 +568,19 @@ contains
                       weighted_proj_theta2v_kernel_type(ptheta2(level), theta, const2, qr) )
        else
          ! The projection operators use horizonal and vertical
-         call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner, const1, qr),        &
-                      weighted_proj_theta2_kernel_type(ptheta2(level), theta, const2, qr),        &
-                      weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta, 1, const2, qrf), &
-                      weighted_proj_2theta_bd_kernel_type(p2theta(level), exner, 1, const1, qrf) )
+         call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner, const1, qr), &
+                      weighted_proj_theta2_kernel_type(ptheta2(level), theta, const2, qr), &
+                      weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta,           &
+                                                          req_stencil_depth, const2, qrf), &
+                      weighted_proj_2theta_bd_kernel_type(p2theta(level), exner,           &
+                                                          req_stencil_depth, const1, qrf) )
        end if
        call invoke( name = "cell_and_boundary_kernels_vert",                          &
           weighted_div_kernel_type(div_star(level), theta, const1, qr),               &
           weighted_proj_theta2_vert_kernel_type(ptheta2v(level), theta, const2, qr),  &
           ! Boundary kernels
-          weighted_div_bd_kernel_type(div_star(level), theta, 1, const1, qrf),        &
+          weighted_div_bd_kernel_type(div_star(level), theta, req_stencil_depth,      &
+                                      const1, qrf),                                   &
           ! Compound operators
           compound_operator_kernel_type( compound_div(level), m3_rho_star(level),     &
                                          div, rho_at_u(level), const3),               &
@@ -654,7 +663,7 @@ contains
            call invoke_elim_helmholtz_operator_kernel_type(                         &
                                                        Helmholtz_operator(:,level), &
                                                        Hb_lumped_inv(level),        &
-                                                       1,                           &
+                                                       req_stencil_depth,           &
                                                        u_normalisation,             &
                                                        div_star(level),             &
                                                        m3_exner_star(level),        &
@@ -664,7 +673,7 @@ contains
          else
            call invoke_helmholtz_operator_kernel_type( Helmholtz_operator(:,level), &
                                                        Hb_lumped_inv(level),        &
-                                                       1,                           &
+                                                       req_stencil_depth,           &
                                                        u_normalisation,             &
                                                        div_star(level),             &
                                                        t_normalisation,             &
@@ -723,7 +732,7 @@ contains
              call invoke( setval_X(coarse_field, theta) )
              ! set the fs to the next (fine)
              wt_fs=>wtheta_multigrid_function_space_chain%get_next()
-             call theta%initialise(vector_space = wt_fs)
+             call theta%initialise(vector_space = wt_fs, halo_depth=req_halo_depth )
              ! call restrict
              call invoke( restrict_scalar_unweighted_kernel_type(theta, coarse_field) )
 
@@ -732,7 +741,7 @@ contains
              call invoke( setval_X(coarse_field, rho) )
              ! set the fs to the next (fine)
              w3_fs=>multigrid_function_space_chain%get_next()
-             call rho%initialise(vector_space = w3_fs )
+             call rho%initialise(vector_space = w3_fs, halo_depth=req_halo_depth )
              ! call restrict
              call invoke( restrict_scalar_unweighted_kernel_type(rho, coarse_field) )
 
@@ -740,7 +749,7 @@ contains
              call exner%copy_field_properties(coarse_field)
              call invoke( setval_X(coarse_field, exner) )
              ! fs already set fine
-             call exner%initialise(vector_space = w3_fs )
+             call exner%initialise(vector_space = w3_fs , halo_depth=req_halo_depth)
              ! call restrict
              call invoke( restrict_scalar_unweighted_kernel_type(exner, coarse_field) )
              ! set w2_fs to next in chain

@@ -596,7 +596,8 @@ contains
         call invoke_operator_setval_x_rtran( im3_div_v_r_tran, im3_div_v )
 
         call detj_at_w3_r_def_inventory%add_field(detj_at_w3_r_def, w3_fs, mesh)
-        call detj_at_w3_r_tran_inventory%add_field(detj_at_w3_r_tran, w3_fs, mesh)
+        call detj_at_w3_r_tran_inventory%add_field(detj_at_w3_r_tran, w3_fs, mesh, &
+                                                   halo_depth=mesh%get_halo_depth())
         call invoke( setval_c(detj_at_w3_r_def, 0.0_r_def),           &
                      mm_diagonal_kernel_type(detj_at_w3_r_def, mm_w3) )
         if (extended_mesh) then
@@ -608,6 +609,7 @@ contains
           call invoke_copy_to_rtran(detj_at_w3_r_tran, detj_at_w3_r_def)
         end if
       end if
+
 
       nullify(im3_div, im3_div_r_tran, im3_div_h_r_tran, im3_div_v_r_tran, &
               div, div_h, mm_w3_inv_r_tran, mm_w3_inv, detj_at_w3_r_tran,  &

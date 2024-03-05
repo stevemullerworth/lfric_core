@@ -268,6 +268,11 @@ subroutine read_field_time_var(xios_field_name, field_proxy, time_indices, time_
     do j = 0, size(time_indices)-1
       time_index = time_indices(j+1)
 
+      ! Temporary fix to maintain KGO's for out of bounds issues with
+      ! time_indices (for the linear tests it is created with size 2 but passed
+      ! into here with size 3 and hence the last value is undefined)
+      time_index = max(time_index,1)
+
       ! Get correct time-entry from current multi-data level
       time_slice = ndata_slice( ( time_index - 1 ) * ( domain_size * vert_levels ) + 1 :  &
                                  ( time_index ) * ( domain_size * vert_levels ) )

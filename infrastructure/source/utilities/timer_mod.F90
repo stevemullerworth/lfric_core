@@ -216,7 +216,6 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_INFO)
      end do
 
-
      call calculate_timer_stats()
 
      if ( global_mpi%get_comm_rank() == 0 ) then

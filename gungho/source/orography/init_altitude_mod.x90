@@ -68,8 +68,10 @@ module init_altitude_mod
     vector_space => function_space_collection%get_fs( twod_mesh, &
                                                       surface_order, W3)
 
-    call surface_altitude%initialise(vector_space, name=trim('surface_altitude'))
-    call surface_altitude_tmp%initialise(vector_space)
+    call surface_altitude%initialise(vector_space, name=trim('surface_altitude'), &
+                                     halo_depth = twod_mesh%get_halo_depth())
+    call surface_altitude_tmp%initialise(vector_space, &
+                                         halo_depth = twod_mesh%get_halo_depth())
 
     ! Default is zero
     call invoke( setval_c(surface_altitude, 0.0_r_def))

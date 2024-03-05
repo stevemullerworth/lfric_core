@@ -124,6 +124,7 @@ contains
 
     integer(kind=i_def) :: ndata
     integer(kind=i_def) :: depth
+    type(r_tran_field_type) :: field_to_remap
 
 
     if ( subroutine_timers ) call timer('transport.remap_extended_mesh')
@@ -136,12 +137,23 @@ contains
 
     ! Ensure remapping depth is not larger than the halo depth
     depth = min( depth_in, get_required_stencil_depth() )
-
-    call remap_field%initialise( field%get_function_space() )
-    call invoke( setval_x( remap_field, field ) )
+    ! Both the field to be remapped and the remapped field need to be
+    ! created with the full size halo. For the field to be remapped
+    ! this is due to the interpolation parallel to a panel boundary
+    ! potentially needing many points in order to compute the correct
+    ! stencil. For the remapped field the need to use the full halo
+    ! depth is due to the possibility of it being needed to a larger
+    ! halo depth (than that expected by the depth_in arguement)
+    ! in the computation of departure points for the consistent scheme.
+    call remap_field%initialise( field%get_function_space(), &
+                                 halo_depth = mesh%get_halo_depth() )
+    call field_to_remap%initialise( field%get_function_space(), &
+                                    halo_depth = mesh%get_halo_depth() )
+    call invoke( setval_x( remap_field, field ), &
+                 setval_x( field_to_remap, field) )
     call invoke_remap_on_extended_mesh_kernel_type(          &
                                            remap_field,      &
-                                           field,            &
+                                           field_to_remap,   &
                                            stencil_depth,    &
                                            remap_weights,    &
                                            remap_indices,    &

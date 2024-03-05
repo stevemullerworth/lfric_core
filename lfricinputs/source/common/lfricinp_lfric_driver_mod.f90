@@ -214,7 +214,7 @@ end do
 !-------------------------------------------------------------------------
 ! 1.2 Create the required meshes
 !-------------------------------------------------------------------------
-stencil_depth = 1_i_def
+stencil_depth = 2_i_def
 check_partitions = .false.
 CALL init_mesh( configuration,              &
                 local_rank, total_ranks,    &

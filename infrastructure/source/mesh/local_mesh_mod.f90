@@ -1437,7 +1437,8 @@ contains
                                       lfric_fs       = W3, &
                                       ndata          = 1_i_def, &
                                       fortran_type   = integer_type, &
-                                      fortran_kind   = i_def )
+                                      fortran_kind   = i_def, &
+                                      halo_depth     = self%halo_depth )
 
     deallocate(cell_id)
 

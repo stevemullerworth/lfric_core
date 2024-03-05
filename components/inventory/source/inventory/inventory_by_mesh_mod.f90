@@ -626,7 +626,9 @@ end subroutine remove_paired_object
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  mesh        The mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-subroutine add_r32_field(self, field, fs, mesh, name)
+!> @param[in]  halo_depth  Optional halo depth for field (to overwrite the
+!!                         default halo depth)
+subroutine add_r32_field(self, field, fs, mesh, name, halo_depth)
 
   implicit none
 
@@ -635,6 +637,7 @@ subroutine add_r32_field(self, field, fs, mesh, name)
   type(function_space_type), pointer, intent(in)    :: fs
   type(mesh_type),                    intent(in)    :: mesh
   character(*),             optional, intent(in)    :: name
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_r32_field_pair_type)                      :: paired_object
   character(str_def)                                :: local_name
 
@@ -645,7 +648,8 @@ subroutine add_r32_field(self, field, fs, mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r32_field(mesh, field)
 
@@ -656,7 +660,9 @@ end subroutine add_r32_field
 !> @param[in]  fs          Function space for the field to be created
 !> @param[in]  mesh        The mesh to pair the field with
 !> @param[in]  name        Optional name for the field
-subroutine add_r64_field(self, field, fs, mesh, name)
+!> @param[in]  halo_depth  Optional halo depth for field (to overwrite the
+!!                         default halo depth)
+subroutine add_r64_field(self, field, fs, mesh, name, halo_depth)
 
   implicit none
 
@@ -665,6 +671,7 @@ subroutine add_r64_field(self, field, fs, mesh, name)
   type(function_space_type), pointer, intent(in)    :: fs
   type(mesh_type),                    intent(in)    :: mesh
   character(*),             optional, intent(in)    :: name
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_r64_field_pair_type)                      :: paired_object
   character(str_def)                                :: local_name
 
@@ -675,7 +682,8 @@ subroutine add_r64_field(self, field, fs, mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r64_field(mesh, field)
 
@@ -740,7 +748,9 @@ end subroutine add_r64_intermesh_field
 !> @param[in]  fs           Function space for the field to be created
 !> @param[in]  mesh         The mesh to pair the field with
 !> @param[in]  name         Optional name for the field
-subroutine add_integer_field(self, field, fs, mesh, name)
+!> @param[in]  halo_depth   Optional halo depth for field (to overwrite the
+!!                          default halo depth)
+subroutine add_integer_field(self, field, fs, mesh, name, halo_depth)
 
   implicit none
 
@@ -749,6 +759,7 @@ subroutine add_integer_field(self, field, fs, mesh, name)
   type(function_space_type), pointer, intent(in)    :: fs
   type(mesh_type),                    intent(in)    :: mesh
   character(*),             optional, intent(in)    :: name
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_integer_field_pair_type)                  :: paired_object
   character(str_def)                                :: local_name
 
@@ -759,7 +770,8 @@ subroutine add_integer_field(self, field, fs, mesh, name)
   end if
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), name=local_name)
+  call paired_object%initialise(fs, mesh%get_id(), name=local_name, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_integer_field(mesh, field)
 
@@ -770,7 +782,9 @@ end subroutine add_integer_field
 !> @param[in]  fs           Function space for the fields to be created
 !> @param[in]  array_size   Size of array of fields to be created
 !> @param[in]  mesh         The mesh to pair the field_array with
-subroutine add_r32_field_array(self, field_array, fs, array_size, mesh)
+!> @param[in]  halo_depth   Optional halo depth for field (to overwrite the
+!!                          default halo depth)
+subroutine add_r32_field_array(self, field_array, fs, array_size, mesh, halo_depth)
 
   implicit none
 
@@ -779,10 +793,12 @@ subroutine add_r32_field_array(self, field_array, fs, array_size, mesh)
   type(function_space_type), pointer, intent(in)    :: fs
   integer(kind=i_def),                intent(in)    :: array_size
   type(mesh_type),                    intent(in)    :: mesh
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_r32_field_array_pair_type)                :: paired_object
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), array_size)
+  call paired_object%initialise(fs, mesh%get_id(), array_size, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r32_field_array(mesh, field_array)
 
@@ -793,7 +809,9 @@ end subroutine add_r32_field_array
 !> @param[in]  fs           Function space for the fields to be created
 !> @param[in]  array_size   Size of array of fields to be created
 !> @param[in]  mesh         The mesh to pair the field_array with
-subroutine add_r64_field_array(self, field_array, fs, array_size, mesh)
+!> @param[in]  halo_depth   Optional halo depth for field (to overwrite the
+!!                          default halo depth)
+subroutine add_r64_field_array(self, field_array, fs, array_size, mesh, halo_depth)
 
   implicit none
 
@@ -802,10 +820,12 @@ subroutine add_r64_field_array(self, field_array, fs, array_size, mesh)
   type(function_space_type), pointer, intent(in)    :: fs
   integer(kind=i_def),                intent(in)    :: array_size
   type(mesh_type),                    intent(in)    :: mesh
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_r64_field_array_pair_type)                :: paired_object
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), array_size)
+  call paired_object%initialise(fs, mesh%get_id(), array_size, &
+                                  halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_r64_field_array(mesh, field_array)
 
@@ -816,7 +836,9 @@ end subroutine add_r64_field_array
 !> @param[in]  fs           Function space for the fields to be created
 !> @param[in]  array_size   Size of array of fields to be created
 !> @param[in]  mesh         The mesh to pair the field_array with
-subroutine add_integer_field_array(self, field_array, fs, array_size, mesh)
+!> @param[in]  halo_depth   Optional halo depth for field (to overwrite the
+!!                          default halo depth)
+subroutine add_integer_field_array(self, field_array, fs, array_size, mesh, halo_depth)
 
   implicit none
 
@@ -825,10 +847,12 @@ subroutine add_integer_field_array(self, field_array, fs, array_size, mesh)
   type(function_space_type), pointer, intent(in)    :: fs
   integer(kind=i_def),                intent(in)    :: array_size
   type(mesh_type),                    intent(in)    :: mesh
+  integer(i_def),           optional, intent(in)    :: halo_depth
   type(id_integer_field_array_pair_type)            :: paired_object
 
   ! Set up the paired_object
-  call paired_object%initialise(fs, mesh%get_id(), array_size)
+  call paired_object%initialise(fs, mesh%get_id(), array_size, &
+                                halo_depth=halo_depth)
   call self%add_paired_object(paired_object)
   call self%get_integer_field_array(mesh, field_array)
 
