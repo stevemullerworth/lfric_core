@@ -664,6 +664,7 @@ contains
            chem_timestep=3600,                                                 &
            nrsteps=45,                                                         &
            l_ukca_asad_columns=.true.,                                         &
+           l_ukca_asad_full=.false.,                                           &
            l_ukca_intdd=.true.,                                                &
            l_ukca_ddep_lev1=.false.,                                           &
            l_ukca_ddepo3_ocean=.false.,                                        &
@@ -1315,6 +1316,7 @@ contains
            chem_timestep=3600,                                                 &
            nrsteps=1,                                                          &
            l_ukca_asad_columns=.true.,                                         &
+           l_ukca_asad_full=.false.,                                           &
            l_ukca_intdd=.false.,                                               &
 
            ! UKCA emissions configuration options
