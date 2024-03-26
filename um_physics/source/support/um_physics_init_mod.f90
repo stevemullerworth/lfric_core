@@ -175,7 +175,6 @@ module um_physics_init_mod
                                          include_moisture_moist,    &
                                          include_moisture_dry
 
-  use jules_surface_types_mod, only: npft
 
   ! Other LFRic modules used
   use constants_mod,        only : i_def, l_def, r_um, i_um, rmdi, r_def, r_bl

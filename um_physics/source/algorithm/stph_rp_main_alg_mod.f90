@@ -385,29 +385,6 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
   end do
 
-  ! Remove the existing key values in the modeldb so they can be
-  ! replaced with updated values
-  call modeldb%values%remove_key_value('rp_bl_a_ent_1_rand')
-  call modeldb%values%remove_key_value('rp_bl_cld_top_diffusion_rand')
-  call modeldb%values%remove_key_value('rp_bl_mix_rand')
-  call modeldb%values%remove_key_value('rp_bl_stab_rand')
-  call modeldb%values%remove_key_value('rp_lsfc_lai_mult_rand')
-  call modeldb%values%remove_key_value('rp_lsfc_z0hm_pft_rand')
-  call modeldb%values%remove_key_value('rp_mp_ndrop_surf_rand')
-
-  ! Save the time-correlated random numbers in the modeldb
-  call modeldb%values%add_key_value('rp_bl_a_ent_1_rand', rp_bl_a_ent_1_rand)
-  call modeldb%values%add_key_value('rp_bl_cld_top_diffusion_rand', &
-                                     rp_bl_cld_top_diffusion_rand)
-  call modeldb%values%add_key_value('rp_bl_mix_rand', rp_bl_mix_rand)
-  call modeldb%values%add_key_value('rp_bl_stab_rand', rp_bl_stab_rand)
-  call modeldb%values%add_key_value('rp_lsfc_lai_mult_rand', &
-                                     rp_lsfc_lai_mult_rand)
-  call modeldb%values%add_key_value('rp_lsfc_z0hm_pft_rand', &
-                                     rp_lsfc_z0hm_pft_rand)
-  call modeldb%values%add_key_value('rp_mp_ndrop_surf_rand', &
-                                     rp_mp_ndrop_surf_rand)
-
   ! Pass the values through to the UM schemes to use
   a_ent_1_rp = rp_bl_a_ent_1_pert
   cbl_mix_fac_rp = rp_bl_cbl_mix_fac_pert
