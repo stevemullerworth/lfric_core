@@ -26,57 +26,15 @@ module sci_field_vector_mod_test
   implicit none
 
   private
-  public :: setUp, tearDown, test_all
+  public :: test_all
 
   integer(i_def), parameter :: element_order = 0
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @before
-  subroutine setUp(context)
-
-    implicit none
-
-    class(MpiTestMethod), intent(inout) :: context
-
-    !Store the MPI communicator for later use
-    call global_mpi%initialise( context%getMpiCommunicator() )
-
-    ! Initialise halo functionality
-    call initialise_halo_comms( context%getMpiCommunicator() )
-
-    ! Create top level mesh collection
-    mesh_collection = mesh_collection_type()
-    ! Create top level function space collection
-    function_space_collection = function_space_collection_type()
-    ! Create top level halo_routing collection
-    halo_routing_collection = halo_routing_collection_type()
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @after
-  subroutine tearDown( context )
-
-    implicit none
-
-    class(MpiTestMethod), intent(inout) :: context
-
-    call mesh_collection%clear()
-    call function_space_collection%clear()
-    call halo_routing_collection%clear()
-
-    ! Finalise halo functionality
-    call finalise_halo_comms()
-    ! Clear the stored MPI communicator
-    call global_mpi%finalise()
-
-  end subroutine tearDown
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @Test( npes=[1] )
-  subroutine test_all( context )
+  @Test
+  subroutine test_all( )
 
     use field_mod,             only: field_type, field_proxy_type
     use function_space_mod,    only: function_space_type
@@ -84,8 +42,6 @@ contains
     use sci_field_vector_mod,  only: field_vector_type
 
     implicit none
-
-    class(MpiTestMethod), intent(inout) :: context
 
     type(field_vector_type) :: fv1, fv2, fv3
     type(field_type)          :: f1, f2, f3
@@ -106,6 +62,13 @@ contains
     integer :: i, undf
     real(r_def) :: sum1, min1, max1, sum2, min2, max2, scalar
     real(r_def) :: test, answer
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
 
     call unit_test_local_mesh%initialise()
     unit_test_local_mesh_ptr => unit_test_local_mesh
@@ -238,6 +201,10 @@ contains
     test = fv1%norm()
     answer = fv2%norm()
     @assertEqual( test, answer, 1.0e-2_r_def )
+
+    call mesh_collection%clear()
+    call function_space_collection%clear()
+    call halo_routing_collection%clear()
 
   end subroutine test_all
 
