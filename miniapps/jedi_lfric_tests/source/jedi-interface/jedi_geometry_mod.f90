@@ -21,11 +21,8 @@ module jedi_geometry_mod
   use jedi_geometry_config_mod,      only : jedi_geometry_config_type
   use jedi_lfric_driver_time_mod,    only : jedi_lfric_init_time, &
                                             jedi_lfric_final_time
-  use jedi_lfric_mesh_interface_mod, only : set_target_mesh,           &
-                                            is_mesh_cubesphere,        &
-                                            get_domain_top,            &
+  use jedi_lfric_mesh_interface_mod, only : is_mesh_cubesphere,        &
                                             get_cubesphere_resolution, &
-                                            get_nlayers,               &
                                             get_layer_ncells,          &
                                             get_lonlat,                &
                                             get_sigma_w3_levels,       &
@@ -48,8 +45,7 @@ type, public :: jedi_geometry_type
 
   !> The data map between external field data and LFRic fields
   integer( kind = i_def ), allocatable  :: horizontal_map(:)
-  !> The LFRic field dimensions
-  integer( kind = i_def )               :: n_layers
+  !> the LFRic field dimensions
   integer( kind = i_def )               :: n_horizontal
   !> Comm and mesh_name
   integer( kind = i_def )               :: mpi_comm
@@ -104,6 +100,7 @@ subroutine initialise( self, mpi_comm, jedi_geometry_config )
   type( jedi_geometry_config_type )          :: jedi_geometry_config
 
   ! Local
+  type(mesh_type), pointer           :: mesh
   type(mpi_type)                     :: mpi_obj
   type(namelist_collection_type)     :: configuration
   integer                            :: i_horizontal
@@ -132,18 +129,17 @@ subroutine initialise( self, mpi_comm, jedi_geometry_config )
   ! The following is testing the mesh interface
 
   ! Set target mesh for all functions in the interface
-  call set_target_mesh(self%mesh_name)
+  mesh => self%get_mesh()
 
-  if ( .not. is_mesh_cubesphere() ) then
+  if ( .not. is_mesh_cubesphere(mesh) ) then
     call log_event( "Working mesh is not a cubesphere", LOG_LEVEL_ERROR )
   end if
 
   ! Get grid size and layers
-  self%n_layers = get_nlayers()
-  self%n_horizontal = get_layer_ncells()
+  self%n_horizontal = get_layer_ncells(mesh)
 
   ! Create horizontal_map
-  lonlat = get_lonlat()
+  lonlat = get_lonlat(mesh)
   allocate( self%horizontal_map( self%n_horizontal ) )
 
   ! For mock purposes return sequential map
@@ -152,9 +148,9 @@ subroutine initialise( self, mpi_comm, jedi_geometry_config )
   end do
 
   ! Here JEDI deals with physical coordinates
-  domain_top = get_domain_top()
-  sigma_W3_levels = get_sigma_w3_levels()
-  sigma_Wtheta_levels = get_sigma_wtheta_levels()
+  domain_top = mesh%get_domain_top()
+  sigma_W3_levels = get_sigma_w3_levels(mesh)
+  sigma_Wtheta_levels = get_sigma_wtheta_levels(mesh)
   stretching_height = get_stretching_height()
 
 end subroutine initialise
@@ -183,7 +179,10 @@ function get_n_layers(self) result(n_layers)
   class( jedi_geometry_type ), intent(in) :: self
   integer( kind=i_def )                   :: n_layers
 
-  n_layers = self%n_layers
+  type(mesh_type), pointer :: mesh
+  mesh => self%get_mesh()
+
+  n_layers = mesh%get_nlayers()
 
 end function get_n_layers
 

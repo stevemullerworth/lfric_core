@@ -9,6 +9,7 @@
 module jedi_lfric_mesh_interface_test
 
   use constants_mod,                  only: i_def, r_def
+  use configuration_mod,              only: final_configuration
   use halo_routing_collection_mod,    only: halo_routing_collection, &
                                             halo_routing_collection_type
   use local_mesh_collection_mod,      only: local_mesh_collection, &
@@ -21,10 +22,7 @@ module jedi_lfric_mesh_interface_test
   use extrusion_config_mod,           only: method_uniform, &
                                             stretching_method_linear
 
-  use jedi_lfric_mesh_interface_mod,  only: set_target_mesh,        &
-                                            get_domain_top,         &
-                                            get_stretching_height,  &
-                                            get_nlayers,            &
+  use jedi_lfric_mesh_interface_mod,  only: get_stretching_height,  &
                                             get_layer_ncells,       &
                                             get_sigma_w3_levels,    &
                                             get_sigma_wtheta_levels
@@ -34,17 +32,18 @@ module jedi_lfric_mesh_interface_test
 
   implicit none
 
+  real(r_def), parameter :: tol = 1e-5_r_def
+
   @TestCase
   type, extends(TestCase), public :: jedi_lfric_mesh_interface_test_type
     private
     real(r_def)                   :: tol
+    type(mesh_type)               :: unit_test_mesh
 
   contains
     procedure setUp
     procedure tearDown
-    procedure test_get_domain_top
     procedure test_get_stretching_height
-    procedure test_get_nlayers
     procedure test_get_layer_ncells
     procedure test_get_sigma_w3_levels
     procedure test_get_sigma_wtheta_levels
@@ -60,7 +59,7 @@ module jedi_lfric_mesh_interface_test
 
     type(local_mesh_type), pointer  :: unit_test_local_mesh_ptr
     type(local_mesh_type), target   :: unit_test_local_mesh
-    type(mesh_type)                 :: unit_test_mesh, unit_test_twod_mesh
+    type(mesh_type)                 :: unit_test_twod_mesh
     integer(i_def)                  :: mesh_id
 
     ! Create top level collections
@@ -78,8 +77,8 @@ module jedi_lfric_mesh_interface_test
     mesh_id = mesh_collection%add_new_mesh( unit_test_twod_mesh )
 
     ! 3d mesh
-    unit_test_mesh = mesh_type( PLANE, unit_test_local_mesh_ptr )
-    mesh_id = mesh_collection%add_new_mesh( unit_test_mesh )
+    this%unit_test_mesh = mesh_type( PLANE, unit_test_local_mesh_ptr )
+    mesh_id = mesh_collection%add_new_mesh( this%unit_test_mesh )
 
     call feign_extrusion_config(    &
       method=method_uniform,        &
@@ -87,10 +86,6 @@ module jedi_lfric_mesh_interface_test
       number_of_layers=5_i_def,     &
       stretching_height=1.0_r_def,  &
       stretching_method=stretching_method_linear)
-
-    ! Set constants
-    call set_target_mesh( unit_test_mesh%get_mesh_name() )
-    this%tol = 1e-5_r_def
 
   end subroutine setUp
 
@@ -103,23 +98,9 @@ module jedi_lfric_mesh_interface_test
     deallocate(mesh_collection)
     deallocate(halo_routing_collection)
     deallocate(local_mesh_collection)
+    call final_configuration()
 
   end subroutine tearDown
-
-  @Test
-  subroutine test_get_domain_top( this )
-
-    implicit none
-
-    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
-    real(r_def) :: out, kgo
-
-    out = get_domain_top()
-    kgo = 1e4_r_def
-
-    @assertEqual(kgo, out, this%tol)
-
-  end subroutine test_get_domain_top
 
   @Test
   subroutine test_get_stretching_height( this )
@@ -132,25 +113,9 @@ module jedi_lfric_mesh_interface_test
     out = get_stretching_height()
     kgo = 1_r_def
 
-    @assertEqual(kgo, out, this%tol)
+    @assertEqual(kgo, out, tol)
 
   end subroutine test_get_stretching_height
-
-  @Test
-  subroutine test_get_nlayers( this )
-
-    implicit none
-
-    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
-    integer(i_def) :: out, kgo
-
-    out = get_nlayers()
-
-    kgo = 5_i_def
-
-    @assertEqual(kgo, out)
-
-  end subroutine test_get_nlayers
 
   @Test
   subroutine test_get_layer_ncells( this )
@@ -160,7 +125,7 @@ module jedi_lfric_mesh_interface_test
     class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
     integer(i_def) :: out, kgo
 
-    out = get_layer_ncells()
+    out = get_layer_ncells(this%unit_test_mesh)
 
     kgo = 9_i_def
 
@@ -178,10 +143,10 @@ module jedi_lfric_mesh_interface_test
 
     integer :: i
 
-    out = get_sigma_w3_levels()
+    out = get_sigma_w3_levels(this%unit_test_mesh)
     kgo = [ 0.1, 0.3, 0.5, 0.7, 0.9 ]
 
-    @assertEqual(kgo, out, this%tol)
+    @assertEqual(kgo, out, tol)
 
   end subroutine test_get_sigma_w3_levels
 
@@ -195,10 +160,10 @@ module jedi_lfric_mesh_interface_test
 
     integer :: i
 
-    out = get_sigma_wtheta_levels()
+    out = get_sigma_wtheta_levels(this%unit_test_mesh)
     kgo = [ 0.0, 0.2, 0.4, 0.6, 0.8, 1.0 ]
 
-    @assertEqual(kgo, out, this%tol)
+    @assertEqual(kgo, out, tol)
 
   end subroutine test_get_sigma_wtheta_levels
 
