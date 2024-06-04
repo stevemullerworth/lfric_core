@@ -1,6 +1,7 @@
 name: Preview Sphinx Docs
 
 on:
+  workflow_dispatch:
   pull_request_target:
     branches: [main] # branch to trigger deployment
 
@@ -29,7 +30,7 @@ jobs:
     - id: finesse_environment
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install sphinx sphinx_rtd_theme
+        python3 -m pip install sphinx pydata-sphinx-theme sphinx-sitemap
     - id: sphinx
       run: |
         cd documentation
