@@ -60,7 +60,40 @@ document-api: WORKING_DIR  := $(WORKING_DIR)/api
 document-api: api-documentation
 	$(Q)echo > /dev/null
 
+##############################################################################
+# Unit tests
 #
+unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
+unit-tests/%: export CXX_LINK = TRUE
+unit-tests/%: export EXTERNAL_STATIC_LIBRARIES += pfunit
+unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-science/HEAD
+unit-tests/%: export PROGRAMS = coupling_unit_tests
+unit-tests/%: export PROJECT = coupling
+unit-tests/%: export SOURCE_DIR = source
+unit-tests/%: export TEST_DIR = unit-test
+unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests: unit-tests/run
+
+##############################################################################
+# Test suite rules
+#
+.PHONY: launch-suite-gscan
+launch-suite-gscan: gscan_processes := $(shell ps --no-headers -o command -C cylc-gscan)
+launch-suite-gscan: ALWAYS
+	$(Q)-if [[ "$(gscan_processes)" != *"--name=$(SUITE_GROUP_NAME)"* ]]; then \
+          cylc gscan  $(DOUBLE_VERBOSE_ARG) --name=$(SUITE_GROUP_NAME) &           \
+          usleep 1                                                                ;\
+        fi
+
+.PHONY: test-suite
+test-suite: SUITE_BASE_NAME = $(notdir $(realpath $(shell pwd)/$(CORE_ROOT_DIR)))-$(PROJECT_NAME)
+test-suite: SUITE_CONFIG = rose-stem
+test-suite: launch-suite-gscan launch-test-suite
+	$(Q)echo > /dev/null
+
+print-%  : ; @echo $* = $($*)
+
 ##############################################################################
 # Clean
 #

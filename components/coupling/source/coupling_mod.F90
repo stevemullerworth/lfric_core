@@ -82,7 +82,7 @@ contains
   !>
   !> @param [out] comm_out Communicator returned from OASIS to run the model in
   !> @param [in]  comm_in  Input communicator that OASIS can split
-  !> @param [inout] comm_is_split Returns true if the MPI Comm has been split  
+  !> @param [inout] comm_is_split Returns true if the MPI Comm has been split
   !
   subroutine initialise(self, cpl_name, comm_out, comm_in, comm_is_split)
     implicit none
@@ -146,7 +146,7 @@ contains
     ! Loop index
     integer(i_def)                              :: i
 
-    ! Coupling only works for 2d, zeroth-order, cell-centred fields 
+    ! Coupling only works for 2d, zeroth-order, cell-centred fields
     ! - so create a function space for such a field
     if (twod_mesh%get_nlayers() > 1) then
       write(log_scratch_space,'(2A)') "define_coupling_partitions:", &
@@ -236,7 +236,7 @@ contains
     character(str_def)                          :: var_name_lev
     ! Function space of fields used in coupling
     type(function_space_type), pointer          :: cpl_fs
-    ! Number of multi-data fields 
+    ! Number of multi-data fields
     integer(i_def)                              :: ndata
     ! Index for different do loops
     integer(i_def)                              :: i

@@ -1,0 +1,49 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+module coupling_mod_test
+
+  use pFUnit_Mod
+
+  use coupling_mod,             only : coupling_type, &
+                                       get_coupling_from_collection
+  use key_value_collection_mod, only : key_value_collection_type
+  use key_value_mod,            only : abstract_value_type
+
+  implicit none
+
+  contains
+
+  @test
+  subroutine coupling_test()
+
+    implicit none
+
+    type(key_value_collection_type)     :: values
+    type(coupling_type)                 :: coupling
+    type(coupling_type),        pointer :: coupling_ptr1, coupling_ptr2
+    class(abstract_value_type), pointer :: abstract_value
+
+    nullify(coupling_ptr1, coupling_ptr2, abstract_value)
+
+    call values%initialise( 'values', 5 )
+    call values%add_key_value('coupling', coupling)
+
+    ! Test the call to get_coupling_from_collection
+    coupling_ptr1 => get_coupling_from_collection(values, "coupling" )
+
+    ! manually extract the coupling object to test against
+    call values%get_value("coupling", abstract_value)
+    select type(abstract_value)
+      type is (coupling_type)
+        coupling_ptr2 => abstract_value
+    end select
+
+    @assertTrue(associated(coupling_ptr1, coupling_ptr2))
+
+  end subroutine coupling_test
+
+end module coupling_mod_test

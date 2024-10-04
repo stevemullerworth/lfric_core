@@ -5,7 +5,8 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/variables.cylc") %}
 
-{% do site_vars.update({"known_applications": ["driver",
+{% do site_vars.update({"known_applications": ["coupling",
+                                               "driver",
                                                "infrastructure",
                                                "lfric_xios",
                                                "mesh",
