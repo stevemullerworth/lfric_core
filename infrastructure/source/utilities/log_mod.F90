@@ -369,6 +369,10 @@ contains
         call traceback()
       end if
 
+      if (logging_level <= LOG_LEVEL_DEBUG) then
+        flush(unit)
+      end if
+
       ! If the severity level of the event is serious enough, stop the code.
       if ( abort_run ) then
         call abort_model()
