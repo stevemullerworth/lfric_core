@@ -185,184 +185,53 @@ contains
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Psyclone does not currently have native support for builtins with mixed
-    ! precision, this will be addressed in https://github.com/stfc/PSyclone/issues/1786
-    ! Copy a field_type to a r_solver_field_type
-    subroutine invoke_copy_to_rsolver(rsolver_field, field)
+    subroutine invoke_inc_rdefX_plus_rsolverY(X, Y)
 
-      use omp_lib,            only: omp_get_thread_num
-      use omp_lib,            only: omp_get_max_threads
-      use mesh_mod,           only: mesh_type
-      use r_solver_field_mod, only: r_solver_field_type, r_solver_field_proxy_type
-      use field_mod,          only: field_type, field_proxy_type
+      use mesh_mod, only: mesh_type
 
       implicit none
 
-      type(r_solver_field_type), intent(inout) :: rsolver_field
-      type(field_type),          intent(in)    :: field
-
-      integer(kind=i_def)             :: df
-      integer(kind=i_def)             :: loop0_start, loop0_stop
-      type(r_solver_field_proxy_type) :: rsolver_field_proxy
-      type(field_proxy_type)          :: field_proxy
-      integer(kind=i_def)             :: max_halo_depth_mesh
-      type(mesh_type), pointer        :: mesh => null()
-      !
-      ! Initialise stencil dofmaps
-      !
-      rsolver_field_proxy = rsolver_field%get_proxy()
-      field_proxy = field%get_proxy()
-      !
-      ! Create a mesh object
-      !
-      mesh => rsolver_field_proxy%vspace%get_mesh()
-      max_halo_depth_mesh = mesh%get_halo_depth()
-      !
-      ! Set-up all of the loop bounds
-      !
-      loop0_start = 1
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        ! only copy the owned dofs
-        loop0_stop = rsolver_field_proxy%vspace%get_last_dof_annexed()
-      ELSE
-        ! copy the 1st halo row as well
-        loop0_stop = rsolver_field_proxy%vspace%get_last_dof_halo(1)
-      END IF
-      !
-      ! Call kernels and communication routines
-      !
-      !$omp parallel default(shared), private(df)
-      !$omp do schedule(static)
-      DO df=loop0_start,loop0_stop
-        rsolver_field_proxy%data(df) = real(field_proxy%data(df), r_solver)
-      END DO
-      !$omp end do
-      !$omp end parallel
-      !
-      ! Set halos dirty/clean for fields modified in the above loop
-      !
-      CALL rsolver_field_proxy%set_dirty()
-      IF (.not. field_proxy%is_dirty(depth=1)) THEN
-        CALL rsolver_field_proxy%set_clean(1)
-      END IF
-      !
-    end subroutine invoke_copy_to_rsolver
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Psyclone does not currently have native support for builtins with mixed
-    ! precision, this will be addressed in https://github.com/stfc/PSyclone/issues/1786
-    ! Copy a r_solver_field_type to a field_type
-    subroutine invoke_copy_to_rdef(rdef_field, field)
-
-      use omp_lib,            only: omp_get_thread_num
-      use omp_lib,            only: omp_get_max_threads
-      use mesh_mod,           only: mesh_type
-      use r_solver_field_mod, only: r_solver_field_type, r_solver_field_proxy_type
-      use field_mod,          only: field_type, field_proxy_type
-
-      implicit none
-
-      type(field_type),          intent(inout) :: rdef_field
-      type(r_solver_field_type), intent(in)    :: field
-
-      integer(kind=i_def)             :: df
-      integer(kind=i_def)             :: loop0_start, loop0_stop
-      type(r_solver_field_proxy_type) :: field_proxy
-      type(field_proxy_type)          :: rdef_field_proxy
-      integer(kind=i_def)             :: max_halo_depth_mesh
-      type(mesh_type), pointer        :: mesh => null()
+      type(field_type),          intent(inout) :: X
+      type(r_solver_field_type), intent(in)    :: Y
+      integer(kind=i_def) :: df
+      integer(kind=i_def) :: loop0_start, loop0_stop
+      type(field_proxy_type) :: X_proxy
+      type(r_solver_field_proxy_type) :: Y_proxy
+      integer(kind=i_def) :: max_halo_depth_mesh
+      type(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
       !
-      rdef_field_proxy = rdef_field%get_proxy()
-      field_proxy = field%get_proxy()
+      X_proxy = X%get_proxy()
+      Y_proxy = Y%get_proxy()
       !
       ! Create a mesh object
       !
-      mesh => rdef_field_proxy%vspace%get_mesh()
+      mesh => X_proxy%vspace%get_mesh()
       max_halo_depth_mesh = mesh%get_halo_depth()
       !
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      IF (field_proxy%is_dirty(depth=1)) THEN
-        ! only copy the owned dofs
-        loop0_stop = rdef_field_proxy%vspace%get_last_dof_annexed()
-      ELSE
-        ! copy the 1st halo row as well
-        loop0_stop = rdef_field_proxy%vspace%get_last_dof_halo(1)
-      END IF
+      loop0_stop = X_proxy%vspace%get_last_dof_annexed()
       !
       ! Call kernels and communication routines
       !
       !$omp parallel default(shared), private(df)
       !$omp do schedule(static)
       DO df=loop0_start,loop0_stop
-        rdef_field_proxy%data(df) = real(field_proxy%data(df), r_def)
+        X_proxy%data(df) = X_proxy%data(df) + real(Y_proxy%data(df),r_def)
       END DO
       !$omp end do
       !$omp end parallel
       !
-      ! Set halos dirty/clean for fields modified in the above loop
+      ! Set halos dirty/clean for fields modified in the above loop(s)
       !
-      CALL rdef_field_proxy%set_dirty()
-      IF (.not. field_proxy%is_dirty(depth=1)) THEN
-        CALL rdef_field_proxy%set_clean(1)
-      END IF
+      CALL X_proxy%set_dirty()
       !
-    end subroutine invoke_copy_to_rdef
+      ! End of set dirty/clean section for above loop(s)
+      !
+      !
+    end subroutine invoke_inc_rdefX_plus_rsolverY
 
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  subroutine invoke_inc_rdefX_plus_rsolverY(X, Y)
-
-    use mesh_mod, only: mesh_type
-
-    implicit none
-
-    type(field_type),          intent(inout) :: X
-    type(r_solver_field_type), intent(in)    :: Y
-    integer(kind=i_def) :: df
-    integer(kind=i_def) :: loop0_start, loop0_stop
-    type(field_proxy_type) :: X_proxy
-    type(r_solver_field_proxy_type) :: Y_proxy
-    integer(kind=i_def) :: max_halo_depth_mesh
-    type(mesh_type), pointer :: mesh => null()
-    !
-    ! Initialise field and/or operator proxies
-    !
-    X_proxy = X%get_proxy()
-    Y_proxy = Y%get_proxy()
-    !
-    ! Create a mesh object
-    !
-    mesh => X_proxy%vspace%get_mesh()
-    max_halo_depth_mesh = mesh%get_halo_depth()
-    !
-    ! Set-up all of the loop bounds
-    !
-    loop0_start = 1
-    loop0_stop = X_proxy%vspace%get_last_dof_annexed()
-    !
-    ! Call kernels and communication routines
-    !
-    !$omp parallel default(shared), private(df)
-    !$omp do schedule(static)
-    DO df=loop0_start,loop0_stop
-      X_proxy%data(df) = X_proxy%data(df) + real(Y_proxy%data(df),r_def)
-    END DO
-    !$omp end do
-    !$omp end parallel
-    !
-    ! Set halos dirty/clean for fields modified in the above loop(s)
-    !
-    CALL X_proxy%set_dirty()
-    !
-    ! End of set dirty/clean section for above loop(s)
-    !
-    !
-  end subroutine invoke_inc_rdefX_plus_rsolverY
-
-end module sci_psykal_light_mod
+  end module sci_psykal_light_mod
