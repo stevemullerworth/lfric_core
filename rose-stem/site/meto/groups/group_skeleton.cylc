@@ -10,8 +10,6 @@
     "skeleton_spice_developer": [
         "skeleton_spice_unit_tests",
         "skeleton_spice_canned",
-        "skeleton_default-C24_spice_gnu_fast-debug-64bit",
-        "skeleton_default-C24_spice_intel_fast-debug-64bit",
         "skeleton_default-C24_spice_gnu_full-debug-64bit",
         "skeleton_default-C24_spice_intel_full-debug-64bit",
     ],
@@ -40,7 +38,6 @@
     "skeleton_xc40_developer": [
         "skeleton_xc40_unit_tests",
         "skeleton_xc40_canned",
-        "skeleton_default-C24_xc40_intel_fast-debug-64bit",
         "skeleton_default-C24_xc40_intel_full-debug-64bit",
     ],
     "skeleton_xc40": [
@@ -62,7 +59,6 @@
 {% do site_groups.update({
     "skeleton_ex1a_developer": [
         "skeleton_ex1a_canned",
-        "skeleton_default-C24_ex1a_gnu_fast-debug-64bit",
         "skeleton_default-C24_ex1a_gnu_full-debug-64bit",
     ],
     "skeleton_ex1a": [

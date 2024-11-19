@@ -10,8 +10,6 @@
     "simple_diffusion_spice_developer": [
         "simple_diffusion_spice_unit_tests",
         "simple_diffusion_spice_canned",
-        "simple_diffusion_default-C24_spice_gnu_fast-debug-64bit",
-        "simple_diffusion_default-C24_spice_intel_fast-debug-64bit",
         "simple_diffusion_default-C24_spice_gnu_full-debug-64bit",
         "simple_diffusion_default-C24_spice_intel_full-debug-64bit",
     ],
@@ -40,7 +38,6 @@
     "simple_diffusion_xc40_developer": [
         "simple_diffusion_xc40_unit_tests",
         "simple_diffusion_xc40_canned",
-        "simple_diffusion_default-C24_xc40_intel_fast-debug-64bit",
         "simple_diffusion_default-C24_xc40_intel_full-debug-64bit",
     ],
     "simple_diffusion_xc40": [

@@ -10,9 +10,7 @@
     "io_demo_spice_developer": [
         "io_demo_spice_unit_tests",
         "io_demo_spice_canned",
-        "io_demo_default-C24_spice_gnu_fast-debug-64bit",
         "io_demo_default-C24_spice_gnu_fast-debug-32bit",
-        "io_demo_default-C24_spice_intel_fast-debug-64bit",
         "io_demo_default-C24_spice_intel_fast-debug-32bit",
         "io_demo_default-C24_spice_gnu_full-debug-64bit",
         "io_demo_default-C24_spice_intel_full-debug-64bit",
@@ -47,7 +45,6 @@
     "io_demo_xc40_developer": [
         "io_demo_xc40_unit_tests",
         "io_demo_xc40_canned",
-        "io_demo_default-C24_xc40_intel_fast-debug-64bit",
         "io_demo_default-C24_xc40_intel_fast-debug-32bit",
         "io_demo_default-C24_xc40_intel_full-debug-64bit",
         "io_demo_multifile-C24_xc40_intel_fast-debug-64bit",
