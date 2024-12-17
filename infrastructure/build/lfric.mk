@@ -163,6 +163,23 @@ TARGET_DIR = $(patsubst $(PERCENT)/,$(PERCENT),$(dir $@))
 #
 export INKSCAPE ?= inkscape
 
+define ANNOUNCE_BODY
+
+*******************************************************************************
+Error
+
+The Cylc 7 test suite is no longer in use, please use the Cylc 8 suite.
+
+New commands:
+
+export CYLC_VERSION=8
+rose stem --group=developer
+cylc play <working_copy_name>
+
+*******************************************************************************
+
+endef
+
 ##############################################################################
 # Build UML documentation
 #
@@ -220,39 +237,8 @@ api-documentation: ALWAYS
 # SUITE_GROUP_NAME_ABRV - Name(s) of the rose stem group(s) with abbreviations applied.
 #
 .PHONY: launch-test-suite
-SUITE_GROUP ?= developer
-ifneq (,$(findstring $(COMMA),$(SUITE_GROUP)))
-  # Default for multiple groups: abbreviate names of groups in suite name
-  SUITE_GROUP_ABRV ?= 1
-else
-  # Default for single group: keep full name of group in suite name
-  SUITE_GROUP_ABRV ?= 0
-endif
-SUITE_GROUP_NAME_ABRV := $(subst $(COMMA),$(SPACE),$(shell echo $(SUITE_GROUP) | tr '[:lower:]' '[:upper:]'))
-SUITE_GROUP_NAME_ABRV := $(subst $(SPACE),+,$(sort $(SUITE_GROUP_NAME_ABRV)))
-SUITE_GROUP_NAME_ABRV := $(subst WEEKLY,W,$(SUITE_GROUP_NAME_ABRV))
-SUITE_GROUP_NAME_ABRV := $(subst NIGHTLY,N,$(SUITE_GROUP_NAME_ABRV))
-SUITE_GROUP_NAME_ABRV := $(subst DEVELOPER,D,$(SUITE_GROUP_NAME_ABRV))
-ifeq ($(SUITE_GROUP_ABRV),0)
-launch-test-suite: SUITE_NAME = $(SUITE_BASE_NAME)-$$target-$(SUITE_GROUP)
-else
-launch-test-suite: SUITE_NAME = $(SUITE_BASE_NAME)-$$target-$(SUITE_GROUP_NAME_ABRV)
-endif
-ifdef VERBOSE
-launch-test-suite: VERBOSE_ARG = --define-suite=VERBOSE=$(VERBOSE)
-endif
 launch-test-suite:
-	$(Q)umask 022; for target in $(TEST_SUITE_TARGETS) ; do \
-	echo Launching $(PROJECT_NAME) test suite against $$target with $(SUITE_GROUP) group ; \
-	rose stem --name=$(SUITE_NAME) \
-	          --config=$(SUITE_CONFIG) \
-	          --opt-conf-key=$$target --no-gcontrol \
-	          $(CLEAN_OPT) $(QUIET_ARG) \
-	          --define-suite=RDEF_PRECISION=$(RDEF_PRECISION) \
-	          $(VERBOSE_ARG) \
-	          --group=$(SUITE_GROUP) \
-			  $(foreach name,$(MONSOON_ACCOUNT_NAME), -S "BATCH_ACCOUNT_NAME='$(name)'"); \
-	done
+	$(error $(ANNOUNCE_BODY) )
 
 
 ##############################################################################
