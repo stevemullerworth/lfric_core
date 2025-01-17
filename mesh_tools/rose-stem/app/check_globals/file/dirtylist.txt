@@ -1,6 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/support/calc_global_cell_map_mod.F90
-source/support/gen_lbc_mod.F90
-source/support/gen_planar_mod.F90
-source/support/gencube_ps_mod.F90

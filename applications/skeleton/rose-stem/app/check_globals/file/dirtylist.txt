@@ -1,3 +1,0 @@
-# Files should only ever be removed or renamed in this file, never added.
-#
-source/algorithm/skeleton_constants_mod.x90

@@ -7,7 +7,6 @@
 #
 # Variables:
 #   OPERATE_ON - Sub-projects which will be affected by operations.
-#   TEST_SUITE_TARGETS - Platforms to target with test suite.
 #
 #############################################################################
 
@@ -49,32 +48,6 @@ clean: $(addprefix clean/,$(OPERATE_ON))
 .PHONY: clean/%
 clean/%: ALWAYS
 	$(Q)$(MAKE) $(QUIET_ARG) -C $* clean
-
-##############################################################################
-# Lauanch gscan to monitor suites from this suite-group
-#
-.PHONY: launch-suite-gscan
-launch-suite-gscan: gscan_processes := $(shell ps --no-headers -o command -C cylc-gscan)
-launch-suite-gscan: ALWAYS
-	$(Q)-if [[ "$(gscan_processes)" != *"--name=$(SUITE_GROUP_NAME)"* ]]; then \
-          cylc gscan $(DOUBLE_VERBOSE_ARG) --name=$(SUITE_GROUP_NAME) &            \
-          usleep 1                                                                ;\
-        fi
-
-
-##############################################################################
-# Launch test suite for each sub-project in OPERATE_ON list.
-#
-.PHONY: test-suite
-test-suite: launch-suite-gscan $(addprefix test-suite/,$(OPERATE_ON))
-	$(Q)echo >/dev/null
-
-.PHONY: test-suite/%
-test-suite/%: ALWAYS
-	$(Q)-$(MAKE) $(QUIET_ARG) -C $* test-suite TEST_SUITE_TARGETS="$(TEST_SUITE_TARGETS)"
-
-
-
 
 ##############################################################################
 
