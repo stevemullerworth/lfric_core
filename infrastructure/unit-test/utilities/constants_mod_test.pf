@@ -8,7 +8,7 @@
 !>
 module constants_mod_test
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

@@ -22,7 +22,7 @@ module gen_planar_mod_test_cartesian
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
 
-  use pFUnit_Mod
+  use funit
 
   use reference_element_mod,          only: reference_cube_type, &
                                             W, S, E, N

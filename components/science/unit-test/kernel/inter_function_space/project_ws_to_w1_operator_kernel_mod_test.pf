@@ -8,7 +8,7 @@
 module project_ws_to_w1_operator_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
-  use pFUnit_Mod
+  use funit
   use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
                                                   get_gaussian_q3x3x3_quadrature_weights_z
   use get_unit_test_q3x3x3_basis_mod, only: get_w1_q3x3x3_basis,      &

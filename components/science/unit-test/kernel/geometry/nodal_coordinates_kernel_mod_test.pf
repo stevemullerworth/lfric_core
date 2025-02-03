@@ -18,7 +18,7 @@ module nodal_coordinates_kernel_mod_test
 
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

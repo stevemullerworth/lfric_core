@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> Test for the multidata scalar recovery kernel
 module prolong_multidata_linear_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod, only : i_def, r_def
 
   implicit none

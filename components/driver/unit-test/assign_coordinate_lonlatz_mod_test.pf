@@ -8,7 +8,7 @@
 module assign_coordinate_lonlatz_mod_test
 
   use constants_mod, only : r_def, i_def, PI, l_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

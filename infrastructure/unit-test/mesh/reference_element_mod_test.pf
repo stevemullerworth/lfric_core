@@ -8,7 +8,7 @@
 module reference_element_mod_test
 
   use constants_mod, only : i_def
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

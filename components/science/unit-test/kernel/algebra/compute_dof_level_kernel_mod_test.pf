@@ -13,7 +13,7 @@ module compute_dof_level_kernel_mod_test
     only : get_w2_m3x3_q3x3x3_size
   use get_unit_test_nodal_coords_mod, &
     only : get_w2_nodal_coords
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

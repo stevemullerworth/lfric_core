@@ -13,7 +13,7 @@ module columnwise_op_scaledadd_kernel_mod_test
 
   use get_unit_test_m3x3_cma_data_mod, &
        only : get_cma_size, get_cma_prod_size
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

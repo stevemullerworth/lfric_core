@@ -7,7 +7,7 @@
 module step_calendar_mod_test
 
   use constants_mod,     only : i_timestep
-  use pFUnit_mod
+  use pfunit
   use step_calendar_mod, only : step_calendar_type
 
   implicit none

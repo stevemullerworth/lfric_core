@@ -9,7 +9,7 @@
 module stencil_dofmap_mod_test
 
   use constants_mod,   only : i_def
-  use pFUnit_Mod
+  use funit
   use stencil_dofmap_mod,  only: stencil_dofmap_type,        &
                                  STENCIL_POINT, STENCIL_1DX, &
                                  STENCIL_CROSS, STENCIL_1DY, &

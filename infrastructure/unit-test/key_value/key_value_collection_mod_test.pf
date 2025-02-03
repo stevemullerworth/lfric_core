@@ -29,7 +29,7 @@ module key_value_collection_mod_test
                              str_arr_key_value_type,     &
                              abstract_key_value_type,    &
                              abstract_value_type
-    use pFUnit_Mod
+    use funit
 
   implicit none
 
@@ -42,23 +42,14 @@ module key_value_collection_mod_test
 
   public :: test_all
 
-  @TestCase
-  type, extends(TestCase), public :: key_value_collection_test_type
-    private
-  contains
-    procedure test_all
-  end type key_value_collection_test_type
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   @Test
-  subroutine test_all( this )
+  subroutine test_all()
 
     implicit none
-
-    class(key_value_collection_test_type), intent(inout) :: this
 
     type(key_value_collection_type) :: key_value_collection
 
@@ -145,9 +136,9 @@ contains
     call key_value_collection%get_value("key_for_int64", int64_val)
     @assertEqual(640_int64, int64_val)
     call key_value_collection%get_value("key_for_real32", real32_val)
-    @assertEqual(3200_real32, real32_val, real(tol, real32))
+    @assertEqual(3200.0_real32, real32_val, real(tol, real32))
     call key_value_collection%get_value("key_for_real64", real64_val)
-    @assertEqual(6400_real64, real64_val, real(tol, real64))
+    @assertEqual(6400.0_real64, real64_val, real(tol, real64))
     call key_value_collection%get_value("key_for_logical", logical_val)
     @assertTrue(logical_val)
     call key_value_collection%get_value("key_for_string", string_val)

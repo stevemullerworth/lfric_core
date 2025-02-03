@@ -114,15 +114,21 @@ class TestFortranAnalyser:
 
            real function cosd(degree)
            end function cosd
+
+           function alternative() result(thing)
+           end function alternative
            '''))
 
         uut = FortranAnalyser([], database)
         uut.analyse(test_filename)
 
-        assert [('cosd',      test_filename),
-                ('empty_sub', test_filename),
-                ('one_sub',   test_filename)] \
-            == sorted(database.get_program_units())
+        assert sorted(database.get_program_units()) \
+            == [
+                ('alternative', test_filename),
+                ('cosd',        test_filename),
+                ('empty_sub',   test_filename),
+                ('one_sub',     test_filename)
+            ]
 
         assert sorted(database.get_compile_dependencies()) == []
 

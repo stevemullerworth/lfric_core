@@ -7,7 +7,7 @@
 module mm_diagonal_kernel_mod_test
 
   use constants_mod, only : i_def, r_single, r_double
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

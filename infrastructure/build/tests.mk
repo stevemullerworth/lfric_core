@@ -46,15 +46,17 @@ $(WORKING_DIR):
 
 do-unit-test/build: $(UNIT_TEST_EXE)
 
-$(UNIT_TEST_EXE): export EXTERNAL_STATIC_LIBRARIES += pfunit
-$(UNIT_TEST_EXE): do-unit-test/generate \
-                  $(addsuffix /extract, $(TEST_DIR))
+$(UNIT_TEST_EXE): export EXTERNAL_STATIC_LIBRARIES += pfunit funit fargparse gftl-shared-v2
+$(UNIT_TEST_EXE): export IGNORE_DEPENDENCIES += funit pfunit
+$(UNIT_TEST_EXE): export TEST_LIST_FILE = test_list.inc
+$(UNIT_TEST_EXE): export PRE_PROCESS_MACROS += $(UNIT_TEST_PRE_PROCESS_MACROS)
+$(UNIT_TEST_EXE): export PRE_PROCESS_MACROS += _TEST_SUITES=\"$(TEST_LIST_FILE)\"
+$(UNIT_TEST_EXE): do-unit-test/generate $(addsuffix /extract, $(TEST_DIR))
 	$Qmkdir -p $(WORKING_DIR)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pfunit.mk \
-	            SOURCE_DIR=$(TEST_DIR) WORKING_DIR=$(WORKING_DIR)
+	            SOURCE_DIR=$(TEST_DIR)
 	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/analyse.mk
-	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk \
-	          PRE_PROCESS_MACROS="$(PRE_PROCESS_MACROS) $(UNIT_TEST_PRE_PROCESS_MACROS)"
+	$Q$(MAKE) $(QUIET_ARG) -C $(WORKING_DIR) -f $(LFRIC_BUILD)/compile.mk
 
 do-unit-test/generate: do-unit-test/get-source \
                        $(if $(META_FILE_DIR), configuration)

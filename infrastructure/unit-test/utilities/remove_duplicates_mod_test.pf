@@ -8,7 +8,7 @@
 module remove_duplicates_mod_test
 
   use constants_mod,         only: i_def, str_def
-  use pFUnit_Mod
+  use funit
   use remove_duplicates_mod, only: remove_duplicates
 
   implicit none

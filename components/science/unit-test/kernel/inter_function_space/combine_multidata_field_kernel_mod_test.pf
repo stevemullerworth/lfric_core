@@ -8,7 +8,7 @@ module combine_multidata_field_kernel_mod_test
 
   use constants_mod,                      only: i_def, r_def, l_def
   use sci_combine_multidata_field_kernel_mod, only: combine_multidata_field_code
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

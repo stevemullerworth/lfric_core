@@ -14,7 +14,7 @@ module namelist_mod_test
 
   use constants_mod,   only: imdi, rmdi, cmdi, i_def, r_def, str_def
 
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

@@ -10,60 +10,52 @@
 module empty_io_context_mod_test
 
   use mpi_mod, only : global_mpi
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 
   private
-  public :: test_empty_io_context
-
-  @TestCase
-  type, public, extends(MpiTestCase) :: empty_io_context_test_type
-
-    private
-
-  contains
-
-    procedure setUp
-    procedure tearDown
-    procedure test_empty_io_context
-
-  end type empty_io_context_test_type
+  public :: set_up, tear_down, test_empty_io_context
+  !
+  ! pFUnit requirest symbol spillage
+  !
+  public :: MPITestMethod, MPITestParameter
 
 contains
 
-
-  subroutine setUp( this )
+  @before
+  subroutine set_up(this)
 
     implicit none
 
-    class(empty_io_context_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     call global_mpi%initialise(this%getMpiCommunicator())
 
-  end subroutine setUp
+  end subroutine set_up
 
 
-  subroutine tearDown( this )
+  @after
+  subroutine tear_down(this)
 
     implicit none
 
-    class(empty_io_context_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     call global_mpi%finalise()
 
-  end subroutine tearDown
+  end subroutine tear_down
 
   ! Test filename generation for restart files
   @test( npes=[1] )
-  subroutine test_empty_io_context( this )
+  subroutine test_empty_io_context(this)
     use empty_io_context_mod, only: empty_io_context_type
     use linked_list_mod, only: linked_list_type
     use linked_list_int_mod, only: linked_list_int_type
 
     implicit none
 
-    class(empty_io_context_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     type(empty_io_context_type) :: test_io_context
     type(linked_list_type), target :: tmp_list

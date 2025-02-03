@@ -9,7 +9,7 @@
 module extrusion_mod_test
 
   use constants_mod, only : i_def, r_def
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

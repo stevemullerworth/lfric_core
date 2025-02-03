@@ -8,7 +8,7 @@ module compute_sample_u_ops_kernel_mod_test
 
   use constants_mod,         only : i_def, r_def
   use reference_element_mod, only : W, S, E, N, B, T
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

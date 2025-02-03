@@ -8,6 +8,7 @@
 !-------------------------------------------------------------------------------
 module mesh_colouring_mod_test
 !-------------------------------------------------------------------------------
+  use pfunit
   use constants_mod,              only : i_def, imdi, r_def, l_def, &
                                          str_def, str_max_filename
   use extrusion_mod,              only : uniform_extrusion_type, PRIME_EXTRUSION
@@ -18,14 +19,16 @@ module mesh_colouring_mod_test
   use mpi_mod,                    only : global_mpi
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
-  use pFUnit_Mod
-
   implicit none
 
   private
-  public setUp, tearDown, test_compute_colours_cubedsphere, &
-                          test_compute_colours_biperiodic,  &
-                          test_compute_colours_generic
+  public test_compute_colours_cubedsphere, &
+         test_compute_colours_biperiodic,  &
+         test_compute_colours_generic
+  !
+  ! pFUnit depends on symbol spillage
+  !
+  public MPITestCase, MPITestParameter
 
   @testCase
   type, public, extends(MPITestCase) :: compute_colours_test_type
@@ -37,9 +40,6 @@ module mesh_colouring_mod_test
   contains
     procedure     :: setUp
     procedure     :: tearDown
-    procedure     :: test_compute_colours_cubedsphere
-    procedure     :: test_compute_colours_biperiodic
-    procedure     :: test_compute_colours_generic
   end type compute_colours_test_type
 
   character(str_def), parameter :: mesh_name ='unit_test'

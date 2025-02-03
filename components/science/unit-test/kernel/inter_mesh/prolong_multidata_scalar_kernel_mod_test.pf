@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> Test for the unweighted multidata scalar prolongation kernel
 module prolong_multidata_scalar_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod, only : i_def, r_double, r_single
 
   implicit none

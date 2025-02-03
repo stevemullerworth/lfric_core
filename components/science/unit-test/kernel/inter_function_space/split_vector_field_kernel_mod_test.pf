@@ -12,7 +12,7 @@
 module split_vector_field_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

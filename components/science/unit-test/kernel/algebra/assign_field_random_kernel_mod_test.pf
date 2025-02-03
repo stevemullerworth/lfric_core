@@ -1,6 +1,6 @@
 module assign_field_random_kernel_mod_test
 
-  use pFUnit_Mod
+  use funit
   use constants_mod,      only : i_def, r_def
 
   implicit none

@@ -6,7 +6,7 @@
 !
 module coupling_mod_test
 
-  use pFUnit_Mod
+  use funit
 
   use coupling_mod,             only : coupling_type, &
                                        get_coupling_from_collection

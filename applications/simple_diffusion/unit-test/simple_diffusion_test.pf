@@ -13,7 +13,7 @@
 module simple_diffusion_test
   ! Global use statements go here
   use constants_mod, only : r_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

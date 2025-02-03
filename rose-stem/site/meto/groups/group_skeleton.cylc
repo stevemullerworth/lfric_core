@@ -17,7 +17,6 @@
         "skeleton_spice_developer"
     ],
     "skeleton_spice_unit_tests": [
-        "skeleton_unit_tests_spice_intel_64bit",
         "skeleton_unit_tests_spice_gnu_64bit"
     ],
     "skeleton_spice_canned": [
@@ -64,7 +63,6 @@
         "skeleton_xc40_developer"
     ],
     "skeleton_xc40_unit_tests": [
-        "skeleton_unit_tests_xc40_intel_64bit",
     ],
     "skeleton_xc40_canned": [
         "skeleton_canned_xc40_intel_fast-debug-64bit",

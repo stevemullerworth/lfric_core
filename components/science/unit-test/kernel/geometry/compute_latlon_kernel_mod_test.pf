@@ -14,7 +14,7 @@ module compute_latlon_kernel_mod_test
   use get_unit_test_q3x3x3_basis_mod, &
     only : get_wchi_q3x3x3_basis
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

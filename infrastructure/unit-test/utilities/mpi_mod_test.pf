@@ -9,7 +9,7 @@
 !>
 module mpi_mod_test
 
-  use pFUnit_Mod
+  use pfunit
   use, intrinsic   :: iso_fortran_env, only : int32, real32, real64
   use constants_mod, only: i_def, r_single, r_double, &
                            integer_type, real_type
@@ -20,48 +20,41 @@ module mpi_mod_test
   implicit none
 
   private
-  public test_real64, test_bcast_real64, &
+  public set_up, tear_down, &
+         test_real64, test_bcast_real64, &
          test_real32, test_bcast_real32, &
          test_int, test_bcast_int
-
-  @TestCase
-  type, extends(MPITestCase), public :: mpi_mod_test_type
-    private
-  contains
-    procedure setUp
-    procedure tearDown
-    procedure test_real64
-    procedure test_bcast_real64
-    procedure test_real32
-    procedure test_bcast_real32
-    procedure test_int
-    procedure test_bcast_int
-  end type mpi_mod_test_type
+  !
+  ! pFUnit depends on symbol spill
+  !
+  public MPITestMethod
 
 contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
+  @before
+  subroutine set_up(this)
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     !Store the MPI communicator for later use
     call global_mpi%initialise(this%getMpiCommunicator())
 
-  end subroutine setUp
+  end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
+  @after
+  subroutine tear_down(this)
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     ! Clear the stored MPI communicator
     call global_mpi%finalise()
 
-  end subroutine tearDown
+  end subroutine tear_down
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TEST REAL64 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes = [1, 4] )
@@ -69,7 +62,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: r_test = real64
 
@@ -138,7 +131,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: r_test = real64
     real(r_test)   :: r_buffer_1d(1)
@@ -173,7 +166,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: r_test = real32
 
@@ -243,7 +236,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: r_test = real32
     real(r_test)   :: r_buffer_1d(1)
@@ -279,7 +272,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: i_test = int32
 
@@ -355,7 +348,7 @@ contains
     ! 3d data
     i_buffer_3d(1,1,1) = 19.0_i_test*(proc_num+1)
     call global_mpi%broadcast( i_buffer_3d, 1, 0 )
-    @assertEqual( 19.0_i_test, i_buffer_3d(1,1,1) )
+    @assertEqual( 19_i_test, i_buffer_3d(1,1,1) )
 
     ! Test character string broadcast routine
     if(proc_num == 0) then
@@ -387,7 +380,7 @@ contains
 
     implicit none
 
-    class(mpi_mod_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer, parameter  :: i_test = int32
     integer(i_test) :: i_buffer_1d(1)
@@ -410,7 +403,7 @@ contains
     ! 3d data
     i_buffer_3d(1,1,1) = 19.0_i_test*int(proc_num+1, i_test)
     call global_mpi%broadcast( i_buffer_3d, 1, 0 )
-    @assertEqual( 19.0_i_test, i_buffer_3d(1,1,1) )
+    @assertEqual( 19_i_test, i_buffer_3d(1,1,1) )
 
   end subroutine test_bcast_int
 

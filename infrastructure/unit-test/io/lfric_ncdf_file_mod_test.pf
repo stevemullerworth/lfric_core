@@ -12,7 +12,7 @@ module lfric_ncdf_file_mod_test
   use file_mod,            only: FILE_MODE_READ, FILE_MODE_WRITE, &
                                  FILE_OP_OPEN, FILE_OP_CREATE
   use lfric_ncdf_file_mod, only: lfric_ncdf_file_type
-  use pfunit_mod
+  use pfunit
 
   implicit none
 

@@ -24,12 +24,17 @@ module integer_field_mod_test
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2
   use mpi_mod,                        only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
   public :: test_integer_field, test_integer_field_proxy
+  !
+  ! pFUnit depends on symbol spill
+  !
+  public :: MPITestCase, MPITestparameter
+
 
   @TestCase
   type, extends(MPITestCase), public :: integer_field_test_type

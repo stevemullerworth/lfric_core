@@ -15,7 +15,6 @@
         "lfric_xios_spice_developer"
     ],
     "lfric_xios_spice_unit_tests": [
-        "lfric_xios_unit_tests_spice_intel_64bit",
         "lfric_xios_unit_tests_spice_gnu_64bit"
     ],
     "lfric_xios_spice_integration_tests": [
@@ -52,7 +51,6 @@
         "lfric_xios_xc40_developer"
     ],
     "lfric_xios_xc40_unit_tests": [
-        "lfric_xios_unit_tests_xc40_intel_64bit"
     ],
     "lfric_xios_xc40_integration_tests": [
         "lfric_xios_integration_tests_xc40_intel_64bit"

@@ -10,7 +10,7 @@ module consist_w2_to_sh_w2_kernel_mod_test
 
   use constants_mod,         only: i_def, r_double, r_def
   use reference_element_mod, only: E, W, N, S, T, B
-  use pFUnit_Mod
+  use funit
 
 
   implicit none

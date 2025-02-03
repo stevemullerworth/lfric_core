@@ -8,6 +8,7 @@
 !>
 module local_mesh_mod_test
 
+  use pfunit
   use constants_mod,              only: i_def, r_def, l_def,            &
                                         str_max_filename, str_longlong, &
                                         str_def, radians_to_degrees
@@ -24,37 +25,29 @@ module local_mesh_mod_test
                                         partitioner_planar,             &
                                         partitioner_cubedsphere_serial, &
                                         partitioner_interface
-  use pFUnit_Mod
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
 
   implicit none
 
   private
-  public :: setUp,                &
-            tearDown,             &
+  public :: set_up,               &
+            tear_down,            &
             test_local_mesh,      &
             test_local_mesh_maps, &
             test_set_from_ugrid_data
-  @testCase
-  type, public, extends( MPITestCase ) :: local_mesh_test_type
-    private
-    integer :: total_ranks
-    integer :: local_rank
-  contains
-    procedure :: setUp
-    procedure :: tearDown
-    procedure :: test_local_mesh
-    procedure :: test_local_mesh_maps
-    procedure :: test_set_from_ugrid_data
-  end type local_mesh_test_type
+  !
+  ! pFUnit requires symbol spill
+  !
+  public :: MPITestMethod
 
 contains
 
-  subroutine setUp( this )
+  @before
+  subroutine set_up( this )
 
     implicit none
 
-    class(local_mesh_test_type), intent( inout ) :: this
+    class(MPITestMethod), intent( inout ) :: this
 
     global_mesh_collection = global_mesh_collection_type()
 
@@ -63,16 +56,14 @@ contains
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
-    this%total_ranks = global_mpi%get_comm_size()
-    this%local_rank  = global_mpi%get_comm_rank()
+  end subroutine set_up
 
-  end subroutine setUp
-
-  subroutine tearDown( this )
+  @after
+  subroutine tear_down( this )
 
     implicit none
 
-    class(local_mesh_test_type), intent( inout ) :: this
+    class(MPITestMethod), intent( inout ) :: this
 
     call global_mesh_collection%clear()
 
@@ -81,7 +72,7 @@ contains
     ! Clear the stored MPI communicator
     call global_mpi%finalise()
 
-  end subroutine teardown
+  end subroutine tear_down
 
   !> Test local mesh module functionality
   !>
@@ -90,7 +81,7 @@ contains
 
     implicit none
 
-    class(local_mesh_test_type), intent( inout ) :: this
+    class(MPITestMethod), intent( inout ) :: this
 
     integer(i_def) :: num_processes
     character(len = str_max_filename) :: filename
@@ -178,8 +169,8 @@ contains
                                 yproc,                 &
                                 max_stencil_depth,     &
                                 generate_inner_haloes, &
-                                this%local_rank,       &
-                                this%total_ranks )
+                                this%getProcessRank(), &
+                                this%getNumProcesses() )
 
     call local_mesh%initialise( global_mesh_ptr, partition )
     call local_mesh%init_cell_owner()
@@ -336,10 +327,10 @@ contains
         @assertEqual( 0, num_cells_ghost )
 
         cell_owner = local_mesh%get_cell_owner(1)
-        @assertEqual( this%local_rank, cell_owner )
+        @assertEqual( this%getProcessRank(), cell_owner )
 
         vert_gid = local_mesh%get_vert_gid_on_cell( 1, 6 )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             @assertEqual( 42, vert_gid )
           case (1)
@@ -351,7 +342,7 @@ contains
         end select
 
         edge_gid = local_mesh%get_edge_gid_on_cell( 4, 5 )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             @assertEqual( 58, edge_gid )
           case (1)
@@ -363,7 +354,7 @@ contains
         end select
 
         call local_mesh%get_vert_coords( 3, vert_coords )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             known_vert_coords(:) = [ -1500.0_r_def, -250.0_r_def ]
             @assertEqual( known_vert_coords, vert_coords, 1.0e-2_r_def )
@@ -379,7 +370,7 @@ contains
         end select
 
         call local_mesh%get_cell_coords( 3, cell_coords )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             known_cell_coords(:) = [ -1875.0_r_def, -625.0_r_def ]
             @assertEqual( known_cell_coords, cell_coords, 1.0e-2_r_def )
@@ -412,7 +403,7 @@ contains
 
         lid = 1
         gid = local_mesh%get_gid_from_lid( lid )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             @assertEqual( 42, gid )
           case (1)
@@ -425,7 +416,7 @@ contains
 
         gid = 30
         lid = local_mesh%get_lid_from_gid( gid )
-        select case ( this%local_rank )
+        select case ( this%getProcessRank() )
           case (0)
             @assertEqual( 55, lid )
           case (1)
@@ -447,7 +438,7 @@ contains
 
     implicit none
 
-    class(local_mesh_test_type), intent( inout ) :: this
+    class(MPITestMethod), intent( inout ) :: this
 
     type(ugrid_mesh_data_type)  :: ugrid_mesh_data
     character(len = str_max_filename) :: filename
@@ -531,7 +522,7 @@ contains
 
     implicit none
 
-    class(local_mesh_test_type), intent( inout ) :: this
+    class(MPITestMethod), intent( inout ) :: this
 
     character(str_max_filename), parameter :: filename = 'data/dev_LAM_locals_20-24.nc'
     character(str_def),          parameter :: mesh_names(2) = [ 'SQ20    ', &

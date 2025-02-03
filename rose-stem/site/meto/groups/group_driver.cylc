@@ -14,8 +14,6 @@
         "driver_spice_developer"
     ],
     "driver_spice_unit_tests": [
-        "driver_unit_tests_spice_intel_32bit",
-        "driver_unit_tests_spice_intel_64bit",
         "driver_unit_tests_spice_gnu_32bit",
         "driver_unit_tests_spice_gnu_64bit"
     ]
@@ -45,8 +43,6 @@
         "driver_xc40_developer"
     ],
     "driver_xc40_unit_tests": [
-        "driver_unit_tests_xc40_intel_32bit",
-        "driver_unit_tests_xc40_intel_64bit"
     ]
     }) %}
 

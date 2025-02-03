@@ -7,7 +7,7 @@
 module compute_map_u_operators_kernel_mod_test
 
   use constants_mod, only : i_def, pi, r_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

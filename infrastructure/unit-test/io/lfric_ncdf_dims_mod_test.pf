@@ -13,7 +13,7 @@ module lfric_ncdf_dims_mod_test
                                  FILE_OP_OPEN, FILE_OP_CREATE
   use lfric_ncdf_dims_mod, only: lfric_ncdf_dims_type
   use lfric_ncdf_file_mod, only: lfric_ncdf_file_type
-  use pfunit_mod
+  use pfunit
 
   implicit none
 

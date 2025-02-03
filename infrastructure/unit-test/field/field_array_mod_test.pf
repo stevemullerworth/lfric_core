@@ -12,7 +12,7 @@ module field_array_mod_test
   use constants_mod,   only : i_def
   use field_array_mod, only : field_array_type
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

@@ -17,7 +17,7 @@ module skeleton_test
 
   use constants_mod, only : r_def
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

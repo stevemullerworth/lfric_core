@@ -23,12 +23,16 @@ module mesh_map_collection_mod_test
                                         partitioner_cubedsphere_serial
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
 
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
   public :: mesh_map_collection_test_type, test_mesh_map_collection
+  !
+  ! pFUnit requires symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @testCase
   type, extends( MPITestCase ) :: mesh_map_collection_test_type
@@ -38,7 +42,6 @@ module mesh_map_collection_mod_test
   contains
     procedure :: setUp
     procedure :: tearDown
-    procedure :: test_mesh_map_collection
   end type mesh_map_collection_test_type
 
   character(str_max_filename), &

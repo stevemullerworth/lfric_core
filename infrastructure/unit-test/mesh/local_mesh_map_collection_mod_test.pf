@@ -8,7 +8,7 @@
 !>
 module local_mesh_map_collection_mod_test
 
-  use pFUnit_Mod
+  use funit
   use constants_mod,                 only: i_def
   use local_mesh_map_mod,            only: local_mesh_map_type
   use local_mesh_map_collection_mod, only: local_mesh_map_collection_type
@@ -17,13 +17,6 @@ module local_mesh_map_collection_mod_test
 
   private
   public :: test_local_mesh_map_collection
-
-  @TestCase
-  type, extends(TestCase), public :: local_mesh_map_collection_test_type
-
-  contains
-    procedure test_local_mesh_map_collection
-  end type local_mesh_map_collection_test_type
 
   integer(i_def), parameter :: source_id     = 1
   integer(i_def), parameter :: target_id     = 2
@@ -38,11 +31,9 @@ contains
   !> Test local_mesh_map_collection module functionality
   !>
   @test
-  subroutine test_local_mesh_map_collection( this )
+  subroutine test_local_mesh_map_collection()
 
     implicit none
-
-    class(local_mesh_map_collection_test_type), intent(inout) :: this
 
     type(local_mesh_map_collection_type) :: local_mesh_map_collection
     type(local_mesh_map_type), pointer :: test_local_mesh_map => null()

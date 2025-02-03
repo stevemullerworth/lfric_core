@@ -14,8 +14,6 @@
         "coupling_spice_developer"
     ],
     "coupling_spice_unit_tests": [
-        "coupling_unit_tests_spice_intel_32bit",
-        "coupling_unit_tests_spice_intel_64bit",
         "coupling_unit_tests_spice_gnu_32bit",
         "coupling_unit_tests_spice_gnu_64bit"
     ]
@@ -43,8 +41,6 @@
         "coupling_xc40_developer"
     ],
     "coupling_xc40_unit_tests": [
-        "coupling_unit_tests_xc40_intel_32bit",
-        "coupling_unit_tests_xc40_intel_64bit"
     ]
     }) %}
 

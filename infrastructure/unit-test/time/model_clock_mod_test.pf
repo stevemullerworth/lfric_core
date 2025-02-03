@@ -7,7 +7,7 @@ module model_clock_mod_test
 
   use constants_mod,   only : i_timestep, r_def, r_second
   use model_clock_mod, only : model_clock_type
-  use pFUnit_mod,      only : anyExceptions,         &
+  use funit,           only : anyExceptions,         &
                               assertEqual,           &
                               assertFalse,           &
                               assertTrue,            &
@@ -32,10 +32,10 @@ module model_clock_mod_test
     integer(i_timestep) :: inject_last
     real(r_second)      :: inject_delta_t
     real(r_second)      :: inject_spinup_period
-    integer :: expect_first
-    integer :: expect_last
-    integer :: expect_ticks
-    integer :: expect_spinup_ticks
+    integer(i_timestep) :: expect_first
+    integer(i_timestep) :: expect_last
+    integer(i_timestep) :: expect_ticks
+    integer(i_timestep) :: expect_spinup_ticks
   contains
     procedure :: toString
   end type parameter_type
@@ -110,7 +110,7 @@ contains
     @assertEqual( this%expect_last, unit_under_test%get_last_step() )
     @assertEqual( this%expect_first, unit_under_test%get_step() )
     @assertEqual( this%inject_delta_t, unit_under_test%get_seconds_per_step() )
-    @assertEqual( (this%expect_first == 1), unit_under_test%is_initialisation(), 'Is initialisation:' )
+    @assertEqual( (this%expect_first == 1), unit_under_test%is_initialisation(), message='Is initialisation:' )
 
 
     ! Run the clock until it thinks it's done.
@@ -125,7 +125,7 @@ contains
       @assertFalse( unit_under_test%is_initialisation() )
       elapsed = this%inject_delta_t * (tally + this%expect_first - 1)
       tally = tally + 1
-      @assertEqual( (elapsed < end_spinup), unit_under_test%is_spinning_up(), 'Is spinning up:' )
+      @assertEqual( (elapsed < end_spinup), unit_under_test%is_spinning_up(), message='Is spinning up:' )
       if (unit_under_test%is_spinning_up()) then
         @assertEqual( spinup_fraction(tally), unit_under_test%get_spinup_fraction() )
         spinning_tally = spinning_tally + 1

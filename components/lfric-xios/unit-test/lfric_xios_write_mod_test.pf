@@ -23,7 +23,7 @@ module lfric_xios_write_mod_test
   use fs_continuity_mod,              only : W0, W2H, WTheta, W3
   use lfric_xios_mock_mod,            only : get_latest_data
 
-  use pfunit_mod
+  use funit
 
   implicit none
 

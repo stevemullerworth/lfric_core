@@ -8,6 +8,7 @@
 !>
 module partition_mod_test
 
+  use pfunit
   use constants_mod,              only: r_def, i_def, l_def, str_max_filename, &
                                         str_def
   use global_mesh_mod,            only: global_mesh_type
@@ -18,17 +19,19 @@ module partition_mod_test
                                         partitioner_planar,             &
                                         partitioner_cubedsphere_serial, &
                                         partitioner_interface
-  use pFUnit_Mod
   use reference_element_mod,      only: reference_cube_type
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
   implicit none
 
   private
-  public :: setUp, tearDown, &
-            test_partition_CubedSphere, test_partition_BiPeriodic, &
+  public :: test_partition_CubedSphere, test_partition_BiPeriodic, &
             test_partition_planar, test_partition_trench_x,        &
             test_partition_trench_y
+  !
+  ! pFUnit relies on symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @testCase
   type, public, extends( MPITestCase ) :: partition_test_type
@@ -36,16 +39,9 @@ module partition_mod_test
     integer :: dummy ! This is here only so procedures which do not use "this"
                      ! have something they can hit.
     type(reference_cube_type), pointer :: reference_element => null()
-    integer :: total_ranks
-    integer :: local_rank
   contains
     procedure :: setUp
     procedure :: tearDown
-    procedure :: test_partition_Cubedsphere
-    procedure :: test_partition_BiPeriodic
-    procedure :: test_partition_planar
-    procedure :: test_partition_trench_x
-    procedure :: test_partition_trench_y
   end type partition_test_type
 
   character(str_def), parameter :: mesh_name = 'unit_test'
@@ -64,9 +60,6 @@ contains
 
     !Store the MPI communicator for later use
      call global_mpi%initialise(this%getMpiCommunicator())
-
-    this%total_ranks = global_mpi%get_comm_size()
-    this%local_rank  = global_mpi%get_comm_rank()
 
   end subroutine setUp
 
@@ -135,8 +128,8 @@ contains
         yproc = 2
     end select
 
-    local_rank = this%local_rank
-    total_ranks = this%total_ranks
+    local_rank = this%getProcessRank()
+    total_ranks = this%getNumProcesses()
     max_stencil_depth = 2
 
     generate_inner_haloes = .true.
@@ -279,8 +272,8 @@ contains
         yproc = 2
     end select
 
-    local_rank = this%local_rank
-    total_ranks = this%total_ranks
+    local_rank = this%getProcessRank()
+    total_ranks = this%getNumProcesses()
     max_stencil_depth = 2
 
     generate_inner_haloes = .true.
@@ -424,8 +417,8 @@ contains
         yproc = 2
     end select
 
-    local_rank = this%local_rank
-    total_ranks = this%total_ranks
+    local_rank = this%getProcessRank()
+    total_ranks = this%getNumProcesses()
     max_stencil_depth = 2
 
     generate_inner_haloes = .true.
@@ -569,8 +562,8 @@ contains
         yproc = 2
     end select
 
-    local_rank = this%local_rank
-    total_ranks = this%total_ranks
+    local_rank = this%getProcessRank()
+    total_ranks = this%getNumProcesses()
     max_stencil_depth = 2
 
     generate_inner_haloes = .true.
@@ -708,8 +701,8 @@ contains
 
     xproc = 1
     yproc = 1
-    local_rank = this%local_rank
-    total_ranks = this%total_ranks
+    local_rank = this%getProcessRank()
+    total_ranks = this%getNumProcesses()
     max_stencil_depth = 2
 
     generate_inner_haloes = .true.
@@ -774,8 +767,8 @@ contains
     !  !----------------------------------------
     !  xproc = 2
     !  yproc = 2
-    !  local_rank = this%local_rank
-    !  total_ranks = this%total_ranks
+    !  local_rank = this%getProcessRank()
+    !  total_ranks = this%getNumProcesses()
     !  max_stencil_depth = 2
     !
     !  filename = 'data/ugrid_quads_2d.nc'

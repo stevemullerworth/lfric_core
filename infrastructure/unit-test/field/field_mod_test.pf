@@ -24,12 +24,17 @@ module field_mod_test
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2, W3
   use mpi_mod,                        only : mpi_type, global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
-  public :: test_field, test_field_proxy, test_cpl_functionality, test_empty_field
+  public :: test_field, test_field_proxy, &
+            test_cpl_functionality, test_empty_field
+  !
+  ! pFUnit depends on symbol spill
+  !
+  public :: MPITestCase, MPITestParameter
 
   @TestCase
   type, extends(MPITestCase), public :: field_test_type

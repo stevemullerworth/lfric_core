@@ -36,7 +36,8 @@ module field_collection_mod_test
     use local_mesh_mod,                only : local_mesh_type
     use pure_abstract_field_mod,       only : pure_abstract_field_type
     use mpi_mod,                       only : global_mpi
-    use pFUnit_Mod
+
+    use pfunit
 
   implicit none
 
@@ -44,6 +45,10 @@ module field_collection_mod_test
   public :: test_all
   public :: test_assignment_r_def
   public :: test_assignment_integer
+  !
+  ! pFUnit depends on symbol scope spillover to work:
+  !
+  public MPITestCase, MPITestParameter
 
   @TestCase
   type, extends(MPITestCase), public :: field_collection_test_type
@@ -57,9 +62,6 @@ module field_collection_mod_test
     procedure setUp
     procedure tearDown
     procedure get_local_mesh_ptr
-    procedure test_all
-    procedure test_assignment_r_def
-    procedure test_assignment_integer
   end type field_collection_test_type
 
   integer(i_def), parameter :: element_order_h = 0
@@ -146,11 +148,11 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   @Test( npes=[1] )
-  subroutine test_all( this )
+  subroutine test_all( test_case )
 
     implicit none
 
-    class(field_collection_test_type), intent(inout) :: this
+    class(field_collection_test_type), intent(inout) :: test_case
     class(pure_abstract_field_type), pointer         :: field_ptr
 
     type(field_real64_type)             :: test_field1
@@ -188,19 +190,19 @@ contains
     !------------------- Create 32- and 64-bit real & integer fields ------------------------!
     ! Create a 64-bit field object with the name 'test_field1'
     ! and put 99.0 in the first dof
-    call test_field1%initialise( this%w0_fs, name='test_field1' )
+    call test_field1%initialise( test_case%w0_fs, name='test_field1' )
     test_field1_p = test_field1%get_proxy()
     test_field1_p%data(1) = 99.0_real64
 
     ! Create a 32-bit field object with the name 'test_field2'
     ! and put 66.0 in the first dof
-    call test_field2%initialise( this%w0_fs, name='test_field2' )
+    call test_field2%initialise( test_case%w0_fs, name='test_field2' )
     test_field2_p = test_field2%get_proxy()
     test_field2_p%data(1) = 66.0_real32
 
     ! Create an integer field object with the name 'test_field3'
     ! and put 33 in the first dof
-    call test_field3%initialise( this%w2_fs, name='test_field3' )
+    call test_field3%initialise( test_case%w2_fs, name='test_field3' )
     test_field3_p = test_field3%get_proxy()
     test_field3_p%data(1) = 33_i_def
 
@@ -327,11 +329,11 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
-  subroutine test_assignment_r_def( self )
+  subroutine test_assignment_r_def( test_case )
 
     implicit none
 
-    class(field_collection_test_type), intent(inout) :: self
+    class(field_collection_test_type), intent(inout) :: test_case
     class(pure_abstract_field_type), pointer         :: field_ptr
     type(field_type)                                 :: test_field1
     type(field_type), target                         :: test_field2
@@ -350,7 +352,7 @@ contains
     @assertEqual(f_collection_copy % get_name(), "test_field_collectionA2")
 
     ! Create field with the name 'test_field1' and put 42.0 in the first dof.
-    call test_field1%initialise( self % w0_fs, name='test_field1' )
+    call test_field1%initialise( test_case % w0_fs, name='test_field1' )
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42.0_r_def
 
@@ -372,7 +374,7 @@ contains
     @assertEqual(42.0, proxy%data(1), tol)
 
     ! Make a pointer to another field, and add that as a reference to the collection.
-    call test_field2%initialise( self % w2_fs, name='test_field2' )
+    call test_field2%initialise( test_case % w2_fs, name='test_field2' )
     test_field2_ptr => test_field2
     field_ptr => test_field2_ptr
     call f_collection % add_reference_to_field( field_ptr )
@@ -400,11 +402,11 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
-  subroutine test_assignment_integer( self )
+  subroutine test_assignment_integer( test_case )
 
     implicit none
 
-    class(field_collection_test_type), intent(inout) :: self
+    class(field_collection_test_type), intent(inout) :: test_case
     class(pure_abstract_field_type), pointer         :: field_ptr
     type(integer_field_type)                         :: test_field1
     type(integer_field_type), target                 :: test_field2
@@ -422,7 +424,7 @@ contains
     @assertEqual(f_collection_copy % get_name(), "test_field_collectionA3")
 
     ! Create field with the name 'test_field1' and put 42 in the first dof.
-    call test_field1%initialise( self % w0_fs, name='test_field1' )
+    call test_field1%initialise( test_case % w0_fs, name='test_field1' )
     proxy = test_field1%get_proxy()
     proxy%data(1) = 42
 
@@ -444,7 +446,7 @@ contains
     @assertEqual(42, proxy%data(1))
 
     ! Make a pointer to another field, and add that as a reference to the collection.
-    call test_field2%initialise( self % w2_fs, name='test_field2' )
+    call test_field2%initialise( test_case % w2_fs, name='test_field2' )
     test_field2_ptr => test_field2
     field_ptr => test_field2_ptr
     call f_collection % add_reference_to_field( field_ptr )

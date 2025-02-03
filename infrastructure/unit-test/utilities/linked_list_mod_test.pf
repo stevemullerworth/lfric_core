@@ -8,7 +8,7 @@
 !>
 module linked_list_mod_test
 
-  use pFUnit_Mod
+  use funit
 
   use linked_list_int_mod, only : linked_list_int_type
   use linked_list_mod,     only : linked_list_type, &

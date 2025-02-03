@@ -44,7 +44,7 @@ dependencies.mk: $(TOUCH_FILES)
 
 IGNORE_ARGUMENTS = $(addprefix -ignore ,$(IGNORE_DEPENDENCIES))
 INCLUDE_ARGUMENTS = $(addprefix -include , $(PRE_PROCESS_INCLUDE_DIRS))
-MACRO_ARGUMENTS = $(addprefix -macro ,$(PRE_PROCESS_MACROS))
+MACRO_ARGUMENTS = $(addprefix -macro , $(PRE_PROCESS_MACROS))
 
 %.t: %.f90
 	$(call MESSAGE,Analysing,$<)

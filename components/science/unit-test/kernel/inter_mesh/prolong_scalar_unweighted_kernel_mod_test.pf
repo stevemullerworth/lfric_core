@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> Test for the unweighted scalar prolongation kernel
 module prolong_scalar_unweighted_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod, only : i_def, r_def
 
   implicit none

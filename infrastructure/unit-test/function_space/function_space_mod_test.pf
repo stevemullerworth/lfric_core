@@ -7,6 +7,7 @@
 !-------------------------------------------------------------------------------
 module function_space_mod_test
 
+  use pfunit
   use constants_mod,         only : i_def, l_def, r_def, str_long
   use fs_continuity_mod,     only : W0, W1, W2, W3, Wtheta, W2V, W2H, Wchi, &
                                     W2trace, W2Htrace, W2Vtrace
@@ -60,7 +61,6 @@ module function_space_mod_test
   use mesh_collection_mod,   only : mesh_collection_type, &
                                     mesh_collection
   use mesh_mod,              only : mesh_type
-  use pFUnit_Mod
   use quadrature_xyoz_mod,   only: quadrature_xyoz_type, &
                                    quadrature_xyoz_proxy_type
   use quadrature_rule_gaussian_mod, only: quadrature_rule_gaussian_type
@@ -84,6 +84,10 @@ module function_space_mod_test
             test_stencil_1dy, test_stencil_cross, test_mesh,  &
             test_entities, test_get_whole_dofmap,             &
             test_get_last_dof, test_is_readonly
+  !
+  ! pFUnit depends on symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @testParameter
   type, public, extends(MPITestParameter) :: function_space_parameter_type
@@ -117,16 +121,6 @@ module function_space_mod_test
     procedure setUp
     procedure tearDown
     procedure get_local_mesh_ptr
-    procedure test_space
-    procedure test_get_whole_dofmap
-    procedure test_stencil_point
-    procedure test_stencil_1dx
-    procedure test_stencil_1dy
-    procedure test_stencil_cross
-    procedure test_mesh
-    procedure test_entities
-    procedure test_get_last_dof
-    procedure test_is_readonly
   end type test_function_space_type
 
   integer(i_def), parameter :: element_order_h = 0

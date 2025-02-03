@@ -10,6 +10,20 @@
 #define TMPL_FIELD_TYPE TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_type
 #define TMPL_FIELD_PROXY_TYPE TMPL_PASTE(TMPL_PASTE(field_)TMPL_KIND)_proxy_type
 #define TMPL_LITERAL(v) TMPL_PASTE(TMPL_PASTE(v)_)TMPL_KIND
+#define integer 1
+#define real 2
+#if TMPL_TYPE == 1
+#  define TMPL_ASSERT(e, f, t) @assertEqual(e, f)
+#  define TMPL_CAST nint
+#elif TMPL_TYPE == 2
+#  define TMPL_ASSERT(e, f, t) @assertEqual(e, f, tolerance=TMPL_LITERAL(t))
+#  define TMPL_CAST real
+#else
+#  define TMPL_ASSERT(e, f, t) @fail("Unrecognised type TMPL_TYPE (Is case correct?)")
+#  define TMPL_CAST real
+#endif
+#undef real
+#undef integer
 
 module TMPL_MODULE_NAME
 
@@ -29,7 +43,7 @@ module TMPL_MODULE_NAME
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2, W3
   use mpi_mod,                        only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
@@ -37,6 +51,11 @@ module TMPL_MODULE_NAME
   public :: TMPL_TEST_FIELD_PROC, &
             TMPL_TEST_FIELD_PROXY_PROC, &
             TMPL_TEST_EMPTY_FIELD_PROC
+  !
+  ! pFUnit depends on symbol spillover
+  !
+  public :: MPITestCase, MPITestParameter
+
 
   @TestCase
   type, extends(MPITestCase), public :: TMPL_TEST_CLASS
@@ -153,7 +172,6 @@ contains
     type(mesh_type),           pointer :: mesh_out => null()
     type(mesh_type),           pointer :: mesh => null()
 
-    integer(i_def) :: iface, iedge, lid, test_integer
     integer(i_def) :: order
 
     ! Make a field with a function space
@@ -196,7 +214,7 @@ contains
     f2_p = f2%get_proxy()
 
     ! Check that contained vector_space pointers point to same address
-    @assertTrue(associated(f1_p%vspace, f2_p%vspace), "Assigned field_type vspace pointers differ.")
+    @assertTrue(associated(f1_p%vspace, f2_p%vspace), message="Assigned field_type vspace pointers differ.")
 
     ! Test copy_field with an optional name
     call f1%copy_field_serial(f2, name='f2')
@@ -250,17 +268,17 @@ contains
     call f2_p%halo_exchange_finish(1)
 
     ! For serial case, the halo swapped field should be the same as the original
-    @assertEqual( f1_p%data  , f2_p%data, TMPL_LITERAL(1.0e-2) )
+    TMPL_ASSERT(f1_p%data, f2_p%data, 1.0e-2)
 
     ! Test the global reductions
     test_sum=f1_p%get_sum()
-    @assertEqual( 4095.0  , test_sum, TMPL_LITERAL(1.0e-2) )
+    TMPL_ASSERT(TMPL_CAST(4095.0), test_sum, 1.0e-2)
 
     test_min=f1_p%get_min()
-    @assertEqual( 1.0  , test_min, TMPL_LITERAL(1.0e-2) )
+    TMPL_ASSERT(TMPL_CAST(1.0), test_min, 1.0e-2)
 
     test_max=f1_p%get_max()
-    @assertEqual( 90.0  , test_max, TMPL_LITERAL(1.0e-2) )
+    TMPL_ASSERT(TMPL_CAST(90.0), test_max, 1.0e-2)
 
     halo_depth=f1_p%get_field_proxy_halo_depth()
     @assertEqual ( 3, halo_depth )
@@ -300,7 +318,6 @@ contains
 
     type(TMPL_FIELD_TYPE)       :: f1
     type(TMPL_FIELD_PROXY_TYPE) :: f1_p
-    integer(i_def)                :: i
 
     TMPL_TYPE(TMPL_KIND), target :: empty_data(1)
 

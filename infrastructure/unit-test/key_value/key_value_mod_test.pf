@@ -19,7 +19,7 @@ module key_value_mod_test
                            abstract_key_value_type,    abstract_value_type,       &
                            create_key_value
 
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

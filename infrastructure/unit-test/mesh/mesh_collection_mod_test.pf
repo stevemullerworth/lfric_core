@@ -22,12 +22,16 @@ module mesh_collection_mod_test
                                      mesh_collection
     use mesh_mod,             only : mesh_type, PLANE_BI_PERIODIC, PLANE
     use mpi_mod,              only : global_mpi
-    use pFUnit_Mod
+    use pfunit
 
   implicit none
 
   private
   public :: test_all
+  !
+  ! pFUnit requires symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @TestCase
   type, extends(MPITestCase), public ::mesh_collection_test_type
@@ -39,7 +43,6 @@ module mesh_collection_mod_test
     procedure setUp
     procedure tearDown
     procedure get_local_mesh_ptr
-    procedure test_all
   end type mesh_collection_test_type
 
   integer(i_def), parameter :: nlayers       = 5_i_def

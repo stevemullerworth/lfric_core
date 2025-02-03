@@ -18,32 +18,28 @@ module TMPL_MODULE_NAME
   use mesh_mod,                      only : mesh_type
 
   use mpi_mod,                       only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
-  public :: test_all
-
-  @TestCase
-  type, extends(MPITestCase), public :: TMPL_TEST_CLASS
-    private
-  contains
-    procedure setUp
-    procedure tearDown
-    procedure test_all
-  end type TMPL_TEST_CLASS
+  public :: set_up, tear_down, test_all
+  !
+  ! pFUnit requires symbol spillage
+  !
+  public ::MPITestMethod, MPITestParameter
 
   integer(i_def), parameter :: element_order_h = 0
   integer(i_def), parameter :: element_order_v = 0
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
+  @before
+  subroutine set_up( this )
 
     implicit none
 
-    class(TMPL_TEST_CLASS), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     !Store the MPI communicator for later use
     call global_mpi%initialise(this%getMpiCommunicator())
@@ -53,14 +49,15 @@ contains
     ! Create top level function space collection
     function_space_collection = function_space_collection_type()
 
-  end subroutine setUp
+  end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
+  @after
+  subroutine tear_down( this )
 
     implicit none
 
-    class(TMPL_TEST_CLASS), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     call function_space_collection%clear()
     call mesh_collection%clear()
@@ -68,7 +65,7 @@ contains
     ! Clear the stored MPI communicator
     call global_mpi%finalise()
 
-  end subroutine tearDown
+  end subroutine tear_down
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
@@ -82,7 +79,7 @@ contains
 
     implicit none
 
-    class(TMPL_TEST_CLASS), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     type( TMPL_OPERATOR_TYPE )       :: Op
     type( TMPL_OPERATOR_PROXY_TYPE ) :: Op_p

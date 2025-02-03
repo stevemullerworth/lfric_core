@@ -14,7 +14,7 @@ contains
   @test
   subroutine cross_product_test()
 
-    use pFUnit_Mod
+    use funit
     use constants_mod, only: r_def
     use cross_product_mod, only: cross_product
 

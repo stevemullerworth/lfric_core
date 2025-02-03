@@ -29,12 +29,17 @@ module halo_comms_mod_test
                                              mesh_collection
   use mesh_mod,                       only : mesh_type, PLANE_BI_PERIODIC
   use mpi_mod,                        only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
   public :: test_halo_routing, test_halo_comms
+  !
+  ! pFUnit depends on symbol spill
+  !
+  public :: MPITestCase, MPITestParameter
+
 
   @TestCase
   type, extends(MPITestCase), public :: halo_comms_test_type

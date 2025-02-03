@@ -9,7 +9,7 @@ module assign_coordinate_alphabetaz_mod_test
 
   use, intrinsic :: iso_fortran_env, only : real32, real64
   use constants_mod, only : r_def, i_def, PI, l_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

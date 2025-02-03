@@ -6,7 +6,7 @@
 !> Test for the masked restriction kernel
 module restrict_scalar_masked_kernel_mod_test
 
-  use pFUnit_mod
+  use funit
   use constants_mod,                     only : i_def, r_def, rmdi
   use sci_restrict_scalar_masked_kernel_mod, only : restrict_scalar_masked_kernel_code
 

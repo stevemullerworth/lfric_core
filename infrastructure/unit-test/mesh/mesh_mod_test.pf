@@ -35,7 +35,7 @@ module mesh_mod_test
   use mpi_mod,              only: global_mpi
   use ugrid_mesh_data_mod,  only: ugrid_mesh_data_type
 
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
@@ -45,6 +45,10 @@ module mesh_mod_test
             test_get_1d_array, test_get_2d_array, test_get_3d_array, &
             test_get_domain,                                         &
             test_get_local_mesh, test_mesh_map_retrieval
+  !
+  ! pFUnit requires symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @testCase
   type, extends( MPITestCase ) :: mesh_test_type
@@ -56,13 +60,6 @@ module mesh_mod_test
     procedure :: setUp
     procedure :: tearDown
     procedure :: get_local_mesh_ptr
-    procedure :: test_get_scalar
-    procedure :: test_get_1d_array
-    procedure :: test_get_2d_array
-    procedure :: test_get_3d_array
-    procedure :: test_get_local_mesh
-    procedure :: test_mesh_map_retrieval
-
   end type mesh_test_type
 
   character(str_def), parameter :: mesh_name = 'unit_test'

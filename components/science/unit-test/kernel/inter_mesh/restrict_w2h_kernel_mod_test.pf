@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> Test for the W2H restriction kernel
 module restrict_w2h_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod, only : i_def, r_def
 
   implicit none

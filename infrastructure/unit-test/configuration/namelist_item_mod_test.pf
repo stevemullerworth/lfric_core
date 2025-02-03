@@ -15,7 +15,7 @@ module namelist_item_mod_test
   use constants_mod,     only: str_def
   use namelist_item_mod, only: namelist_item_type
 
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

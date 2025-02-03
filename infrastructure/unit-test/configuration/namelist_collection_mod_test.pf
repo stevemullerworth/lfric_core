@@ -15,7 +15,7 @@ module namelist_collection_mod_test
   use namelist_item_mod,       only: namelist_item_type
   use namelist_collection_mod, only: namelist_collection_type
 
-  use pFUnit_mod
+  use pfunit
 
   implicit none
 

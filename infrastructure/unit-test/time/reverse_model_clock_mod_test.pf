@@ -7,7 +7,7 @@ module reverse_model_clock_mod_test
 
   use constants_mod,           only : i_timestep, r_def, r_second
   use reverse_model_clock_mod, only : reverse_model_clock_type
-  use pFUnit_mod,              only : anyExceptions,         &
+  use pfunit,              only : anyExceptions,         &
                                       assertEqual,           &
                                       assertFalse,           &
                                       assertTrue,            &

@@ -69,6 +69,7 @@ if __name__ == '__main__':
             macroDictionary[name] = macro
         else:
             macroDictionary[macroString] = None
+    logger.debug("Using macros - " + str(macroDictionary))
 
     backend = database.SQLiteDatabase(args.database)
     fortranStore = database.FortranDependencies(backend)

@@ -17,7 +17,7 @@ module log_mod_parallel_level_test
                            log_level_warning, log_set_alert_stream,         &
                            log_set_level, log_set_info_stream,              &
                            log_forget_timestep
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
@@ -31,6 +31,10 @@ module log_mod_parallel_level_test
          log_output_test_single_info, log_output_test_single_warning, &
          log_output_test_trace, log_output_test_debug,                &
          log_output_test_info, log_output_test_warning
+  !
+  ! pFUnit requires symbol spill
+  !
+  public :: MPITestCase, MPITestParameter
 
   integer(i_def), parameter :: log_unit   = 11
   integer(i_def), parameter :: info_unit  = 12

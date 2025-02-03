@@ -11,7 +11,7 @@ module sort_mod_test
   use constants_mod, only : i_def
   use sort_mod, only      : bubble_sort
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

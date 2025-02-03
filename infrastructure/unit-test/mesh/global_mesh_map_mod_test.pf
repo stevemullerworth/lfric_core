@@ -8,7 +8,7 @@
 !>
 module global_mesh_map_mod_test
 
-  use pFUnit_Mod
+  use funit
   use constants_mod,       only: r_def, i_def, imdi, str_max_filename
   use global_mesh_map_mod, only: global_mesh_map_type
 

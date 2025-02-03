@@ -48,8 +48,7 @@ allowed_mpi = (
 
 # We limit the modules that can be used without "only"
 allowed_use_no_only = (
-    "mpi",
-    "pfunit_mod"
+    "mpi"
 )
 
 infrastructure = Style(

@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 module io_context_collection_mod_test
 
-  use pFUnit_mod
+  use funit
   use constants_mod,             only: i_def
   use io_context_collection_mod, only: io_context_collection_type
   use empty_io_context_mod,      only: empty_io_context_type

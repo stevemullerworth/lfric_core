@@ -15,7 +15,7 @@ module lfric_xios_utils_mod_test
     use mesh_mod,                       only : mesh_type, PLANE, PLANE_BI_PERIODIC
     use xios,                           only : xios_date
 
-    use pfunit_mod
+    use funit
 
     implicit none
 

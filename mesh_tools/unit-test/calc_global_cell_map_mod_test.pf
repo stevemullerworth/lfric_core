@@ -16,7 +16,7 @@ module calc_global_cell_map_mod_test
                                       LOG_LEVEL_ERROR
 
   use reference_element_mod,    only: reference_cube_type
-  use pFUnit_Mod
+  use funit
   use ugrid_generator_mod,      only: ugrid_generator_type
 
   use mesh_config_mod,          only: geometry_planar,   &

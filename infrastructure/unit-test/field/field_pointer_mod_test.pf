@@ -23,12 +23,17 @@ module field_pointer_mod_test
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W2
   use mpi_mod,                        only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
   public :: test_field_pointer
+  !
+  ! pFUnit depends on symbol spill
+  !
+  public :: MPITestCase, MPITestParameter
+
 
   @TestCase
   type, extends(MPITestCase), public :: field_test_type

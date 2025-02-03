@@ -93,8 +93,8 @@ class FortranAnalyser(Analyser):
                          flags=re.IGNORECASE)
         self._functionPattern \
             = re.compile(
-                r'^\s*(?:TYPE\s*\(\s*\S+?\s*\)\s*|\S+\s*)?('
-                r'MODULE\s+)?FUNCTION\s+([^(\s]+)',
+                r'^\s*(?:TYPE\s*\(\s*\S+?\s*\)\s*|\S+\s*)?'
+                r'(MODULE\s+)?FUNCTION\s+([^(\s]+)',
                 flags=re.IGNORECASE)
         self._endPattern = re.compile(r'^\s*END(?:\s+(\S+)(?:\s+(\S+))?)?',
                                       flags=re.IGNORECASE)
@@ -108,6 +108,9 @@ class FortranAnalyser(Analyser):
         self._externalPattern \
             = re.compile(r'^\s*EXTERNAL\s+([^,\s]+(:?\s*,\s*[^,\s]+)*)',
                          flags=re.IGNORECASE)
+        self._external_attribute_pattern = re.compile(
+            r'^\s*.+?external\s*?::\s*(.+)'
+        )
         self._pFUnitPattern = re.compile(r'^\s*#\s+\d+\s+".*testSuites.inc"',
                                          flags=re.IGNORECASE)
         self._suitePattern = re.compile(r'^\s*ADD_TEST_SUITE\(\s*(\S+)\)')
@@ -137,6 +140,7 @@ class FortranAnalyser(Analyser):
                 else:
                     preprocess_command.append('-D' + name)
             preprocess_command.append(str(source_filename))
+            logging.getLogger(__name__).debug(preprocess_command)
 
             start_time = time()
             preprocessor = subprocess.Popen(preprocess_command,
@@ -361,13 +365,22 @@ class FortranAnalyser(Analyser):
             match = self._endPattern.match(code)
             if match:
                 end_scope = match.group(1)
+                if end_scope is not None:
+                    end_scope = end_scope.lower()
                 end_unit = match.group(2)
+                if end_unit is not None:
+                    end_unit = end_unit.lower()
 
                 try:
                     begin_scope, begin_unit = scope_stack[-1]
 
                     if end_scope == begin_scope and end_unit == begin_unit:
                         scope_stack.pop()
+                        logger.debug(f'    End {end_scope} {end_unit}')
+                    else:
+                        logger.debug(
+                            f'    Mismatched end {end_scope} {end_unit}'
+                        )
                 except IndexError:
                     message = 'Mismatched begin/end. Found "{end}" but stack '\
                               'empty'
@@ -405,6 +418,16 @@ class FortranAnalyser(Analyser):
                 for module_name in module_names:
                     if module_name is not None:
                         logger.info('    Depends on external ' + module_name)
+                        add_dependency(program_unit, module_name)
+                continue
+
+            match = self._external_attribute_pattern.match(code)
+            if match:
+                module_names = [module_name.strip()
+                                for module_name in match.group(1).split(',')]
+                for module_name in module_names:
+                    if module_name is not None:
+                        logger.info("    Depends on external " + module_name)
                         add_dependency(program_unit, module_name)
                 continue
 

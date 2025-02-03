@@ -15,7 +15,7 @@ contains
   ! Test xyoz quadrature with symmetrical constructor
   subroutine test_quadrature_xyoz_symmetrical()
 
-    use pFUnit_Mod
+    use funit
 
     use quadrature_xyoz_mod,          only : quadrature_xyoz_type, quadrature_xyoz_proxy_type
     use constants_mod,                only : r_def
@@ -108,7 +108,7 @@ contains
   ! Test xyoz quadrature with variable constructor
   subroutine test_quadrature_xyoz_variable()
 
-    use pFUnit_Mod
+    use funit
 
     use quadrature_xyoz_mod,          only : quadrature_xyoz_type, quadrature_xyoz_proxy_type
     use constants_mod,                only : r_def

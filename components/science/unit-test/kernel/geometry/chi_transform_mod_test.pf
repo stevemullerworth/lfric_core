@@ -10,7 +10,7 @@ module chi_transform_mod_test
 
   use constants_mod, only : i_def, r_def, str_long, PI
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

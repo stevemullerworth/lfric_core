@@ -14,7 +14,7 @@ module fs_continuity_mod_test
                                  is_fs_horizontally_continuous, &
                                  is_fs_vertically_continuous,   &
                                  W0, Wchi
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

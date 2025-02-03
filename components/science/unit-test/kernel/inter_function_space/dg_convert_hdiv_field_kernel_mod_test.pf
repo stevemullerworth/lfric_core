@@ -17,7 +17,7 @@ module dg_convert_hdiv_field_kernel_mod_test
                                                   get_w0_w2nodal_diff_basis
   use get_unit_test_wthetanodal_basis_mod, only : get_w2_wthetanodal_basis
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

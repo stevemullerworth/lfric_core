@@ -8,7 +8,7 @@
 module extend_chi_field_kernel_mod_test
 
   use constants_mod, only: i_def, r_def, pi
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

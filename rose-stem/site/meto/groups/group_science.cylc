@@ -14,8 +14,6 @@
         "science_spice_developer"
     ],
     "science_spice_unit_tests": [
-        "science_unit_tests_spice_intel_32bit",
-        "science_unit_tests_spice_intel_64bit",
         "science_unit_tests_spice_gnu_32bit",
         "science_unit_tests_spice_gnu_64bit"
     ]
@@ -43,8 +41,6 @@
         "science_xc40_developer"
     ],
     "science_xc40_unit_tests": [
-        "science_unit_tests_xc40_intel_32bit",
-        "science_unit_tests_xc40_intel_64bit"
     ]
     }) %}
 

@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> Test for the W0 prolongation kernel
 module prolong_w0_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod,         only: i_def, r_def
   use reference_element_mod, only: SWB, SEB, NWB, NEB
 

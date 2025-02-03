@@ -8,7 +8,7 @@
 module transpose_matrix_vector_mod_test
 
   use constants_mod, only : r_double, r_single, i_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

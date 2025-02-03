@@ -22,7 +22,7 @@ module lfric_xios_read_mod_test
   use function_space_mod,             only : function_space_type
   use fs_continuity_mod,              only : W0, W2H, WTheta, W3
 
-  use pfunit_mod
+  use funit
 
   implicit none
 

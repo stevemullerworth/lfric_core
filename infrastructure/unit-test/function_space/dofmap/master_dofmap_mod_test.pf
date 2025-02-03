@@ -16,7 +16,7 @@ contains
   @test
   subroutine test_master_dofmap()
     use master_dofmap_mod,        only: master_dofmap_type
-    use pFUnit_Mod
+    use funit
 
 
     implicit none

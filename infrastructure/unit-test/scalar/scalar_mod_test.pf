@@ -11,47 +11,44 @@ module scalar_mod_test
 
   use constants_mod, only : r_def
   use mpi_mod, only : global_mpi
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
-  public :: test_all
-
-  @TestCase
-  type, extends(MPITestCase), public :: scalar_test_type
-    private
-  contains
-    procedure setUp
-    procedure tearDown
-    procedure test_all
-  end type scalar_test_type
+  public :: set_up, tear_down, test_all
+  !
+  ! pFUnit requires symbol spillage
+  !
+  public :: MPITestMethod, MPITestParameter
 
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
+  @before
+  subroutine set_up( this )
 
     implicit none
 
-    class(scalar_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     !Store the MPI communicator for later use
     call global_mpi%initialise(this%getMpiCommunicator())
 
-  end subroutine setUp
+  end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
+  @after
+  subroutine tear_down( this )
 
     implicit none
 
-    class(scalar_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     ! Clear the stored MPI communicator
     call global_mpi%finalise()
 
-  end subroutine tearDown
+  end subroutine tear_down
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test( npes=[1] )
@@ -61,9 +58,9 @@ contains
 
     implicit none
 
-    class(scalar_test_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
-    type(scalar_type)          :: s1, s2
+    type(scalar_type) :: s1, s2
 
     real(r_def) :: s1_val, s2_val
     real(r_def) :: sum, min, max

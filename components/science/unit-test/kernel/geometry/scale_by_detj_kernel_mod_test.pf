@@ -8,7 +8,7 @@
 module scale_by_detj_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
-  use pFUnit_Mod
+  use funit
   use get_unit_test_wthetanodal_basis_mod, only : get_w0_wthetanodal_basis, &
                                                   get_w0_wthetanodal_diff_basis
 

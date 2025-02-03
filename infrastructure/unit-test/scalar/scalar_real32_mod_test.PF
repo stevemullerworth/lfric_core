@@ -8,5 +8,4 @@
 !-------------------------------------------------------------------------------
 #define TMPL_TYPE real
 #define TMPL_KIND real32
-#define TMPL_CAST real
 #include "scalar_mod_test.pf.inc"

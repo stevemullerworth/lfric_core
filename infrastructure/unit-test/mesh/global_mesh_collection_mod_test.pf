@@ -17,7 +17,7 @@ module global_mesh_collection_mod_test
                                             global_mesh_collection
   use ugrid_mesh_data_mod,            only: ugrid_mesh_data_type
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

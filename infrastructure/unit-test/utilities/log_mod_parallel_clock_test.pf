@@ -18,34 +18,29 @@ module log_mod_parallel_clock_test
                             log_set_level,        &
                             log_set_info_stream,  &
                             log_set_alert_stream
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
   public :: log_clock_single_test, log_clock_parallel_test
+  !
+  ! pFUnit requires symbol spill
+  !
+  public :: MPITestMethod
 
   integer(i_def), parameter :: log_unit   = 11
   integer(i_def), parameter :: info_unit  = 12
   integer(i_def), parameter :: alert_unit = 13
 
-  @testCase
-  type, public, extends(MpiTestCase) :: log_test_clock_parallel_type
-    private
-  contains
-    private
-    procedure, public :: log_clock_single_test
-    procedure, public :: log_clock_parallel_test
-  end type log_test_clock_parallel_type
-
 contains
 
-  @test([npes=1])
-  subroutine log_clock_single_test( this )
+  @test(npes=[1])
+  subroutine log_clock_single_test(this)
 
     implicit none
 
-    class(log_test_clock_parallel_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     call initialise_logging( this%getMpiCommunicator(), 'cheese_wiggles' )
     call log_forget_timestep()
@@ -58,11 +53,11 @@ contains
   !> Tests addition and removal of a clock in a parallel environment.
   !>
   @test(npes=[2, 3, 4])
-  subroutine log_clock_parallel_test( this )
+  subroutine log_clock_parallel_test(this)
 
     implicit none
 
-    class(log_test_clock_parallel_type), intent(inout) :: this
+    class(MPITestMethod), intent(inout) :: this
 
     integer(i_def)      :: condition
     character(40)       :: filename

@@ -6,7 +6,7 @@
 
 !> Test for the prolongation kernel
 module weights_intermesh_w3_kernel_mod_test
-  use pFUnit_mod
+  use funit
   use constants_mod, only : i_def, r_def
 
   implicit none

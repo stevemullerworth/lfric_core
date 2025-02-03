@@ -21,7 +21,7 @@ module sci_field_vector_mod_test
                                              mesh_collection
   use fs_continuity_mod,              only : W0, W2, W3
   use mpi_mod,                        only : global_mpi
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

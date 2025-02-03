@@ -22,7 +22,7 @@ module mesh_map_mod_test
                                         partitioner_cubedsphere_serial
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
 
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
@@ -30,6 +30,10 @@ module mesh_map_mod_test
   public :: mesh_map_test_type,      &
             test_coarse_to_fine_map, &
             test_fine_to_coarse_map
+  !
+  ! pFUnit needs symbol spillage
+  !
+  public :: MPITestCase, MPITestParameter
 
   @testCase
   type, extends( MPITestCase ) :: mesh_map_test_type
@@ -39,8 +43,6 @@ module mesh_map_mod_test
   contains
     procedure :: setUp
     procedure :: tearDown
-    procedure :: test_coarse_to_fine_map
-    procedure :: test_fine_to_coarse_map
   end type mesh_map_test_type
 
   character(str_max_filename), &

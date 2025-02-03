@@ -17,7 +17,7 @@ contains
   @test
   subroutine test_polynomial_mod( )
 
-    use pFUnit_Mod
+    use funit
     use polynomial_mod, only : poly1d, poly1d_deriv
     use constants_mod,  only : r_def
 

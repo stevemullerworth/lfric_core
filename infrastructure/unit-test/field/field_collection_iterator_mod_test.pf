@@ -34,7 +34,8 @@ module field_collection_iterator_mod_test
     use local_mesh_mod,                only : local_mesh_type
     use pure_abstract_field_mod,       only : pure_abstract_field_type
     use mpi_mod,                       only : global_mpi
-    use pFUnit_Mod
+
+    use pfunit
 
   implicit none
 
@@ -42,6 +43,10 @@ module field_collection_iterator_mod_test
   public :: test_mixed_type, &
             test_mixed_kind, &
             test_zero_length_iteration
+  !
+  ! pFUnit depends on symbol oveflow to work:
+  !
+  public :: MPITestCase, MPITestParameter
 
   @TestCase
   type, extends(MPITestCase), public :: field_collection_iterator_test_type
@@ -198,7 +203,7 @@ contains
         type is (field_type)  ! r_def
           @assertEqual(1, i)
           returned_field1_p = fld%get_proxy()
-          @assertEqual(99.0_r_def, returned_field1_p%data(1), tol)
+          @assertEqual(99.0_r_def, returned_field1_p%data(1), tolerance=tol)
         type is (integer_field_type)
           @assertEqual(2, i)
           returned_field2_p = fld%get_proxy()
@@ -267,11 +272,11 @@ contains
         type is (field_real32_type)
           @assertEqual(1, i)
           returned_field1_p = fld%get_proxy()
-          @assertEqual(99.0_real32, returned_field1_p%data(1), tol_real32)
+          @assertEqual(99.0_real32, returned_field1_p%data(1), tolerance=tol_real32)
         type is (field_real64_type)
           @assertEqual(2, i)
           returned_field2_p = fld%get_proxy()
-          @assertEqual(33_real64, returned_field2_p%data(1), tol_real64)
+          @assertEqual(33.0_real64, returned_field2_p%data(1), tolerance=tol_real64)
       end select
     end do
     ! Test that there were only two items in the collection (so the iteration

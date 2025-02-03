@@ -13,7 +13,7 @@ module set_w1h_dofs_kernel_mod_test
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w1_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_w1_m3x3_dofmap
 
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

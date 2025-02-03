@@ -98,6 +98,15 @@ ifeq ($(shell test "$(IFORT_VERSION)" -lt 0170000; echo $$?), 0)
   FFLAGS_COMPILER += -assume realloc-lhs
 endif
 
+# There seems to be a recurring bug in IFort which causes it to trip over
+# type checking functions which return types. This is how the pFUnit driver
+# works so we need to sledge hammer this problem.
+#
+ifeq ($(shell test "$(IFORT_VERSION)" -le 0190000; echo $$?), 0)
+  $(info ** Deactivating interface checking on unit tests)
+  FFLAGS_UNIT_WARNINGS += -warn nointerfaces
+endif
+
 LDFLAGS_COMPILER =
 
 FPPFLAGS = -P

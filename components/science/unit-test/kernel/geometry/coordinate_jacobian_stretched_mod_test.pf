@@ -7,7 +7,7 @@
 !-------------------------------------------------------------------------------
 module coordinate_jacobian_stretched_mod_test
 
-  use pFUnit_Mod
+  use funit
   use constants_mod, only : r_def, i_def, PI
   use, intrinsic :: iso_fortran_env, only : real32, real64
 

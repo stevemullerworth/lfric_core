@@ -10,7 +10,7 @@ module gencube_ps_mod_test
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
   use mesh_config_mod,                only: coord_sys_ll
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

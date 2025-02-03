@@ -23,7 +23,7 @@ module driver_model_data_mod_test
   use local_mesh_mod,                only : local_mesh_type
   use pure_abstract_field_mod,       only : pure_abstract_field_type
   use driver_model_data_mod,         only : model_data_type
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

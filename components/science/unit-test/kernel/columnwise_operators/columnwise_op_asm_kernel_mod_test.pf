@@ -14,7 +14,7 @@ module columnwise_op_asm_kernel_mod_test
        only : get_wtheta_m3x3_q3x3x3_size
   use get_unit_test_m3x3_cma_data_mod, &
        only : get_wtheta_m3x3_cma_data
-  use pFUnit_Mod
+  use funit
   implicit none
 
   private

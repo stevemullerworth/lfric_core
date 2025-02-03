@@ -8,6 +8,7 @@
 !
 module function_space_chain_mod_test
 
+use pfunit
 use constants_mod,           only: r_def, i_def, l_def, str_def, str_max_filename
 use global_mesh_mod,         only: global_mesh_type
 use function_space_mod,      only: function_space_type
@@ -30,7 +31,6 @@ use local_mesh_collection_mod,     only: local_mesh_collection_type, &
                                          local_mesh_collection
 use mpi_mod,                       only: global_mpi
 use ugrid_mesh_data_mod,           only: ugrid_mesh_data_type
-use pFUnit_Mod
 
 implicit none
 
@@ -39,6 +39,10 @@ public :: function_space_chain_test_type, &
           test_function_space_chain_api,  &
           test_mesh_map_creation,   &
           test_mesh_map_contents
+!
+! pFUnit requires symbol spillage
+!
+public :: MPITestCase, MPITestParameter
 
 @testCase
 type, extends( MPITestCase ) :: function_space_chain_test_type
@@ -51,9 +55,6 @@ type, extends( MPITestCase ) :: function_space_chain_test_type
 contains
   procedure :: setUp
   procedure :: tearDown
-  procedure :: test_function_space_chain_api
-  procedure :: test_mesh_map_creation
-  procedure :: test_mesh_map_contents
 end type function_space_chain_test_type
 
 character(str_def), parameter :: mesh_names(4) = &

@@ -119,6 +119,7 @@ ifdef VERBOSE
 else
   Q := @
   QUIET_ARG = --quiet
+  QUIET_ARG_SINGLE = -quiet
   VERBOSE_REDIRECT = >/dev/null
 endif
 

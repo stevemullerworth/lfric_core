@@ -22,7 +22,7 @@ module gen_lbc_mod_test
                              geometry_planar, &
                              topology_non_periodic
 
-  use pFUnit_mod
+  use funit
 
   implicit none
 

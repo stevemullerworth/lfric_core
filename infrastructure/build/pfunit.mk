@@ -19,12 +19,13 @@ include $(LFRIC_BUILD)/lfric.mk
 
 .PRECIOUS: $(WORKING_DIR)/$(PROJECT)_unit_tests.F90
 $(WORKING_DIR)/$(PROJECT)_unit_tests.F90: $(PFUNIT)/include/driver.F90 \
-                                         $(WORKING_DIR)/testSuites.inc
+                                          $(WORKING_DIR)/$(TEST_LIST_FILE)
 	$(call MESSAGE,Processing, "pFUnit driver source")
-	$(Q)sed "s/program main/program $(basename $(notdir $@))/" <$< >$@
+	$(Q)sed -e "s/program main/program $(basename $(notdir $@))/" \
+	        <$< >$@
 
-.PRECIOUS: $(WORKING_DIR)/testSuites.inc
-$(WORKING_DIR)/testSuites.inc:
+.PRECIOUS: $(_TEST_SUITES)
+$(WORKING_DIR)/$(TEST_LIST_FILE):
 	$(call MESSAGE,Collating, $@)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)echo ! Tests to run >$@
@@ -34,12 +35,12 @@ $(WORKING_DIR)/testSuites.inc:
 $(WORKING_DIR)/%.F90: $(SOURCE_DIR)/%.pf
 	$(call MESSAGE,Generating unit test,$@)
 	$(Q)mkdir -p $(dir $@)
-	$(Q)$(PFUNIT)/bin/pFUnitParser.py $< $@ $(VERBOSE_REDIRECT)
+	$(Q)$(PFUNIT)/bin/funitproc $(QUIET_ARG_SINGLE) $< $@
 
 $(WORKING_DIR)/%.F90: $(WORKING_DIR)/%.pf
 	$(call MESSAGE, Generating unit test, $@)
 	$Qmkdir -p $(dir $@)
-	$Q$(PFUNIT)/bin/pFUnitParser.py $< $@ $(VERBOSE_REDIRECT)
+	$Q$(PFUNIT)/bin/funitproc $(QUIET_ARG_SINGLE) $< $@
 
 $(WORKING_DIR)/%.pf: $(SOURCE_DIR)/%.PF
 	$(call MESSAGE, Preprocessing unit test, $<)

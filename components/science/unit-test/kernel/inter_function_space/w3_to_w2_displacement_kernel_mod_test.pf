@@ -9,7 +9,7 @@ module w3_to_w2_displacement_kernel_mod_test
 
     use constants_mod,         only: i_def, r_def, PI, l_def
     use reference_element_mod, only: S, E, N, W
-    use pFUnit_Mod
+    use funit
 
   implicit none
 

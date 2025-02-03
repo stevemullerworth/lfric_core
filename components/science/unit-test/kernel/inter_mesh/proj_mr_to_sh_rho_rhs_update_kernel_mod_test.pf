@@ -7,7 +7,7 @@
 !>
 module proj_mr_to_sh_rho_rhs_update_kernel_mod_test
   use constants_mod, only : i_def, r_def
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

@@ -10,7 +10,7 @@ module model_clock_mod_event_test
   use event_actor_mod, only : event_actor_type
   use event_mod,       only : event_type, event_action
   use model_clock_mod, only : model_clock_type
-  use pFUnit_mod,      only : anyExceptions,  &
+  use pfunit,      only : anyExceptions,  &
                               assertEqual,    &
                               assertTrue,     &
                               SourceLocation, &

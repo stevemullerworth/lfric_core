@@ -16,7 +16,7 @@ contains
 
   @test
   subroutine test_quadrature_rule_mod
-    use pFUnit_Mod
+    use funit
     use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
     use quadrature_rule_gauss_lobatto_mod, only: quadrature_rule_gauss_lobatto_type
     use quadrature_rule_newton_cotes_mod,  only: quadrature_rule_newton_cotes_type

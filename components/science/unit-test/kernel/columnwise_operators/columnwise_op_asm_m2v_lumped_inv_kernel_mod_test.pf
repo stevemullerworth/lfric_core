@@ -15,7 +15,7 @@ module columnwise_op_asm_m2v_lumped_inv_kernel_mod_test
   use get_unit_test_m3x3_dofmap_mod, only : get_w2v_m3x3_dofmap
   use get_unit_test_m3x3_cma_data_mod, &
                                      only : get_w2v_w2v_m3x3_cma_data
-  use pFUnit_Mod
+  use funit
 
   implicit none
 

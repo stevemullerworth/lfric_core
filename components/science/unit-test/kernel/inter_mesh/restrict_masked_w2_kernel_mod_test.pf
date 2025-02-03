@@ -6,7 +6,7 @@
 !> Test for the masked W2 restriction kernel
 module restrict_masked_w2_kernel_mod_test
 
-  use pFUnit_mod
+  use funit
   use constants_mod,                 only : i_def, r_def, rmdi
   use sci_restrict_masked_w2_kernel_mod, only : restrict_masked_w2_kernel_code
 

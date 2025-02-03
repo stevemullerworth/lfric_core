@@ -17,26 +17,25 @@ module mesh_tiling_mod_test
                             finalise_halo_comms
   use mpi_mod, only: global_mpi
 
-  use pFUnit_Mod
+  use pfunit
 
   implicit none
 
   private
-  public setUp, tearDown, test_colouring_fallback,    &
+  public test_colouring_fallback,                     &
          test_partitioned_planar_mesh_separated_halo, &
          test_partitioned_planar_mesh_combined
+  !
+  ! pFUnit needs symbol spillage
+  !
+  public MPITestCase, MPITestParameter
 
   @testCase
   type, public, extends(MPITestCase) :: compute_tiling_test_type
-    integer :: total_ranks
-    integer :: local_rank
     integer :: num_layers
   contains
     procedure :: setUp
     procedure :: tearDown
-    procedure :: test_colouring_fallback
-    procedure :: test_partitioned_planar_mesh_separated_halo
-    procedure :: test_partitioned_planar_mesh_combined
   end type compute_tiling_test_type
 
 !-------------------------------------------------------------------------------
@@ -56,8 +55,6 @@ contains
     ! Initialise halo functionality
     call initialise_halo_comms( this%getMpiCommunicator() )
 
-    this%total_ranks = global_mpi%get_comm_size()
-    this%local_rank  = global_mpi%get_comm_rank()
     this%num_layers  = 5
 
   end subroutine setUp
@@ -184,7 +181,7 @@ contains
     integer(i_def), allocatable       :: last_halo_cells(:,:,:)
     logical(l_def)                    :: generate_inner_haloes
 
-    select case ( this%total_ranks )
+    select case ( this%getNumProcesses() )
       case (1)
         xyprocs = 1
       case (4)
@@ -196,9 +193,10 @@ contains
     filename = 'data/mesh_BiP8x8-750x250.nc'
 
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth, this%local_rank,  &
-                     this%total_ranks, this%num_layers,                       &
-                     generate_inner_haloes, tile_size, .false. )
+    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+                     this%getProcessRank(), this%getNumProcesses(), &
+                     this%num_layers, generate_inner_haloes,        &
+                     tile_size, .false. )
 
     ! Retrieve colouring data through mesh_type API and fill comparison arrays
     ncolours = mesh%get_ncolours()
@@ -330,7 +328,7 @@ contains
     ! colours depends on the location of the partition in the global domain;
     ! the tiling layout above shows rank 2
     do depth = 1, ndepths
-      if ( this%local_rank < 2 ) then
+      if ( this%getProcessRank() < 2 ) then
         ! Bottom right, bottom left partitions
         last_halo_tiles(:,depth) = (/9,9,6,6/)
       else
@@ -383,10 +381,10 @@ contains
     ! case of edge cells on inner halo tiles, loop limits are extended
     ! column-wise as a function of halo depth, with column lenghts of 5
     ! and 4, respectively.
-    select case (this%local_rank)
+    select case (this%getProcessRank())
     case(0,1)
       do depth = 1, ndepths
-        if ( this%local_rank == 0 ) then
+        if ( this%getProcessRank() == 0 ) then
           last_halo_cells(1,5:9,depth) = depth * (/3,2,depth,5,4/)
         else
           last_halo_cells(1,5:9,depth) = depth * (/depth,3,2,5,4/)
@@ -398,7 +396,7 @@ contains
       do depth = 1, ndepths
         last_halo_cells(1,5:6,depth) = depth * (/5,4/)
         ! Corner tile in outer halo is in different positions
-        if ( this%local_rank == 2 ) then
+        if ( this%getProcessRank() == 2 ) then
           last_halo_cells(3,5:9,depth) = depth * (/4,3,3,2,depth/)
         else
           last_halo_cells(3,5:9,depth) = depth * (/4,3,depth,3,2/)
@@ -408,8 +406,9 @@ contains
     end select
 
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth, this%local_rank,   &
-                     this%total_ranks, this%num_layers, generate_inner_haloes, &
+    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+                     this%getProcessRank(), this%getNumProcesses(), &
+                     this%num_layers, generate_inner_haloes,        &
                      tile_size, .true. )
 
     ! Edge and inner tiles are the same when inner halos are tiled separately
@@ -490,7 +489,7 @@ contains
     ! over colours depends on the location of the partition in the global
     ! domain; the tiling layout above shows rank 2
     do depth = 1, ndepths
-      select case ( this%local_rank )
+      select case ( this%getProcessRank() )
       case(0)
         ! Bottom left
         last_halo_tiles(:,depth) = (/9,12,6,8/)
@@ -550,7 +549,7 @@ contains
     ! a partition is located in the global domain. Cell count in corner
     ! tiles increases quadratically with halo depth, and linearly in
     ! non-corner tiles.
-    select case (this%local_rank)
+    select case (this%getProcessRank())
     case(0)
       do depth = 1, ndepths
         last_halo_cells(1,7:9,depth) = depth * (/3,3,1/)
@@ -578,8 +577,9 @@ contains
     end select
 
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth, this%local_rank,   &
-                     this%total_ranks, this%num_layers, generate_inner_haloes, &
+    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+                     this%getProcessRank(), this%getNumProcesses(), &
+                     this%num_layers, generate_inner_haloes,        &
                      tile_size, .false. )
 
     call check_tiling_results( mesh, ncolours, ntiles, ndepths, ndepths,   &
