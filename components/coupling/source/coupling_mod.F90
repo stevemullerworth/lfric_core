@@ -71,6 +71,7 @@ module coupling_mod
     procedure, public :: initialise
     procedure, public :: define_partitions
     procedure, public :: define_variables
+    procedure, public :: end_definition
     procedure, public :: get_local_index
     procedure, public :: finalise
 
@@ -253,12 +254,8 @@ contains
     integer(i_def)                              :: var_shape_0d(1)
     ! Id for transient fields (receive)
     integer(i_def)                              :: var_id
-    ! Number of coupling components the data will be sent to
-    integer(i_def)                              :: ncpl
     ! Error code returned by oasis routine
     integer(i_def)                              :: kinfo
-    ! Coupling frequency of each model
-    integer(i_def)                              :: cpl_freqs(nmax)
 
     var_nodims(1) = 1 ! rank of coupling field
     var_nodims(2) = 1 ! number of bundles in coupling field (always 1)
@@ -372,6 +369,54 @@ contains
                        "cpl_define: field "//trim(var_name)//" send"
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     end do
+#else
+    write(log_scratch_space, * ) &
+               "define_variables: to use OASIS, cpp directive MCT must be set"
+    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+#endif
+
+  end subroutine define_variables
+
+
+  !>@brief Close the definition phase and check against the namcouple file
+  !>
+  !> @param [in,out] cpl_snd_2d field collection with fields to send
+  !> @param [in,out] cpl_rcv_2d field collection with fields to receive
+  !> @param [in,out] cpl_snd_0d field collection with fields to send as scalars
+  !
+  subroutine end_definition( self, cpl_snd_2d, cpl_rcv_2d, cpl_snd_0d )
+    implicit none
+
+    class(coupling_type), intent(inout)         :: self
+    type( field_collection_type ), intent(inout):: cpl_snd_2d
+    type( field_collection_type ), intent(inout):: cpl_rcv_2d
+    type( field_collection_type ), intent(inout):: cpl_snd_0d
+
+#ifdef MCT
+    ! Iterator over field collection
+    type( field_collection_iterator_type)       :: iter
+    ! Pointer to a abstrct field parent type
+    class( field_parent_type ), pointer         :: field_iter
+    ! Name for transient fields (receive)
+    character(str_def)                          :: var_name
+    ! Name of field with level information for transient field (receive)
+    character(str_def)                          :: var_name_lev
+    ! Function space of fields used in coupling
+    type(function_space_type), pointer          :: cpl_fs
+    ! Number of multi-data fields
+    integer(i_def)                              :: ndata
+    ! Index for different do loops
+    integer(i_def)                              :: i
+    ! Name of the level of a multi-category field
+    character(len=2)                            :: cpl_catno
+    ! Id for transient fields (receive)
+    integer(i_def)                              :: var_id
+    ! Number of coupling components the data will be sent to
+    integer(i_def)                              :: ncpl
+    ! Error code returned by oasis routine
+    integer(i_def)                              :: kinfo
+    ! Coupling frequency of each model
+    integer(i_def)                              :: cpl_freqs(nmax)
 
     call oasis_enddef (kinfo)
 
@@ -431,11 +476,11 @@ contains
     end do
 #else
     write(log_scratch_space, * ) &
-               "define_variables: to use OASIS, cpp directive MCT must be set"
+               "end_definition: to use OASIS, cpp directive MCT must be set"
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 #endif
 
-  end subroutine define_variables
+  end subroutine end_definition
 
 
   function get_local_index(self) result(local_index)
