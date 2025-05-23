@@ -15,7 +15,9 @@ module lfric_xios_file_mod
   use field_parent_mod,              only: field_parent_type
   use field_collection_mod,          only: field_collection_type
   use field_collection_iterator_mod, only: field_collection_iterator_type
-  use file_mod,                      only: file_type, FILE_MODE_READ, FILE_MODE_WRITE
+  use file_mod,                      only: file_type,      &
+                                           file_mode_read, &
+                                           file_mode_write
   use lfric_xios_process_output_mod, only: process_output_file
   use lfric_xios_field_mod,          only: lfric_xios_field_type
   use lfric_xios_diag_mod,           only: file_is_tagged
@@ -262,15 +264,17 @@ subroutine file_new(self, file_name)
 
 end subroutine file_new
 
-!> @brief  Opens the LFRic definition of an output file after it has been
-!!         opened by XIOS
+!> @brief  Opens the LFRic definition for file reading
+!>         after it has been opened by XIOS.
 !> @param[in] file_name Path to the file
-subroutine file_open(self, file_name)
+!> @param[in] file_mode Action on file.
+subroutine file_open(self, file_name, file_mode)
 
   implicit none
 
   class(lfric_xios_file_type), intent(inout) :: self
   character(len=*),            intent(in)    :: file_name
+  integer(i_def),    optional, intent(in)    :: file_mode
 
   ! TODO Write orography
 
