@@ -4,18 +4,16 @@
      under which the code may be used.
    ------------------------------------------------------------------------------
 
-.. _developer_guide_index:
+.. _how_it_works_index:
 
-Developer Guide
+How it works
 ===============
 
 .. toctree::
    :maxdepth: 2
 
    templated_source
-
    build_system/index
-   using_doxygen
 
 
 Requirements
@@ -37,13 +35,4 @@ explain the reasons for the design and implementation choices that have been mad
 
    core_data_model/science_model_architecture
 
-Contributing
-------------
 
-.. toctree::
-   :maxdepth: 2
-
-   code_review_primer
-   coding_standards/fortran_coding_standards
-   coding_standards/python_coding_standards
-   sphinx_style/documentation_style_guide
