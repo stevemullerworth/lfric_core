@@ -8,4 +8,5 @@ class id_r64_field_pair_mod::id_r64_field_pair_type {
   +initialise( <<in>> fs: function_space_type, <<in>> id: integer, <<in, optional>> name: character, <<in, optional>> ndata_first: logical )
   +copy_initialise( <<in>> field: field_real64_type, <<in>> id: integer ) :
   +get_field( ) : field_real64_type
+  <<destroy>>+destructor()
 }

@@ -34,6 +34,8 @@ module id_integer_field_pair_mod
     procedure, public :: copy_initialise
     procedure, public :: get_field
 
+    final :: destructor
+
   end type id_integer_field_pair_type
 
 contains
@@ -99,5 +101,12 @@ contains
     field => self%field_
 
   end function get_field
+
+  !> @brief Calls finaliser on the field owned by the instance
+  subroutine destructor(self)
+    implicit none
+    type(id_integer_field_pair_type), intent(inout) :: self
+    call self%field_%field_final()
+  end subroutine destructor
 
 end module id_integer_field_pair_mod

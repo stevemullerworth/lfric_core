@@ -8,4 +8,5 @@ class id_r32_field_pair_mod::id_r32_field_pair_type {
   +initialise( <<in>> fs: function_space_type, <<in>> id: integer, <<in, optional>> name: character, <<in, optional>> ndata_first: logical )
   +copy_initialise( <<in>> field: field_real32_type, <<in>> id: integer ) :
   +get_field( ) : field_real32_type
+  <<destroy>>+destructor()
 }

@@ -31,6 +31,8 @@ module id_integer_array_pair_mod
     procedure, public :: initialise
     procedure, public :: get_integer_array
 
+    final :: destructor
+
   end type id_integer_array_pair_type
 
 contains
@@ -71,5 +73,12 @@ contains
     numbers => self%numbers_
 
   end function get_integer_array
+
+  !> @brief Deallocates the array of integers
+  subroutine destructor(self)
+    implicit none
+    type(id_integer_array_pair_type), intent(inout) :: self
+    if( allocated(self%numbers_) ) deallocate( self%numbers_ )
+  end subroutine destructor
 
 end module id_integer_array_pair_mod

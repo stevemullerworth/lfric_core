@@ -34,6 +34,8 @@ module id_r64_field_array_pair_mod
     procedure, public :: copy_initialise
     procedure, public :: get_field_array
 
+    final :: destructor
+
   end type id_r64_field_array_pair_type
 
 contains
@@ -103,5 +105,18 @@ contains
     field_array => self%field_array_
 
   end function get_field_array
+
+  !> @brief Loops over fields in field array and calls finaliser on each
+  subroutine destructor(self)
+    implicit none
+    type(id_r64_field_array_pair_type), intent(inout) :: self
+    integer(kind=i_def) :: i
+    if( allocated(self%field_array_) ) then
+      do i = 1, size(self%field_array_)
+        call self%field_array_(i)%field_final()
+      end do
+      deallocate(self%field_array_)
+    endif
+  end subroutine destructor
 
 end module id_r64_field_array_pair_mod

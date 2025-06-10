@@ -34,6 +34,8 @@ module id_r64_operator_pair_mod
     procedure, public :: copy_initialise
     procedure, public :: get_operator
 
+    final :: destructor
+
   end type id_r64_operator_pair_type
 
 contains
@@ -85,5 +87,12 @@ contains
     operator_out => self%operator_
 
   end function get_operator
+
+  !> @brief Calls finaliser on operator owned by the instance
+  subroutine destructor(self)
+    implicit none
+    type(id_r64_operator_pair_type), intent(inout) :: self
+    call self%operator_%operator_final()
+  end subroutine destructor
 
 end module id_r64_operator_pair_mod

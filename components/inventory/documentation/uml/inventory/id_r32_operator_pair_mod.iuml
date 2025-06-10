@@ -8,4 +8,5 @@ class id_r32_operator_pair_mod::id_r32_operator_pair_type {
   +initialise( <<in>> fs_target: function_space_type, <<in>> fs_source: function_space_type, <<in>> id: integer )
   +copy_initialise( <<in>> operator_in: operator_real32_type, <<in>> id: integer ) :
   +get_operator( ) : operator_real32_type
+  <<destroy>>+destructor()
 }

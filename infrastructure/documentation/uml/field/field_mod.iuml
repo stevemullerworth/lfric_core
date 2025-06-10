@@ -28,9 +28,7 @@ class field_mod::field_type {
   +read_checkpoint( <<in>> character: file_name )
   +write_checkpoint( <<in>> character: file_name )
   +field_final()
-  <<destroy>>+field_destructor_scalar()
-  <<destroy>>+field_destructor_array1d()
-  <<destroy>>+field_destructor_array2d()
+  <<destroy>>+field_destructor()
 
 }
 note right
@@ -40,7 +38,7 @@ note right
  field_type object. To see
  how other varieties of field
  objects (such as 32-bit or
- integer fields) are 
+ integer fields) are
  implemented, see the
  field_varieties diagram.
 end note

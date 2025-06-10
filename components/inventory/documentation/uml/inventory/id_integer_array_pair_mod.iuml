@@ -7,4 +7,5 @@ class id_integer_array_pair_mod::id_integer_array_pair_type {
 
   +initialise( <<in>> numbers: integer, <<in>> id: integer ) :
   +get_integer_array( ) : integer
+  <<destroy>>+destructor()
 }
