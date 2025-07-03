@@ -44,7 +44,6 @@ contains
       use omp_lib,            only: omp_get_thread_num
       use omp_lib,            only: omp_get_max_threads
       use mesh_mod,           only: mesh_type
-      use r_solver_field_mod, only: r_solver_field_type, r_solver_field_proxy_type
 
       implicit none
 
@@ -119,7 +118,6 @@ contains
       use omp_lib,            only: omp_get_thread_num
       use omp_lib,            only: omp_get_max_threads
       use mesh_mod,           only: mesh_type
-      use r_solver_field_mod, only: r_solver_field_type, r_solver_field_proxy_type
 
       implicit none
 
