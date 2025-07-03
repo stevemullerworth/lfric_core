@@ -14,14 +14,17 @@ module lfric_mpi_mod_test
   use constants_mod, only: i_def, r_single, r_double, &
                            integer_type, real_type
 #ifdef LEGACY_MPI
-  use mpi,     only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER
+  use mpi,     only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER, &
+                           MPI_CONGRUENT
 #else
 !> @todo: This should be "use mpi_f08...", but that clashes with the
 !> "use pfunit" which is currently built with legacy mpi, only
 !> - so use legacy mpi here, too.
 !> When pfunit is built with mpi_f08, #4545 will swap to the following line:
-!>  use mpi_f08, only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER
-  use mpi,     only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER
+!>  use mpi_f08, only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER, &
+!>                           MPI_CONGRUENT
+  use mpi,     only      : MPI_DOUBLE_PRECISION, MPI_REAL4, MPI_INTEGER, &
+                           MPI_CONGRUENT
 #endif
   use lfric_mpi_mod, only: global_mpi, create_comm, get_lfric_datatype, &
                            lfric_comm_type, lfric_datatype_type
@@ -90,16 +93,26 @@ contains
     integer(i_def) :: rank_number, total_ranks
     integer(i_def) :: num_processes
     integer(i_def) :: proc_num
+    integer        :: compare_result
+    integer        :: ierr
+    integer        :: pfunit_comm
+    integer        :: model_comm
 
     num_processes = this%context%getNumProcesses()
     proc_num      = this%getProcessRank()
 
-    ! Test extracting the integer component of the communicator
-    ! Note: currently this%getMpiCommunicator() returns an integer. If pFUnit
-    ! moves to mpi_f08, this will become an mpi_comm type and the following will
-    ! need to change
+    ! Test that LFRic's communicator is a duplicate of the one provided
+    ! by pFUnit. Technically, this tests if they are "congruent" (contain
+    ! the same ranks in the same order)
     lfric_comm = global_mpi%get_comm()
-    @assertEqual( this%getMpiCommunicator(), lfric_comm%get_comm_mpi_val() )
+    pfunit_comm = this%getMpiCommunicator()
+    model_comm = lfric_comm%get_comm_mpi_val()
+    !> @todo: pfunit is built with legacy mpi, so we currently fall back to
+    !> using the legacy version of mpi_comm_compare(). When pfunit is built
+    !> with mpi_f08 this will need updating to use mpi_comm objects.
+    !> See ticket #4545 for more details.
+    call mpi_comm_compare(pfunit_comm, model_comm, compare_result, ierr)
+    @assertEqual( MPI_CONGRUENT, compare_result )
 
     ! Test real global sum routine
     l_sum = 0.0_r_test
