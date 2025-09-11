@@ -12,13 +12,18 @@ module runtime_partition_lfric_mod
   use namelist_collection_mod, only: namelist_collection_type
   use namelist_mod,            only: namelist_type
   use partition_mod,           only: partitioner_interface
-  use runtime_partition_mod,   only: get_partition_parameters_args_only &
-                                         => get_partition_parameters
-
+  use runtime_partition_mod,   only: get_partition_strategy
+  use panel_decomposition_mod, only: panel_decomposition_type, &
+                                     auto_decomposition_type,&
+                                     row_decomposition_type, &
+                                     column_decomposition_type, &
+                                     custom_decomposition_type
   use partitioning_config_mod, only: panel_decomposition_auto,   &
                                      panel_decomposition_row,    &
                                      panel_decomposition_column, &
                                      panel_decomposition_custom
+
+  use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_ERROR
 
   implicit none
 
@@ -35,8 +40,7 @@ contains
 subroutine get_partition_parameters_cfg( configuration,  &
                                          mesh_selection, &
                                          total_ranks,    &
-                                         panel_xproc,    &
-                                         panel_yproc,    &
+                                         decomposition,  &
                                          partitioner_ptr )
 
   implicit none
@@ -46,8 +50,7 @@ subroutine get_partition_parameters_cfg( configuration,  &
   integer,        intent(in) :: mesh_selection
   integer(i_def), intent(in) :: total_ranks
 
-  integer(i_def), intent(inout) :: panel_xproc
-  integer(i_def), intent(inout) :: panel_yproc
+  class(panel_decomposition_type), intent(inout), allocatable :: decomposition
 
   type(namelist_type), pointer :: partitioning
 
@@ -58,8 +61,7 @@ subroutine get_partition_parameters_cfg( configuration,  &
   call get_partition_parameters_nml( partitioning,     &
                                      mesh_selection,   &
                                      total_ranks,      &
-                                     panel_xproc,      &
-                                     panel_yproc,      &
+                                     decomposition,    &
                                      partitioner_ptr )
 
 
@@ -68,13 +70,9 @@ end subroutine get_partition_parameters_cfg
 subroutine get_partition_parameters_nml( partitioning,   &
                                          mesh_selection, &
                                          total_ranks,    &
-                                         panel_xproc,    &
-                                         panel_yproc,    &
+                                         decomposition,  &
                                          partitioner_ptr )
 
-  use runtime_partition_mod, only: decomp_auto, &
-                                   decomp_row,  &
-                                   decomp_column
   implicit none
 
 
@@ -83,56 +81,40 @@ subroutine get_partition_parameters_nml( partitioning,   &
   integer,        intent(in) :: mesh_selection
   integer(i_def), intent(in) :: total_ranks
 
-  integer(i_def), intent(inout) :: panel_xproc
-  integer(i_def), intent(inout) :: panel_yproc
+  class(panel_decomposition_type), intent(inout), allocatable :: decomposition
 
   procedure(partitioner_interface), intent(out), pointer :: partitioner_ptr
 
-  logical :: custom
-  integer :: decomp
+  integer(i_def) :: panel_xproc, panel_yproc
+
   integer :: panel_decomposition
 
   call partitioning%get_value( 'panel_decomposition', panel_decomposition )
 
-  custom = .false.
-  decomp = decomp_auto
-
   select case (panel_decomposition)
 
   case ( panel_decomposition_auto )
-    decomp = decomp_auto
+    decomposition = auto_decomposition_type()
 
   case ( panel_decomposition_row )
-    decomp = decomp_row
+    decomposition = row_decomposition_type()
 
   case ( panel_decomposition_column )
-    decomp = decomp_column
+    decomposition = column_decomposition_type()
 
   case ( panel_decomposition_custom )
-    custom = .true.
     call partitioning%get_value( 'panel_xproc', panel_xproc )
     call partitioning%get_value( 'panel_yproc', panel_yproc )
+    decomposition = custom_decomposition_type( num_xprocs=panel_xproc, num_yprocs=panel_yproc )
 
   case default
+    ! Not clear it's possible to still error at this point but no harm in checking
+    call log_event( "Missing entry for panel decomposition, "// &
+                    "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
 
   end select
 
-
-  if (custom) then
-
-    call get_partition_parameters_args_only( mesh_selection, &
-                                             total_ranks,    &
-                                             panel_xproc,    &
-                                             panel_yproc,    &
-                                             partitioner_ptr )
-  else
-    call get_partition_parameters_args_only( mesh_selection, &
-                                             decomp,         &
-                                             total_ranks,    &
-                                             panel_xproc,    &
-                                             panel_yproc,    &
-                                             partitioner_ptr )
-  end if
+  call get_partition_strategy(mesh_selection, total_ranks, partitioner_ptr)
 
 end subroutine get_partition_parameters_nml
 

@@ -18,7 +18,7 @@ module generate_op_local_objects_mod
   use global_mesh_map_collection_mod, only: global_mesh_map_collection_type
   use global_mesh_map_mod,            only: global_mesh_map_type
   use partition_mod,                  only: partition_type, partitioner_interface
-  use sci_query_mod,                  only: check_uniform_partitions
+  use panel_decomposition_mod,        only: panel_decomposition_type
 
   implicit none
 
@@ -42,8 +42,8 @@ contains
 !> @param[in]      n_partitions       Total number of partitions for each mesh.
 !> @param[in]      max_stencil_depth  Maximum stencil depth that the partitions
 !>                                    should support.
-!> @param[in]      xproc              Partition ranks in x-axes.
-!> @param[in]      yproc              Partition ranks in y-axes.
+!> @param [in]     decomposition      Object containing decomposition parameters
+!>                                    and method
 !> @param[in]      partitioner        Partitioner to apply on meshes.
 !> @param[in]      lbc_parent_name    Optional, Name of mesh to produce
 !>                                              corresponding local LBC meshes
@@ -55,8 +55,8 @@ subroutine generate_op_local_objects( local_mesh_bank,       &
                                       partition_id,          &
                                       n_partitions,          &
                                       max_stencil_depth,     &
-                                      generate_inner_halos, &
-                                      xproc, yproc,          &
+                                      generate_inner_halos,  &
+                                      decomposition,         &
                                       partitioner,           &
                                       lbc_parent_name )
 
@@ -69,10 +69,9 @@ subroutine generate_op_local_objects( local_mesh_bank,       &
   integer(i_def),     intent(in) :: partition_id
   integer(i_def),     intent(in) :: n_partitions
   integer(i_def),     intent(in) :: max_stencil_depth
-  integer(i_def),     intent(in) :: xproc
-  integer(i_def),     intent(in) :: yproc
   logical(l_def),     intent(in) :: generate_inner_halos
 
+  class(panel_decomposition_type),   intent(in) :: decomposition
   procedure(partitioner_interface),  intent(in), pointer :: partitioner
 
   character(str_def), optional,      intent(in) :: lbc_parent_name
@@ -104,7 +103,6 @@ subroutine generate_op_local_objects( local_mesh_bank,       &
 
   integer(i_def) :: n_meshes, n_maps, map_xcells, map_ycells, local_id
   integer(i_def) :: i, p, q, target, local_cell, cell_global_id
-  logical        :: source_good, target_good
 
   ! Local variables for LBC meshes
   type(local_mesh_type)       :: local_lbc_mesh
@@ -125,9 +123,9 @@ subroutine generate_op_local_objects( local_mesh_bank,       &
 
     partition = partition_type( source_global_mesh_ptr, &
                                 partitioner,            &
-                                xproc, yproc,           &
+                                decomposition,          &
                                 max_stencil_depth,      &
-                                generate_inner_halos,  &
+                                generate_inner_halos,   &
                                 partition_id, n_partitions )
 
     write( name,'(A,I0)' ) trim(source_name)//'_', partition_id
@@ -234,25 +232,6 @@ subroutine generate_op_local_objects( local_mesh_bank,       &
 
         global_mesh_map_ptr =>    &
                      global_mesh_maps_ptr%get_global_mesh_map(1,target+1)
-
-        ! For pre-partitioned meshes which  are connected by an intergrid map,
-        ! the partitions must lie over the same geographical regions.
-        source_good = check_uniform_partitions( source_global_mesh_ptr, &
-                                                xproc, yproc )
-        target_good = check_uniform_partitions( target_global_mesh_ptr, &
-                                                xproc, yproc )
-
-        if ( .not. (source_good .and. target_good) ) then
-          ! This requested mesh mapping and prtitioning strategy will produce
-          ! mismatched partition locations.
-          write(log_scratch_space,'(A)')                                        &
-              'Number of partitions across a panel (xproc, yproc) must be ' //  &
-              'a factor of the number cells on the panel edge for both the ' // &
-              'source and target meshes, [' // trim(source_name) // ':' //      &
-              trim(target_global_mesh_ptr%get_mesh_name()) // ']'
-          call log_event(log_scratch_space, log_level_error)
-        end if
-
         map_xcells = global_mesh_map_ptr%get_ntarget_cells_per_source_x()
         map_ycells = global_mesh_map_ptr%get_ntarget_cells_per_source_y()
 

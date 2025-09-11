@@ -18,6 +18,7 @@ module mesh_tiling_mod_test
                                         finalise_halo_comms
   use lfric_mpi_mod,              only: global_mpi, &
                                         lfric_comm_type
+  use panel_decomposition_mod,    only: custom_decomposition_type
 
   use pfunit
 
@@ -84,7 +85,7 @@ contains
 
 !-------------------------------------------------------------------------------
 
-  function get_mesh( filename, xyprocs, max_stencil_depth, local_rank,      &
+  function get_mesh( filename, decomposition, max_stencil_depth, local_rank,      &
                      total_ranks, num_layers, generate_inner_halos,        &
                      tile_size, inner_halo_tiles ) &
                      result ( mesh )
@@ -99,8 +100,8 @@ contains
 
     implicit none
 
+    type(custom_decomposition_type),   intent(in) :: decomposition
     character(len = str_max_filename), intent(in) :: filename
-    integer(i_def), intent(in)                    :: xyprocs(2)
     integer(i_def), intent(in)                    :: max_stencil_depth
     integer(i_def), intent(in)                    :: local_rank
     integer(i_def), intent(in)                    :: total_ranks
@@ -133,10 +134,9 @@ contains
     partitioner_ptr => partitioner_planar
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xyprocs(1),            &
-                                xyprocs(2),            &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
 
@@ -169,6 +169,7 @@ contains
     character(len = str_max_filename) :: filename
     type(mesh_type)                   :: mesh
     integer(i_def), parameter         :: tile_size(2) = 1
+    type(custom_decomposition_type)   :: decomposition
 
     integer(i_def)                    :: colour
     integer(i_def)                    :: tile
@@ -197,8 +198,10 @@ contains
 
     filename = 'data/mesh_BiP8x8-750x250.nc'
 
+    decomposition = custom_decomposition_type(xyprocs(1), xyprocs(2))
+
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+    mesh = get_mesh( filename , decomposition, max_stencil_depth,         &
                      this%getProcessRank(), this%getNumProcesses(), &
                      this%num_layers, generate_inner_halos,        &
                      tile_size, .false. )
@@ -270,6 +273,7 @@ contains
     class(compute_tiling_test_type), intent(inout) :: this
 
     integer(i_def)                    :: xyprocs(2)
+    type(custom_decomposition_type)   :: decomposition
     integer(i_def)                    :: max_stencil_depth
     character(len = str_max_filename) :: filename
     integer(i_def)                    :: depth
@@ -292,6 +296,7 @@ contains
     max_stencil_depth = 4
     filename = 'data/mesh_planar-32x32.nc'
     generate_inner_halos = .true.
+    decomposition = custom_decomposition_type(xyprocs(1), xyprocs(2))
 
     ! The global mesh will be partitioned into 2x2 rectangular local meshes
     ! with 16x16 cells each, and outer halos along two of the 4 partition
@@ -411,9 +416,9 @@ contains
     end select
 
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+    mesh = get_mesh( filename , decomposition, max_stencil_depth,   &
                      this%getProcessRank(), this%getNumProcesses(), &
-                     this%num_layers, generate_inner_halos,        &
+                     this%num_layers, generate_inner_halos,         &
                      tile_size, .true. )
 
     ! Edge and inner tiles are the same when inner halos are tiled separately
@@ -434,6 +439,7 @@ contains
     class(compute_tiling_test_type), intent(inout) :: this
 
     integer(i_def)                    :: xyprocs(2)
+    type(custom_decomposition_type)   :: decomposition
     integer(i_def)                    :: max_stencil_depth
     character(len = str_max_filename) :: filename
     integer(i_def)                    :: depth
@@ -457,6 +463,7 @@ contains
     max_stencil_depth = 4
     filename = 'data/mesh_planar-32x32.nc'
     generate_inner_halos = .true.
+    decomposition = custom_decomposition_type(xyprocs(1), xyprocs(2))
 
     ! Same test as "test_partitioned_planar_mesh_separated_halo", but without
     ! separating inner halo and partition interior. This leads to the
@@ -582,9 +589,9 @@ contains
     end select
 
     ! Initialise mesh, this also initialises tiling
-    mesh = get_mesh( filename , xyprocs, max_stencil_depth,         &
+    mesh = get_mesh( filename , decomposition, max_stencil_depth,   &
                      this%getProcessRank(), this%getNumProcesses(), &
-                     this%num_layers, generate_inner_halos,        &
+                     this%num_layers, generate_inner_halos,         &
                      tile_size, .false. )
 
     call check_tiling_results( mesh, ncolours, ntiles, ndepths, ndepths,   &

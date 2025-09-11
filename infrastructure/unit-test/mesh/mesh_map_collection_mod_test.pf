@@ -23,6 +23,7 @@ module mesh_map_collection_mod_test
   use partition_mod,              only: partition_type, partitioner_interface, &
                                         partitioner_cubedsphere_serial
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
+  use panel_decomposition_mod, only: custom_decomposition_type
 
   use pfunit
 
@@ -85,6 +86,7 @@ contains
     type(mesh_type)        :: mesh
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
     type(lfric_comm_type) :: lfric_comm
 
     call lfric_comm%set_comm_mpi_val(this%getMpiCommunicator())
@@ -95,6 +97,7 @@ contains
     call initialise_halo_comms(lfric_comm)
 
     partitioner_ptr => partitioner_cubedsphere_serial
+    decomposition = custom_decomposition_type(xproc, yproc)
 
     ! Extrussion to be used for all meshes
     extrusion = uniform_extrusion_type( radius, domain_top, nlayers, &
@@ -109,7 +112,7 @@ contains
 
     coarse_partition = partition_type( coarse_global_mesh_ptr, &
                                        partitioner_ptr,        &
-                                       xproc, yproc,           &
+                                       decomposition,          &
                                        max_stencil_depth,      &
                                        generate_inner_halos,  &
                                        local_rank, total_ranks )
@@ -129,7 +132,7 @@ contains
 
     fine_partition   = partition_type( fine_global_mesh_ptr,   &
                                        partitioner_ptr,        &
-                                       xproc, yproc,           &
+                                       decomposition,          &
                                        max_stencil_depth,      &
                                        generate_inner_halos,  &
                                        local_rank, total_ranks )

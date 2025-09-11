@@ -42,6 +42,12 @@ module gen_planar_mod
   use stretch_transform_mod,          only: stretch_transform,  &
                                             calculate_settings
 
+  use panel_decomposition_mod, only: panel_decomposition_type,  &
+                                     auto_decomposition_type,   &
+                                     row_decomposition_type,    &
+                                     column_decomposition_type, &
+                                     custom_decomposition_type
+
   implicit none
 
   private
@@ -2380,12 +2386,11 @@ end function is_generated
 !> @brief Sets common partition parameters to be applied to global meshes
 !>        of this type.
 !>
-!> @param[out]  xproc             Number of ranks in mesh panel x-direction.
-!> @param[out]  yproc             Number of ranks in mesh panel y-direction.
+!> @param[out]  decomposition     Object containing decomposition parameters and
+!>                                method
 !> @param[out]  partitioner_ptr   Mesh partitioning strategy.
 !>==============================================================================
-subroutine set_partition_parameters( xproc, yproc, &
-                                     partitioner_ptr )
+subroutine set_partition_parameters( decomposition, partitioner_ptr )
 
   use partition_mod, only: partitioner_interface, &
                            partitioner_planar
@@ -2401,83 +2406,37 @@ subroutine set_partition_parameters( xproc, yproc, &
 
   implicit none
 
-  integer(i_def), intent(out) :: xproc
-  integer(i_def), intent(out) :: yproc
+  class(panel_decomposition_type), intent(out), allocatable :: decomposition
 
   procedure(partitioner_interface), &
                   intent(out), pointer :: partitioner_ptr
-
-  ! Locals.
-  integer(i_def) :: ranks_per_panel
-  integer(i_def) :: start_factor
-  integer(i_def) :: end_factor
-  integer(i_def) :: fact_count
-  logical(l_def) :: found_factors
-
-  integer(i_def), parameter :: max_factor_iters = 10000
 
   partitioner_ptr => null()
 
   partitioner_ptr => partitioner_planar
   call log_event( "Using planar partitioner", LOG_LEVEL_INFO )
 
-  if ( n_partitions == 1 ) then
-    xproc = 1
-    yproc = 1
-  else if( n_partitions > 1 )then
-    select case(panel_decomposition)
+  select case(panel_decomposition)
     case( PANEL_DECOMPOSITION_AUTO )
-      ! For automatic partitioning, try to partition into the squarest
-      ! possible partitions by finding the two factors of ranks_per_panel
-      ! that are closest to sqrt(ranks_per_panel). If two factors can't
-      ! be found after max_factor_iters attempts, they would provide
-      ! partitions that are too un-square, so an error is produced.
-      ranks_per_panel = n_partitions / NPANELS
-      start_factor = nint(sqrt(real(ranks_per_panel, kind=r_def)), kind=i_def)
-      end_factor = max(1,(start_factor-max_factor_iters))
-      found_factors = .false.
-      do fact_count = start_factor, end_factor, -1
-        if (mod(ranks_per_panel,fact_count) == 0) then
-          found_factors = .true.
-          exit
-        end if
-      end do
-
-      if (found_factors) then
-        xproc = fact_count
-        yproc = ranks_per_panel/fact_count
-      else
-        call log_event( "Could not automatically partition domain.", &
-                        LOG_LEVEL_ERROR )
-      end if
+      decomposition = auto_decomposition_type()
 
     case( PANEL_DECOMPOSITION_ROW )
-      xproc = n_partitions / NPANELS
-      yproc = 1
+      decomposition = row_decomposition_type()
 
     case( PANEL_DECOMPOSITION_COLUMN )
-      xproc = 1
-      yproc = n_partitions / NPANELS
+      decomposition = column_decomposition_type()
 
     case( PANEL_DECOMPOSITION_CUSTOM )
       ! Use the values provided from the partitions namelist.
-      xproc = panel_xproc
-      yproc = panel_yproc
+      decomposition = custom_decomposition_type(num_xprocs=panel_xproc, num_yprocs=panel_yproc)
 
     case default
       call log_event( "Missing entry for panel decomposition, "// &
-                      "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
+                    "specify 'auto' if unsure.", LOG_LEVEL_ERROR )
 
-    end select
+  end select
 
-    write(log_scratch_space, '("Domain decomposition: ",i0,"x",i0)' ) &
-        xproc, yproc
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-  else
-    call log_event( "Number of partitions must be greater than zero", &
-                     LOG_LEVEL_ERROR )
-  end if
+  call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
 end subroutine set_partition_parameters
 

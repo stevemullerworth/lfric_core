@@ -52,6 +52,7 @@ program cubedsphere_mesh_generator
   use ugrid_2d_mod,           only: ugrid_2d_type
   use ugrid_file_mod,         only: ugrid_file_type
   use write_local_meshes_mod, only: write_local_meshes
+  use panel_decomposition_mod, only: panel_decomposition_type
 
   ! Configuration modules.
   use mesh_config_mod,     only: COORD_SYS_LL,          &
@@ -80,10 +81,11 @@ program cubedsphere_mesh_generator
   type(ugrid_2d_type),    allocatable :: ugrid_2d(:)
   class(ugrid_file_type), allocatable :: ugrid_file
 
+  class(panel_decomposition_type), allocatable :: decomposition
+
   integer(i_def) :: fsize
   integer(i_def) :: max_res
 
-  integer(i_def) :: xproc, yproc
   integer(i_def) :: n_mesh_maps = 0
   integer(i_def) :: n_targets
 
@@ -725,7 +727,7 @@ program cubedsphere_mesh_generator
     !---------------------------------------------------------------
     ! Get partitioning parameters.
     !---------------------------------------------------------------
-    call set_partition_parameters( xproc, yproc, partitioner_ptr )
+    call set_partition_parameters( decomposition, partitioner_ptr )
 
     allocate( local_mesh_collection, source=local_mesh_collection_type() )
 
@@ -746,7 +748,7 @@ program cubedsphere_mesh_generator
                                       mesh_names, partition_id,        &
                                       n_partitions, max_stencil_depth, &
                                       generate_inner_halos,           &
-                                      xproc, yproc, partitioner_ptr )
+                                      decomposition, partitioner_ptr )
 
       !---------------------------------------------------------------
       ! Output local meshes to UGRID file.

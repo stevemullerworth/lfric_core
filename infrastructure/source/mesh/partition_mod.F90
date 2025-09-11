@@ -28,6 +28,7 @@ module partition_mod
                               LOG_LEVEL_ERROR,   &
                               LOG_LEVEL_DEBUG
   use constants_mod,   only: i_def, r_def, l_def
+  use panel_decomposition_mod, only: panel_decomposition_type
 
   implicit none
 
@@ -121,8 +122,8 @@ module partition_mod
     !> @param[in]  global_mesh  A global mesh object that describes the layout
     !>                          of the global mesh
     !> @param[out] num_panels  Number of panels in the 3D mesh.
-    !> @param[in]  xproc  Number of processors along x-direction.
-    !> @param[in]  yproc  Number of processors along y-direction.
+    !> @param[in]  decomposition  Object containing decomposition parameters and
+    !>                            method
     !> @param[in]  local_rank  Local MPI rank number.
     !> @param[in]  total_ranks  Total number of MPI ranks.
     !> @param[in] max_stencil_depth  The maximum depth of stencil that will be
@@ -144,8 +145,7 @@ module partition_mod
     !>
     subroutine partitioner_interface( global_mesh, &
                                       num_panels, &
-                                      xproc, &
-                                      yproc, &
+                                      decomposition, &
                                       local_rank, &
                                       total_ranks, &
                                       max_stencil_depth, &
@@ -155,14 +155,14 @@ module partition_mod
                                       num_edge, &
                                       num_halo, &
                                       num_ghost )
-      import :: global_mesh_type
+      import :: global_mesh_type, panel_decomposition_type
       import :: i_def, l_def
 
       type(global_mesh_type), intent(in), pointer :: global_mesh
+      class(panel_decomposition_type), intent(in) :: decomposition
 
       integer(i_def), intent(out)                :: num_panels
-      integer(i_def), intent(in)                 :: xproc, yproc, &
-                                                    local_rank,   &
+      integer(i_def), intent(in)                 :: local_rank,   &
                                                     total_ranks
       integer(i_def), intent(in)                 :: max_stencil_depth
       logical(l_def), intent(in)                 :: generate_inner_halos
@@ -185,10 +185,8 @@ contains
   !>                         of the global mesh
   !> @param [in] partitioner A function pointer to the function that will perform
   !>                         the partitioning
-  !> @param [in] xproc Number of ranks to partition the mesh over in the
-  !>                   x-direction (across a single face  for a cubed-sphere mesh)
-  !> @param [in] yproc Number of ranks to partition the mesh over in the
-  !>                   y-direction (across a single face  for a cubed-sphere mesh)
+  !> @param [in] decomposition  Object containing decomposition parameters and
+  !>                            method
   !> @param [in] halo_depth The depth to which halos will be created
   !> @param [in] local_rank Number of the local process rank
   !> @param [in] total_ranks Total number of process ranks available
@@ -196,8 +194,7 @@ contains
   !-------------------------------------------------------------------------------
   function partition_constructor( global_mesh, &
                                   partitioner, &
-                                  xproc, &
-                                  yproc, &
+                                  decomposition, &
                                   max_stencil_depth, &
                                   generate_inner_halos, &
                                   local_rank, &
@@ -206,9 +203,8 @@ contains
   implicit none
 
   type(global_mesh_type),           pointer, intent(in) :: global_mesh
+  class(panel_decomposition_type),           intent(in) :: decomposition
   procedure(partitioner_interface), pointer, intent(in) :: partitioner
-  integer(i_def),                   intent(in) :: xproc
-  integer(i_def),                   intent(in) :: yproc
   integer(i_def),                   intent(in) :: max_stencil_depth
   integer(i_def),                   intent(in) :: local_rank
   integer(i_def),                   intent(in) :: total_ranks
@@ -232,7 +228,7 @@ contains
   ! as a procedure pointer
   call partitioner( global_mesh, &
                     self%npanels, &
-                    xproc, yproc, &
+                    decomposition, &
                     local_rank, &
                     total_ranks, &
                     self%max_stencil_depth, &
@@ -377,8 +373,8 @@ contains
   !> @param[in] global_mesh  A global mesh object that describes the layout
   !>                         of the global mesh
   !> @param[out] num_panels  Number of panels in the 3D mesh.
-  !> @param[in] xproc  Number of processors along x-direction.
-  !> @param[in] yproc  Number of processors along y-direction.
+  !> @param [in] decomposition  Object containing decomposition parameters and
+  !>                            method
   !> @param[in] local_rank  Local MPI rank number.
   !> @param[in] total_ranks  Total number of MPI ranks.
   !> @param[in] max_stencil_depth  The maximum depth of stencil that will be
@@ -399,8 +395,7 @@ contains
   !>
   subroutine partitioner_planar( global_mesh,           &
                                  num_panels,            &
-                                 xproc,                 &
-                                 yproc,                 &
+                                 decomposition,         &
                                  local_rank,            &
                                  total_ranks,           &
                                  max_stencil_depth,     &
@@ -413,10 +408,9 @@ contains
     implicit none
 
     type(global_mesh_type), pointer, intent(in) :: global_mesh
+    class(panel_decomposition_type), intent(in) :: decomposition
 
     integer(i_def),              intent(out)   :: num_panels
-    integer(i_def),              intent(in)    :: xproc
-    integer(i_def),              intent(in)    :: yproc
     integer(i_def),              intent(in)    :: local_rank
     integer(i_def),              intent(in)    :: total_ranks
     integer(i_def),              intent(in)    :: max_stencil_depth
@@ -432,8 +426,7 @@ contains
 
     call partitioner_rectangular_panels( global_mesh, &
                                         num_panels, &
-                                        xproc, &
-                                        yproc, &
+                                        decomposition, &
                                         local_rank, &
                                         total_ranks, &
                                         max_stencil_depth, &
@@ -454,8 +447,8 @@ contains
   !> @param[in]  global_mesh  A global mesh object that describes the layout
   !>                          of the global mesh
   !> @param[out] num_panels  Number of panels in the 3D mesh.
-  !> @param[in]  xproc  Number of processors along x-direction.
-  !> @param[in]  yproc  Number of processors along y-direction.
+  !> @param [in] decomposition  Object containing decomposition parameters and
+  !>                            method
   !> @param[in]  local_rank  Local MPI rank number.
   !> @param[in]  total_ranks  Total number of MPI ranks.
   !> @param[in] max_stencil_depth  Maximum depth of stencil that will be used
@@ -477,8 +470,7 @@ contains
   !>
   subroutine partitioner_cubedsphere( global_mesh,            &
                                       num_panels,             &
-                                      xproc,                  &
-                                      yproc,                  &
+                                      decomposition,          &
                                       local_rank,             &
                                       total_ranks,            &
                                       max_stencil_depth,      &
@@ -491,10 +483,9 @@ contains
     implicit none
 
     type(global_mesh_type), pointer, intent(in) :: global_mesh
+    class(panel_decomposition_type), intent(in) :: decomposition
 
     integer(i_def),              intent(out)   :: num_panels
-    integer(i_def),              intent(in)    :: xproc
-    integer(i_def),              intent(in)    :: yproc
     integer(i_def),              intent(in)    :: local_rank
     integer(i_def),              intent(in)    :: total_ranks
     integer(i_def),              intent(in)    :: max_stencil_depth
@@ -515,8 +506,7 @@ contains
 
     call partitioner_rectangular_panels( global_mesh, &
                                         num_panels, &
-                                        xproc, &
-                                        yproc, &
+                                        decomposition, &
                                         local_rank, &
                                         total_ranks, &
                                         max_stencil_depth, &
@@ -534,8 +524,8 @@ contains
   !>        when running the code serialially.
   !>
   !> @param[in]  global_mesh  Global mesh objectto be partitioned.
-  !> @param[in]  xproc  Number of processors along x-direction.
-  !> @param[in]  yproc  Number of processors along y-direction.
+  !> @param [in] decomposition  Object containing decomposition parameters and
+  !>                            method
   !> @param[in]  local_rank  Local MPI rank number.
   !> @param[in]  total_ranks  Total number of MPI ranks.
   !> @param[in]  max_stencil_depth  Maximum depth of stencil that will be used
@@ -556,8 +546,7 @@ contains
   !>
   subroutine partitioner_cubedsphere_serial( global_mesh,           &
                                              num_panels,            &
-                                             xproc,                 &
-                                             yproc,                 &
+                                             decomposition,         &
                                              local_rank,            &
                                              total_ranks,           &
                                              max_stencil_depth,     &
@@ -575,10 +564,9 @@ contains
     implicit none
 
     type(global_mesh_type), pointer, intent(in) :: global_mesh
+    class(panel_decomposition_type), intent(in) :: decomposition
 
     integer(i_def),              intent(out)   :: num_panels
-    integer(i_def),              intent(in)    :: xproc
-    integer(i_def),              intent(in)    :: yproc
     integer(i_def),              intent(in)    :: local_rank
     integer(i_def),              intent(in)    :: total_ranks
     integer(i_def),              intent(in)    :: max_stencil_depth
@@ -596,11 +584,6 @@ contains
 
     if( total_ranks /= 1 .or. local_rank /= 0 )then
     call log_event( 'Can only use the serial partitioner with a single process',&
-      LOG_LEVEL_ERROR )
-    endif
-
-    if( xproc /= 1 .or. yproc /= 1)then
-    call log_event( 'Invalid decomposition used for serial partitioner',&
       LOG_LEVEL_ERROR )
     endif
 
@@ -623,8 +606,7 @@ contains
   !-------------------------------------------------------------------------------
   subroutine partitioner_rectangular_panels( global_mesh,           &
                                              num_panels,            &
-                                             xproc,                 &
-                                             yproc,                 &
+                                             decomposition,         &
                                              local_rank,            &
                                              total_ranks,           &
                                              max_stencil_depth,     &
@@ -643,11 +625,10 @@ contains
 
     implicit none
 
-    type(global_mesh_type), pointer, intent(in):: global_mesh             ! A global mesh object
+    type(global_mesh_type), pointer, intent(in) :: global_mesh            ! A global mesh object
+    class(panel_decomposition_type), intent(in) :: decomposition          ! An object specifying how to decompose the panel
 
     integer(i_def),              intent(in)    :: num_panels              ! Number of panels that make up the mesh
-    integer(i_def),              intent(in)    :: xproc                   ! Number of processors along x-direction
-    integer(i_def),              intent(in)    :: yproc                   ! Number of processors along y-direction
     integer(i_def),              intent(in)    :: local_rank              ! Local MPI rank number
     integer(i_def),              intent(in)    :: total_ranks             ! Total number of MPI ranks
     integer(i_def),              intent(in)    :: max_stencil_depth       ! The maximum depth of stencil that will be used
@@ -665,13 +646,15 @@ contains
     integer(i_def) :: face       ! which face of the cube is implied by local_rank (0->5)
     integer(i_def) :: start_cell ! lowest cell id of the face implaced by local_rank
     integer(i_def) :: start_rank ! The number of the first rank on the face implied by local_rank
-    integer(i_def) :: local_xproc, local_yproc ! x- and y-dirn processor id of this partition
+    integer(i_def) :: panel_ranks! The number of ranks per panel on the mesh
+    integer(i_def) :: relative_rank ! The position of the current rank relative to the first rank in its panel
     integer(i_def) :: start_x    ! global cell id of start of the domain on this partition in x-dirn
     integer(i_def) :: num_x      ! number of cells in the domain on this partition in x-dirn
     integer(i_def) :: start_y    ! global cell id of start of the domain on this partition in y-dirn
     integer(i_def) :: num_y      ! number of cells in the domain on this partition in y-dirn
     integer(i_def) :: ix, iy     ! loop counters over cells on this partition in x- and y-dirns
     integer(i_def) :: void_cell  ! Cell id that marks the cell as a cell outside of the partition.
+    logical        :: any_maps   ! Whether there exist maps between meshes, meaning their partitions must align.
 
     ! Create linked lists
 
@@ -703,6 +686,7 @@ contains
 
     periodic_xy = global_mesh%get_mesh_periodicity()
     void_cell   = global_mesh%get_void_cell()
+    any_maps    = global_mesh%get_nmaps() > 0
 
     if (num_panels==1) then
       ! A single panelled mesh might be rectangluar - so find the dimensions
@@ -790,32 +774,24 @@ contains
 
     endif
 
-    ! Ensure xproc and yproc are sensible values
-    if(xproc > num_cells_x .or. yproc > num_cells_y) then
-      write(log_scratch_space, '(2a,i0,a,i0,a,i0,a,i0,a)')      &
-        "There needs to be more cells than partitions",         &
-        " in each direction of the mesh. This panel has ",      &
-        num_cells_x,"x",num_cells_y," cells to share between ", &
-        xproc,"x",yproc," partitions"
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-    end if
+    face = ((num_panels * local_rank) / total_ranks) + 1
+    panel_ranks = total_ranks / num_panels
+    start_rank = panel_ranks * (face - 1)
+    relative_rank = local_rank - start_rank + 1
 
-    ! Convert the local rank number into a face number and a local xproc and yproc
-    face = ((num_panels*local_rank)/total_ranks) + 1
+    call decomposition%get_partition( relative_rank, &
+                                      panel_ranks,   &
+                                      num_cells_x,   &
+                                      num_cells_y,   &
+                                      any_maps,      &
+                                      num_x,         &
+                                      num_y,         &
+                                      start_x,       &
+                                      start_y )
+
+
     start_cell = sw_corner_cells(face)
-    start_rank = xproc*yproc*(face-1)
-    local_xproc = modulo(local_rank-start_rank,xproc)
-    local_yproc = (local_rank-start_rank)/xproc
-
     deallocate(sw_corner_cells)
-
-    ! Work out the start index and number of cells (in x- and y-dirn) for
-    ! the local partition - this algorithm should spread out the number of
-    ! cells each partition gets fairly evenly
-    start_x = ( (local_xproc*num_cells_x) / xproc ) + 1
-    num_x   = ( ((local_xproc+1)*num_cells_x) / xproc ) - start_x + 1
-    start_y = ( (local_yproc*num_cells_y) / yproc ) + 1
-    num_y   = ( ((local_yproc+1)*num_cells_y) / yproc ) - start_y + 1
 
     ! Create a linked list of all cells that are part of this partition (not halos)
 

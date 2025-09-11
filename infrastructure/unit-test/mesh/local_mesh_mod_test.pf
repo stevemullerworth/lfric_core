@@ -27,6 +27,7 @@ module local_mesh_mod_test
                                         partitioner_cubedsphere_serial, &
                                         partitioner_interface
   use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
+  use panel_decomposition_mod,    only: custom_decomposition_type
 
   implicit none
 
@@ -99,6 +100,7 @@ contains
     integer(i_def) :: yproc
     integer(i_def) :: max_stencil_depth
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
     type(partition_type) :: partition
     type(local_mesh_type) :: local_mesh
 
@@ -166,13 +168,13 @@ contains
     end select
     max_stencil_depth = 2
     generate_inner_halos = .true.
+    decomposition = custom_decomposition_type(xproc, yproc)
 
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 this%getProcessRank(), &
                                 this%getNumProcesses() )
 
@@ -464,6 +466,7 @@ contains
 
     type(partition_type) :: partition
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     type(local_mesh_type), target :: local_mesh(2)
     type(local_mesh_map_type), pointer :: local_mesh_map
@@ -481,13 +484,14 @@ contains
 
     ! Read in two meshes
     partitioner_ptr => partitioner_cubedsphere_serial
+    decomposition = custom_decomposition_type(xproc, yproc)
     do i=1, size(mesh_names)
       call ugrid_mesh_data%read_from_file(trim(filename), mesh_names(i))
       global_mesh = global_mesh_type( ugrid_mesh_data )
       call ugrid_mesh_data%clear()
       global_mesh_ptr => global_mesh
       partition = partition_type( global_mesh_ptr, partitioner_ptr,     &
-                                  xproc, yproc, max_stencil_depth,      &
+                                  decomposition, max_stencil_depth,      &
                                   generate_inner_halos, local_rank,    &
                                   total_ranks )
 

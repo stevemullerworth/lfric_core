@@ -21,7 +21,8 @@ module partition_mod_test
                                         partitioner_cubedsphere_serial, &
                                         partitioner_interface
   use reference_element_mod,      only: reference_cube_type
-  use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use ugrid_mesh_data_mod,        only: ugrid_mesh_data_type
+  use panel_decomposition_mod,    only: custom_decomposition_type
 
   implicit none
 
@@ -97,6 +98,7 @@ contains
     type(partition_type)            :: partition
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     integer :: xproc
     integer :: yproc
@@ -147,14 +149,14 @@ contains
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
 
     partitioner_ptr => partitioner_planar
+    decomposition = custom_decomposition_type(xproc, yproc)
     !
     ! Generate the partition
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
 
@@ -241,6 +243,7 @@ contains
     type(partition_type)            :: partition
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     integer :: xproc
     integer :: yproc
@@ -293,14 +296,14 @@ contains
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
 
     partitioner_ptr => partitioner_planar
+    decomposition = custom_decomposition_type(xproc, yproc)
     !
     ! Generate the partition
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
     ! Test functionality of the partition object we've just created on both 1
@@ -386,6 +389,7 @@ contains
     type(partition_type)            :: partition
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     integer :: xproc
     integer :: yproc
@@ -438,14 +442,14 @@ contains
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
 
     partitioner_ptr => partitioner_planar
+    decomposition = custom_decomposition_type(xproc, yproc)
     !
     ! Generate the partition
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
     ! Test functionality of the partition object we've just created on both 1
@@ -531,6 +535,7 @@ contains
     type(partition_type)            :: partition
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     integer :: xproc
     integer :: yproc
@@ -583,14 +588,14 @@ contains
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
 
     partitioner_ptr => partitioner_planar
+    decomposition = custom_decomposition_type(xproc, yproc)
     !
     ! Generate the partition
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
     ! Test functionality of the partition object we've just created on both 1
@@ -679,6 +684,7 @@ contains
     type(partition_type)            :: partition
 
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
 
     integer :: xproc
     integer :: yproc
@@ -720,13 +726,13 @@ contains
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
 
     partitioner_ptr => partitioner_cubedsphere_serial
+    decomposition = custom_decomposition_type(xproc, yproc)
 
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 local_rank,            &
                                 total_ranks )
     !

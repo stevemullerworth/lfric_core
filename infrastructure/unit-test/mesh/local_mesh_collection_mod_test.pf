@@ -22,6 +22,7 @@ module local_mesh_collection_mod_test
                                          partitioner_planar, &
                                          partitioner_interface
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use panel_decomposition_mod,    only : custom_decomposition_type
 
   use pfunit
 
@@ -87,10 +88,9 @@ contains
     type(global_mesh_type) :: global_mesh
     type(global_mesh_type), pointer :: global_mesh_ptr => null()
     integer(i_def) :: global_mesh_id
-    integer(i_def) :: xproc
-    integer(i_def) :: yproc
     integer(i_def) :: max_stencil_depth
     procedure (partitioner_interface), pointer :: partitioner_ptr => null()
+    type(custom_decomposition_type) :: decomposition
     type(partition_type) :: partition
     type(local_mesh_type) :: local_mesh
     type(local_mesh_type) :: unit_test_local_mesh
@@ -109,16 +109,14 @@ contains
     call global_mesh_collection%add_new_global_mesh( global_mesh )
     global_mesh_ptr => global_mesh_collection%get_global_mesh( global_mesh_id )
     partitioner_ptr => partitioner_planar
-    xproc = 1
-    yproc = 1
+    decomposition = custom_decomposition_type(1,1)
     max_stencil_depth = 1
     generate_inner_halos = .true.
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 max_stencil_depth,     &
-                                generate_inner_halos, &
+                                generate_inner_halos,  &
                                 this%getProcessRank(), &
                                 this%getNumProcesses() )
 

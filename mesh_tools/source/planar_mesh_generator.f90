@@ -56,6 +56,8 @@ program planar_mesh_generator
   use ugrid_file_mod,         only: ugrid_file_type
   use write_local_meshes_mod, only: write_local_meshes
 
+  use panel_decomposition_mod, only: panel_decomposition_type
+
   ! Configuration modules.
   use mesh_config_mod,     only: COORD_SYS_LL,          &
                                  COORD_SYS_XYZ,         &
@@ -86,8 +88,9 @@ program planar_mesh_generator
   type(gen_lbc_type)  :: lbc_mesh_gen
   type(ugrid_2d_type) :: lbc_ugrid_2d
 
+  class(panel_decomposition_type), allocatable :: decomposition
+
   integer(i_def) :: fsize
-  integer(i_def) :: xproc, yproc
   integer(i_def) :: n_mesh_maps = 0
   integer(i_def) :: n_targets
 
@@ -819,7 +822,7 @@ program planar_mesh_generator
     !---------------------------------------------------------------
     ! 7.2 Get partitioning parameters.
     !---------------------------------------------------------------
-    call set_partition_parameters( xproc, yproc, partitioner_ptr )
+    call set_partition_parameters( decomposition, partitioner_ptr )
 
 
 
@@ -840,8 +843,8 @@ program planar_mesh_generator
                       global_mesh_collection,          &
                       mesh_names, partition_id,        &
                       n_partitions, max_stencil_depth, &
-                      generate_inner_halos,           &
-                      xproc, yproc, partitioner_ptr,   &
+                      generate_inner_halos,            &
+                      decomposition, partitioner_ptr,  &
                       lbc_parent_mesh )
       else
         call generate_op_local_objects(                &
@@ -849,8 +852,8 @@ program planar_mesh_generator
                       global_mesh_collection,          &
                       mesh_names, partition_id,        &
                       n_partitions, max_stencil_depth, &
-                      generate_inner_halos,           &
-                      xproc, yproc, partitioner_ptr )
+                      generate_inner_halos,            &
+                      decomposition, partitioner_ptr )
       end if
 
       !---------------------------------------------------------------

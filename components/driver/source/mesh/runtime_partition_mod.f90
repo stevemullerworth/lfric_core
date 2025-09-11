@@ -25,186 +25,22 @@ module runtime_partition_mod
                            partitioner_cubedsphere,        &
                            partitioner_planar
 
+  use panel_decomposition_mod, only: panel_decomposition_type
+
   use local_mesh_collection_mod,  only: local_mesh_collection
   use global_mesh_collection_mod, only: global_mesh_collection
 
   implicit none
 
   private
-  public :: get_partition_parameters
+  public :: get_partition_strategy
   public :: create_local_mesh
   public :: create_local_mesh_maps
 
   integer, public, parameter :: mesh_cubedsphere = 34
   integer, public, parameter :: mesh_planar      = 28
 
-  integer, public, parameter :: decomp_auto   = 30
-  integer, public, parameter :: decomp_row    = 68
-  integer, public, parameter :: decomp_column = 12
-
-  interface get_partition_parameters
-    procedure get_partition_parameters_auto
-    procedure get_partition_parameters_custom
-  end interface get_partition_parameters
-
 contains
-
-!> @brief Determines the common parameters for partitioning global mesh domains.
-!>
-!> This routine supports only 'Planar' or 'Cubed-Sphere` mesh types specified
-!> using this module's enumeration parameters, [mesh_cubedsphere|mesh_planar].
-!>
-!> Individual partitions are restricted to a "retangular" mesh panel.
-!> Decomposition of partitions across a given panel are specified using this
-!> module's enumeration parameters, [decomp_auto|decomp_row|decomp_column].
-!>
-!> @param[in]   mesh_selection      Choice of supported mesh
-!> @param[in]   panel_decomposition Choice of panel decomposition
-!> @param[in]   total_ranks         Total number of MPI ranks
-!> @param[out]  panel_xproc         Ranks in mesh panel local x-direction
-!> @param[out]  panel_yproc         Ranks in mesh panel local y-direction
-!> @param[out]  partitioner_ptr     Mesh partitioning strategy
-!=============================================================================
-subroutine get_partition_parameters_auto( mesh_selection,      &
-                                          panel_decomposition, &
-                                          total_ranks,         &
-                                          panel_xproc,         &
-                                          panel_yproc,         &
-                                          partitioner_ptr )
-
-  implicit none
-
-  integer, intent(in) :: mesh_selection
-  integer, intent(in) :: panel_decomposition
-
-  integer(i_def), intent(in)  :: total_ranks
-
-  integer(i_def), intent(out) :: panel_xproc
-  integer(i_def), intent(out) :: panel_yproc
-
-  procedure(partitioner_interface), &
-                  intent(out), pointer :: partitioner_ptr
-
-  ! Locals
-  integer(i_def) :: ranks_per_panel
-  integer(i_def) :: start_factor
-  integer(i_def) :: end_factor
-  integer(i_def) :: fact_count
-  logical(l_def) :: found_factors
-
-  integer(i_def), parameter :: max_factor_iters = 10000
-
-  !===========================================================================
-  ! Partition strategy
-  !===========================================================================
-  call get_partition_strategy( mesh_selection, total_ranks, &
-                               ranks_per_panel, partitioner_ptr )
-
-
-  !===========================================================================
-  ! Panel decomposition
-  !===========================================================================
-  select case (panel_decomposition)
-
-  case (decomp_auto)
-
-    ! For automatic partitioning, attempt to partition into the squarest
-    ! possible partitions by finding the two factors of ranks_per_panel
-    ! that are closest to sqrt(ranks_per_panel).
-    start_factor  = nint(sqrt(real(ranks_per_panel, kind=r_def)), kind=i_def)
-    end_factor    = max(1,(start_factor-max_factor_iters))
-    found_factors = .false.
-
-    do fact_count=start_factor, end_factor, -1
-      if (mod(ranks_per_panel,fact_count) == 0) then
-        found_factors = .true.
-        exit
-      end if
-    end do
-
-    if (found_factors) then
-      panel_xproc = fact_count
-      panel_yproc = ranks_per_panel/fact_count
-    else
-      call log_event( "Could not automatically partition domain.", &
-                      log_level_error )
-    end if
-
-  case (decomp_row)
-    panel_xproc = ranks_per_panel
-    panel_yproc = 1
-
-  case (decomp_column)
-    panel_xproc = 1
-    panel_yproc = ranks_per_panel
-
-  case default
-    call log_event( "Missing entry for panel decomposition, "// &
-                    "specify 'auto' if unsure.", log_level_error )
-
-  end select
-
-  if (total_ranks > 1) then
-    write(log_scratch_space, '(2(A,I0))' ) &
-        'Panel decomposition: ', panel_xproc, 'x', panel_yproc
-    call log_event( log_scratch_space, log_level_debug )
-  end if
-
-end subroutine get_partition_parameters_auto
-
-
-!> @brief Determines the common parameters for partitioning global mesh domains.
-!>
-!> This routine supports only 'Planar' or 'Cubed-Sphere` mesh types specified
-!> using this module's enumeration parameters, [mesh_cubedsphere|mesh_planar].
-!>
-!> @param[in]   mesh_selection     Choice of supported mesh
-!> @param[in]   total_ranks        Total number of MPI ranks
-!> @param[in]   panel_xproc        Ranks mesh panel local x-direction
-!> @param[in]   panel_yproc        Ranks mesh panel local x-direction
-!> @param[out]  partitioner_ptr    Mesh partitioning strategy
-!=============================================================================
-subroutine get_partition_parameters_custom( mesh_selection, total_ranks, &
-                                            panel_xproc, panel_yproc,    &
-                                            partitioner_ptr )
-
-  implicit none
-
-  integer, intent(in) :: mesh_selection
-
-  integer(i_def), intent(in) :: total_ranks
-  integer(i_def), intent(in) :: panel_xproc
-  integer(i_def), intent(in) :: panel_yproc
-
-  procedure(partitioner_interface), &
-                  intent(out), pointer :: partitioner_ptr
-
-  ! Locals
-  integer(i_def) :: ranks_per_panel
-
-  !===========================================================================
-  ! Partition strategy
-  !===========================================================================
-  call get_partition_strategy( mesh_selection, total_ranks, &
-                               ranks_per_panel, partitioner_ptr )
-
-  !===========================================================================
-  ! Panel decomposition
-  !===========================================================================
-  if (panel_xproc*panel_yproc /= ranks_per_panel) then
-     call log_event( "The values of panel_xproc and panel_yproc "// &
-                     "are inconsistent with the total number of "// &
-                     "processors available.", log_level_error )
-  end if
-
-  if (total_ranks > 1) then
-    write(log_scratch_space, '(2(A,I0))' ) &
-        'Panel decomposition: ', panel_xproc, 'x', panel_yproc
-    call log_event( log_scratch_space, log_level_debug )
-  end if
-
-end subroutine get_partition_parameters_custom
-
 
 !> @brief Determines the partition stratedy to used for supported meshes
 !>
@@ -216,15 +52,13 @@ end subroutine get_partition_parameters_custom
 !> @param[out]  ranks_per_panel    Ranks per mesh panel
 !> @param[out]  partitioner_ptr    Mesh partitioning strategy
 !=============================================================================
-subroutine get_partition_strategy( mesh_selection, total_ranks, &
-                                   ranks_per_panel, partitioner_ptr )
+subroutine get_partition_strategy( mesh_selection, total_ranks, partitioner_ptr )
 
   implicit none
 
   integer, intent(in) :: mesh_selection
 
   integer(i_def), intent(in)  :: total_ranks
-  integer(i_def), intent(out) :: ranks_per_panel
 
   procedure(partitioner_interface), &
                   intent(out), pointer :: partitioner_ptr
@@ -237,23 +71,17 @@ subroutine get_partition_strategy( mesh_selection, total_ranks, &
 
   case (mesh_cubedsphere)
 
-    if (total_ranks == 1 .or. mod(total_ranks,6) == 0) then
+    if (total_ranks == 1) then
+      ! Serial run job
+      partitioner_ptr => partitioner_cubedsphere_serial
+      call log_event( "Using serial cubed sphere partitioner", &
+                      log_level_debug )
 
-      ranks_per_panel = total_ranks/6
-
-      if (total_ranks == 1) then
-        ! Serial run job
-        ranks_per_panel = 1
-        partitioner_ptr => partitioner_cubedsphere_serial
-        call log_event( "Using serial cubed sphere partitioner", &
-                        log_level_debug )
-
-      else
-        ! Paralled run job
-        partitioner_ptr => partitioner_cubedsphere
-        call log_event( "Using parallel cubed sphere partitioner", &
-                        log_level_debug )
-      end if
+    else if (mod(total_ranks,6) == 0) then
+      ! Paralled run job
+      partitioner_ptr => partitioner_cubedsphere
+      call log_event( "Using parallel cubed sphere partitioner", &
+                      log_level_debug )
 
     else
       call log_event( "Total number of processors must be 1 (serial) "// &
@@ -263,7 +91,6 @@ subroutine get_partition_strategy( mesh_selection, total_ranks, &
 
   case (mesh_planar)
 
-    ranks_per_panel = total_ranks
     partitioner_ptr => partitioner_planar
     call log_event( "Using planar mesh partitioner ", &
                     log_level_debug )
@@ -281,16 +108,16 @@ end subroutine get_partition_strategy
 !!                                    from the mesh input file
 !> @param[in]  local_rank             Number of the local MPI rank
 !> @param[in]  total_ranks            Total number of MPI ranks in this job
-!> @param[in]  xproc                  Number of ranks in mesh panel x-direction
-!> @param[in]  yproc                  Number of ranks in mesh panel y-direction
-!> @param[in]  generate_inner_halos  Generate inner halo regions
+!> @param [in] decomposition          Object containing decomposition parameters
+!>                                    and method
+!> @param[in]  generate_inner_halos   Generate inner halo regions
 !!                                    to overlap comms & compute
 !> @param[in]  stencil_depth          Depth of cells outside the base cell
 !!                                    of stencil.
 !> @param[in]  partitioner_ptr        Mesh partitioning strategy
 subroutine create_local_mesh( mesh_names,              &
                               local_rank, total_ranks, &
-                              xproc, yproc,            &
+                              decomposition,            &
                               stencil_depth,           &
                               generate_inner_halos,   &
                               partitioner_ptr )
@@ -299,10 +126,10 @@ subroutine create_local_mesh( mesh_names,              &
 
   character(len=str_def), intent(in) :: mesh_names(:)
 
+  class(panel_decomposition_type), intent(in) :: decomposition
+
   integer(i_def), intent(in) :: local_rank
   integer(i_def), intent(in) :: total_ranks
-  integer(i_def), intent(in) :: xproc
-  integer(i_def), intent(in) :: yproc
   integer(i_def), intent(in) :: stencil_depth
 
   logical(l_def), intent(in) :: generate_inner_halos
@@ -322,7 +149,7 @@ subroutine create_local_mesh( mesh_names,              &
     ! Create partition
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc, yproc,          &
+                                decomposition,         &
                                 stencil_depth,         &
                                 generate_inner_halos, &
                                 local_rank, total_ranks )

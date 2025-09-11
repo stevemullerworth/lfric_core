@@ -42,7 +42,6 @@ module driver_mesh_mod
   use namelist_collection_mod,    only: namelist_collection_type
   use namelist_mod,               only: namelist_type
   use partition_mod,              only: partitioner_interface
-  use sci_query_mod,              only: check_uniform_partitions
 
   use runtime_partition_lfric_mod, only: get_partition_parameters
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
@@ -57,6 +56,7 @@ module driver_mesh_mod
   use finite_element_config_mod, only: cellshape_quadrilateral
   use base_mesh_config_mod,      only: geometry_spherical, &
                                        topology_fully_periodic
+  use panel_decomposition_mod, only: panel_decomposition_type
 
   implicit none
 
@@ -112,9 +112,6 @@ subroutine init_mesh( configuration,           &
   ! Parameters
   character(len=9), parameter :: routine_name = 'init_mesh'
 
-  ! Counters
-  integer(i_def) :: i
-
   ! Namelist variables
   type(namelist_type), pointer :: base_mesh_nml
   type(namelist_type), pointer :: finite_element_nml
@@ -136,12 +133,9 @@ subroutine init_mesh( configuration,           &
   character(str_def), allocatable :: tmp_mesh_names(:)
   character(str_max_filename)     :: input_mesh_file
 
-  type(global_mesh_type),           pointer :: global_mesh_ptr
   procedure(partitioner_interface), pointer :: partitioner_ptr
 
-  integer(i_def) :: xproc  ! Processor ranks in mesh panel x-direction
-  integer(i_def) :: yproc  ! Processor ranks in mesh panel y-direction
-  logical        :: partitions_good
+  class(panel_decomposition_type), allocatable :: decomposition
 
 
   !============================================================================
@@ -273,7 +267,7 @@ subroutine init_mesh( configuration,           &
     ! 2.2a Set constants that will control partitioning.
     !===========================================================
     call get_partition_parameters( configuration, mesh_selection, &
-                                   total_ranks, xproc, yproc,     &
+                                   total_ranks, decomposition,    &
                                    partitioner_ptr )
 
     ! 2.2b Read in all global meshes from input file
@@ -286,41 +280,13 @@ subroutine init_mesh( configuration,           &
     !===========================================================
     call check_global_mesh( configuration, mesh_names )
 
-    ! 2.2d Optional, Check for even partitions
-    !===========================================================
-    ! Check global meshes which may require even partition sizes,
-    ! these will generally be where there are meshes of differing
-    ! resolutions and the node locations of one mesh overlay the
-    ! the other(s). Checking the lowest resolution mesh for
-    ! even partitions should ensure common geographical partitions.
-    if ( check_partitions ) then
-
-      do i=1, size(mesh_names)
-
-        write(log_scratch_space, '(A)') &
-            'Checking partitioning on mesh '//trim(mesh_names(i))
-
-        global_mesh_ptr => &
-                global_mesh_collection%get_global_mesh( mesh_names(i) )
-        partitions_good = check_uniform_partitions( global_mesh_ptr, &
-                                                    xproc, yproc )
-        if ( .not. partitions_good ) then
-          write(log_scratch_space, '(A)')                                &
-              'Global mesh ('// trim(global_mesh_ptr%get_mesh_name()) // &
-              ') ' // 'does not produce even partitions with the ' //    &
-              'requested partition strategy'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
-      end do
-    end if
-
     ! 2.2e Partition the global meshes
     !===========================================================
     call create_local_mesh( mesh_names,              &
                             local_rank, total_ranks, &
-                            xproc, yproc,            &
+                            decomposition,           &
                             stencil_depth,           &
-                            generate_inner_halos,   &
+                            generate_inner_halos,    &
                             partitioner_ptr )
 
 
