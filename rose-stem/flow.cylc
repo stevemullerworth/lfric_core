@@ -42,6 +42,7 @@
 {# Generate a list of all scripts - used to determine if a task is a script #}
 {% set scripts_list = [] %}
 {{ expand_task_list(site_groups, ["scripts"], false, scripts_list) }}
+{% do set_add(scripts_list, "export_simsys_scripts") %}
 
 {# Load the task definitions for each application requested at current site #}
 {% set requested_tasks = {} %}
