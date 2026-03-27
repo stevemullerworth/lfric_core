@@ -125,7 +125,7 @@ type, public :: ugrid_2d_type
   ! Information about the domain orientation
   real(r_def) :: north_pole(2)        !< [Longitude, Latitude] of north pole used
                                       !< for the domain orientation (degrees)
-  real(r_def) :: null_island(2) = 1.23       !< [Longitude, Latitude] of null island
+  real(r_def) :: null_island(2) = 3.45       !< [Longitude, Latitude] of null island
                                       !< used for the domain orientation (degrees)
   real(r_def) :: equatorial_latitude  !< Latitude of equator of mesh (degrees)
 
@@ -832,7 +832,7 @@ subroutine get_metadata( self, mesh_name,               &
   if (present(north_pole))          north_pole          = self%north_pole
   if (present(null_island)) then
     null_island         = self%null_island
-    write(6,*)'SDM ugrid_2d: XX 1.23 null_island present ',null_island
+    write(6,*)'SDM ugrid_2d: XX 3.45 null_island present ',null_island
   else
     write(6,*)'SDM ugrid_2d: null island not present'
   end if
