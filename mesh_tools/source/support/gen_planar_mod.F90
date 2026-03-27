@@ -365,11 +365,13 @@ function gen_planar_constructor( reference_element,          &
     if ( self%rotate_mesh ) then
       self%north_pole  = degrees_to_radians * target_north_pole
       self%null_island = degrees_to_radians * target_null_island
+      write(6,*)'SDM rotate_mesh so set ',self%null_island
     else
       ! Default value is also given in degrees so
       ! convert to radians.
       self%north_pole  = degrees_to_radians * TRUE_NORTH_POLE_LL
       self%null_island = degrees_to_radians * TRUE_NULL_ISLAND_LL
+      write(6,*)'SDM NOT rotate_mesh so set ',self%null_island
     end if
 
   case default
@@ -1920,7 +1922,7 @@ subroutine generate(self)
   implicit none
 
   class(gen_planar_type), intent(inout) :: self
-
+  write(6,*)'SDM gen_planar_mesh:generate called',self%null_island
   call calc_adjacency(self)
   call calc_face_to_vert(self)
   call calc_edges(self)
@@ -1961,6 +1963,7 @@ subroutine generate(self)
   if (DEBUG) call write_mesh(self)
 
   self%generated = .true.
+  write(6,*)'SDM gen_planar_mesh:generate returns',self%null_island
 
   return
 end subroutine generate
@@ -2142,7 +2145,12 @@ subroutine get_metadata( self,               &
   end if
 
   if (present(north_pole))  north_pole(:)  = factor * self%north_pole(:)
-  if (present(null_island)) null_island(:) = factor * self%null_island(:)
+  if (present(null_island)) then
+    null_island(:) = factor * self%null_island(:)
+    write(6,*)'SDM gen_planar_mod null_island present ',null_island
+  else
+    write(6,*)'SDM gen_planar_mod null_island not present'
+  end if
   if (present(equatorial_latitude)) equatorial_latitude = factor * self%equatorial_latitude
 
   return

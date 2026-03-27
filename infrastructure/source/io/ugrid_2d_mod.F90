@@ -125,7 +125,7 @@ type, public :: ugrid_2d_type
   ! Information about the domain orientation
   real(r_def) :: north_pole(2)        !< [Longitude, Latitude] of north pole used
                                       !< for the domain orientation (degrees)
-  real(r_def) :: null_island(2)       !< [Longitude, Latitude] of null island
+  real(r_def) :: null_island(2) = 1.23       !< [Longitude, Latitude] of null island
                                       !< used for the domain orientation (degrees)
   real(r_def) :: equatorial_latitude  !< Latitude of equator of mesh (degrees)
 
@@ -197,6 +197,7 @@ contains
     implicit none
 
     type(ugrid_2d_type) :: self
+    write(6,*)'SDM ugrid_2d constructor ',self%null_island
 
     nullify(self%target_global_mesh_maps)
     nullify(self%target_local_mesh_maps)
@@ -232,9 +233,11 @@ subroutine get_dimensions( self, num_nodes, num_edges, num_faces,  &
   integer(i_def), intent(out) :: num_nodes_per_edge
   integer(i_def), intent(out) :: max_num_faces_per_node
 
+
   num_nodes = self%num_nodes
   num_edges = self%num_edges
   num_faces = self%num_faces
+  write(6,*)'SDM ugrid_2d get_dimensions eg num_nodes ',num_nodes
 
   num_nodes_per_face = self%num_nodes_per_face
   num_edges_per_face = self%num_edges_per_face
@@ -302,6 +305,7 @@ subroutine allocate_arrays(self, generator_strategy)
   type(ugrid_2d_type),         intent(inout) :: self
   class(ugrid_generator_type), intent(in)    :: generator_strategy
 
+  write(6,*)'SDM ugrid_2d allocate arrays '
   call generator_strategy%get_dimensions(                      &
          num_nodes              = self%num_nodes,              &
          num_edges              = self%num_edges,              &
@@ -415,6 +419,7 @@ subroutine set_by_generator(self, generator_strategy)
   class(ugrid_2d_type),        intent(inout) :: self
   class(ugrid_generator_type), intent(inout) :: generator_strategy
 
+  write(6,*)'SDM ugrid_2d: set_by_generator called',self%null_island
   call generator_strategy%generate()
 
   call generator_strategy%get_metadata                  &
@@ -459,6 +464,7 @@ subroutine set_by_generator(self, generator_strategy)
         face_edge_connectivity = self%face_edge_connectivity, &
         face_face_connectivity = self%face_face_connectivity )
 
+  write(6,*)'ugrid_2d: set_by_generator returns',self%null_island
   return
 end subroutine set_by_generator
 
@@ -504,6 +510,7 @@ subroutine set_from_file_read(self, mesh_name, filename)
 
   self%mesh_name = trim(mesh_name)
 
+  write(6,*)'SDM ugrid_2d: set_from_file_read called',self%null_island
   call self%file_handler%file_open(trim(filename))
 
   if (.not. self%file_handler%is_mesh_present(trim(mesh_name))) then
@@ -552,6 +559,7 @@ subroutine set_from_file_read(self, mesh_name, filename)
 
   self%populated_with_mesh = .true.
 
+  write(6,*)'SDM ugrid_2d: set_from_file_read returns',self%null_island
   return
 end subroutine set_from_file_read
 
@@ -822,7 +830,13 @@ subroutine get_metadata( self, mesh_name,               &
   if (present(num_ghost))           num_ghost           = self%num_ghost
   if (present(last_ghost_cell))     last_ghost_cell     = self%last_ghost_cell
   if (present(north_pole))          north_pole          = self%north_pole
-  if (present(null_island))         null_island         = self%null_island
+  if (present(null_island)) then
+    null_island         = self%null_island
+    write(6,*)'SDM ugrid_2d: XX 1.23 null_island present ',null_island
+  else
+    write(6,*)'SDM ugrid_2d: null island not present'
+  end if
+
   if (present(equatorial_latitude)) equatorial_latitude = self%equatorial_latitude
   if (present(ncells_global))       ncells_global       = self%num_global_cells
 
@@ -1284,7 +1298,14 @@ subroutine set_coords( self,                     &
   end if
 
   if (present(north_pole))          self%north_pole          = north_pole
-  if (present(null_island))         self%null_island         = null_island
+  !if (present(null_island))         self%null_island         = null_island
+  if (present(null_island)) then
+    self%null_island         = null_island
+    write(6,*)'SDM ugrid_2d: 2 null_island present ',null_island
+  else
+    write(6,*)'SDM ugrid_2d: 2 null island not present'
+  end if
+
   if (present(equatorial_latitude)) self%equatorial_latitude = equatorial_latitude
   if (present(coord_sys))           self%coord_sys           = coord_sys
   if (present(units_xy))            self%coord_units_xy(:)   = units_xy(:)
