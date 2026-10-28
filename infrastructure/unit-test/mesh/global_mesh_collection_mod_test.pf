@@ -223,7 +223,8 @@ contains
     integer :: logger_alert_unit, condition
     integer, parameter :: temporary_logger_alert_unit = 12
 
-    character( str_long ) :: msg
+    character( str_long )          :: iomsg
+    character( str_long + str_def) :: failure_msg
 
     type(ncdf_quad_type) :: file_handler
 
@@ -232,17 +233,21 @@ contains
     ! on the global mesh ids. So all the required global mesh
     ! topologies must be read in first.
 
-    ! Intercept and discard log messages from code as they confuse the output
+    ! Intercept and discard log warning message from mesh code as they confuse
+    ! the output
     logger_alert_unit = log_get_alert_stream()
     open( temporary_logger_alert_unit, status='scratch', action='readwrite', &
-          iostat = condition, iomsg = msg )
-    call log_set_alert_stream(temporary_logger_alert_unit)
+          iostat = condition, iomsg = iomsg )
     if (condition /= 0) then
-      ! Failure to open file is an immmediate bug
-      write(log_scratch_space, '(A,I6,A)')'global_mesh_collection unit test: ', &
-                      condition, trim(msg)
-      call log_event(log_scratch_space, log_level_error)
+      ! Failure to open file is an immmediate bug in test. Report and stop this test
+      write(failure_msg, '(A,I6,A)')'global_mesh_collection unit test:' //        &
+                                    'Abort unit tests due to failure opening ' // &
+                                    'temporary log file',                         &
+                                     condition, trim(iomsg)
+      @assertFail(failure_msg)
+      return
     end if
+    ! Point logger at temporary file
     call log_set_alert_stream(temporary_logger_alert_unit)
 
     do i=1, size(multigrid_mesh_names)
@@ -263,13 +268,16 @@ contains
       call global_mesh_collection%add_new_global_mesh( global_mesh )
     end do
 
-    close(temporary_logger_alert_unit, iostat=condition)
+    ! Point logger back to original stream and close temporary unit
     call log_set_alert_stream(logger_alert_unit)
+    close(temporary_logger_alert_unit, iostat=condition, iomsg=iomsg)
     if (condition /= 0) then
-      ! Failure to close file is an immmediate bug
-      write(log_scratch_space, '(A,I6,A)')'global_mesh_collection unit test: ', &
-                      condition, trim(msg)
-      call log_event(log_scratch_space, log_level_error)
+      ! Failure to close file is a bug. Report and end this test
+      write(failure_msg, '(A,I6,A)')'abort global_mesh_collection unit tests ' // &
+                      'due to failure when closing temporary log file: ',         &
+                      condition, trim(iomsg)
+      @assertFail(failure_msg)
+      return
     end if
      ! Now get the ids of the `chains` from the collection
     do i=1, size(multigrid_mesh_names)
